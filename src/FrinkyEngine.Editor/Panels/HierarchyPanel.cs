@@ -27,6 +27,10 @@ public class HierarchyPanel
 
     private Guid? _draggedEntityId;
     private string? _draggedFolderId;
+    private bool _openCreateFolderPopup;
+    private string? _createFolderParentId;
+    private string _createFolderName = "New Folder";
+    private bool _focusCreateFolderInput;
 
     private List<Entity> _lastVisibleEntities = new();
 
@@ -141,6 +145,7 @@ public class HierarchyPanel
         var state = _app.GetOrCreateHierarchySceneState();
 
         DrawToolbar(state);
+        DrawCreateFolderPopup(state);
         ImGui.Separator();
 
         var context = BuildRenderContext(_app.CurrentScene, state);
@@ -303,7 +308,7 @@ public class HierarchyPanel
             DrawCreateEntityMenuItems(parent: null);
             ImGui.Separator();
             if (ImGui.MenuItem("Folder"))
-                CreateFolder(state, "New Folder", parentFolderId: null);
+                RequestCreateFolder(parentFolderId: null);
             ImGui.EndPopup();
         }
 
@@ -352,7 +357,6 @@ public class HierarchyPanel
 
         var flags = ImGuiTreeNodeFlags.OpenOnArrow
                     | ImGuiTreeNodeFlags.SpanAvailWidth
-                    | ImGuiTreeNodeFlags.SpanFullWidth
                     | ImGuiTreeNodeFlags.FramePadding;
         if (!hasChildren)
             flags |= ImGuiTreeNodeFlags.Leaf;
@@ -366,11 +370,7 @@ public class HierarchyPanel
         bool isOpen = expandedFolders.Contains(folder.Id) || forceOpen;
         ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
 
-        string displayLabel = string.Equals(_renamingFolderId, folder.Id, StringComparison.OrdinalIgnoreCase)
-            ? $"##folder_{folder.Id}"
-            : folder.Name;
-
-        bool opened = ImGui.TreeNodeEx($"folder_{folder.Id}", flags, displayLabel);
+        bool opened = ImGui.TreeNodeEx($"folder_{folder.Id}", flags, folder.Name);
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
         {
@@ -443,9 +443,7 @@ public class HierarchyPanel
         ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
 
         bool isRenaming = _renamingEntityId.HasValue && _renamingEntityId.Value == entity.Id;
-        string displayLabel = isRenaming ? $"##entity_{entityKey}" : entity.Name;
-
-        bool opened = ImGui.TreeNodeEx($"entity_{entityKey}", flags, displayLabel);
+        bool opened = ImGui.TreeNodeEx($"entity_{entityKey}", flags, entity.Name);
 
         visibleEntities.Add(entity);
 
@@ -501,8 +499,9 @@ public class HierarchyPanel
         if (!isRenaming)
             return;
 
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(220f);
+        float indent = ImGui.GetTreeNodeToLabelSpacing();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetContentRegionAvail().X));
         if (_focusRenameInput)
         {
             ImGui.SetKeyboardFocusHere();
@@ -524,8 +523,9 @@ public class HierarchyPanel
 
     private void DrawFolderRenameInput(HierarchyFolderState folder)
     {
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(220f);
+        float indent = ImGui.GetTreeNodeToLabelSpacing();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
+        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetContentRegionAvail().X));
         if (_focusRenameInput)
         {
             ImGui.SetKeyboardFocusHere();
@@ -624,7 +624,7 @@ public class HierarchyPanel
             BeginRenameFolder(folder.Id);
 
         if (ImGui.MenuItem("New Subfolder"))
-            CreateFolder(state, "New Folder", folder.Id);
+            RequestCreateFolder(folder.Id);
 
         ImGui.Separator();
 
@@ -650,7 +650,7 @@ public class HierarchyPanel
             DrawCreateEntityMenuItems(parent: null);
             ImGui.Separator();
             if (ImGui.MenuItem("Folder"))
-                CreateFolder(state, "New Folder", parentFolderId: null);
+                RequestCreateFolder(parentFolderId: null);
             ImGui.EndMenu();
         }
 
@@ -940,8 +940,61 @@ public class HierarchyPanel
         _app.RefreshUndoBaseline();
     }
 
-    private void CreateFolder(HierarchySceneState state, string name, string? parentFolderId)
+    private void RequestCreateFolder(string? parentFolderId)
     {
+        _createFolderParentId = parentFolderId;
+        _createFolderName = "New Folder";
+        _openCreateFolderPopup = true;
+        _focusCreateFolderInput = true;
+    }
+
+    private void DrawCreateFolderPopup(HierarchySceneState state)
+    {
+        if (_openCreateFolderPopup)
+        {
+            ImGui.OpenPopup("HierarchyCreateFolder");
+            _openCreateFolderPopup = false;
+        }
+
+        if (!ImGui.BeginPopup("HierarchyCreateFolder"))
+            return;
+
+        if (_focusCreateFolderInput)
+        {
+            ImGui.SetKeyboardFocusHere();
+            _focusCreateFolderInput = false;
+        }
+
+        bool submitted = ImGui.InputTextWithHint(
+            "##NewFolderName",
+            "Folder name (Enter to create)",
+            ref _createFolderName,
+            128,
+            ImGuiInputTextFlags.EnterReturnsTrue);
+
+        bool cancel = ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape);
+        if (cancel)
+        {
+            ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+            return;
+        }
+
+        if (submitted)
+        {
+            if (CreateFolder(state, _createFolderName, _createFolderParentId))
+                ImGui.CloseCurrentPopup();
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private bool CreateFolder(HierarchySceneState state, string name, string? parentFolderId)
+    {
+        name = name.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
         _app.RecordUndo();
 
         var folder = new HierarchyFolderState
@@ -954,13 +1007,14 @@ public class HierarchyPanel
 
         state.Folders.Add(folder);
         state.ExpandedFolderIds.Add(folder.Id);
+        if (!string.IsNullOrWhiteSpace(parentFolderId))
+            state.ExpandedFolderIds.Add(parentFolderId);
         _app.MarkHierarchyStateDirty();
 
         _focusedFolderId = folder.Id;
         _focusedEntityId = null;
-        BeginRenameFolder(folder.Id);
-
         _app.RefreshUndoBaseline();
+        return true;
     }
 
     private void DeleteFolder(HierarchyFolderState folder, HierarchySceneState state)

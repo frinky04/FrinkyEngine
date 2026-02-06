@@ -1,16 +1,16 @@
 {
   "name": "Untitled",
   "editorCameraPosition": {
-    "x": 19.985773,
-    "y": 11.740581,
-    "z": 5.3426285
+    "x": 7.2218976,
+    "y": 10.544118,
+    "z": 8.456865
   },
-  "editorCameraYaw": -172.49997,
-  "editorCameraPitch": -7.649996,
+  "editorCameraYaw": -143.40005,
+  "editorCameraPitch": -26.54998,
   "entities": [
     {
       "name": "Main Camera",
-      "id": "2977ab3c-023e-4596-b919-4ae322edb75c",
+      "id": "1025e1ce-bb88-4b55-af0d-99d4820084fe",
       "active": true,
       "components": [
         {
@@ -21,7 +21,7 @@
             "LocalPosition": {
               "x": 0,
               "y": 5,
-              "z": 10
+              "z": 8.219601
             },
             "LocalRotation": {
               "x": -0.17364818,
@@ -59,7 +59,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "10778b9c-6407-4db1-802d-7d3c2da26b98",
+      "id": "ba88ad9d-0a7a-47c4-8105-1f9602c73b0c",
       "active": true,
       "components": [
         {
