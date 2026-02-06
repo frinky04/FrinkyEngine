@@ -518,7 +518,7 @@ public class HierarchyPanel
             return;
         }
 
-        if (submitted || ImGui.IsItemDeactivatedAfterEdit())
+        if (submitted || ImGui.IsItemDeactivated())
             CommitEntityRename(entity);
     }
 
@@ -543,7 +543,7 @@ public class HierarchyPanel
             return;
         }
 
-        if (submitted || ImGui.IsItemDeactivatedAfterEdit())
+        if (submitted || ImGui.IsItemDeactivated())
             CommitFolderRename(folder);
     }
 
