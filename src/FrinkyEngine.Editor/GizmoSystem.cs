@@ -21,12 +21,14 @@ public enum GizmoSpace
 public class GizmoSystem
 {
     private const float GizmoScaleFactor = 0.15f;
-    private const float PickThresholdFactor = 0.12f;
+    private const float PickThresholdFactor = 0.18f;
     private const float ArrowLength = 1f;
     private const float ArrowHeadLength = 0.2f;
-    private const float ArrowHeadRadius = 0.06f;
+    private const float ArrowHeadRadius = 0.07f;
+    private const float ShaftRadius = 0.02f;
     private const float RotateRadius = 0.9f;
-    private const float ScaleCubeSize = 0.08f;
+    private const float RotateLineRadius = 0.015f;
+    private const float ScaleCubeSize = 0.1f;
     private const int CircleSegments = 64;
 
     public GizmoMode Mode { get; set; } = GizmoMode.Translate;
@@ -259,7 +261,8 @@ public class GizmoSystem
             var end = origin + axes[i] * ArrowLength * scale;
             var headEnd = origin + axes[i] * (ArrowLength + ArrowHeadLength) * scale;
 
-            Raylib.DrawLine3D(origin, end, color);
+            float r = ShaftRadius * scale;
+            Raylib.DrawCylinderEx(origin, end, r, r, 6, color);
             Raylib.DrawCylinderEx(end, headEnd, ArrowHeadRadius * scale, 0f, 8, color);
         }
     }
@@ -277,12 +280,13 @@ public class GizmoSystem
             var perp1 = GetPerpendicular(axis);
             var perp2 = Vector3.Cross(axis, perp1);
 
+            float r = RotateLineRadius * scale;
             Vector3 prevPoint = origin + perp1 * radius;
             for (int j = 1; j <= CircleSegments; j++)
             {
                 float angle = j * MathF.PI * 2f / CircleSegments;
                 var point = origin + (perp1 * MathF.Cos(angle) + perp2 * MathF.Sin(angle)) * radius;
-                Raylib.DrawLine3D(prevPoint, point, color);
+                Raylib.DrawCylinderEx(prevPoint, point, r, r, 4, color);
                 prevPoint = point;
             }
         }
@@ -295,7 +299,8 @@ public class GizmoSystem
             var color = (_hoveredAxis == i) ? HoverColor : AxisColors[i];
             var end = origin + axes[i] * ArrowLength * scale;
 
-            Raylib.DrawLine3D(origin, end, color);
+            float r = ShaftRadius * scale;
+            Raylib.DrawCylinderEx(origin, end, r, r, 6, color);
 
             var cubeSize = new Vector3(ScaleCubeSize * scale);
             Raylib.DrawCubeV(end, cubeSize, color);

@@ -77,7 +77,8 @@ public static class ComponentDrawerRegistry
         float lineHeight = ImGui.GetFrameHeight();
         var buttonSize = new Vector2(lineHeight + 3f, lineHeight);
         float availWidth = ImGui.GetContentRegionAvail().X;
-        float fieldWidth = (availWidth - 3f * buttonSize.X - 2f * ImGui.GetStyle().ItemSpacing.X) / 3f;
+        float spacing = ImGui.GetStyle().ItemSpacing.X;
+        float fieldWidth = (availWidth - 3f * buttonSize.X - 5f * spacing) / 3f;
 
         // X
         ImGui.PushStyleColor(ImGuiCol.Button, ColorRed);
