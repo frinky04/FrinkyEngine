@@ -15,7 +15,11 @@ public enum EditorAction
     DeleteEntity,
     DuplicateEntity,
     RenameEntity,
-    NewProject
+    NewProject,
+    GizmoTranslate,
+    GizmoRotate,
+    GizmoScale,
+    GizmoToggleSpace
 }
 
 public struct Keybind

@@ -100,7 +100,7 @@ public static class SceneSerializer
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
             if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
-            if (prop.Name == "LoadedModel") continue;
+            if (prop.Name is "LoadedModel" or "EulerAngles") continue;
 
             try
             {
@@ -178,7 +178,7 @@ public static class SceneSerializer
         {
             var prop = type.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
             if (prop == null || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
+            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EulerAngles") continue;
 
             try
             {

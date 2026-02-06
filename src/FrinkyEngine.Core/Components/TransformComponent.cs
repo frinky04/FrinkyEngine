@@ -10,6 +10,8 @@ public class TransformComponent : Component
     private Vector3 _localScale = Vector3.One;
     private TransformComponent? _parent;
     private readonly List<TransformComponent> _children = new();
+    private Vector3 _cachedEuler = Vector3.Zero;
+    private bool _eulerDirty = true;
 
     public Vector3 LocalPosition
     {
@@ -20,7 +22,11 @@ public class TransformComponent : Component
     public Quaternion LocalRotation
     {
         get => _localRotation;
-        set => _localRotation = value;
+        set
+        {
+            _localRotation = value;
+            _eulerDirty = true;
+        }
     }
 
     public Vector3 LocalScale
@@ -31,8 +37,21 @@ public class TransformComponent : Component
 
     public Vector3 EulerAngles
     {
-        get => QuaternionToEuler(_localRotation);
-        set => _localRotation = EulerToQuaternion(value);
+        get
+        {
+            if (_eulerDirty)
+            {
+                _cachedEuler = QuaternionToEuler(_localRotation);
+                _eulerDirty = false;
+            }
+            return _cachedEuler;
+        }
+        set
+        {
+            _cachedEuler = value;
+            _eulerDirty = false;
+            _localRotation = EulerToQuaternion(value);
+        }
     }
 
     public TransformComponent? Parent => _parent;

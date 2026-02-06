@@ -122,6 +122,10 @@ public class KeybindManager
         _bindings[EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true);
         _bindings[EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2);
         _bindings[EditorAction.NewProject] = new Keybind(ImGuiKey.N, ctrl: true, shift: true);
+        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey.W);
+        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey.E);
+        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey.R);
+        _bindings[EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X);
     }
 
     private void ApplyConfig(KeybindConfig config)

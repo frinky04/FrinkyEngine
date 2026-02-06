@@ -24,6 +24,7 @@ public class EditorApplication
     public EditorMode Mode { get; private set; } = EditorMode.Edit;
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
+    public GizmoSystem GizmoSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
 
     public string? ProjectDirectory { get; private set; }
@@ -337,6 +338,12 @@ public class EditorApplication
         });
 
         km.RegisterAction(EditorAction.NewProject, () => MenuBar.TriggerNewProject());
+
+        km.RegisterAction(EditorAction.GizmoTranslate, () => GizmoSystem.Mode = GizmoMode.Translate);
+        km.RegisterAction(EditorAction.GizmoRotate, () => GizmoSystem.Mode = GizmoMode.Rotate);
+        km.RegisterAction(EditorAction.GizmoScale, () => GizmoSystem.Mode = GizmoMode.Scale);
+        km.RegisterAction(EditorAction.GizmoToggleSpace, () =>
+            GizmoSystem.Space = GizmoSystem.Space == GizmoSpace.World ? GizmoSpace.Local : GizmoSpace.World);
     }
 
     public void Shutdown()

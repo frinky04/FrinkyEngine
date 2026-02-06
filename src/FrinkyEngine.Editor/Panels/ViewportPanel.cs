@@ -48,13 +48,40 @@ public class ViewportPanel
                     ? _app.CurrentScene.MainCamera.BuildCamera3D()
                     : _app.EditorCamera.Camera3D;
 
+                var gizmo = _app.GizmoSystem;
+                var selected = _app.SelectedEntity;
+
                 if (_app.CurrentScene != null)
-                    _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture);
+                {
+                    _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
+                        () => gizmo.Draw(camera, selected));
+                }
 
+                var imageScreenPos = ImGui.GetCursorScreenPos();
                 rlImGui.ImageRenderTexture(_renderTexture);
-            }
 
-            _isHovered = ImGui.IsWindowHovered();
+                // Gizmo input: compute viewport-local mouse position
+                _isHovered = ImGui.IsWindowHovered();
+                if (_isHovered && _app.Mode == EditorMode.Edit)
+                {
+                    var mousePos = ImGui.GetMousePos();
+                    var localMouse = mousePos - imageScreenPos;
+                    gizmo.Update(camera, selected, localMouse, new Vector2(w, h));
+                }
+                else if (!_isHovered)
+                {
+                    // Clear hover state when viewport not hovered
+                    gizmo.Update(camera, null, Vector2.Zero, Vector2.One);
+                }
+            }
+            else
+            {
+                _isHovered = ImGui.IsWindowHovered();
+            }
+        }
+        else
+        {
+            _isHovered = false;
         }
         ImGui.End();
         ImGui.PopStyleVar();

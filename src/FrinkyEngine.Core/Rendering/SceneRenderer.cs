@@ -45,7 +45,7 @@ public class SceneRenderer
         }
     }
 
-    public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null)
+    public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null)
     {
         if (renderTarget.HasValue)
             Raylib.BeginTextureMode(renderTarget.Value);
@@ -70,7 +70,7 @@ public class SceneRenderer
             if (!renderer.LoadedModel.HasValue)
                 renderer.EnsureModelLoaded();
             if (!renderer.LoadedModel.HasValue) continue;
-            DrawModelWithShader(renderer.LoadedModel.Value, renderer.Entity.Transform.WorldPosition, renderer.Tint);
+            DrawModelWithShader(renderer.LoadedModel.Value, renderer.Entity.Transform.WorldMatrix, renderer.Tint);
         }
 
         foreach (var primitive in scene.Primitives)
@@ -79,10 +79,12 @@ public class SceneRenderer
             if (!primitive.GeneratedModel.HasValue)
                 primitive.RebuildModel();
             if (!primitive.GeneratedModel.HasValue) continue;
-            DrawModelWithShader(primitive.GeneratedModel.Value, primitive.Entity.Transform.WorldPosition, primitive.Tint);
+            DrawModelWithShader(primitive.GeneratedModel.Value, primitive.Entity.Transform.WorldMatrix, primitive.Tint);
         }
 
         DrawGrid(20, 1.0f);
+
+        postSceneRender?.Invoke();
 
         Raylib.EndMode3D();
 
@@ -90,7 +92,7 @@ public class SceneRenderer
             Raylib.EndTextureMode();
     }
 
-    private void DrawModelWithShader(Model model, System.Numerics.Vector3 position, Color tint)
+    private void DrawModelWithShader(Model model, Matrix4x4 worldMatrix, Color tint)
     {
         if (_shaderLoaded)
         {
@@ -103,7 +105,8 @@ public class SceneRenderer
             }
         }
 
-        Raylib.DrawModel(model, position, 1f, tint);
+        model.Transform = worldMatrix;
+        Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
     }
 
     private void UpdateLightUniforms(Scene.Scene scene)

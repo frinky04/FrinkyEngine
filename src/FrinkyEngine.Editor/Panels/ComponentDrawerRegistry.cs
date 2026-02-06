@@ -41,20 +41,96 @@ public static class ComponentDrawerRegistry
         return false;
     }
 
+    private static readonly Vector4 ColorRed = new(0.867f, 0.2f, 0.267f, 1f);    // #DD3344
+    private static readonly Vector4 ColorRedHover = new(0.933f, 0.3f, 0.367f, 1f);
+    private static readonly Vector4 ColorGreen = new(0.267f, 0.733f, 0.267f, 1f);  // #44BB44
+    private static readonly Vector4 ColorGreenHover = new(0.367f, 0.833f, 0.367f, 1f);
+    private static readonly Vector4 ColorBlue = new(0.267f, 0.533f, 0.867f, 1f);   // #4488DD
+    private static readonly Vector4 ColorBlueHover = new(0.367f, 0.633f, 0.933f, 1f);
+
     private static void DrawTransform(Component c)
     {
         var t = (TransformComponent)c;
         var pos = t.LocalPosition;
-        if (ImGui.DragFloat3("Position", ref pos, 0.1f))
+        if (DrawColoredVector3("Position", ref pos, 0.1f))
             t.LocalPosition = pos;
 
         var euler = t.EulerAngles;
-        if (ImGui.DragFloat3("Rotation", ref euler, 0.5f))
+        if (DrawColoredVector3("Rotation", ref euler, 0.5f))
             t.EulerAngles = euler;
 
         var scale = t.LocalScale;
-        if (ImGui.DragFloat3("Scale", ref scale, 0.05f))
+        if (DrawColoredVector3("Scale", ref scale, 0.05f, 1f))
             t.LocalScale = scale;
+    }
+
+    private static bool DrawColoredVector3(string label, ref Vector3 value, float speed, float resetValue = 0f)
+    {
+        bool changed = false;
+        ImGui.PushID(label);
+
+        ImGui.Columns(2, null, false);
+        ImGui.SetColumnWidth(0, 80);
+        ImGui.Text(label);
+        ImGui.NextColumn();
+
+        float lineHeight = ImGui.GetFrameHeight();
+        var buttonSize = new Vector2(lineHeight + 3f, lineHeight);
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float fieldWidth = (availWidth - 3f * buttonSize.X - 2f * ImGui.GetStyle().ItemSpacing.X) / 3f;
+
+        // X
+        ImGui.PushStyleColor(ImGuiCol.Button, ColorRed);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColorRedHover);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorRed);
+        if (ImGui.Button("X", buttonSize))
+        {
+            value.X = resetValue;
+            changed = true;
+        }
+        ImGui.PopStyleColor(3);
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(fieldWidth);
+        if (ImGui.DragFloat("##X", ref value.X, speed))
+            changed = true;
+
+        ImGui.SameLine();
+
+        // Y
+        ImGui.PushStyleColor(ImGuiCol.Button, ColorGreen);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColorGreenHover);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorGreen);
+        if (ImGui.Button("Y", buttonSize))
+        {
+            value.Y = resetValue;
+            changed = true;
+        }
+        ImGui.PopStyleColor(3);
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(fieldWidth);
+        if (ImGui.DragFloat("##Y", ref value.Y, speed))
+            changed = true;
+
+        ImGui.SameLine();
+
+        // Z
+        ImGui.PushStyleColor(ImGuiCol.Button, ColorBlue);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColorBlueHover);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorBlue);
+        if (ImGui.Button("Z", buttonSize))
+        {
+            value.Z = resetValue;
+            changed = true;
+        }
+        ImGui.PopStyleColor(3);
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(fieldWidth);
+        if (ImGui.DragFloat("##Z", ref value.Z, speed))
+            changed = true;
+
+        ImGui.Columns(1);
+        ImGui.PopID();
+        return changed;
     }
 
     private static void DrawCamera(Component c)
