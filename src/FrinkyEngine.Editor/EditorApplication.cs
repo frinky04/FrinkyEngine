@@ -74,6 +74,7 @@ public class EditorApplication
     public void Initialize()
     {
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
+        SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EditorIcons.Load();
         NewScene();
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
@@ -304,6 +305,7 @@ public class EditorApplication
             }
         }
 
+        ApplyRuntimeRenderSettingsImmediate();
         ApplyEditorSettingsImmediate();
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
@@ -720,6 +722,7 @@ public class EditorApplication
         settings.Normalize(ProjectFile.ProjectName);
         settings.Save(path);
         ProjectSettings = settings;
+        ApplyRuntimeRenderSettingsImmediate();
     }
 
     public void SaveEditorProjectSettings(EditorProjectSettings settings)
@@ -745,6 +748,21 @@ public class EditorApplication
             Raylib.SetWindowState(ConfigFlags.VSyncHint);
         else
             Raylib.ClearWindowState(ConfigFlags.VSyncHint);
+    }
+
+    private void ApplyRuntimeRenderSettingsImmediate()
+    {
+        var runtime = ProjectSettings?.Runtime;
+        if (runtime == null)
+        {
+            SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
+            return;
+        }
+
+        SceneRenderer.ConfigureForwardPlus(new ForwardPlusSettings(
+            runtime.ForwardPlusTileSize,
+            runtime.ForwardPlusMaxLights,
+            runtime.ForwardPlusMaxLightsPerTile));
     }
 
     private bool LaunchVSCode(IEnumerable<string> arguments, string? successMessage)

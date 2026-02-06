@@ -233,6 +233,11 @@ public class ViewportPanel
 
         Raylib.BeginTextureMode(_outlineCompositeTexture);
         Raylib.ClearBackground(new Color(0, 0, 0, 0));
+
+        // Pass 1: copy lit scene as-is.
+        DrawFullscreenTexture(_renderTexture.Texture, width, height);
+
+        // Pass 2: draw outline overlay from mask using post shader.
         Raylib.BeginShaderMode(_selectionOutlinePostShader);
 
         if (_maskTextureLoc >= 0)

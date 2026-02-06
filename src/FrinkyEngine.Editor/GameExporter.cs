@@ -123,7 +123,10 @@ public static class GameExporter
                 WindowHeight = projectSettings.Runtime.WindowHeight,
                 Resizable = projectSettings.Runtime.Resizable,
                 Fullscreen = projectSettings.Runtime.Fullscreen,
-                StartMaximized = projectSettings.Runtime.StartMaximized
+                StartMaximized = projectSettings.Runtime.StartMaximized,
+                ForwardPlusTileSize = projectSettings.Runtime.ForwardPlusTileSize,
+                ForwardPlusMaxLights = projectSettings.Runtime.ForwardPlusMaxLights,
+                ForwardPlusMaxLightsPerTile = projectSettings.Runtime.ForwardPlusMaxLightsPerTile
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");

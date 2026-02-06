@@ -3,7 +3,6 @@
 in vec2 fragTexCoord;
 in vec4 fragColor;
 
-uniform sampler2D texture0;
 uniform sampler2D maskTexture;
 uniform vec2 texelSize;
 uniform vec4 outlineColor;
@@ -18,7 +17,6 @@ float SampleMask(vec2 uv)
 
 void main()
 {
-    vec4 sceneColor = texture(texture0, fragTexCoord) * fragColor;
     float center = SampleMask(fragTexCoord);
 
     vec2 o = texelSize * max(1.0, outlineWidth);
@@ -33,5 +31,6 @@ void main()
     maxNeighbor = max(maxNeighbor, SampleMask(fragTexCoord + vec2(-o.x, -o.y)));
 
     float edge = step(0.001, maxNeighbor) * (1.0 - step(0.001, center));
-    finalColor = mix(sceneColor, outlineColor, edge * outlineColor.a);
+    float alpha = edge * outlineColor.a * fragColor.a;
+    finalColor = vec4(outlineColor.rgb * fragColor.rgb, alpha);
 }

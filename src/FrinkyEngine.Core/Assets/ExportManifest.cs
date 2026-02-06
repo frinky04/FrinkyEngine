@@ -17,6 +17,9 @@ public class ExportManifest
     public bool? Resizable { get; set; }
     public bool? Fullscreen { get; set; }
     public bool? StartMaximized { get; set; }
+    public int? ForwardPlusTileSize { get; set; }
+    public int? ForwardPlusMaxLights { get; set; }
+    public int? ForwardPlusMaxLightsPerTile { get; set; }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

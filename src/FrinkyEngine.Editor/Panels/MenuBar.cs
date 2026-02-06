@@ -605,6 +605,18 @@ public class MenuBar
             if (ImGui.Checkbox("Start Maximized", ref startMaximized))
                 draft.Runtime.StartMaximized = startMaximized;
 
+            int forwardPlusTileSize = draft.Runtime.ForwardPlusTileSize;
+            if (ImGui.InputInt("Forward+ Tile Size", ref forwardPlusTileSize))
+                draft.Runtime.ForwardPlusTileSize = forwardPlusTileSize;
+
+            int forwardPlusMaxLights = draft.Runtime.ForwardPlusMaxLights;
+            if (ImGui.InputInt("Forward+ Max Lights", ref forwardPlusMaxLights))
+                draft.Runtime.ForwardPlusMaxLights = forwardPlusMaxLights;
+
+            int forwardPlusMaxLightsPerTile = draft.Runtime.ForwardPlusMaxLightsPerTile;
+            if (ImGui.InputInt("Forward+ Max Lights Per Tile", ref forwardPlusMaxLightsPerTile))
+                draft.Runtime.ForwardPlusMaxLightsPerTile = forwardPlusMaxLightsPerTile;
+
             DrawStartupSceneSelector(draft);
             ImGui.TextDisabled("Use .fproject defaultScene or choose any scene asset.");
         }

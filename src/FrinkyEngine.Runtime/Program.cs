@@ -17,6 +17,9 @@ public static class Program
         public bool Resizable { get; init; } = true;
         public bool Fullscreen { get; init; }
         public bool StartMaximized { get; init; }
+        public int ForwardPlusTileSize { get; init; } = ForwardPlusSettings.DefaultTileSize;
+        public int ForwardPlusMaxLights { get; init; } = ForwardPlusSettings.DefaultMaxLights;
+        public int ForwardPlusMaxLightsPerTile { get; init; } = ForwardPlusSettings.DefaultMaxLightsPerTile;
     }
 
     public static void Main(string[] args)
@@ -70,7 +73,10 @@ public static class Program
                 WindowHeight = settings.Runtime.WindowHeight,
                 Resizable = settings.Runtime.Resizable,
                 Fullscreen = settings.Runtime.Fullscreen,
-                StartMaximized = settings.Runtime.StartMaximized
+                StartMaximized = settings.Runtime.StartMaximized,
+                ForwardPlusTileSize = settings.Runtime.ForwardPlusTileSize,
+                ForwardPlusMaxLights = settings.Runtime.ForwardPlusMaxLights,
+                ForwardPlusMaxLightsPerTile = settings.Runtime.ForwardPlusMaxLightsPerTile
             });
     }
 
@@ -111,7 +117,10 @@ public static class Program
                     WindowHeight = manifest.WindowHeight ?? 720,
                     Resizable = manifest.Resizable ?? true,
                     Fullscreen = manifest.Fullscreen ?? false,
-                    StartMaximized = manifest.StartMaximized ?? false
+                    StartMaximized = manifest.StartMaximized ?? false,
+                    ForwardPlusTileSize = manifest.ForwardPlusTileSize ?? ForwardPlusSettings.DefaultTileSize,
+                    ForwardPlusMaxLights = manifest.ForwardPlusMaxLights ?? ForwardPlusSettings.DefaultMaxLights,
+                    ForwardPlusMaxLightsPerTile = manifest.ForwardPlusMaxLightsPerTile ?? ForwardPlusSettings.DefaultMaxLightsPerTile
                 });
         }
         finally
@@ -149,6 +158,10 @@ public static class Program
 
         var sceneRenderer = new SceneRenderer();
         sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
+        sceneRenderer.ConfigureForwardPlus(new ForwardPlusSettings(
+            launchSettings.ForwardPlusTileSize,
+            launchSettings.ForwardPlusMaxLights,
+            launchSettings.ForwardPlusMaxLightsPerTile));
 
         var scene = SceneManager.Instance.LoadScene(scenePath);
 
@@ -206,7 +219,10 @@ public static class Program
             WindowHeight = ClampOrDefault(settings.WindowHeight, 200, 10000, 720),
             Resizable = settings.Resizable,
             Fullscreen = settings.Fullscreen,
-            StartMaximized = settings.StartMaximized
+            StartMaximized = settings.StartMaximized,
+            ForwardPlusTileSize = ClampOrDefault(settings.ForwardPlusTileSize, 8, 64, ForwardPlusSettings.DefaultTileSize),
+            ForwardPlusMaxLights = ClampOrDefault(settings.ForwardPlusMaxLights, 16, 2048, ForwardPlusSettings.DefaultMaxLights),
+            ForwardPlusMaxLightsPerTile = ClampOrDefault(settings.ForwardPlusMaxLightsPerTile, 8, 256, ForwardPlusSettings.DefaultMaxLightsPerTile)
         };
     }
 

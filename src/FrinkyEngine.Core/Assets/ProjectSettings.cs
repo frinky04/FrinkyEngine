@@ -44,7 +44,10 @@ public class ProjectSettings
                 Resizable = true,
                 Fullscreen = false,
                 StartMaximized = false,
-                StartupSceneOverride = string.Empty
+                StartupSceneOverride = string.Empty,
+                ForwardPlusTileSize = 16,
+                ForwardPlusMaxLights = 256,
+                ForwardPlusMaxLightsPerTile = 64
             },
             Build = new BuildProjectSettings
             {
@@ -117,7 +120,10 @@ public class ProjectSettings
                 Resizable = Runtime.Resizable,
                 Fullscreen = Runtime.Fullscreen,
                 StartMaximized = Runtime.StartMaximized,
-                StartupSceneOverride = Runtime.StartupSceneOverride
+                StartupSceneOverride = Runtime.StartupSceneOverride,
+                ForwardPlusTileSize = Runtime.ForwardPlusTileSize,
+                ForwardPlusMaxLights = Runtime.ForwardPlusMaxLights,
+                ForwardPlusMaxLightsPerTile = Runtime.ForwardPlusMaxLightsPerTile
             },
             Build = new BuildProjectSettings
             {
@@ -143,6 +149,9 @@ public class ProjectSettings
         Runtime.WindowWidth = Clamp(Runtime.WindowWidth, 320, 10000, 1280);
         Runtime.WindowHeight = Clamp(Runtime.WindowHeight, 200, 10000, 720);
         Runtime.StartupSceneOverride = NormalizeScenePath(Runtime.StartupSceneOverride);
+        Runtime.ForwardPlusTileSize = Clamp(Runtime.ForwardPlusTileSize, 8, 64, 16);
+        Runtime.ForwardPlusMaxLights = Clamp(Runtime.ForwardPlusMaxLights, 16, 2048, 256);
+        Runtime.ForwardPlusMaxLightsPerTile = Clamp(Runtime.ForwardPlusMaxLightsPerTile, 8, 256, 64);
 
         Build ??= new BuildProjectSettings();
         Build.OutputName = Coalesce(Build.OutputName, safeProjectName);
@@ -222,6 +231,9 @@ public class RuntimeProjectSettings
     public bool Fullscreen { get; set; }
     public bool StartMaximized { get; set; }
     public string StartupSceneOverride { get; set; } = string.Empty;
+    public int ForwardPlusTileSize { get; set; } = 16;
+    public int ForwardPlusMaxLights { get; set; } = 256;
+    public int ForwardPlusMaxLightsPerTile { get; set; } = 64;
 }
 
 public class BuildProjectSettings

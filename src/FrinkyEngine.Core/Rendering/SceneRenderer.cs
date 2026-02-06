@@ -7,34 +7,95 @@ namespace FrinkyEngine.Core.Rendering;
 
 public class SceneRenderer
 {
+    private const int LightTexelsPerLight = 4;
+    private const int PackedTextureMaxWidth = 1024;
+    private const int ForwardPlusWarningLogIntervalFrames = 180;
+    private const float MinPerspectiveDepth = 0.01f;
+
     private Shader _lightingShader;
     private bool _shaderLoaded;
     private Shader _selectionMaskShader;
     private bool _selectionMaskShaderLoaded;
-    private int _ambientLoc;
-    private int _viewPosLoc;
 
-    private readonly int[] _lightEnabledLoc = new int[4];
-    private readonly int[] _lightTypeLoc = new int[4];
-    private readonly int[] _lightPositionLoc = new int[4];
-    private readonly int[] _lightColorLoc = new int[4];
+    private int _ambientLoc = -1;
+    private int _viewPosLoc = -1;
+    private int _screenSizeLoc = -1;
+    private int _tileCountLoc = -1;
+    private int _tileSizeLoc = -1;
+    private int _totalLightsLoc = -1;
+    private int _lightDataTexLoc = -1;
+    private int _tileHeaderTexLoc = -1;
+    private int _tileIndexTexLoc = -1;
+    private int _lightDataTexSizeLoc = -1;
+    private int _tileHeaderTexSizeLoc = -1;
+    private int _tileIndexTexSizeLoc = -1;
+
+    private ForwardPlusSettings _forwardPlusSettings = ForwardPlusSettings.Default;
+    private int _viewportWidth;
+    private int _viewportHeight;
+    private int _tileCountX;
+    private int _tileCountY;
+    private int _tileCount;
+
+    private Texture2D _lightDataTexture;
+    private Texture2D _tileHeaderTexture;
+    private Texture2D _tileIndexTexture;
+
+    private int _lightDataEntries;
+    private int _tileHeaderEntries;
+    private int _tileIndexEntries;
+    private int _lightDataTexWidth;
+    private int _lightDataTexHeight;
+    private int _tileHeaderTexWidth;
+    private int _tileHeaderTexHeight;
+    private int _tileIndexTexWidth;
+    private int _tileIndexTexHeight;
+
+    private float[] _lightDataBuffer = Array.Empty<float>();
+    private float[] _tileHeaderBuffer = Array.Empty<float>();
+    private float[] _tileIndexBuffer = Array.Empty<float>();
+    private int[] _tileLightCounts = Array.Empty<int>();
+    private float[] _tileLightScores = Array.Empty<float>();
+
+    private readonly List<PackedLight> _frameLights = new();
+    private readonly List<PointLightCandidate> _pointCandidates = new();
+    private int _forwardPlusDroppedTileLights;
+    private int _forwardPlusClippedLights;
+    private int _frameCounter;
+
+    public void ConfigureForwardPlus(ForwardPlusSettings settings)
+    {
+        var normalized = settings.Normalize();
+        if (normalized == _forwardPlusSettings)
+            return;
+
+        _forwardPlusSettings = normalized;
+        _tileCountX = 0;
+        _tileCountY = 0;
+        _tileCount = 0;
+        _lightDataEntries = 0;
+        _tileHeaderEntries = 0;
+        _tileIndexEntries = 0;
+    }
 
     public void LoadShader(string vsPath, string fsPath)
     {
         _lightingShader = Raylib.LoadShader(vsPath, fsPath);
         _viewPosLoc = Raylib.GetShaderLocation(_lightingShader, "viewPos");
-
         _ambientLoc = Raylib.GetShaderLocation(_lightingShader, "ambient");
+        _screenSizeLoc = Raylib.GetShaderLocation(_lightingShader, "screenSize");
+        _tileCountLoc = Raylib.GetShaderLocation(_lightingShader, "tileCount");
+        _tileSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileSize");
+        _totalLightsLoc = Raylib.GetShaderLocation(_lightingShader, "totalLights");
+        _lightDataTexLoc = Raylib.GetShaderLocation(_lightingShader, "lightDataTex");
+        _tileHeaderTexLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTex");
+        _tileIndexTexLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTex");
+        _lightDataTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "lightDataTexSize");
+        _tileHeaderTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTexSize");
+        _tileIndexTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTexSize");
+
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
-
-        for (int i = 0; i < 4; i++)
-        {
-            _lightEnabledLoc[i] = Raylib.GetShaderLocation(_lightingShader, $"lights[{i}].enabled");
-            _lightTypeLoc[i] = Raylib.GetShaderLocation(_lightingShader, $"lights[{i}].type");
-            _lightPositionLoc[i] = Raylib.GetShaderLocation(_lightingShader, $"lights[{i}].position");
-            _lightColorLoc[i] = Raylib.GetShaderLocation(_lightingShader, $"lights[{i}].color");
-        }
 
         _shaderLoaded = true;
 
@@ -51,6 +112,8 @@ public class SceneRenderer
 
     public void UnloadShader()
     {
+        ReleaseForwardPlusTextures();
+
         if (_shaderLoaded)
         {
             Raylib.UnloadShader(_lightingShader);
@@ -80,7 +143,10 @@ public class SceneRenderer
             float[] cameraPos = { camera.Position.X, camera.Position.Y, camera.Position.Z };
             Raylib.SetShaderValue(_lightingShader, _viewPosLoc, cameraPos, ShaderUniformDataType.Vec3);
 
-            UpdateLightUniforms(scene, isEditorMode);
+            var viewportWidth = renderTarget?.Texture.Width ?? Raylib.GetScreenWidth();
+            var viewportHeight = renderTarget?.Texture.Height ?? Raylib.GetScreenHeight();
+            UpdateForwardPlusData(scene, camera, viewportWidth, viewportHeight, isEditorMode);
+            BindForwardPlusShaderData(viewportWidth, viewportHeight);
         }
 
         foreach (var renderable in scene.Renderables)
@@ -192,66 +258,535 @@ public class SceneRenderer
         Raylib.EndTextureMode();
     }
 
-    private void UpdateLightUniforms(Scene.Scene scene, bool isEditorMode = true)
+    private void UpdateForwardPlusData(Scene.Scene scene, Camera3D camera, int viewportWidth, int viewportHeight, bool isEditorMode)
     {
-        var lights = scene.Lights;
+        EnsureForwardPlusResources(viewportWidth, viewportHeight);
+        BuildFrameLights(scene, camera, isEditorMode);
+        BuildTileLightLists(camera);
+        PackLightBuffer();
+        PackTileHeaderBuffer();
+        UploadForwardPlusBuffers();
+        MaybeLogForwardPlusWarnings();
+    }
 
-        // Find first enabled Skylight for ambient, otherwise use default
+    private void BindForwardPlusShaderData(int viewportWidth, int viewportHeight)
+    {
+        if (_lightDataTexLoc >= 0)
+            Raylib.SetShaderValueTexture(_lightingShader, _lightDataTexLoc, _lightDataTexture);
+        if (_tileHeaderTexLoc >= 0)
+            Raylib.SetShaderValueTexture(_lightingShader, _tileHeaderTexLoc, _tileHeaderTexture);
+        if (_tileIndexTexLoc >= 0)
+            Raylib.SetShaderValueTexture(_lightingShader, _tileIndexTexLoc, _tileIndexTexture);
+
+        SetShaderIVec2(_screenSizeLoc, viewportWidth, viewportHeight);
+        SetShaderIVec2(_tileCountLoc, _tileCountX, _tileCountY);
+        SetShaderIVec2(_lightDataTexSizeLoc, _lightDataTexWidth, _lightDataTexHeight);
+        SetShaderIVec2(_tileHeaderTexSizeLoc, _tileHeaderTexWidth, _tileHeaderTexHeight);
+        SetShaderIVec2(_tileIndexTexSizeLoc, _tileIndexTexWidth, _tileIndexTexHeight);
+
+        if (_tileSizeLoc >= 0)
+            Raylib.SetShaderValue(_lightingShader, _tileSizeLoc, _forwardPlusSettings.TileSize, ShaderUniformDataType.Int);
+        if (_totalLightsLoc >= 0)
+            Raylib.SetShaderValue(_lightingShader, _totalLightsLoc, _frameLights.Count, ShaderUniformDataType.Int);
+    }
+
+    private void BuildFrameLights(Scene.Scene scene, Camera3D camera, bool isEditorMode)
+    {
+        _frameLights.Clear();
+        _pointCandidates.Clear();
+        _forwardPlusDroppedTileLights = 0;
+        _forwardPlusClippedLights = 0;
+
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
-        foreach (var light in lights)
+        bool skylightFound = false;
+        int eligibleLights = 0;
+
+        var cameraPos = camera.Position;
+
+        foreach (var light in scene.Lights)
         {
             if (!light.Entity.Active) continue;
             if (light.EditorOnly && !isEditorMode) continue;
-            if (light.Enabled && light.LightType == Components.LightType.Skylight)
+            if (!light.Enabled) continue;
+
+            if (light.LightType == LightType.Skylight)
             {
-                var c = light.LightColor;
-                float intensity = light.Intensity;
-                ambient = new[] { c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity, 1.0f };
+                if (!skylightFound)
+                {
+                    skylightFound = true;
+                    var skylightColor = light.LightColor;
+                    float intensity = light.Intensity;
+                    ambient = new[]
+                    {
+                        skylightColor.R / 255f * intensity,
+                        skylightColor.G / 255f * intensity,
+                        skylightColor.B / 255f * intensity,
+                        1.0f
+                    };
+                }
+                continue;
+            }
+
+            eligibleLights++;
+
+            var packed = CreatePackedLight(light);
+            if (packed.Type == PackedLightType.Directional)
+            {
+                if (_frameLights.Count < _forwardPlusSettings.MaxLights)
+                    _frameLights.Add(packed);
+                continue;
+            }
+
+            var offset = packed.Position - cameraPos;
+            var distanceSquared = offset.LengthSquared();
+            _pointCandidates.Add(new PointLightCandidate(packed, distanceSquared));
+        }
+
+        _pointCandidates.Sort(static (a, b) => a.DistanceSquared.CompareTo(b.DistanceSquared));
+        foreach (var candidate in _pointCandidates)
+        {
+            if (_frameLights.Count >= _forwardPlusSettings.MaxLights)
                 break;
+            _frameLights.Add(candidate.Light);
+        }
+
+        _forwardPlusClippedLights = Math.Max(0, eligibleLights - _frameLights.Count);
+        Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
+    }
+
+    private void BuildTileLightLists(Camera3D camera)
+    {
+        Array.Fill(_tileLightCounts, 0);
+        Array.Fill(_tileLightScores, float.PositiveInfinity);
+        Array.Fill(_tileIndexBuffer, -1f);
+
+        for (int lightIndex = 0; lightIndex < _frameLights.Count; lightIndex++)
+        {
+            var light = _frameLights[lightIndex];
+            if (light.Type == PackedLightType.Directional)
+            {
+                for (int tileIndex = 0; tileIndex < _tileCount; tileIndex++)
+                    TryInsertTileLight(tileIndex, lightIndex, -1f);
+                continue;
+            }
+
+            if (!TryProjectPointLight(camera, light.Position, light.Range, out var projected))
+                continue;
+
+            for (int ty = projected.MinTileY; ty <= projected.MaxTileY; ty++)
+            {
+                for (int tx = projected.MinTileX; tx <= projected.MaxTileX; tx++)
+                {
+                    int tileIndex = ty * _tileCountX + tx;
+                    float tileCenterX = tx * _forwardPlusSettings.TileSize + _forwardPlusSettings.TileSize * 0.5f;
+                    float tileCenterY = ty * _forwardPlusSettings.TileSize + _forwardPlusSettings.TileSize * 0.5f;
+                    float dx = tileCenterX - projected.CenterPixelX;
+                    float dy = tileCenterY - projected.CenterPixelY;
+                    float score = dx * dx + dy * dy + projected.DepthScore;
+                    TryInsertTileLight(tileIndex, lightIndex, score);
+                }
             }
         }
-        Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
+    }
 
-        // Fill shader light slots (0-3) with non-Skylight lights only
-        int slot = 0;
-        foreach (var light in lights)
+    private void TryInsertTileLight(int tileIndex, int lightIndex, float score)
+    {
+        int baseSlot = tileIndex * _forwardPlusSettings.MaxLightsPerTile;
+        int count = _tileLightCounts[tileIndex];
+
+        if (count < _forwardPlusSettings.MaxLightsPerTile)
         {
-            if (slot >= 4) break;
-            if (!light.Entity.Active) continue;
-            if (light.EditorOnly && !isEditorMode) continue;
-            if (!light.Enabled || light.LightType == Components.LightType.Skylight) continue;
-
-            int enabled = 1;
-            Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[slot], enabled, ShaderUniformDataType.Int);
-
-            int type = (int)light.LightType;
-            Raylib.SetShaderValue(_lightingShader, _lightTypeLoc[slot], type, ShaderUniformDataType.Int);
-
-            // Directional lights use forward vector; point lights use world position
-            var posVec = light.LightType == Components.LightType.Directional
-                ? light.Entity.Transform.Forward
-                : light.Entity.Transform.WorldPosition;
-            float[] posArr = { posVec.X, posVec.Y, posVec.Z };
-            Raylib.SetShaderValue(_lightingShader, _lightPositionLoc[slot], posArr, ShaderUniformDataType.Vec3);
-
-            var c = light.LightColor;
-            float intensity = light.Intensity;
-            float[] colorArr = { c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity, c.A / 255f };
-            Raylib.SetShaderValue(_lightingShader, _lightColorLoc[slot], colorArr, ShaderUniformDataType.Vec4);
-
-            slot++;
+            int slot = baseSlot + count;
+            SetTileIndexValue(slot, lightIndex);
+            _tileLightScores[slot] = score;
+            _tileLightCounts[tileIndex] = count + 1;
+            return;
         }
 
-        // Disable remaining unused slots
-        for (int i = slot; i < 4; i++)
+        _forwardPlusDroppedTileLights++;
+
+        int worstSlot = baseSlot;
+        float worstScore = _tileLightScores[baseSlot];
+        for (int i = 1; i < _forwardPlusSettings.MaxLightsPerTile; i++)
         {
-            int disabled = 0;
-            Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[i], disabled, ShaderUniformDataType.Int);
+            int slot = baseSlot + i;
+            float currentScore = _tileLightScores[slot];
+            if (currentScore > worstScore)
+            {
+                worstScore = currentScore;
+                worstSlot = slot;
+            }
         }
+
+        if (score >= worstScore)
+            return;
+
+        SetTileIndexValue(worstSlot, lightIndex);
+        _tileLightScores[worstSlot] = score;
+    }
+
+    private void SetTileIndexValue(int slot, int lightIndex)
+    {
+        int dataOffset = slot * 4;
+        _tileIndexBuffer[dataOffset] = lightIndex;
+        _tileIndexBuffer[dataOffset + 1] = 0f;
+        _tileIndexBuffer[dataOffset + 2] = 0f;
+        _tileIndexBuffer[dataOffset + 3] = 0f;
+    }
+
+    private void PackLightBuffer()
+    {
+        Array.Fill(_lightDataBuffer, 0f);
+
+        for (int i = 0; i < _frameLights.Count; i++)
+        {
+            var light = _frameLights[i];
+            int lightStartTexel = i * LightTexelsPerLight;
+
+            WritePackedVec4(_lightDataBuffer, lightStartTexel + 0,
+                (int)light.Type, 1f, light.Range, 0f);
+            WritePackedVec4(_lightDataBuffer, lightStartTexel + 1,
+                light.Position.X, light.Position.Y, light.Position.Z, 0f);
+            WritePackedVec4(_lightDataBuffer, lightStartTexel + 2,
+                light.Direction.X, light.Direction.Y, light.Direction.Z, 0f);
+            WritePackedVec4(_lightDataBuffer, lightStartTexel + 3,
+                light.Color.X, light.Color.Y, light.Color.Z, 1f);
+        }
+    }
+
+    private void PackTileHeaderBuffer()
+    {
+        for (int tileIndex = 0; tileIndex < _tileCount; tileIndex++)
+        {
+            int start = tileIndex * _forwardPlusSettings.MaxLightsPerTile;
+            int count = _tileLightCounts[tileIndex];
+            WritePackedVec4(_tileHeaderBuffer, tileIndex, start, count, 0f, 0f);
+        }
+    }
+
+    private void UploadForwardPlusBuffers()
+    {
+        if (_lightDataTexture.Id != 0)
+            Raylib.UpdateTexture(_lightDataTexture, _lightDataBuffer);
+        if (_tileHeaderTexture.Id != 0)
+            Raylib.UpdateTexture(_tileHeaderTexture, _tileHeaderBuffer);
+        if (_tileIndexTexture.Id != 0)
+            Raylib.UpdateTexture(_tileIndexTexture, _tileIndexBuffer);
+    }
+
+    private void EnsureForwardPlusResources(int viewportWidth, int viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0)
+            return;
+
+        bool viewportChanged = _viewportWidth != viewportWidth || _viewportHeight != viewportHeight;
+        if (viewportChanged)
+        {
+            _viewportWidth = viewportWidth;
+            _viewportHeight = viewportHeight;
+        }
+
+        int requiredTileCountX = (_viewportWidth + _forwardPlusSettings.TileSize - 1) / _forwardPlusSettings.TileSize;
+        int requiredTileCountY = (_viewportHeight + _forwardPlusSettings.TileSize - 1) / _forwardPlusSettings.TileSize;
+        int requiredTileCount = Math.Max(1, requiredTileCountX * requiredTileCountY);
+
+        bool tilesChanged = requiredTileCountX != _tileCountX
+                            || requiredTileCountY != _tileCountY
+                            || requiredTileCount != _tileCount;
+
+        _tileCountX = requiredTileCountX;
+        _tileCountY = requiredTileCountY;
+        _tileCount = requiredTileCount;
+
+        int requiredLightEntries = Math.Max(1, _forwardPlusSettings.MaxLights * LightTexelsPerLight);
+        int requiredHeaderEntries = Math.Max(1, _tileCount);
+        int requiredIndexEntries = Math.Max(1, _tileCount * _forwardPlusSettings.MaxLightsPerTile);
+
+        EnsurePackedTexture(
+            ref _lightDataTexture,
+            ref _lightDataBuffer,
+            ref _lightDataEntries,
+            ref _lightDataTexWidth,
+            ref _lightDataTexHeight,
+            requiredLightEntries);
+
+        bool tileStorageChanged = tilesChanged
+                                  || requiredHeaderEntries != _tileHeaderEntries
+                                  || requiredIndexEntries != _tileIndexEntries;
+
+        EnsurePackedTexture(
+            ref _tileHeaderTexture,
+            ref _tileHeaderBuffer,
+            ref _tileHeaderEntries,
+            ref _tileHeaderTexWidth,
+            ref _tileHeaderTexHeight,
+            requiredHeaderEntries);
+
+        EnsurePackedTexture(
+            ref _tileIndexTexture,
+            ref _tileIndexBuffer,
+            ref _tileIndexEntries,
+            ref _tileIndexTexWidth,
+            ref _tileIndexTexHeight,
+            requiredIndexEntries);
+
+        if (tileStorageChanged || _tileLightCounts.Length != _tileCount)
+        {
+            _tileLightCounts = new int[_tileCount];
+            _tileLightScores = new float[_tileCount * _forwardPlusSettings.MaxLightsPerTile];
+        }
+    }
+
+    private void EnsurePackedTexture(
+        ref Texture2D texture,
+        ref float[] buffer,
+        ref int entryCount,
+        ref int textureWidth,
+        ref int textureHeight,
+        int requiredEntries)
+    {
+        if (requiredEntries <= 0)
+            requiredEntries = 1;
+
+        var (requiredWidth, requiredHeight) = ComputePackedTextureSize(requiredEntries);
+        bool recreateTexture = texture.Id == 0
+                               || requiredWidth != textureWidth
+                               || requiredHeight != textureHeight;
+
+        if (recreateTexture)
+        {
+            if (texture.Id != 0)
+                Raylib.UnloadTexture(texture);
+
+            texture = CreateFloatTexture(requiredWidth, requiredHeight);
+            textureWidth = requiredWidth;
+            textureHeight = requiredHeight;
+        }
+
+        int requiredBufferLength = requiredWidth * requiredHeight * 4;
+        if (buffer.Length != requiredBufferLength)
+            buffer = new float[requiredBufferLength];
+
+        entryCount = requiredEntries;
+    }
+
+    private static (int Width, int Height) ComputePackedTextureSize(int entries)
+    {
+        entries = Math.Max(entries, 1);
+        int width = Math.Min(PackedTextureMaxWidth, entries);
+        int height = (entries + width - 1) / width;
+        return (width, Math.Max(1, height));
+    }
+
+    private static unsafe Texture2D CreateFloatTexture(int width, int height)
+    {
+        var initial = new float[width * height * 4];
+        fixed (float* data = initial)
+        {
+            uint textureId = Rlgl.LoadTexture(data, width, height, PixelFormat.UncompressedR32G32B32A32, 1);
+            var texture = new Texture2D
+            {
+                Id = textureId,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedR32G32B32A32
+            };
+
+            if (texture.Id != 0)
+            {
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
+                Raylib.SetTextureWrap(texture, TextureWrap.Clamp);
+            }
+
+            return texture;
+        }
+    }
+
+    private PackedLight CreatePackedLight(LightComponent light)
+    {
+        var c = light.LightColor;
+        float intensity = light.Intensity;
+        var color = new Vector3(c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity);
+
+        if (light.LightType == LightType.Directional)
+        {
+            var direction = light.Entity.Transform.Forward;
+            if (direction.LengthSquared() > 1e-8f)
+                direction = Vector3.Normalize(direction);
+            else
+                direction = -Vector3.UnitY;
+
+            return new PackedLight(
+                PackedLightType.Directional,
+                Vector3.Zero,
+                direction,
+                color,
+                0f);
+        }
+
+        return new PackedLight(
+            PackedLightType.Point,
+            light.Entity.Transform.WorldPosition,
+            Vector3.Zero,
+            color,
+            MathF.Max(0f, light.Range));
+    }
+
+    private bool TryProjectPointLight(Camera3D camera, Vector3 position, float range, out ProjectedPointLight projected)
+    {
+        projected = default;
+        if (range <= 0f || _tileCountX <= 0 || _tileCountY <= 0)
+            return false;
+
+        var view = Matrix4x4.CreateLookAt(camera.Position, camera.Target, camera.Up);
+        var viewSpacePosition = Vector3.Transform(position, view);
+
+        float aspect = MathF.Max(1e-5f, _viewportWidth / (float)Math.Max(1, _viewportHeight));
+        float ndcX;
+        float ndcY;
+        float radiusNdcX;
+        float radiusNdcY;
+        float depthForScore;
+
+        if (camera.Projection == CameraProjection.Perspective)
+        {
+            float depth = -viewSpacePosition.Z;
+            if (depth <= -range)
+                return false;
+
+            depthForScore = MathF.Max(depth, MinPerspectiveDepth);
+
+            float halfFovRad = MathF.Max(1e-4f, camera.FovY * 0.5f * (MathF.PI / 180f));
+            float halfHeight = depthForScore * MathF.Tan(halfFovRad);
+            if (halfHeight <= 1e-5f)
+                return false;
+
+            float halfWidth = halfHeight * aspect;
+            ndcX = viewSpacePosition.X / halfWidth;
+            ndcY = viewSpacePosition.Y / halfHeight;
+            radiusNdcX = range / halfWidth;
+            radiusNdcY = range / halfHeight;
+        }
+        else
+        {
+            float halfHeight = MathF.Max(0.01f, camera.FovY * 0.5f);
+            float halfWidth = halfHeight * aspect;
+            ndcX = viewSpacePosition.X / halfWidth;
+            ndcY = viewSpacePosition.Y / halfHeight;
+            radiusNdcX = range / halfWidth;
+            radiusNdcY = range / halfHeight;
+            depthForScore = 1f;
+        }
+
+        if (ndcX + radiusNdcX < -1f || ndcX - radiusNdcX > 1f || ndcY + radiusNdcY < -1f || ndcY - radiusNdcY > 1f)
+            return false;
+
+        float centerPixelX = (ndcX * 0.5f + 0.5f) * _viewportWidth;
+        float centerPixelY = (-ndcY * 0.5f + 0.5f) * _viewportHeight;
+        float radiusPixelsX = radiusNdcX * 0.5f * _viewportWidth;
+        float radiusPixelsY = radiusNdcY * 0.5f * _viewportHeight;
+
+        float minPixelX = centerPixelX - radiusPixelsX;
+        float maxPixelX = centerPixelX + radiusPixelsX;
+        float minPixelY = centerPixelY - radiusPixelsY;
+        float maxPixelY = centerPixelY + radiusPixelsY;
+
+        if (maxPixelX < 0f || minPixelX > _viewportWidth || maxPixelY < 0f || minPixelY > _viewportHeight)
+            return false;
+
+        int clampedMinPixelX = Math.Clamp((int)MathF.Floor(minPixelX), 0, Math.Max(0, _viewportWidth - 1));
+        int clampedMaxPixelX = Math.Clamp((int)MathF.Ceiling(maxPixelX), 0, Math.Max(0, _viewportWidth - 1));
+        int clampedMinPixelY = Math.Clamp((int)MathF.Floor(minPixelY), 0, Math.Max(0, _viewportHeight - 1));
+        int clampedMaxPixelY = Math.Clamp((int)MathF.Ceiling(maxPixelY), 0, Math.Max(0, _viewportHeight - 1));
+
+        if (clampedMinPixelX > clampedMaxPixelX || clampedMinPixelY > clampedMaxPixelY)
+            return false;
+
+        projected = new ProjectedPointLight(
+            clampedMinPixelX / _forwardPlusSettings.TileSize,
+            clampedMaxPixelX / _forwardPlusSettings.TileSize,
+            clampedMinPixelY / _forwardPlusSettings.TileSize,
+            clampedMaxPixelY / _forwardPlusSettings.TileSize,
+            centerPixelX,
+            centerPixelY,
+            depthForScore * depthForScore * 0.001f);
+        return true;
+    }
+
+    private void MaybeLogForwardPlusWarnings()
+    {
+        _frameCounter++;
+        if ((_forwardPlusClippedLights <= 0 && _forwardPlusDroppedTileLights <= 0)
+            || _frameCounter % ForwardPlusWarningLogIntervalFrames != 0)
+            return;
+
+        FrinkyLog.Warning(
+            $"Forward+ budget pressure: clippedLights={_forwardPlusClippedLights}, droppedTileLinks={_forwardPlusDroppedTileLights}, " +
+            $"maxLights={_forwardPlusSettings.MaxLights}, maxLightsPerTile={_forwardPlusSettings.MaxLightsPerTile}, " +
+            $"tiles={_tileCountX}x{_tileCountY}");
+    }
+
+    private static void WritePackedVec4(float[] buffer, int texelIndex, float x, float y, float z, float w)
+    {
+        int dataIndex = texelIndex * 4;
+        buffer[dataIndex + 0] = x;
+        buffer[dataIndex + 1] = y;
+        buffer[dataIndex + 2] = z;
+        buffer[dataIndex + 3] = w;
+    }
+
+    private void SetShaderIVec2(int location, int x, int y)
+    {
+        if (location < 0)
+            return;
+
+        Span<int> vec2 = stackalloc int[2];
+        vec2[0] = x;
+        vec2[1] = y;
+        Raylib.SetShaderValue(_lightingShader, location, vec2, ShaderUniformDataType.IVec2);
+    }
+
+    private void ReleaseForwardPlusTextures()
+    {
+        if (_lightDataTexture.Id != 0)
+            Raylib.UnloadTexture(_lightDataTexture);
+        if (_tileHeaderTexture.Id != 0)
+            Raylib.UnloadTexture(_tileHeaderTexture);
+        if (_tileIndexTexture.Id != 0)
+            Raylib.UnloadTexture(_tileIndexTexture);
+
+        _lightDataTexture = default;
+        _tileHeaderTexture = default;
+        _tileIndexTexture = default;
     }
 
     private static void DrawGrid(int slices, float spacing)
     {
         Raylib.DrawGrid(slices, spacing);
     }
+
+    private enum PackedLightType
+    {
+        Directional = 0,
+        Point = 1
+    }
+
+    private readonly record struct PackedLight(
+        PackedLightType Type,
+        Vector3 Position,
+        Vector3 Direction,
+        Vector3 Color,
+        float Range);
+
+    private readonly record struct PointLightCandidate(PackedLight Light, float DistanceSquared);
+
+    private readonly record struct ProjectedPointLight(
+        int MinTileX,
+        int MaxTileX,
+        int MinTileY,
+        int MaxTileY,
+        float CenterPixelX,
+        float CenterPixelY,
+        float DepthScore);
 }
