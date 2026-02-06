@@ -5,6 +5,7 @@ using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using FrinkyEngine.Core.Serialization;
 using FrinkyEngine.Editor.Panels;
+using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
 
@@ -35,6 +36,7 @@ public class EditorApplication
     public HierarchyPanel HierarchyPanel { get; }
     public InspectorPanel InspectorPanel { get; }
     public ConsolePanel ConsolePanel { get; }
+    public AssetBrowserPanel AssetBrowserPanel { get; }
     public MenuBar MenuBar { get; }
 
     public EditorApplication()
@@ -44,6 +46,7 @@ public class EditorApplication
         HierarchyPanel = new HierarchyPanel(this);
         InspectorPanel = new InspectorPanel(this);
         ConsolePanel = new ConsolePanel(this);
+        AssetBrowserPanel = new AssetBrowserPanel(this);
         MenuBar = new MenuBar(this);
     }
 
@@ -67,6 +70,8 @@ public class EditorApplication
         var lightEntity = CurrentScene.CreateEntity("Directional Light");
         lightEntity.Transform.LocalPosition = new System.Numerics.Vector3(2, 10, 2);
         lightEntity.AddComponent<Core.Components.LightComponent>();
+
+        UpdateWindowTitle();
     }
 
     public void Update(float dt)
@@ -84,6 +89,7 @@ public class EditorApplication
         HierarchyPanel.Draw();
         InspectorPanel.Draw();
         ConsolePanel.Draw();
+        AssetBrowserPanel.Draw();
     }
 
     public void EnterPlayMode()
@@ -138,6 +144,7 @@ public class EditorApplication
         if (ProjectDirectory != null)
         {
             AssetManager.Instance.AssetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
+            AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
 
             if (!string.IsNullOrEmpty(ProjectFile.GameAssembly))
             {
@@ -154,12 +161,24 @@ public class EditorApplication
         }
 
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
+        UpdateWindowTitle();
+    }
+
+    public void UpdateWindowTitle()
+    {
+        var title = "FrinkyEngine Editor";
+        if (ProjectFile != null)
+            title += $" - {ProjectFile.ProjectName}";
+        if (CurrentScene != null)
+            title += $" - {CurrentScene.Name}";
+        Raylib.SetWindowTitle(title);
     }
 
     public void Shutdown()
     {
         SceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
+        AssetDatabase.Instance.Clear();
         AssemblyLoader.Unload();
     }
 }

@@ -12,6 +12,7 @@ public class EditorCamera
     private float _lookSensitivity = 0.15f;
     private float _scrollSpeed = 2f;
     private bool _cursorDisabled;
+    private Vector2 _savedCursorPos;
 
     public Camera3D Camera3D { get; private set; }
 
@@ -20,16 +21,16 @@ public class EditorCamera
         UpdateCamera3D();
     }
 
-    public void Update(float dt, bool canCapture)
+    public void Update(float dt, bool isViewportHovered)
     {
-        if (!canCapture) return;
-
         bool rightMouse = Raylib.IsMouseButtonDown(MouseButton.Right);
 
-        if (rightMouse)
+        // Start capture only when hovering viewport, but keep going until right-click is released
+        if (rightMouse && (isViewportHovered || _cursorDisabled))
         {
             if (!_cursorDisabled)
             {
+                _savedCursorPos = Raylib.GetMousePosition();
                 Raylib.DisableCursor();
                 _cursorDisabled = true;
             }
@@ -56,13 +57,17 @@ public class EditorCamera
         else if (_cursorDisabled)
         {
             Raylib.EnableCursor();
+            Raylib.SetMousePosition((int)_savedCursorPos.X, (int)_savedCursorPos.Y);
             _cursorDisabled = false;
         }
 
-        float scroll = Raylib.GetMouseWheelMove();
-        if (scroll != 0)
+        if (isViewportHovered)
         {
-            _position += GetForward() * scroll * _scrollSpeed;
+            float scroll = Raylib.GetMouseWheelMove();
+            if (scroll != 0)
+            {
+                _position += GetForward() * scroll * _scrollSpeed;
+            }
         }
 
         UpdateCamera3D();

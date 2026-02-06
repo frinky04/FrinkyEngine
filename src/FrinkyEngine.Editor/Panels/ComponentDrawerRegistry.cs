@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Reflection;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using ImGuiNET;
@@ -110,6 +111,30 @@ public static class ComponentDrawerRegistry
         string modelPath = mr.ModelPath;
         if (ImGui.InputText("Model Path", ref modelPath, 256))
             mr.ModelPath = modelPath;
+
+        ImGui.SameLine();
+        if (ImGui.Button("...##BrowseModel"))
+            ImGui.OpenPopup("ModelBrowser");
+
+        if (ImGui.BeginPopup("ModelBrowser"))
+        {
+            var models = AssetDatabase.Instance.GetAssets(AssetType.Model);
+            if (models.Count == 0)
+            {
+                ImGui.TextDisabled("No models found");
+            }
+            else
+            {
+                foreach (var asset in models)
+                {
+                    if (ImGui.Selectable(asset.RelativePath))
+                    {
+                        mr.ModelPath = asset.RelativePath;
+                    }
+                }
+            }
+            ImGui.EndPopup();
+        }
 
         string matPath = mr.MaterialPath;
         if (ImGui.InputText("Material Path", ref matPath, 256))

@@ -1,9 +1,9 @@
 {
-  "name": "MainScene",
+  "name": "Untitled",
   "entities": [
     {
       "name": "Main Camera",
-      "id": "2899e9ce-9aba-453c-93c5-c96717ad3817",
+      "id": "5c77dd24-b1d3-448f-a8a4-be9c15f2fd02",
       "active": true,
       "components": [
         {
@@ -16,10 +16,10 @@
               "z": 10
             },
             "LocalRotation": {
-              "x": -0.17364813,
+              "x": -0.17364818,
               "y": 0,
               "z": 0,
-              "w": 0.9848078
+              "w": 0.9848077
             },
             "LocalScale": {
               "x": 1,
@@ -27,7 +27,7 @@
               "z": 1
             },
             "EulerAngles": {
-              "x": -19.999992,
+              "x": -19.999998,
               "y": 0,
               "z": 0
             }
@@ -42,9 +42,9 @@
             "FarPlane": 1000,
             "Projection": "Perspective",
             "ClearColor": {
-              "r": 0,
-              "g": 0,
-              "b": 0,
+              "r": 30,
+              "g": 30,
+              "b": 30,
               "a": 255
             },
             "IsMain": true
@@ -55,7 +55,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "a1754a54-1d09-45b1-91f7-b8b8d751de24",
+      "id": "96b6eb47-f82b-44b8-a099-d00aa48cc033",
       "active": true,
       "components": [
         {
@@ -98,41 +98,6 @@
             },
             "Intensity": 1,
             "Range": 10
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Test Entity",
-      "id": "ad60126c-5c8f-42bd-810d-2d3be1274148",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "properties": {
-            "LocalPosition": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            },
-            "EulerAngles": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
           }
         }
       ],

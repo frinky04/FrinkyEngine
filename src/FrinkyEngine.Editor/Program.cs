@@ -132,6 +132,7 @@ public static class Program
         ImGuiDockBuilder.DockWindow("Viewport", topId);
         ImGuiDockBuilder.DockWindow("Inspector", rightId);
         ImGuiDockBuilder.DockWindow("Console", bottomId);
+        ImGuiDockBuilder.DockWindow("Assets", bottomId);
 
         ImGuiDockBuilder.Finish(dockspaceId);
     }

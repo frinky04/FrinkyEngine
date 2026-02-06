@@ -1,3 +1,4 @@
+using System.Numerics;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using ImGuiNET;
@@ -84,6 +85,7 @@ public class MenuBar
                 ImGui.MenuItem("Hierarchy", null, true);
                 ImGui.MenuItem("Inspector", null, true);
                 ImGui.MenuItem("Console", null, true);
+                ImGui.MenuItem("Assets", null, true);
                 ImGui.Separator();
                 if (ImGui.MenuItem("Reset Layout"))
                 {
@@ -137,6 +139,7 @@ public class MenuBar
         SceneManager.Instance.LoadScene(result.Path);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
         _app.SelectedEntity = null;
+        _app.UpdateWindowTitle();
         FrinkyLog.Info($"Opened scene: {result.Path}");
     }
 
@@ -166,6 +169,7 @@ public class MenuBar
             path += ".fscene";
 
         SceneManager.Instance.SaveScene(path);
+        _app.UpdateWindowTitle();
         FrinkyLog.Info($"Scene saved to: {path}");
     }
 
@@ -179,7 +183,13 @@ public class MenuBar
 
     private void DrawNewProjectPopup()
     {
-        if (ImGui.BeginPopup("NewProject"))
+        var viewport = ImGui.GetMainViewport();
+        var center = new Vector2(viewport.WorkPos.X + viewport.WorkSize.X * 0.5f,
+                                 viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(500, 0), ImGuiCond.Appearing);
+
+        if (ImGui.BeginPopupModal("NewProject", ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.InputText("Project Name", ref _newProjectName, 256);
 
