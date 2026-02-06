@@ -153,6 +153,19 @@ public class MenuBar
 
                 ImGui.Separator();
 
+                if (ImGui.MenuItem("Select All", KeybindManager.Instance.GetShortcutText(EditorAction.SelectAllEntities)))
+                {
+                    if (_app.CurrentScene != null)
+                        _app.SetSelection(_app.CurrentScene.Entities);
+                }
+
+                if (ImGui.MenuItem("Hierarchy Search", KeybindManager.Instance.GetShortcutText(EditorAction.FocusHierarchySearch)))
+                {
+                    _app.HierarchyPanel.FocusSearch();
+                }
+
+                ImGui.Separator();
+
                 var hasSelection = _app.SelectedEntities.Count > 0;
                 var hasSingleSelection = _app.SelectedEntities.Count == 1;
 
@@ -316,7 +329,7 @@ public class MenuBar
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
         _app.UndoRedo.Clear();
-        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds());
+        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds(), _app.SerializeCurrentHierarchyState());
         FrinkyLog.Info($"Opened scene: {result.Path}");
         NotificationManager.Instance.Post($"Scene opened: {_app.CurrentScene?.Name ?? "scene"}", NotificationType.Success);
     }

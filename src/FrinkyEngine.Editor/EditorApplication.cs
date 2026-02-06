@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -19,6 +20,11 @@ public enum EditorMode
 
 public class EditorApplication
 {
+    private static readonly JsonSerializerOptions HierarchyJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     public static EditorApplication Instance { get; private set; } = null!;
 
     public Core.Scene.Scene? CurrentScene { get; set; }
@@ -50,6 +56,8 @@ public class EditorApplication
     private Task<bool>? _exportTask;
     private EditorNotification? _exportNotification;
     private AssetFileWatcher? _assetFileWatcher;
+    private readonly Dictionary<string, HierarchySceneState> _sessionHierarchyStates = new(StringComparer.OrdinalIgnoreCase);
+    private bool _hierarchyStateDirty;
 
     public ViewportPanel ViewportPanel { get; }
     public HierarchyPanel HierarchyPanel { get; }
@@ -98,8 +106,9 @@ public class EditorApplication
 
         EditorCamera.Reset();
         UpdateWindowTitle();
+        ResetHierarchyStateForCurrentScene();
         UndoRedo.Clear();
-        UndoRedo.SetBaseline(CurrentScene, Array.Empty<Guid>());
+        UndoRedo.SetBaseline(CurrentScene, Array.Empty<Guid>(), SerializeCurrentHierarchyState());
         NotificationManager.Instance.Post("New scene created", NotificationType.Info);
     }
 
@@ -207,6 +216,8 @@ public class EditorApplication
                 BuildScripts();
         }
 
+        FlushHierarchyStateIfDirty();
+
         if (Mode == EditorMode.Play && CurrentScene != null)
         {
             CurrentScene.Update(dt);
@@ -255,7 +266,7 @@ public class EditorApplication
 
         ClearSelection();
         Mode = EditorMode.Edit;
-        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
+        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
         FrinkyLog.Info("Exited Play mode.");
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
@@ -287,6 +298,8 @@ public class EditorApplication
     {
         ProjectDirectory = Path.GetDirectoryName(fprojectPath);
         ProjectFile = Core.Assets.ProjectFile.Load(fprojectPath);
+        _sessionHierarchyStates.Clear();
+        _hierarchyStateDirty = false;
 
         if (ProjectDirectory != null)
         {
@@ -322,7 +335,7 @@ public class EditorApplication
         EditorPreferences.Instance.LoadConfig(ProjectDirectory);
         UndoRedo.Clear();
         ClearSelection();
-        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
+        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
@@ -454,7 +467,7 @@ public class EditorApplication
                 SceneManager.Instance.SetActiveScene(refreshed);
                 ClearSelection();
             }
-            UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
+            UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
         }
     }
 
@@ -515,7 +528,9 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.RenameEntity, () =>
         {
-            if (SelectedEntities.Count == 1)
+            if (HierarchyPanel.IsWindowFocused)
+                HierarchyPanel.BeginRenameSelected();
+            else if (SelectedEntities.Count == 1)
                 InspectorPanel.FocusNameField = true;
         });
 
@@ -530,6 +545,27 @@ public class EditorApplication
         km.RegisterAction(EditorAction.DeselectEntity, () =>
         {
             ClearSelection();
+        });
+        km.RegisterAction(EditorAction.SelectAllEntities, () =>
+        {
+            if (HierarchyPanel.IsWindowFocused)
+                HierarchyPanel.SelectAllVisibleEntities();
+            else if (CurrentScene != null)
+                SetSelection(CurrentScene.Entities);
+        });
+        km.RegisterAction(EditorAction.ExpandSelection, () =>
+        {
+            if (HierarchyPanel.IsWindowFocused)
+                HierarchyPanel.ExpandSelection();
+        });
+        km.RegisterAction(EditorAction.CollapseSelection, () =>
+        {
+            if (HierarchyPanel.IsWindowFocused)
+                HierarchyPanel.CollapseSelection();
+        });
+        km.RegisterAction(EditorAction.FocusHierarchySearch, () =>
+        {
+            HierarchyPanel.FocusSearch();
         });
         km.RegisterAction(EditorAction.ToggleGameView, () => ToggleGameView());
 
@@ -580,13 +616,13 @@ public class EditorApplication
     public void RecordUndo()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
-        UndoRedo.RecordUndo(GetSelectedEntityIds());
+        UndoRedo.RecordUndo(GetSelectedEntityIds(), SerializeCurrentHierarchyState());
     }
 
     public void RefreshUndoBaseline()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
-        UndoRedo.RefreshBaseline(CurrentScene, GetSelectedEntityIds());
+        UndoRedo.RefreshBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
     }
 
     public bool IsSelected(Entity entity)
@@ -661,6 +697,7 @@ public class EditorApplication
         RecordUndo();
         foreach (var entity in entitiesToDelete)
             CurrentScene.RemoveEntity(entity);
+        CleanupHierarchyStateForCurrentScene();
         ClearSelection();
         RefreshUndoBaseline();
     }
@@ -712,6 +749,282 @@ public class EditorApplication
         return false;
     }
 
+    public Entity? FindEntityById(Guid entityId)
+    {
+        if (CurrentScene == null)
+            return null;
+
+        return FindEntityById(CurrentScene, entityId);
+    }
+
+    public HierarchySceneState GetOrCreateHierarchySceneState()
+    {
+        if (CurrentScene == null)
+            return new HierarchySceneState();
+
+        var key = GetCurrentHierarchySceneKey();
+        if (string.IsNullOrWhiteSpace(key))
+            return new HierarchySceneState();
+
+        var stateMap = GetHierarchyStateMapForKey(key);
+        if (!stateMap.TryGetValue(key, out var state))
+        {
+            state = new HierarchySceneState();
+            stateMap[key] = state;
+            if (IsPersistedHierarchyKey(key))
+                MarkHierarchyStateDirty();
+        }
+
+        state.Normalize();
+        return state;
+    }
+
+    public string? SerializeCurrentHierarchyState()
+    {
+        if (CurrentScene == null)
+            return null;
+
+        var state = GetOrCreateHierarchySceneState();
+        return JsonSerializer.Serialize(state, HierarchyJsonOptions);
+    }
+
+    public void RestoreHierarchyStateFromSerialized(string? hierarchyJson)
+    {
+        if (CurrentScene == null)
+            return;
+
+        var key = GetCurrentHierarchySceneKey();
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        var stateMap = GetHierarchyStateMapForKey(key);
+        if (string.IsNullOrWhiteSpace(hierarchyJson))
+        {
+            if (stateMap.Remove(key) && IsPersistedHierarchyKey(key))
+                MarkHierarchyStateDirty();
+            return;
+        }
+
+        try
+        {
+            var state = JsonSerializer.Deserialize<HierarchySceneState>(hierarchyJson, HierarchyJsonOptions);
+            if (state == null)
+                return;
+
+            state.Normalize();
+            stateMap[key] = state;
+            if (IsPersistedHierarchyKey(key))
+                MarkHierarchyStateDirty();
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Failed to restore hierarchy state: {ex.Message}");
+        }
+    }
+
+    public bool ReparentEntity(Entity child, Entity? newParent)
+    {
+        if (CurrentScene == null || child.Scene != CurrentScene)
+            return false;
+
+        if (newParent != null && newParent.Scene != CurrentScene)
+            return false;
+        if (newParent != null && newParent.Id == child.Id)
+            return false;
+
+        var currentParent = child.Transform.Parent?.Entity;
+        if ((newParent == null && currentParent == null) ||
+            (newParent != null && currentParent?.Id == newParent.Id))
+        {
+            return false;
+        }
+
+        if (newParent != null)
+        {
+            var current = newParent.Transform;
+            while (current != null)
+            {
+                if (current.Entity.Id == child.Id)
+                    return false;
+                current = current.Parent;
+            }
+        }
+
+        child.Transform.SetParent(newParent?.Transform);
+        return true;
+    }
+
+    public string? GetRootEntityFolder(Entity entity)
+    {
+        if (CurrentScene == null || entity.Scene != CurrentScene)
+            return null;
+
+        var state = GetOrCreateHierarchySceneState();
+        var key = entity.Id.ToString("N");
+        return state.RootEntityFolders.TryGetValue(key, out var folderId) ? folderId : null;
+    }
+
+    public bool SetRootEntityFolder(Entity entity, string? folderId)
+    {
+        if (CurrentScene == null || entity.Scene != CurrentScene)
+            return false;
+        if (entity.Transform.Parent != null)
+            return false;
+
+        var state = GetOrCreateHierarchySceneState();
+        folderId = string.IsNullOrWhiteSpace(folderId) ? null : folderId.Trim();
+        if (!string.IsNullOrEmpty(folderId) &&
+            !state.Folders.Any(f => string.Equals(f.Id, folderId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var key = entity.Id.ToString("N");
+        if (folderId == null)
+        {
+            if (!state.RootEntityFolders.Remove(key))
+                return false;
+        }
+        else
+        {
+            if (state.RootEntityFolders.TryGetValue(key, out var existing) &&
+                string.Equals(existing, folderId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            state.RootEntityFolders[key] = folderId;
+        }
+
+        MarkHierarchyStateDirty();
+        return true;
+    }
+
+    public void CleanupHierarchyStateForCurrentScene()
+    {
+        if (CurrentScene == null)
+            return;
+
+        var state = GetOrCreateHierarchySceneState();
+        bool changed = false;
+
+        var validFolderIds = new HashSet<string>(
+            state.Folders.Select(f => f.Id),
+            StringComparer.OrdinalIgnoreCase);
+        var validEntityIds = new HashSet<string>(
+            CurrentScene.Entities.Select(e => e.Id.ToString("N")),
+            StringComparer.OrdinalIgnoreCase);
+
+        var staleAssignments = state.RootEntityFolders
+            .Where(kvp => !validEntityIds.Contains(kvp.Key) || !validFolderIds.Contains(kvp.Value))
+            .Select(kvp => kvp.Key)
+            .ToList();
+        foreach (var entityId in staleAssignments)
+        {
+            state.RootEntityFolders.Remove(entityId);
+            changed = true;
+        }
+
+        int beforeExpandedFolders = state.ExpandedFolderIds.Count;
+        state.ExpandedFolderIds = state.ExpandedFolderIds
+            .Where(validFolderIds.Contains)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        changed |= beforeExpandedFolders != state.ExpandedFolderIds.Count;
+
+        int beforeExpandedEntities = state.ExpandedEntityIds.Count;
+        state.ExpandedEntityIds = state.ExpandedEntityIds
+            .Where(validEntityIds.Contains)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        changed |= beforeExpandedEntities != state.ExpandedEntityIds.Count;
+
+        if (!string.IsNullOrWhiteSpace(state.RequiredComponentType) &&
+            ComponentTypeResolver.Resolve(state.RequiredComponentType) == null)
+        {
+            state.RequiredComponentType = string.Empty;
+            changed = true;
+        }
+
+        var folderCount = state.Folders.Count;
+        state.Normalize();
+        changed |= state.Folders.Count != folderCount;
+
+        if (changed)
+            MarkHierarchyStateDirty();
+    }
+
+    public void MarkHierarchyStateDirty()
+    {
+        _hierarchyStateDirty = true;
+    }
+
+    private void ResetHierarchyStateForCurrentScene()
+    {
+        if (CurrentScene == null)
+            return;
+
+        var key = GetCurrentHierarchySceneKey();
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        var stateMap = GetHierarchyStateMapForKey(key);
+        if (stateMap.Remove(key) && IsPersistedHierarchyKey(key))
+            MarkHierarchyStateDirty();
+    }
+
+    private void FlushHierarchyStateIfDirty()
+    {
+        if (!_hierarchyStateDirty || ProjectDirectory == null || ProjectEditorSettings == null)
+            return;
+
+        ProjectEditorSettings.Save(ProjectDirectory);
+        _hierarchyStateDirty = false;
+    }
+
+    private string GetCurrentHierarchySceneKey()
+    {
+        if (CurrentScene == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(ProjectDirectory) &&
+            !string.IsNullOrWhiteSpace(CurrentScene.FilePath))
+        {
+            var relative = Path.GetRelativePath(ProjectDirectory, CurrentScene.FilePath).Replace('\\', '/');
+            return $"scene:{relative}";
+        }
+
+        return $"session:{CurrentScene.Name}";
+    }
+
+    private Dictionary<string, HierarchySceneState> GetHierarchyStateMapForKey(string key)
+    {
+        if (IsPersistedHierarchyKey(key) && ProjectEditorSettings != null)
+        {
+            ProjectEditorSettings.Hierarchy ??= new HierarchyEditorSettings();
+            ProjectEditorSettings.Hierarchy.Normalize();
+            return ProjectEditorSettings.Hierarchy.Scenes;
+        }
+
+        return _sessionHierarchyStates;
+    }
+
+    private static bool IsPersistedHierarchyKey(string key)
+    {
+        return key.StartsWith("scene:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
+    {
+        foreach (var entity in scene.Entities)
+        {
+            if (entity.Id == id)
+                return entity;
+        }
+
+        return null;
+    }
+
     public void Shutdown()
     {
         _assetFileWatcher?.Dispose();
@@ -744,6 +1057,7 @@ public class EditorApplication
         settings.Normalize();
         settings.Save(ProjectDirectory);
         ProjectEditorSettings = settings;
+        _hierarchyStateDirty = false;
         ApplyEditorSettingsImmediate();
     }
 

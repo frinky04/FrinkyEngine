@@ -1,97 +1,803 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Serialization;
 using ImGuiNET;
 
 namespace FrinkyEngine.Editor.Panels;
 
 public class HierarchyPanel
 {
+    private const string RootFolderKey = "__root__";
+    private const string EntityDragPayload = "FRINKY_HIERARCHY_ENTITY";
+    private const string FolderDragPayload = "FRINKY_HIERARCHY_FOLDER";
+
     private readonly EditorApplication _app;
+
     private Guid? _rangeAnchorId;
+    private bool _isWindowFocused;
+    private bool _focusSearchRequested;
+
+    private Guid? _focusedEntityId;
+    private string? _focusedFolderId;
+
+    private Guid? _renamingEntityId;
+    private string? _renamingFolderId;
+    private string _renameBuffer = string.Empty;
+    private bool _focusRenameInput;
+
+    private Guid? _draggedEntityId;
+    private string? _draggedFolderId;
+
+    private List<Entity> _lastVisibleEntities = new();
 
     public HierarchyPanel(EditorApplication app)
     {
         _app = app;
     }
 
+    public bool IsWindowFocused => _isWindowFocused;
+
+    public void FocusSearch()
+    {
+        _focusSearchRequested = true;
+    }
+
+    public void BeginRenameSelected()
+    {
+        if (_app.SelectedEntity != null)
+        {
+            BeginRenameEntity(_app.SelectedEntity);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_focusedFolderId))
+            BeginRenameFolder(_focusedFolderId);
+    }
+
+    public void SelectAllVisibleEntities()
+    {
+        if (ShouldSuppressHierarchyHotkeys())
+            return;
+
+        if (_lastVisibleEntities.Count == 0)
+            return;
+
+        _app.SetSelection(_lastVisibleEntities);
+        _rangeAnchorId = _lastVisibleEntities[^1].Id;
+    }
+
+    public void ExpandSelection()
+    {
+        if (ShouldSuppressHierarchyHotkeys() || _app.CurrentScene == null)
+            return;
+
+        var state = _app.GetOrCreateHierarchySceneState();
+        var expandedEntities = new HashSet<string>(state.ExpandedEntityIds, StringComparer.OrdinalIgnoreCase);
+        var expandedFolders = new HashSet<string>(state.ExpandedFolderIds, StringComparer.OrdinalIgnoreCase);
+
+        bool changed = false;
+        foreach (var entity in _app.SelectedEntities)
+        {
+            if (entity.Scene != _app.CurrentScene || entity.Transform.Children.Count == 0)
+                continue;
+
+            changed |= expandedEntities.Add(entity.Id.ToString("N"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(_focusedFolderId))
+            changed |= expandedFolders.Add(_focusedFolderId);
+
+        if (!changed)
+            return;
+
+        state.ExpandedEntityIds = expandedEntities.ToList();
+        state.ExpandedFolderIds = expandedFolders.ToList();
+        _app.MarkHierarchyStateDirty();
+    }
+
+    public void CollapseSelection()
+    {
+        if (ShouldSuppressHierarchyHotkeys() || _app.CurrentScene == null)
+            return;
+
+        var state = _app.GetOrCreateHierarchySceneState();
+        var expandedEntities = new HashSet<string>(state.ExpandedEntityIds, StringComparer.OrdinalIgnoreCase);
+        var expandedFolders = new HashSet<string>(state.ExpandedFolderIds, StringComparer.OrdinalIgnoreCase);
+
+        bool changed = false;
+        foreach (var entity in _app.SelectedEntities)
+            changed |= expandedEntities.Remove(entity.Id.ToString("N"));
+
+        if (!string.IsNullOrWhiteSpace(_focusedFolderId))
+            changed |= expandedFolders.Remove(_focusedFolderId);
+
+        if (!changed)
+            return;
+
+        state.ExpandedEntityIds = expandedEntities.ToList();
+        state.ExpandedFolderIds = expandedFolders.ToList();
+        _app.MarkHierarchyStateDirty();
+    }
+
     public void Draw()
     {
-        if (ImGui.Begin("Hierarchy"))
+        if (!ImGui.Begin("Hierarchy"))
         {
-            if (_app.CurrentScene != null)
-            {
-                var hierarchyOrder = BuildHierarchyOrder(_app.CurrentScene);
-                foreach (var entity in _app.CurrentScene.Entities)
-                {
-                    if (entity.Transform.Parent == null)
-                        DrawEntityNode(entity, hierarchyOrder);
-                }
-
-                ImGui.Separator();
-
-                if (ImGui.Button("Add Entity"))
-                {
-                    _app.RecordUndo();
-                    var newEntity = _app.CurrentScene.CreateEntity("New Entity");
-                    _app.SetSingleSelection(newEntity);
-                    _rangeAnchorId = newEntity.Id;
-                    _app.RefreshUndoBaseline();
-                }
-
-                if (ImGui.BeginPopupContextWindow("HierarchyContext", ImGuiPopupFlags.MouseButtonRight | ImGuiPopupFlags.NoOpenOverItems))
-                {
-                    if (ImGui.MenuItem("Create Empty"))
-                    {
-                        _app.RecordUndo();
-                        var entity = _app.CurrentScene.CreateEntity("Empty");
-                        _app.SetSingleSelection(entity);
-                        _rangeAnchorId = entity.Id;
-                        _app.RefreshUndoBaseline();
-                    }
-                    if (ImGui.MenuItem("Create Camera"))
-                    {
-                        _app.RecordUndo();
-                        var cam = _app.CurrentScene.CreateEntity("Camera");
-                        cam.AddComponent<CameraComponent>();
-                        _app.SetSingleSelection(cam);
-                        _rangeAnchorId = cam.Id;
-                        _app.RefreshUndoBaseline();
-                    }
-                    if (ImGui.MenuItem("Create Light"))
-                    {
-                        _app.RecordUndo();
-                        var light = _app.CurrentScene.CreateEntity("Light");
-                        light.AddComponent<LightComponent>();
-                        _app.SetSingleSelection(light);
-                        _rangeAnchorId = light.Id;
-                        _app.RefreshUndoBaseline();
-                    }
-                    ImGui.EndPopup();
-                }
-            }
+            _isWindowFocused = false;
+            ImGui.End();
+            return;
         }
+
+        _isWindowFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+
+        if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            _draggedEntityId = null;
+            _draggedFolderId = null;
+        }
+
+        if (_app.CurrentScene == null)
+        {
+            ImGui.TextDisabled("No scene loaded.");
+            ImGui.End();
+            return;
+        }
+
+        _app.CleanupHierarchyStateForCurrentScene();
+        var state = _app.GetOrCreateHierarchySceneState();
+
+        DrawToolbar(state);
+        ImGui.Separator();
+
+        var context = BuildRenderContext(_app.CurrentScene, state);
+        var expandedFolders = new HashSet<string>(state.ExpandedFolderIds, StringComparer.OrdinalIgnoreCase);
+        var expandedEntities = new HashSet<string>(state.ExpandedEntityIds, StringComparer.OrdinalIgnoreCase);
+        var visibleEntities = new List<Entity>();
+        bool expansionChanged = false;
+
+        DrawRootContent(_app.CurrentScene, state, context, expandedFolders, expandedEntities, visibleEntities, ref expansionChanged);
+        DrawBackgroundContextMenu(state);
+        DrawRootDropZone(state);
+
+        if (expansionChanged)
+        {
+            state.ExpandedFolderIds = expandedFolders.ToList();
+            state.ExpandedEntityIds = expandedEntities.ToList();
+            _app.MarkHierarchyStateDirty();
+        }
+
+        HandleKeyboardNavigation(visibleEntities);
+        _lastVisibleEntities = visibleEntities;
         ImGui.End();
     }
 
-    private void DrawEntityNode(Entity entity, List<Entity> hierarchyOrder)
+    private void DrawToolbar(HierarchySceneState state)
     {
+        bool stateChanged = false;
+
+        if (_focusSearchRequested)
+        {
+            ImGui.SetKeyboardFocusHere();
+            _focusSearchRequested = false;
+        }
+
+        string search = state.SearchQuery;
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 200f);
+        if (ImGui.InputTextWithHint("##HierarchySearch", "Search entities, folders, components...", ref search, 256))
+        {
+            state.SearchQuery = search;
+            stateChanged = true;
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Filters"))
+            ImGui.OpenPopup("HierarchyFilters");
+
+        if (ImGui.BeginPopup("HierarchyFilters"))
+        {
+            bool activeOnly = state.FilterActiveOnly;
+            if (ImGui.Checkbox("Active Only", ref activeOnly))
+            {
+                state.FilterActiveOnly = activeOnly;
+                if (activeOnly)
+                    state.FilterInactiveOnly = false;
+                stateChanged = true;
+            }
+
+            bool inactiveOnly = state.FilterInactiveOnly;
+            if (ImGui.Checkbox("Inactive Only", ref inactiveOnly))
+            {
+                state.FilterInactiveOnly = inactiveOnly;
+                if (inactiveOnly)
+                    state.FilterActiveOnly = false;
+                stateChanged = true;
+            }
+
+            bool selectedOnly = state.FilterSelectedOnly;
+            if (ImGui.Checkbox("Selected Only", ref selectedOnly))
+            {
+                state.FilterSelectedOnly = selectedOnly;
+                stateChanged = true;
+            }
+
+            ImGui.Separator();
+
+            var componentTypes = ComponentTypeResolver.GetAllComponentTypes()
+                .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var currentType = string.IsNullOrWhiteSpace(state.RequiredComponentType)
+                ? null
+                : ComponentTypeResolver.Resolve(state.RequiredComponentType);
+
+            var preview = currentType?.Name ?? "Any Component";
+            if (ImGui.BeginCombo("Has Component", preview))
+            {
+                bool anySelected = string.IsNullOrWhiteSpace(state.RequiredComponentType);
+                if (ImGui.Selectable("Any Component", anySelected))
+                {
+                    state.RequiredComponentType = string.Empty;
+                    stateChanged = true;
+                }
+
+                foreach (var type in componentTypes)
+                {
+                    var typeName = type.FullName ?? type.Name;
+                    bool selected = string.Equals(typeName, state.RequiredComponentType, StringComparison.Ordinal);
+                    var source = ComponentTypeResolver.GetAssemblySource(type);
+                    if (ImGui.Selectable($"{type.Name}  [{source}]", selected))
+                    {
+                        state.RequiredComponentType = typeName;
+                        stateChanged = true;
+                    }
+                }
+
+                ImGui.EndCombo();
+            }
+
+            ImGui.Separator();
+
+            bool showOnlyMatches = state.ShowOnlyMatches;
+            if (ImGui.Checkbox("Show Only Matches", ref showOnlyMatches))
+            {
+                state.ShowOnlyMatches = showOnlyMatches;
+                stateChanged = true;
+            }
+
+            bool autoExpand = state.AutoExpandMatches;
+            if (ImGui.Checkbox("Auto Expand Matches", ref autoExpand))
+            {
+                state.AutoExpandMatches = autoExpand;
+                stateChanged = true;
+            }
+
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Create"))
+            ImGui.OpenPopup("HierarchyCreate");
+
+        if (ImGui.BeginPopup("HierarchyCreate"))
+        {
+            DrawCreateEntityMenuItems(parent: null);
+            ImGui.Separator();
+            if (ImGui.MenuItem("Folder"))
+                CreateFolder(state, "New Folder", parentFolderId: null);
+            ImGui.EndPopup();
+        }
+
+        if (stateChanged)
+            _app.MarkHierarchyStateDirty();
+    }
+
+    private void DrawRootContent(
+        Core.Scene.Scene scene,
+        HierarchySceneState state,
+        HierarchyRenderContext context,
+        HashSet<string> expandedFolders,
+        HashSet<string> expandedEntities,
+        List<Entity> visibleEntities,
+        ref bool expansionChanged)
+    {
+        foreach (var folder in context.RootFolders)
+            DrawFolderNode(folder, scene, state, context, expandedFolders, expandedEntities, visibleEntities, ref expansionChanged);
+
+        foreach (var entity in context.UnassignedRootEntities)
+            DrawEntityNode(entity, state, context, expandedEntities, visibleEntities, ref expansionChanged);
+    }
+
+    private void DrawFolderNode(
+        HierarchyFolderState folder,
+        Core.Scene.Scene scene,
+        HierarchySceneState state,
+        HierarchyRenderContext context,
+        HashSet<string> expandedFolders,
+        HashSet<string> expandedEntities,
+        List<Entity> visibleEntities,
+        ref bool expansionChanged)
+    {
+        if (!context.FolderVisible.GetValueOrDefault(folder.Id, true))
+            return;
+
+        var childFolders = context.GetOrderedChildFolders(folder.Id)
+            .Where(child => context.FolderVisible.GetValueOrDefault(child.Id, true))
+            .ToList();
+        var folderEntities = context.GetFolderEntities(folder.Id)
+            .Where(entity => context.EntityVisible.GetValueOrDefault(entity.Id, true))
+            .ToList();
+
+        bool hasChildren = childFolders.Count > 0 || folderEntities.Count > 0;
+        bool isFocused = string.Equals(_focusedFolderId, folder.Id, StringComparison.OrdinalIgnoreCase);
+
         var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-        if (_app.IsSelected(entity))
-            flags |= ImGuiTreeNodeFlags.Selected;
-        if (entity.Transform.Children.Count == 0)
+        if (!hasChildren)
             flags |= ImGuiTreeNodeFlags.Leaf;
+        if (isFocused)
+            flags |= ImGuiTreeNodeFlags.Selected;
 
-        bool opened = ImGui.TreeNodeEx(entity.Id.ToString(), flags, entity.Name);
+        bool forceOpen = context.HasSearch
+                         && state.AutoExpandMatches
+                         && context.FolderSubtreeMatch.GetValueOrDefault(folder.Id);
 
-        if (ImGui.IsItemClicked())
-            HandleEntitySelection(entity, hierarchyOrder);
+        bool isOpen = expandedFolders.Contains(folder.Id) || forceOpen;
+        ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
+
+        string displayLabel = string.Equals(_renamingFolderId, folder.Id, StringComparison.OrdinalIgnoreCase)
+            ? $"##folder_{folder.Id}"
+            : folder.Name;
+
+        bool opened = ImGui.TreeNodeEx($"folder_{folder.Id}", flags, displayLabel);
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+        {
+            _focusedFolderId = folder.Id;
+            _focusedEntityId = null;
+            _renamingEntityId = null;
+        }
+
+        if (ImGui.IsItemToggledOpen() && !forceOpen)
+        {
+            if (opened)
+                expandedFolders.Add(folder.Id);
+            else
+                expandedFolders.Remove(folder.Id);
+            expansionChanged = true;
+        }
+
+        if (string.Equals(_renamingFolderId, folder.Id, StringComparison.OrdinalIgnoreCase))
+            DrawFolderRenameInput(folder);
+
+        DrawFolderDragDropSource(folder);
+        DrawFolderDragDropTarget(folder, scene, state);
+        DrawFolderContextMenu(folder, state);
 
         if (opened)
         {
-            foreach (var child in entity.Transform.Children)
-                DrawEntityNode(child.Entity, hierarchyOrder);
+            foreach (var childFolder in childFolders)
+                DrawFolderNode(childFolder, scene, state, context, expandedFolders, expandedEntities, visibleEntities, ref expansionChanged);
+
+            foreach (var entity in folderEntities)
+                DrawEntityNode(entity, state, context, expandedEntities, visibleEntities, ref expansionChanged);
+
             ImGui.TreePop();
         }
+    }
+
+    private void DrawEntityNode(
+        Entity entity,
+        HierarchySceneState state,
+        HierarchyRenderContext context,
+        HashSet<string> expandedEntities,
+        List<Entity> visibleEntities,
+        ref bool expansionChanged)
+    {
+        if (!context.EntityVisible.GetValueOrDefault(entity.Id, true))
+            return;
+
+        var visibleChildren = entity.Transform.Children
+            .Select(c => c.Entity)
+            .Where(child => context.EntityVisible.GetValueOrDefault(child.Id, true))
+            .ToList();
+
+        bool hasChildren = visibleChildren.Count > 0;
+
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (!hasChildren)
+            flags |= ImGuiTreeNodeFlags.Leaf;
+        if (_app.IsSelected(entity))
+            flags |= ImGuiTreeNodeFlags.Selected;
+
+        bool forceOpen = context.HasSearch
+                         && state.AutoExpandMatches
+                         && context.EntitySubtreeMatch.GetValueOrDefault(entity.Id)
+                         && hasChildren;
+
+        string entityKey = entity.Id.ToString("N");
+        bool isOpen = expandedEntities.Contains(entityKey) || forceOpen;
+        ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
+
+        bool isRenaming = _renamingEntityId.HasValue && _renamingEntityId.Value == entity.Id;
+        string displayLabel = isRenaming ? $"##entity_{entityKey}" : entity.Name;
+
+        bool opened = ImGui.TreeNodeEx($"entity_{entityKey}", flags, displayLabel);
+
+        visibleEntities.Add(entity);
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+        {
+            _focusedEntityId = entity.Id;
+            _focusedFolderId = null;
+            HandleEntitySelection(entity, _lastVisibleEntities.Count > 0 ? _lastVisibleEntities : visibleEntities);
+        }
+
+        if (ImGui.IsItemToggledOpen() && !forceOpen)
+        {
+            if (opened)
+                expandedEntities.Add(entityKey);
+            else
+                expandedEntities.Remove(entityKey);
+            expansionChanged = true;
+        }
+
+        DrawEntityDragDropSource(entity);
+        DrawEntityDragDropTarget(entity);
+        DrawEntityContextMenu(entity, state);
+        DrawEntityRenameInput(entity, isRenaming);
+        DrawEntityStatusInline(entity);
+
+        if (opened)
+        {
+            foreach (var child in visibleChildren)
+                DrawEntityNode(child, state, context, expandedEntities, visibleEntities, ref expansionChanged);
+
+            ImGui.TreePop();
+        }
+    }
+
+    private void DrawEntityStatusInline(Entity entity)
+    {
+        bool active = entity.Active;
+
+        ImGui.SameLine();
+        if (ImGui.Checkbox($"##active_{entity.Id:N}", ref active))
+        {
+            _app.RecordUndo();
+            entity.Active = active;
+            _app.RefreshUndoBaseline();
+        }
+
+        ImGui.SameLine();
+        int componentCount = Math.Max(0, entity.Components.Count - 1);
+        ImGui.TextDisabled($"[{componentCount}]");
+    }
+
+    private void DrawEntityRenameInput(Entity entity, bool isRenaming)
+    {
+        if (!isRenaming)
+            return;
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(220f);
+        if (_focusRenameInput)
+        {
+            ImGui.SetKeyboardFocusHere();
+            _focusRenameInput = false;
+        }
+
+        bool submitted = ImGui.InputText($"##rename_entity_{entity.Id:N}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+        bool cancel = ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape);
+
+        if (cancel)
+        {
+            CancelRename();
+            return;
+        }
+
+        if (submitted || ImGui.IsItemDeactivatedAfterEdit())
+            CommitEntityRename(entity);
+    }
+
+    private void DrawFolderRenameInput(HierarchyFolderState folder)
+    {
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(220f);
+        if (_focusRenameInput)
+        {
+            ImGui.SetKeyboardFocusHere();
+            _focusRenameInput = false;
+        }
+
+        bool submitted = ImGui.InputText($"##rename_folder_{folder.Id}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+        bool cancel = ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape);
+
+        if (cancel)
+        {
+            CancelRename();
+            return;
+        }
+
+        if (submitted || ImGui.IsItemDeactivatedAfterEdit())
+            CommitFolderRename(folder);
+    }
+
+    private void DrawEntityContextMenu(Entity entity, HierarchySceneState state)
+    {
+        if (!ImGui.BeginPopupContextItem($"EntityContext_{entity.Id:N}"))
+            return;
+
+        if (!_app.IsSelected(entity))
+            _app.SetSingleSelection(entity);
+
+        if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
+            BeginRenameEntity(entity);
+
+        if (ImGui.MenuItem("Duplicate", KeybindManager.Instance.GetShortcutText(EditorAction.DuplicateEntity)))
+            _app.DuplicateSelectedEntities();
+
+        if (ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
+            _app.DeleteSelectedEntities();
+
+        ImGui.Separator();
+
+        if (ImGui.MenuItem("Unparent", null, false, entity.Transform.Parent != null))
+        {
+            _app.RecordUndo();
+            if (_app.ReparentEntity(entity, null))
+                _app.RefreshUndoBaseline();
+        }
+
+        if (ImGui.BeginMenu("Move To Folder"))
+        {
+            bool canAssign = entity.Transform.Parent == null;
+            ImGui.BeginDisabled(!canAssign);
+
+            if (ImGui.MenuItem("None", null, string.IsNullOrWhiteSpace(_app.GetRootEntityFolder(entity))))
+            {
+                _app.RecordUndo();
+                if (_app.SetRootEntityFolder(entity, null))
+                    _app.RefreshUndoBaseline();
+            }
+
+            foreach (var folder in state.Folders.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                bool selected = string.Equals(_app.GetRootEntityFolder(entity), folder.Id, StringComparison.OrdinalIgnoreCase);
+                if (ImGui.MenuItem(folder.Name, null, selected))
+                {
+                    _app.RecordUndo();
+                    if (_app.SetRootEntityFolder(entity, folder.Id))
+                        _app.RefreshUndoBaseline();
+                }
+            }
+
+            ImGui.EndDisabled();
+            ImGui.EndMenu();
+        }
+
+        bool active = entity.Active;
+        if (ImGui.MenuItem("Active", null, active))
+        {
+            _app.RecordUndo();
+            entity.Active = !entity.Active;
+            _app.RefreshUndoBaseline();
+        }
+
+        if (ImGui.BeginMenu("Create Child"))
+        {
+            DrawCreateEntityMenuItems(entity);
+            ImGui.EndMenu();
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private void DrawFolderContextMenu(HierarchyFolderState folder, HierarchySceneState state)
+    {
+        if (!ImGui.BeginPopupContextItem($"FolderContext_{folder.Id}"))
+            return;
+
+        if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
+            BeginRenameFolder(folder.Id);
+
+        if (ImGui.MenuItem("New Subfolder"))
+            CreateFolder(state, "New Folder", folder.Id);
+
+        ImGui.Separator();
+
+        if (ImGui.MenuItem("Delete Folder"))
+            DeleteFolder(folder, state);
+
+        if (ImGui.BeginMenu("Create Entity"))
+        {
+            DrawCreateEntityMenuItems(parent: null);
+            ImGui.EndMenu();
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private void DrawBackgroundContextMenu(HierarchySceneState state)
+    {
+        if (!ImGui.BeginPopupContextWindow("HierarchyBackgroundContext", ImGuiPopupFlags.MouseButtonRight | ImGuiPopupFlags.NoOpenOverItems))
+            return;
+
+        if (ImGui.BeginMenu("Create"))
+        {
+            DrawCreateEntityMenuItems(parent: null);
+            ImGui.Separator();
+            if (ImGui.MenuItem("Folder"))
+                CreateFolder(state, "New Folder", parentFolderId: null);
+            ImGui.EndMenu();
+        }
+
+        ImGui.Separator();
+
+        if (ImGui.MenuItem("Expand All"))
+        {
+            state.ExpandedFolderIds = state.Folders.Select(f => f.Id).ToList();
+            state.ExpandedEntityIds = _app.CurrentScene?.Entities.Select(e => e.Id.ToString("N")).ToList() ?? new List<string>();
+            _app.MarkHierarchyStateDirty();
+        }
+
+        if (ImGui.MenuItem("Collapse All"))
+        {
+            state.ExpandedFolderIds.Clear();
+            state.ExpandedEntityIds.Clear();
+            _app.MarkHierarchyStateDirty();
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private unsafe void DrawRootDropZone(HierarchySceneState state)
+    {
+        ImGui.Separator();
+        ImGui.TextDisabled("Drop Here to Move to Root");
+
+        if (!ImGui.BeginDragDropTarget())
+            return;
+
+        var entityPayload = ImGui.AcceptDragDropPayload(EntityDragPayload);
+        if (entityPayload.NativePtr != null && _draggedEntityId.HasValue)
+        {
+            var entity = _app.FindEntityById(_draggedEntityId.Value);
+            if (entity != null && entity.Transform.Parent == null)
+            {
+                _app.RecordUndo();
+                if (_app.SetRootEntityFolder(entity, null))
+                    _app.RefreshUndoBaseline();
+            }
+        }
+
+        var folderPayload = ImGui.AcceptDragDropPayload(FolderDragPayload);
+        if (folderPayload.NativePtr != null && !string.IsNullOrWhiteSpace(_draggedFolderId))
+        {
+            var folder = state.Folders.FirstOrDefault(f => string.Equals(f.Id, _draggedFolderId, StringComparison.OrdinalIgnoreCase));
+            if (folder != null && !string.IsNullOrWhiteSpace(folder.ParentFolderId))
+            {
+                _app.RecordUndo();
+                folder.ParentFolderId = null;
+                folder.Order = GetNextFolderOrder(state, null);
+                ReindexSiblingFolderOrder(state, null);
+                _app.MarkHierarchyStateDirty();
+                _app.RefreshUndoBaseline();
+            }
+        }
+
+        ImGui.EndDragDropTarget();
+    }
+
+    private void DrawEntityDragDropSource(Entity entity)
+    {
+        if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID))
+            return;
+
+        _draggedEntityId = entity.Id;
+        SetDummyPayload(EntityDragPayload);
+        ImGui.TextUnformatted(entity.Name);
+        ImGui.EndDragDropSource();
+    }
+
+    private void DrawFolderDragDropSource(HierarchyFolderState folder)
+    {
+        if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID))
+            return;
+
+        _draggedFolderId = folder.Id;
+        SetDummyPayload(FolderDragPayload);
+        ImGui.TextUnformatted(folder.Name);
+        ImGui.EndDragDropSource();
+    }
+
+    private unsafe void DrawEntityDragDropTarget(Entity target)
+    {
+        if (!ImGui.BeginDragDropTarget())
+            return;
+
+        var payload = ImGui.AcceptDragDropPayload(EntityDragPayload);
+        if (payload.NativePtr != null && _draggedEntityId.HasValue)
+        {
+            var dragged = _app.FindEntityById(_draggedEntityId.Value);
+            if (dragged != null && dragged.Id != target.Id)
+            {
+                _app.RecordUndo();
+                if (_app.ReparentEntity(dragged, target))
+                    _app.RefreshUndoBaseline();
+            }
+        }
+
+        ImGui.EndDragDropTarget();
+    }
+
+    private unsafe void DrawFolderDragDropTarget(HierarchyFolderState targetFolder, Core.Scene.Scene scene, HierarchySceneState state)
+    {
+        if (!ImGui.BeginDragDropTarget())
+            return;
+
+        var folderPayload = ImGui.AcceptDragDropPayload(FolderDragPayload);
+        if (folderPayload.NativePtr != null && !string.IsNullOrWhiteSpace(_draggedFolderId))
+        {
+            var draggedFolder = state.Folders.FirstOrDefault(f => string.Equals(f.Id, _draggedFolderId, StringComparison.OrdinalIgnoreCase));
+            if (draggedFolder != null && !string.Equals(draggedFolder.Id, targetFolder.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                bool createsCycle = IsFolderDescendant(state, draggedFolder.Id, targetFolder.Id);
+                if (!createsCycle)
+                {
+                    _app.RecordUndo();
+                    draggedFolder.ParentFolderId = targetFolder.Id;
+                    draggedFolder.Order = GetNextFolderOrder(state, targetFolder.Id);
+                    ReindexSiblingFolderOrder(state, targetFolder.Id);
+                    _app.MarkHierarchyStateDirty();
+                    _app.RefreshUndoBaseline();
+                }
+            }
+        }
+
+        var entityPayload = ImGui.AcceptDragDropPayload(EntityDragPayload);
+        if (entityPayload.NativePtr != null && _draggedEntityId.HasValue)
+        {
+            var draggedEntity = _app.FindEntityById(_draggedEntityId.Value);
+            if (draggedEntity != null && draggedEntity.Transform.Parent == null)
+            {
+                _app.RecordUndo();
+                if (_app.SetRootEntityFolder(draggedEntity, targetFolder.Id))
+                    _app.RefreshUndoBaseline();
+            }
+        }
+
+        ImGui.EndDragDropTarget();
+    }
+
+    private void HandleKeyboardNavigation(List<Entity> visibleEntities)
+    {
+        if (!_isWindowFocused || ImGui.GetIO().WantTextInput)
+            return;
+
+        if (ImGui.IsKeyPressed(ImGuiKey.UpArrow))
+            MoveSelectionByOffset(-1, visibleEntities);
+        else if (ImGui.IsKeyPressed(ImGuiKey.DownArrow))
+            MoveSelectionByOffset(1, visibleEntities);
+    }
+
+    private void MoveSelectionByOffset(int offset, List<Entity> visibleEntities)
+    {
+        if (visibleEntities.Count == 0 || _app.CurrentScene == null)
+            return;
+
+        var selected = _app.SelectedEntity;
+        int currentIndex = selected == null
+            ? (offset > 0 ? -1 : visibleEntities.Count)
+            : visibleEntities.FindIndex(e => e.Id == selected.Id);
+
+        if (currentIndex < 0)
+            currentIndex = offset > 0 ? -1 : visibleEntities.Count;
+
+        int targetIndex = Math.Clamp(currentIndex + offset, 0, visibleEntities.Count - 1);
+        var target = visibleEntities[targetIndex];
+
+        _app.SetSingleSelection(target);
+        _rangeAnchorId = target.Id;
+        _focusedEntityId = target.Id;
+        _focusedFolderId = null;
     }
 
     private void HandleEntitySelection(Entity entity, List<Entity> hierarchyOrder)
@@ -142,23 +848,433 @@ public class HierarchyPanel
         return _app.SelectedEntity;
     }
 
-    private static List<Entity> BuildHierarchyOrder(Core.Scene.Scene scene)
+    private void DrawCreateEntityMenuItems(Entity? parent)
     {
-        var ordered = new List<Entity>();
-        foreach (var entity in scene.Entities)
-        {
-            if (entity.Transform.Parent != null)
-                continue;
-            AppendEntityTree(entity, ordered);
-        }
+        if (_app.CurrentScene == null)
+            return;
 
-        return ordered;
+        if (ImGui.MenuItem("Empty"))
+            CreateEntity("Empty", parent);
+        if (ImGui.MenuItem("Camera"))
+            CreateEntity("Camera", parent, e => e.AddComponent<CameraComponent>());
+        if (ImGui.MenuItem("Light"))
+            CreateEntity("Light", parent, e => e.AddComponent<LightComponent>());
+        if (ImGui.MenuItem("Cube"))
+            CreateEntity("Cube", parent, e => e.AddComponent<CubePrimitive>());
+        if (ImGui.MenuItem("Sphere"))
+            CreateEntity("Sphere", parent, e => e.AddComponent<SpherePrimitive>());
+        if (ImGui.MenuItem("Plane"))
+            CreateEntity("Plane", parent, e => e.AddComponent<PlanePrimitive>());
+        if (ImGui.MenuItem("Cylinder"))
+            CreateEntity("Cylinder", parent, e => e.AddComponent<CylinderPrimitive>());
     }
 
-    private static void AppendEntityTree(Entity entity, List<Entity> ordered)
+    private void CreateEntity(string name, Entity? parent, Action<Entity>? setup = null)
     {
-        ordered.Add(entity);
+        if (_app.CurrentScene == null)
+            return;
+
+        _app.RecordUndo();
+        var entity = _app.CurrentScene.CreateEntity(name);
+        setup?.Invoke(entity);
+
+        if (parent != null)
+            _app.ReparentEntity(entity, parent);
+
+        _app.SetSingleSelection(entity);
+        _rangeAnchorId = entity.Id;
+        _focusedEntityId = entity.Id;
+        _focusedFolderId = null;
+        _app.RefreshUndoBaseline();
+    }
+
+    private void CreateFolder(HierarchySceneState state, string name, string? parentFolderId)
+    {
+        _app.RecordUndo();
+
+        var folder = new HierarchyFolderState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = name,
+            ParentFolderId = parentFolderId,
+            Order = GetNextFolderOrder(state, parentFolderId)
+        };
+
+        state.Folders.Add(folder);
+        state.ExpandedFolderIds.Add(folder.Id);
+        _app.MarkHierarchyStateDirty();
+
+        _focusedFolderId = folder.Id;
+        _focusedEntityId = null;
+        BeginRenameFolder(folder.Id);
+
+        _app.RefreshUndoBaseline();
+    }
+
+    private void DeleteFolder(HierarchyFolderState folder, HierarchySceneState state)
+    {
+        _app.RecordUndo();
+
+        foreach (var child in state.Folders.Where(f => string.Equals(f.ParentFolderId, folder.Id, StringComparison.OrdinalIgnoreCase)).ToList())
+            child.ParentFolderId = folder.ParentFolderId;
+
+        var reassignedEntityIds = state.RootEntityFolders
+            .Where(kvp => string.Equals(kvp.Value, folder.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var entityId in reassignedEntityIds)
+        {
+            if (string.IsNullOrWhiteSpace(folder.ParentFolderId))
+                state.RootEntityFolders.Remove(entityId);
+            else
+                state.RootEntityFolders[entityId] = folder.ParentFolderId;
+        }
+
+        state.ExpandedFolderIds.RemoveAll(id => string.Equals(id, folder.Id, StringComparison.OrdinalIgnoreCase));
+        state.Folders.RemoveAll(f => string.Equals(f.Id, folder.Id, StringComparison.OrdinalIgnoreCase));
+
+        if (string.Equals(_focusedFolderId, folder.Id, StringComparison.OrdinalIgnoreCase))
+            _focusedFolderId = null;
+
+        ReindexSiblingFolderOrder(state, folder.ParentFolderId);
+        _app.MarkHierarchyStateDirty();
+        _app.RefreshUndoBaseline();
+    }
+
+    private void BeginRenameEntity(Entity entity)
+    {
+        _renamingFolderId = null;
+        _renamingEntityId = entity.Id;
+        _renameBuffer = entity.Name;
+        _focusRenameInput = true;
+    }
+
+    private void BeginRenameFolder(string folderId)
+    {
+        var state = _app.GetOrCreateHierarchySceneState();
+        var folder = state.Folders.FirstOrDefault(f => string.Equals(f.Id, folderId, StringComparison.OrdinalIgnoreCase));
+        if (folder == null)
+            return;
+
+        _renamingEntityId = null;
+        _renamingFolderId = folder.Id;
+        _renameBuffer = folder.Name;
+        _focusRenameInput = true;
+    }
+
+    private void CommitEntityRename(Entity entity)
+    {
+        var name = _renameBuffer.Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, entity.Name, StringComparison.Ordinal))
+        {
+            _app.RecordUndo();
+            entity.Name = name;
+            _app.RefreshUndoBaseline();
+        }
+
+        CancelRename();
+    }
+
+    private void CommitFolderRename(HierarchyFolderState folder)
+    {
+        var name = _renameBuffer.Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, folder.Name, StringComparison.Ordinal))
+        {
+            _app.RecordUndo();
+            folder.Name = name;
+            _app.MarkHierarchyStateDirty();
+            _app.RefreshUndoBaseline();
+        }
+
+        CancelRename();
+    }
+
+    private void CancelRename()
+    {
+        _renamingEntityId = null;
+        _renamingFolderId = null;
+        _renameBuffer = string.Empty;
+        _focusRenameInput = false;
+    }
+
+    private static bool IsFolderDescendant(HierarchySceneState state, string ancestorFolderId, string candidateChildFolderId)
+    {
+        var lookup = state.Folders.ToDictionary(f => f.Id, StringComparer.OrdinalIgnoreCase);
+        if (!lookup.TryGetValue(candidateChildFolderId, out var current))
+            return false;
+
+        while (!string.IsNullOrWhiteSpace(current.ParentFolderId))
+        {
+            if (string.Equals(current.ParentFolderId, ancestorFolderId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!lookup.TryGetValue(current.ParentFolderId, out current!))
+                return false;
+        }
+
+        return false;
+    }
+
+    private static int GetNextFolderOrder(HierarchySceneState state, string? parentFolderId)
+    {
+        var siblings = state.Folders.Where(f => string.Equals(f.ParentFolderId, parentFolderId, StringComparison.OrdinalIgnoreCase));
+        return siblings.Any() ? siblings.Max(f => f.Order) + 1 : 0;
+    }
+
+    private static void ReindexSiblingFolderOrder(HierarchySceneState state, string? parentFolderId)
+    {
+        int order = 0;
+        foreach (var folder in state.Folders
+                     .Where(f => string.Equals(f.ParentFolderId, parentFolderId, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(f => f.Order)
+                     .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            folder.Order = order++;
+        }
+    }
+
+    private bool ShouldSuppressHierarchyHotkeys()
+    {
+        return !_isWindowFocused || ImGui.GetIO().WantTextInput;
+    }
+
+    private static bool MatchesAllTokens(string text, IReadOnlyList<string> tokens)
+    {
+        if (tokens.Count == 0)
+            return true;
+
+        foreach (var token in tokens)
+        {
+            if (!text.Contains(token, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string[] ParseSearchTokens(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return Array.Empty<string>();
+
+        return query
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private bool EntityPassesFilters(Entity entity, HierarchySceneState state, Type? requiredComponent)
+    {
+        if (state.FilterActiveOnly && !entity.Active)
+            return false;
+        if (state.FilterInactiveOnly && entity.Active)
+            return false;
+        if (state.FilterSelectedOnly && !_app.IsSelected(entity))
+            return false;
+        if (requiredComponent != null && entity.GetComponent(requiredComponent) == null)
+            return false;
+
+        return true;
+    }
+
+    private static bool EntityMatchesSearch(Entity entity, IReadOnlyList<string> tokens)
+    {
+        if (tokens.Count == 0)
+            return true;
+
+        string haystack = entity.Name + " " + string.Join(' ', entity.Components.Select(c => c.GetType().Name));
+        return MatchesAllTokens(haystack, tokens);
+    }
+
+    private bool EvaluateEntityVisibility(Entity entity, HierarchySceneState state, HierarchyRenderContext context)
+    {
+        if (context.EntityVisible.TryGetValue(entity.Id, out var cached))
+            return cached;
+
+        bool passesFilters = EntityPassesFilters(entity, state, context.RequiredComponentType);
+        bool searchMatch = EntityMatchesSearch(entity, context.SearchTokens);
+        bool selfMatch = passesFilters && searchMatch;
+
+        bool hasVisibleDescendant = false;
+        bool hasMatchDescendant = false;
+
         foreach (var child in entity.Transform.Children)
-            AppendEntityTree(child.Entity, ordered);
+        {
+            var childEntity = child.Entity;
+            if (EvaluateEntityVisibility(childEntity, state, context))
+                hasVisibleDescendant = true;
+
+            if (context.EntitySubtreeMatch.GetValueOrDefault(childEntity.Id))
+                hasMatchDescendant = true;
+        }
+
+        bool visible = context.HasSearch && state.ShowOnlyMatches
+            ? selfMatch || hasVisibleDescendant
+            : passesFilters || hasVisibleDescendant;
+
+        context.EntityVisible[entity.Id] = visible;
+        context.EntitySelfMatch[entity.Id] = selfMatch;
+        context.EntitySubtreeMatch[entity.Id] = selfMatch || hasMatchDescendant;
+
+        if (context.HasSearch && selfMatch)
+            context.SearchMatchedEntities.Add(entity.Id);
+
+        return visible;
+    }
+
+    private bool EvaluateFolderVisibility(HierarchyFolderState folder, HierarchySceneState state, HierarchyRenderContext context)
+    {
+        if (context.FolderVisible.TryGetValue(folder.Id, out var cached))
+            return cached;
+
+        bool folderMatch = context.HasSearch && MatchesAllTokens(folder.Name, context.SearchTokens);
+        bool hasVisibleDescendants = false;
+        bool hasMatchDescendants = false;
+
+        foreach (var child in context.GetOrderedChildFolders(folder.Id))
+        {
+            if (EvaluateFolderVisibility(child, state, context))
+                hasVisibleDescendants = true;
+
+            if (context.FolderSubtreeMatch.GetValueOrDefault(child.Id))
+                hasMatchDescendants = true;
+        }
+
+        foreach (var entity in context.GetFolderEntities(folder.Id))
+        {
+            if (EvaluateEntityVisibility(entity, state, context))
+                hasVisibleDescendants = true;
+
+            if (context.EntitySubtreeMatch.GetValueOrDefault(entity.Id))
+                hasMatchDescendants = true;
+        }
+
+        bool visible = !context.HasSearch || !state.ShowOnlyMatches
+            ? true
+            : folderMatch || hasVisibleDescendants;
+
+        context.FolderVisible[folder.Id] = visible;
+        context.FolderSelfMatch[folder.Id] = folderMatch;
+        context.FolderSubtreeMatch[folder.Id] = folderMatch || hasMatchDescendants;
+
+        if (folderMatch)
+            context.SearchMatchedFolders.Add(folder.Id);
+
+        return visible;
+    }
+
+    private HierarchyRenderContext BuildRenderContext(Core.Scene.Scene scene, HierarchySceneState state)
+    {
+        var context = new HierarchyRenderContext
+        {
+            SearchTokens = ParseSearchTokens(state.SearchQuery),
+            HasSearch = false,
+            RequiredComponentType = string.IsNullOrWhiteSpace(state.RequiredComponentType)
+                ? null
+                : ComponentTypeResolver.Resolve(state.RequiredComponentType),
+            FolderChildren = new Dictionary<string, List<HierarchyFolderState>>(StringComparer.OrdinalIgnoreCase),
+            FolderRootEntities = new Dictionary<string, List<Entity>>(StringComparer.OrdinalIgnoreCase),
+            RootFolders = new List<HierarchyFolderState>(),
+            UnassignedRootEntities = new List<Entity>(),
+            EntityVisible = new Dictionary<Guid, bool>(),
+            EntitySelfMatch = new Dictionary<Guid, bool>(),
+            EntitySubtreeMatch = new Dictionary<Guid, bool>(),
+            FolderVisible = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase),
+            FolderSelfMatch = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase),
+            FolderSubtreeMatch = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase),
+            SearchMatchedEntities = new HashSet<Guid>(),
+            SearchMatchedFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        };
+
+        context.HasSearch = context.SearchTokens.Length > 0;
+
+        var foldersById = state.Folders.ToDictionary(f => f.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var folder in state.Folders)
+        {
+            var parentKey = string.IsNullOrWhiteSpace(folder.ParentFolderId) ? RootFolderKey : folder.ParentFolderId;
+            if (!context.FolderChildren.TryGetValue(parentKey, out var children))
+            {
+                children = new List<HierarchyFolderState>();
+                context.FolderChildren[parentKey] = children;
+            }
+            children.Add(folder);
+        }
+
+        if (context.FolderChildren.TryGetValue(RootFolderKey, out var rootFolders))
+            context.RootFolders = rootFolders.OrderBy(f => f.Order).ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
+        foreach (var kvp in context.FolderChildren)
+            kvp.Value.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name));
+
+        var rootEntities = scene.Entities.Where(e => e.Transform.Parent == null).ToList();
+        foreach (var entity in rootEntities)
+        {
+            var folderId = _app.GetRootEntityFolder(entity);
+            if (!string.IsNullOrWhiteSpace(folderId) && foldersById.ContainsKey(folderId))
+            {
+                if (!context.FolderRootEntities.TryGetValue(folderId, out var entities))
+                {
+                    entities = new List<Entity>();
+                    context.FolderRootEntities[folderId] = entities;
+                }
+
+                entities.Add(entity);
+            }
+            else
+            {
+                context.UnassignedRootEntities.Add(entity);
+            }
+
+            EvaluateEntityVisibility(entity, state, context);
+        }
+
+        foreach (var rootFolder in context.RootFolders)
+            EvaluateFolderVisibility(rootFolder, state, context);
+
+        return context;
+    }
+
+    private static void SetDummyPayload(string payloadType)
+    {
+        ImGui.SetDragDropPayload(payloadType, nint.Zero, 0);
+    }
+
+    private sealed class HierarchyRenderContext
+    {
+        public required string[] SearchTokens { get; init; }
+        public required bool HasSearch { get; set; }
+        public required Type? RequiredComponentType { get; init; }
+
+        public required Dictionary<string, List<HierarchyFolderState>> FolderChildren { get; init; }
+        public required Dictionary<string, List<Entity>> FolderRootEntities { get; init; }
+        public required List<HierarchyFolderState> RootFolders { get; set; }
+        public required List<Entity> UnassignedRootEntities { get; set; }
+
+        public required Dictionary<Guid, bool> EntityVisible { get; init; }
+        public required Dictionary<Guid, bool> EntitySelfMatch { get; init; }
+        public required Dictionary<Guid, bool> EntitySubtreeMatch { get; init; }
+
+        public required Dictionary<string, bool> FolderVisible { get; init; }
+        public required Dictionary<string, bool> FolderSelfMatch { get; init; }
+        public required Dictionary<string, bool> FolderSubtreeMatch { get; init; }
+
+        public required HashSet<Guid> SearchMatchedEntities { get; init; }
+        public required HashSet<string> SearchMatchedFolders { get; init; }
+
+        public IReadOnlyList<HierarchyFolderState> GetOrderedChildFolders(string folderId)
+        {
+            return FolderChildren.TryGetValue(folderId, out var children)
+                ? children
+                : Array.Empty<HierarchyFolderState>();
+        }
+
+        public IReadOnlyList<Entity> GetFolderEntities(string folderId)
+        {
+            return FolderRootEntities.TryGetValue(folderId, out var entities)
+                ? entities
+                : Array.Empty<Entity>();
+        }
     }
 }

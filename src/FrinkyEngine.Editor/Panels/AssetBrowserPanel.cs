@@ -430,7 +430,7 @@ public class AssetBrowserPanel
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
         _app.UndoRedo.Clear();
-        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds());
+        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds(), _app.SerializeCurrentHierarchyState());
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
