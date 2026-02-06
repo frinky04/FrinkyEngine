@@ -106,8 +106,13 @@ public class MenuBar
 
             if (ImGui.BeginMenu("Edit"))
             {
-                ImGui.MenuItem("Undo", KeybindManager.Instance.GetShortcutText(EditorAction.Undo), false, false);
-                ImGui.MenuItem("Redo", KeybindManager.Instance.GetShortcutText(EditorAction.Redo), false, false);
+                bool canUndo = _app.UndoRedo.CanUndo && _app.Mode == EditorMode.Edit;
+                bool canRedo = _app.UndoRedo.CanRedo && _app.Mode == EditorMode.Edit;
+
+                if (ImGui.MenuItem("Undo", KeybindManager.Instance.GetShortcutText(EditorAction.Undo), false, canUndo))
+                    _app.UndoRedo.Undo(_app);
+                if (ImGui.MenuItem("Redo", KeybindManager.Instance.GetShortcutText(EditorAction.Redo), false, canRedo))
+                    _app.UndoRedo.Redo(_app);
 
                 ImGui.Separator();
 
@@ -118,14 +123,23 @@ public class MenuBar
                 {
                     if (_app.SelectedEntity != null && _app.CurrentScene != null)
                     {
+                        _app.RecordUndo();
                         _app.CurrentScene.RemoveEntity(_app.SelectedEntity);
                         _app.SelectedEntity = null;
+                        _app.RefreshUndoBaseline();
                     }
                 }
 
                 if (ImGui.MenuItem("Duplicate", KeybindManager.Instance.GetShortcutText(EditorAction.DuplicateEntity)))
                 {
-                    FrinkyLog.Info("Duplicate entity not yet implemented.");
+                    if (_app.SelectedEntity != null && _app.CurrentScene != null && _app.Mode == EditorMode.Edit)
+                    {
+                        _app.RecordUndo();
+                        var duplicate = SceneSerializer.DuplicateEntity(_app.SelectedEntity, _app.CurrentScene);
+                        if (duplicate != null)
+                            _app.SelectedEntity = duplicate;
+                        _app.RefreshUndoBaseline();
+                    }
                 }
 
                 if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
@@ -253,6 +267,8 @@ public class MenuBar
         _app.SelectedEntity = null;
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
+        _app.UndoRedo.Clear();
+        _app.UndoRedo.SetBaseline(_app.CurrentScene, null);
         FrinkyLog.Info($"Opened scene: {result.Path}");
         NotificationManager.Instance.Post($"Scene opened: {_app.CurrentScene?.Name ?? "scene"}", NotificationType.Success);
     }

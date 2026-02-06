@@ -12,6 +12,7 @@ public class ViewportPanel
     private int _lastWidth;
     private int _lastHeight;
     private bool _isHovered;
+    private bool _wasGizmoDragging;
 
     public ViewportPanel(EditorApplication app)
     {
@@ -82,6 +83,17 @@ public class ViewportPanel
                     // Clear hover state when viewport not hovered
                     gizmo.Update(camera, null, Vector2.Zero, Vector2.One);
                 }
+
+                // Gizmo drag batching for undo
+                if (gizmo.IsDragging && !_wasGizmoDragging)
+                {
+                    _app.UndoRedo.BeginBatch();
+                }
+                else if (!gizmo.IsDragging && _wasGizmoDragging)
+                {
+                    _app.UndoRedo.EndBatch(_app.CurrentScene, _app.SelectedEntity?.Id);
+                }
+                _wasGizmoDragging = gizmo.IsDragging;
             }
             else
             {

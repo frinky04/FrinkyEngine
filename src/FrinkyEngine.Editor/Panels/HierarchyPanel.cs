@@ -29,27 +29,35 @@ public class HierarchyPanel
 
                 if (ImGui.Button("Add Entity"))
                 {
+                    _app.RecordUndo();
                     var newEntity = _app.CurrentScene.CreateEntity("New Entity");
                     _app.SelectedEntity = newEntity;
+                    _app.RefreshUndoBaseline();
                 }
 
                 if (ImGui.BeginPopupContextWindow("HierarchyContext", ImGuiPopupFlags.MouseButtonRight | ImGuiPopupFlags.NoOpenOverItems))
                 {
                     if (ImGui.MenuItem("Create Empty"))
                     {
+                        _app.RecordUndo();
                         _app.SelectedEntity = _app.CurrentScene.CreateEntity("Empty");
+                        _app.RefreshUndoBaseline();
                     }
                     if (ImGui.MenuItem("Create Camera"))
                     {
+                        _app.RecordUndo();
                         var cam = _app.CurrentScene.CreateEntity("Camera");
                         cam.AddComponent<CameraComponent>();
                         _app.SelectedEntity = cam;
+                        _app.RefreshUndoBaseline();
                     }
                     if (ImGui.MenuItem("Create Light"))
                     {
+                        _app.RecordUndo();
                         var light = _app.CurrentScene.CreateEntity("Light");
                         light.AddComponent<LightComponent>();
                         _app.SelectedEntity = light;
+                        _app.RefreshUndoBaseline();
                     }
                     ImGui.EndPopup();
                 }

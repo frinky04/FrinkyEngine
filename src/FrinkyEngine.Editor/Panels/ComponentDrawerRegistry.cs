@@ -67,6 +67,7 @@ public static class ComponentDrawerRegistry
     private static bool DrawColoredVector3(string label, ref Vector3 value, float speed, float resetValue = 0f)
     {
         bool changed = false;
+        var app = EditorApplication.Instance;
         ImGui.PushID(label);
 
         ImGui.Columns(2, null, false);
@@ -86,14 +87,17 @@ public static class ComponentDrawerRegistry
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorRed);
         if (ImGui.Button("X", buttonSize))
         {
+            app.RecordUndo();
             value.X = resetValue;
             changed = true;
+            app.RefreshUndoBaseline();
         }
         ImGui.PopStyleColor(3);
         ImGui.SameLine();
         ImGui.SetNextItemWidth(fieldWidth);
         if (ImGui.DragFloat("##X", ref value.X, speed))
             changed = true;
+        TrackContinuousUndo(app);
 
         ImGui.SameLine();
 
@@ -103,14 +107,17 @@ public static class ComponentDrawerRegistry
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorGreen);
         if (ImGui.Button("Y", buttonSize))
         {
+            app.RecordUndo();
             value.Y = resetValue;
             changed = true;
+            app.RefreshUndoBaseline();
         }
         ImGui.PopStyleColor(3);
         ImGui.SameLine();
         ImGui.SetNextItemWidth(fieldWidth);
         if (ImGui.DragFloat("##Y", ref value.Y, speed))
             changed = true;
+        TrackContinuousUndo(app);
 
         ImGui.SameLine();
 
@@ -120,14 +127,17 @@ public static class ComponentDrawerRegistry
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorBlue);
         if (ImGui.Button("Z", buttonSize))
         {
+            app.RecordUndo();
             value.Z = resetValue;
             changed = true;
+            app.RefreshUndoBaseline();
         }
         ImGui.PopStyleColor(3);
         ImGui.SameLine();
         ImGui.SetNextItemWidth(fieldWidth);
         if (ImGui.DragFloat("##Z", ref value.Z, speed))
             changed = true;
+        TrackContinuousUndo(app);
 
         ImGui.Columns(1);
         ImGui.PopID();
@@ -137,59 +147,81 @@ public static class ComponentDrawerRegistry
     private static void DrawCamera(Component c)
     {
         var cam = (CameraComponent)c;
+        var app = EditorApplication.Instance;
 
         float fov = cam.FieldOfView;
         if (ImGui.DragFloat("Field of View", ref fov, 0.5f, 1f, 179f))
             cam.FieldOfView = fov;
+        TrackContinuousUndo(app);
 
         float near = cam.NearPlane;
         if (ImGui.DragFloat("Near Plane", ref near, 0.01f, 0.001f, 100f))
             cam.NearPlane = near;
+        TrackContinuousUndo(app);
 
         float far = cam.FarPlane;
         if (ImGui.DragFloat("Far Plane", ref far, 1f, 1f, 10000f))
             cam.FarPlane = far;
+        TrackContinuousUndo(app);
 
         var projType = (int)cam.Projection;
         if (ImGui.Combo("Projection", ref projType, "Perspective\0Orthographic\0"))
+        {
+            app.RecordUndo();
             cam.Projection = (ProjectionType)projType;
+            app.RefreshUndoBaseline();
+        }
 
         var clearColor = ColorToVec4(cam.ClearColor);
         if (ImGui.ColorEdit4("Clear Color", ref clearColor))
             cam.ClearColor = Vec4ToColor(clearColor);
+        TrackContinuousUndo(app);
 
         bool isMain = cam.IsMain;
         if (ImGui.Checkbox("Is Main", ref isMain))
+        {
+            app.RecordUndo();
             cam.IsMain = isMain;
+            app.RefreshUndoBaseline();
+        }
     }
 
     private static void DrawLight(Component c)
     {
         var light = (LightComponent)c;
+        var app = EditorApplication.Instance;
 
         var lightType = (int)light.LightType;
         if (ImGui.Combo("Type", ref lightType, "Directional\0Point\0Skylight\0"))
+        {
+            app.RecordUndo();
             light.LightType = (LightType)lightType;
+            app.RefreshUndoBaseline();
+        }
 
         var color = ColorToVec4(light.LightColor);
         if (ImGui.ColorEdit4("Color", ref color))
             light.LightColor = Vec4ToColor(color);
+        TrackContinuousUndo(app);
 
         float intensity = light.Intensity;
         if (ImGui.DragFloat("Intensity", ref intensity, 0.05f, 0f, 10f))
             light.Intensity = intensity;
+        TrackContinuousUndo(app);
 
         if (light.LightType == LightType.Point)
         {
             float range = light.Range;
             if (ImGui.DragFloat("Range", ref range, 0.1f, 0f, 100f))
                 light.Range = range;
+            TrackContinuousUndo(app);
         }
     }
 
     private static void DrawMeshRenderer(Component c)
     {
         var mr = (MeshRendererComponent)c;
+        var app = EditorApplication.Instance;
 
         // Model Path with browse button on its own row
         ImGui.Text("Model Path");
@@ -197,6 +229,7 @@ public static class ComponentDrawerRegistry
         string modelPath = mr.ModelPath;
         if (ImGui.InputText("##ModelPath", ref modelPath, 256))
             mr.ModelPath = modelPath;
+        TrackContinuousUndo(app);
         ImGui.SameLine();
         if (ImGui.Button("...##BrowseModel"))
             ImGui.OpenPopup("ModelBrowser");
@@ -214,7 +247,9 @@ public static class ComponentDrawerRegistry
                 {
                     if (ImGui.Selectable(asset.RelativePath))
                     {
+                        app.RecordUndo();
                         mr.ModelPath = asset.RelativePath;
+                        app.RefreshUndoBaseline();
                     }
                 }
             }
@@ -226,6 +261,7 @@ public static class ComponentDrawerRegistry
         var tint = ColorToVec4(mr.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
             mr.Tint = Vec4ToColor(tint);
+        TrackContinuousUndo(app);
 
         // Material Slots
         if (mr.MaterialSlots.Count > 0)
@@ -246,8 +282,10 @@ public static class ComponentDrawerRegistry
                     var matType = (int)slot.MaterialType;
                     if (ImGui.Combo("Type", ref matType, "SolidColor\0Textured\0"))
                     {
+                        app.RecordUndo();
                         slot.MaterialType = (Core.Rendering.MaterialType)matType;
                         slotsChanged = true;
+                        app.RefreshUndoBaseline();
                     }
 
                     if (slot.MaterialType == Core.Rendering.MaterialType.Textured)
@@ -260,6 +298,7 @@ public static class ComponentDrawerRegistry
                             slot.TexturePath = texPath;
                             slotsChanged = true;
                         }
+                        TrackContinuousUndo(app);
                         ImGui.SameLine();
                         if (ImGui.Button("...##BrowseSlotTex"))
                             ImGui.OpenPopup("SlotTexBrowser");
@@ -277,8 +316,10 @@ public static class ComponentDrawerRegistry
                                 {
                                     if (ImGui.Selectable(asset.RelativePath))
                                     {
+                                        app.RecordUndo();
                                         slot.TexturePath = asset.RelativePath;
                                         slotsChanged = true;
+                                        app.RefreshUndoBaseline();
                                     }
                                 }
                             }
@@ -300,14 +341,20 @@ public static class ComponentDrawerRegistry
     private static void DrawPrimitive(Component c)
     {
         var prim = (PrimitiveComponent)c;
+        var app = EditorApplication.Instance;
 
         var matType = (int)prim.MaterialType;
         if (ImGui.Combo("Material Type", ref matType, "SolidColor\0Textured\0"))
+        {
+            app.RecordUndo();
             prim.MaterialType = (FrinkyEngine.Core.Rendering.MaterialType)matType;
+            app.RefreshUndoBaseline();
+        }
 
         var tint = ColorToVec4(prim.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
             prim.Tint = Vec4ToColor(tint);
+        TrackContinuousUndo(app);
 
         if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.Textured)
         {
@@ -316,6 +363,7 @@ public static class ComponentDrawerRegistry
             string texPath = prim.TexturePath;
             if (ImGui.InputText("##TexturePath", ref texPath, 256))
                 prim.TexturePath = texPath;
+            TrackContinuousUndo(app);
             ImGui.SameLine();
             if (ImGui.Button("...##BrowseTexture"))
                 ImGui.OpenPopup("TextureBrowser");
@@ -333,7 +381,9 @@ public static class ComponentDrawerRegistry
                     {
                         if (ImGui.Selectable(asset.RelativePath))
                         {
+                            app.RecordUndo();
                             prim.TexturePath = asset.RelativePath;
+                            app.RefreshUndoBaseline();
                         }
                     }
                 }
@@ -375,42 +425,52 @@ public static class ComponentDrawerRegistry
     {
         var propType = prop.PropertyType;
         var label = prop.Name;
+        var app = EditorApplication.Instance;
 
         if (propType == typeof(float))
         {
             float val = (float)prop.GetValue(component)!;
             if (ImGui.DragFloat(label, ref val, 0.1f))
                 prop.SetValue(component, val);
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(int))
         {
             int val = (int)prop.GetValue(component)!;
             if (ImGui.DragInt(label, ref val))
                 prop.SetValue(component, val);
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(bool))
         {
             bool val = (bool)prop.GetValue(component)!;
             if (ImGui.Checkbox(label, ref val))
+            {
+                app.RecordUndo();
                 prop.SetValue(component, val);
+                app.RefreshUndoBaseline();
+            }
         }
         else if (propType == typeof(string))
         {
             string val = (string)(prop.GetValue(component) ?? "");
             if (ImGui.InputText(label, ref val, 256))
                 prop.SetValue(component, val);
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Vector3))
         {
             var val = (Vector3)prop.GetValue(component)!;
             if (ImGui.DragFloat3(label, ref val, 0.1f))
                 prop.SetValue(component, val);
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Vector2))
         {
             var val = (Vector2)prop.GetValue(component)!;
             if (ImGui.DragFloat2(label, ref val, 0.1f))
                 prop.SetValue(component, val);
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Quaternion))
         {
@@ -418,24 +478,38 @@ public static class ComponentDrawerRegistry
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
             if (ImGui.DragFloat3(label, ref euler, 0.5f))
                 prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Color))
         {
             var color = ColorToVec4((Color)prop.GetValue(component)!);
             if (ImGui.ColorEdit4(label, ref color))
                 prop.SetValue(component, Vec4ToColor(color));
+            TrackContinuousUndo(app);
         }
         else if (propType.IsEnum)
         {
             var val = (int)prop.GetValue(component)!;
             var names = Enum.GetNames(propType);
             if (ImGui.Combo(label, ref val, names, names.Length))
+            {
+                app.RecordUndo();
                 prop.SetValue(component, Enum.ToObject(propType, val));
+                app.RefreshUndoBaseline();
+            }
         }
         else
         {
             ImGui.LabelText(label, propType.Name);
         }
+    }
+
+    private static void TrackContinuousUndo(EditorApplication app)
+    {
+        if (ImGui.IsItemActivated())
+            app.RecordUndo();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            app.RefreshUndoBaseline();
     }
 
     private static Vector4 ColorToVec4(Color c) =>

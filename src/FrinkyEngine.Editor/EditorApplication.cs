@@ -27,6 +27,7 @@ public class EditorApplication
     public SceneRenderer SceneRenderer { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
+    public UndoRedoManager UndoRedo { get; } = new();
 
     public string? ProjectDirectory { get; private set; }
     public ProjectFile? ProjectFile { get; private set; }
@@ -63,6 +64,7 @@ public class EditorApplication
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
     }
 
+
     public void NewScene()
     {
         SelectedEntity = null;
@@ -79,6 +81,8 @@ public class EditorApplication
 
         EditorCamera.Reset();
         UpdateWindowTitle();
+        UndoRedo.Clear();
+        UndoRedo.SetBaseline(CurrentScene, null);
         NotificationManager.Instance.Post("New scene created", NotificationType.Info);
     }
 
@@ -159,6 +163,7 @@ public class EditorApplication
 
         SelectedEntity = null;
         Mode = EditorMode.Edit;
+        UndoRedo.SetBaseline(CurrentScene, null);
         FrinkyLog.Info("Exited Play mode.");
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
@@ -208,6 +213,8 @@ public class EditorApplication
         }
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
+        UndoRedo.Clear();
+        UndoRedo.SetBaseline(CurrentScene, null);
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
@@ -287,6 +294,7 @@ public class EditorApplication
                 SceneManager.Instance.SetActiveScene(refreshed);
                 SelectedEntity = null;
             }
+            UndoRedo.SetBaseline(CurrentScene, null);
         }
     }
 
@@ -314,8 +322,16 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.SaveSceneAs, () => MenuBar.TriggerSaveSceneAs());
 
-        km.RegisterAction(EditorAction.Undo, () => FrinkyLog.Info("Undo not yet implemented."));
-        km.RegisterAction(EditorAction.Redo, () => FrinkyLog.Info("Redo not yet implemented."));
+        km.RegisterAction(EditorAction.Undo, () =>
+        {
+            if (Mode == EditorMode.Edit)
+                UndoRedo.Undo(this);
+        });
+        km.RegisterAction(EditorAction.Redo, () =>
+        {
+            if (Mode == EditorMode.Edit)
+                UndoRedo.Redo(this);
+        });
 
         km.RegisterAction(EditorAction.BuildScripts, () => BuildScripts());
 
@@ -331,13 +347,24 @@ public class EditorApplication
         {
             if (SelectedEntity != null && CurrentScene != null)
             {
+                RecordUndo();
                 CurrentScene.RemoveEntity(SelectedEntity);
                 SelectedEntity = null;
+                RefreshUndoBaseline();
             }
         });
 
         km.RegisterAction(EditorAction.DuplicateEntity, () =>
-            FrinkyLog.Info("Duplicate entity not yet implemented."));
+        {
+            if (SelectedEntity != null && CurrentScene != null && Mode == EditorMode.Edit)
+            {
+                RecordUndo();
+                var duplicate = SceneSerializer.DuplicateEntity(SelectedEntity, CurrentScene);
+                if (duplicate != null)
+                    SelectedEntity = duplicate;
+                RefreshUndoBaseline();
+            }
+        });
 
         km.RegisterAction(EditorAction.RenameEntity, () =>
         {
@@ -396,6 +423,18 @@ public class EditorApplication
         {
             EditorCamera.Reset();
         }
+    }
+
+    public void RecordUndo()
+    {
+        if (Mode != EditorMode.Edit || CurrentScene == null) return;
+        UndoRedo.RecordUndo();
+    }
+
+    public void RefreshUndoBaseline()
+    {
+        if (Mode != EditorMode.Edit || CurrentScene == null) return;
+        UndoRedo.RefreshBaseline(CurrentScene, SelectedEntity?.Id);
     }
 
     public void Shutdown()

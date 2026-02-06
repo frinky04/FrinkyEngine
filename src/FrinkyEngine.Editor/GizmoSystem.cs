@@ -33,6 +33,7 @@ public class GizmoSystem
 
     public GizmoMode Mode { get; set; } = GizmoMode.Translate;
     public GizmoSpace Space { get; set; } = GizmoSpace.World;
+    public bool IsDragging => _isDragging;
 
     private int _hoveredAxis = -1; // -1=none, 0=X, 1=Y, 2=Z
     private bool _isDragging;

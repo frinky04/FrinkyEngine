@@ -32,11 +32,19 @@ public class InspectorPanel
                 string name = entity.Name;
                 if (ImGui.InputText("Name", ref name, 128))
                     entity.Name = name;
+                if (ImGui.IsItemActivated())
+                    _app.RecordUndo();
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    _app.RefreshUndoBaseline();
 
                 bool active = entity.Active;
                 ImGui.SameLine();
                 if (ImGui.Checkbox("Active", ref active))
+                {
+                    _app.RecordUndo();
                     entity.Active = active;
+                    _app.RefreshUndoBaseline();
+                }
 
                 ImGui.Separator();
 
@@ -75,7 +83,11 @@ public class InspectorPanel
                 }
 
                 if (componentToRemove != null)
+                {
+                    _app.RecordUndo();
                     entity.RemoveComponent(componentToRemove);
+                    _app.RefreshUndoBaseline();
+                }
 
                 ImGui.Separator();
                 DrawAddComponentButton(entity);
@@ -124,7 +136,9 @@ public class InspectorPanel
                     var source = ComponentTypeResolver.GetAssemblySource(type);
                     if (ImGui.Selectable($"{type.Name}  [{source}]"))
                     {
+                        _app.RecordUndo();
                         entity.AddComponent(type);
+                        _app.RefreshUndoBaseline();
                         ImGui.CloseCurrentPopup();
                     }
 
@@ -145,7 +159,9 @@ public class InspectorPanel
                         {
                             if (ImGui.Selectable($"  {type.Name}"))
                             {
+                                _app.RecordUndo();
                                 entity.AddComponent(type);
+                                _app.RefreshUndoBaseline();
                                 ImGui.CloseCurrentPopup();
                             }
 
@@ -162,7 +178,9 @@ public class InspectorPanel
                         {
                             if (ImGui.Selectable($"  {type.Name}"))
                             {
+                                _app.RecordUndo();
                                 entity.AddComponent(type);
+                                _app.RefreshUndoBaseline();
                                 ImGui.CloseCurrentPopup();
                             }
 

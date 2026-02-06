@@ -170,6 +170,42 @@ public static class SceneSerializer
         }
     }
 
+    public static Entity? DuplicateEntity(Entity source, Scene.Scene scene)
+    {
+        var data = SerializeEntity(source);
+        AssignNewIds(data);
+        data.Name = GenerateDuplicateName(data.Name);
+
+        // Find the parent of the source entity
+        var parent = source.Transform.Parent;
+
+        DeserializeEntityTree(data, scene, parent);
+
+        // The newly added entity is the last one in the scene
+        var entities = scene.Entities;
+        return entities.Count > 0 ? entities[^1] : null;
+    }
+
+    private static void AssignNewIds(EntityData data)
+    {
+        data.Id = Guid.NewGuid();
+        foreach (var child in data.Children)
+            AssignNewIds(child);
+    }
+
+    public static string GenerateDuplicateName(string name)
+    {
+        // Check if name ends with " (N)" pattern
+        var match = System.Text.RegularExpressions.Regex.Match(name, @"^(.*) \((\d+)\)$");
+        if (match.Success)
+        {
+            var baseName = match.Groups[1].Value;
+            var number = int.Parse(match.Groups[2].Value);
+            return $"{baseName} ({number + 1})";
+        }
+        return $"{name} (1)";
+    }
+
     private static void DeserializeComponent(Entity entity, ComponentData data)
     {
         var type = ComponentTypeResolver.Resolve(data.Type);
