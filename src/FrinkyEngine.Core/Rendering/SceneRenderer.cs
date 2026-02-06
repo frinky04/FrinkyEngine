@@ -105,7 +105,7 @@ public class SceneRenderer
             }
         }
 
-        model.Transform = worldMatrix;
+        model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
     }
 
