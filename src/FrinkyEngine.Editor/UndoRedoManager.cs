@@ -48,12 +48,12 @@ public class UndoRedoManager
         _currentSelectedEntityIds = selectedEntityIds.ToList();
     }
 
-    public void BeginBatch()
+    public void BeginBatch(IReadOnlyList<Guid>? currentSelectedEntityIds = null)
     {
         if (_isBatching) return;
         _isBatching = true;
         _batchStartSnapshot = _currentSnapshot;
-        _batchStartSelectedEntityIds = _currentSelectedEntityIds.ToList();
+        _batchStartSelectedEntityIds = currentSelectedEntityIds?.ToList() ?? _currentSelectedEntityIds.ToList();
     }
 
     public void EndBatch(Core.Scene.Scene? scene, IReadOnlyList<Guid> selectedEntityIds)

@@ -112,7 +112,7 @@ public class ViewportPanel
                 // Gizmo drag batching for undo
                 if (gizmo.IsDragging && !_wasGizmoDragging)
                 {
-                    _app.UndoRedo.BeginBatch();
+                    _app.UndoRedo.BeginBatch(_app.GetSelectedEntityIds());
                 }
                 else if (!gizmo.IsDragging && _wasGizmoDragging)
                 {
