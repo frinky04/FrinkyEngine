@@ -34,6 +34,7 @@ public class GizmoSystem
     public GizmoMode Mode { get; set; } = GizmoMode.Translate;
     public GizmoSpace Space { get; set; } = GizmoSpace.World;
     public bool IsDragging => _isDragging;
+    public int HoveredAxis => _hoveredAxis;
 
     private int _hoveredAxis = -1; // -1=none, 0=X, 1=Y, 2=Z
     private bool _isDragging;
@@ -90,7 +91,7 @@ public class GizmoSystem
         float gizmoScale = distance * GizmoScaleFactor;
         var axes = GetAxes(selected);
 
-        var ray = GetViewportRay(camera, viewportMousePos, viewportSize);
+        var ray = RaycastUtils.GetViewportRay(camera, viewportMousePos, viewportSize);
 
         if (_isDragging)
         {
@@ -350,32 +351,6 @@ public class GizmoSystem
         }
 
         return bestAxis;
-    }
-
-    private static Ray GetViewportRay(Camera3D camera, Vector2 mousePos, Vector2 viewportSize)
-    {
-        float ndcX = 2f * mousePos.X / viewportSize.X - 1f;
-        float ndcY = 1f - 2f * mousePos.Y / viewportSize.Y;
-
-        var view = Matrix4x4.CreateLookAt(camera.Position, camera.Target, camera.Up);
-        float fovRad = camera.FovY * MathF.PI / 180f;
-        float aspect = viewportSize.X / viewportSize.Y;
-        var proj = Matrix4x4.CreatePerspectiveFieldOfView(fovRad, aspect, 0.1f, 1000f);
-
-        var vp = view * proj;
-        Matrix4x4.Invert(vp, out var vpInverse);
-
-        var nearPoint = Vector4.Transform(new Vector4(ndcX, ndcY, 0f, 1f), vpInverse);
-        nearPoint /= nearPoint.W;
-
-        var farPoint = Vector4.Transform(new Vector4(ndcX, ndcY, 1f, 1f), vpInverse);
-        farPoint /= farPoint.W;
-
-        var origin = new Vector3(nearPoint.X, nearPoint.Y, nearPoint.Z);
-        var direction = Vector3.Normalize(
-            new Vector3(farPoint.X, farPoint.Y, farPoint.Z) - origin);
-
-        return new Ray(origin, direction);
     }
 
     private static Vector3 ClosestPointOnAxis(Ray ray, Vector3 axisOrigin, Vector3 axisDir)

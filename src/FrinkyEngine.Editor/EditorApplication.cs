@@ -26,6 +26,7 @@ public class EditorApplication
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
+    public PickingSystem PickingSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
     public UndoRedoManager UndoRedo { get; } = new();
 

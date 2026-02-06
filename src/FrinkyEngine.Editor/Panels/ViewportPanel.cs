@@ -77,6 +77,17 @@ public class ViewportPanel
                     var mousePos = ImGui.GetMousePos();
                     var localMouse = mousePos - imageScreenPos;
                     gizmo.Update(camera, selected, localMouse, new Vector2(w, h));
+
+                    // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
+                    if (Raylib.IsMouseButtonPressed(MouseButton.Left)
+                        && !gizmo.IsDragging
+                        && gizmo.HoveredAxis < 0
+                        && !Raylib.IsMouseButtonDown(MouseButton.Right)
+                        && _app.CurrentScene != null)
+                    {
+                        _app.SelectedEntity = _app.PickingSystem.Pick(
+                            _app.CurrentScene, camera, localMouse, new Vector2(w, h));
+                    }
                 }
                 else if (!_isHovered)
                 {
