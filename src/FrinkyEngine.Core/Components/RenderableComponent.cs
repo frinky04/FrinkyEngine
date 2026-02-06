@@ -10,6 +10,8 @@ public abstract class RenderableComponent : Component
 
     internal Model? RenderModel { get; set; }
 
+    public virtual void Invalidate() { RenderModel = null; }
+
     internal abstract void EnsureModelReady();
 
     public BoundingBox? GetWorldBoundingBox()

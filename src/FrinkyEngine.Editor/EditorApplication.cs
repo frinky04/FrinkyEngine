@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
@@ -111,10 +112,68 @@ public class EditorApplication
                 ReloadGameAssembly();
         }
 
-        if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged))
+        if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged, out var changedPaths))
         {
             AssetDatabase.Instance.Refresh();
-            NotificationManager.Instance.Post("Assets refreshed", NotificationType.Info, 2.5f);
+
+            bool assetsReloaded = false;
+            if (changedPaths != null && CurrentScene != null)
+            {
+                var assetsPath = AssetManager.Instance.AssetsPath;
+                var relativePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var fullPath in changedPaths)
+                {
+                    if (fullPath.StartsWith(assetsPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var rel = Path.GetRelativePath(assetsPath, fullPath).Replace('\\', '/');
+                        relativePaths.Add(rel);
+                    }
+                }
+
+                if (relativePaths.Count > 0)
+                {
+                    // Invalidate components first (clear RenderModel) before unloading GPU resources
+                    foreach (var renderable in CurrentScene.Renderables)
+                    {
+                        bool shouldInvalidate = false;
+                        if (renderable is MeshRendererComponent meshRenderer)
+                        {
+                            if (relativePaths.Contains(meshRenderer.ModelPath))
+                                shouldInvalidate = true;
+                            else
+                            {
+                                foreach (var slot in meshRenderer.MaterialSlots)
+                                {
+                                    if (!string.IsNullOrEmpty(slot.TexturePath) && relativePaths.Contains(slot.TexturePath))
+                                    {
+                                        shouldInvalidate = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else if (renderable is PrimitiveComponent primitive)
+                        {
+                            if (!string.IsNullOrEmpty(primitive.TexturePath) && relativePaths.Contains(primitive.TexturePath))
+                                shouldInvalidate = true;
+                        }
+
+                        if (shouldInvalidate)
+                        {
+                            renderable.Invalidate();
+                            assetsReloaded = true;
+                        }
+                    }
+
+                    // Now unload stale GPU resources from the cache
+                    foreach (var rel in relativePaths)
+                        AssetManager.Instance.InvalidateAsset(rel);
+                }
+            }
+
+            NotificationManager.Instance.Post(
+                assetsReloaded ? "Assets reloaded" : "Assets refreshed",
+                NotificationType.Info, 2.5f);
 
             if (scriptsChanged)
                 BuildScripts();

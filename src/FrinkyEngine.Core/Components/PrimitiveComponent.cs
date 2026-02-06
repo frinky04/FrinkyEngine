@@ -32,6 +32,14 @@ public abstract class PrimitiveComponent : RenderableComponent
         }
     }
 
+    public override void Invalidate()
+    {
+        if (RenderModel.HasValue)
+            Raylib.UnloadModel(RenderModel.Value);
+        RenderModel = null;
+        _meshDirty = true;
+    }
+
     protected abstract Mesh CreateMesh();
 
     protected void MarkMeshDirty()

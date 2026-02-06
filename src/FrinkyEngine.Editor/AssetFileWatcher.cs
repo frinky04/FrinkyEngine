@@ -8,6 +8,7 @@ public class AssetFileWatcher : IDisposable
     private bool _scriptChangesPending;
     private DateTime _lastEventTime;
     private readonly double _debounceSeconds;
+    private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     public AssetFileWatcher(double debounceSeconds = 0.5)
     {
@@ -56,12 +57,14 @@ public class AssetFileWatcher : IDisposable
         {
             _changesPending = false;
             _scriptChangesPending = false;
+            _changedPaths.Clear();
         }
     }
 
-    public bool PollChanges(out bool scriptsChanged)
+    public bool PollChanges(out bool scriptsChanged, out HashSet<string>? changedPaths)
     {
         scriptsChanged = false;
+        changedPaths = null;
         lock (_lock)
         {
             if (!_changesPending)
@@ -71,8 +74,10 @@ public class AssetFileWatcher : IDisposable
                 return false;
 
             scriptsChanged = _scriptChangesPending;
+            changedPaths = _changedPaths.Count > 0 ? new HashSet<string>(_changedPaths, StringComparer.OrdinalIgnoreCase) : null;
             _changesPending = false;
             _scriptChangesPending = false;
+            _changedPaths.Clear();
             return true;
         }
     }
@@ -97,8 +102,12 @@ public class AssetFileWatcher : IDisposable
         lock (_lock)
         {
             _changesPending = true;
-            if (path != null && path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-                _scriptChangesPending = true;
+            if (path != null)
+            {
+                _changedPaths.Add(path);
+                if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    _scriptChangesPending = true;
+            }
             _lastEventTime = DateTime.UtcNow;
         }
     }
