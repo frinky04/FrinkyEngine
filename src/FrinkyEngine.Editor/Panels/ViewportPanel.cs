@@ -62,6 +62,7 @@ public class ViewportPanel
                             {
                                 gizmo.Draw(camera, selected);
                                 EditorGizmos.DrawAll(_app.CurrentScene, camera);
+                                EditorGizmos.DrawSelectionHighlight(selected);
                             }
                         },
                         isEditorMode: isEditorMode);

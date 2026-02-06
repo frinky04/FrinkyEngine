@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -8,6 +9,7 @@ public static class EditorGizmos
 {
     private static readonly Color CameraGizmoColor = new(200, 200, 200, 255);
     private static readonly Color DirectionalLightColor = new(255, 220, 50, 255);
+    private static readonly Color SelectionHighlightColor = new(255, 170, 0, 255);
 
     public static void DrawAll(Core.Scene.Scene scene, Camera3D editorCamera)
     {
@@ -129,5 +131,33 @@ public static class EditorGizmos
         var pos = light.Entity.Transform.WorldPosition;
         var color = new Color(light.LightColor.R, light.LightColor.G, light.LightColor.B, (byte)128);
         Raylib.DrawSphereWires(pos, light.Range, 8, 8, color);
+    }
+
+    public static void DrawSelectionHighlight(Entity? selected)
+    {
+        if (selected == null || !selected.Active) return;
+
+        var renderable = selected.GetComponent<RenderableComponent>();
+        if (renderable != null && renderable.Enabled)
+        {
+            var bb = renderable.GetWorldBoundingBox();
+            if (bb.HasValue)
+            {
+                Raylib.DrawBoundingBox(bb.Value, SelectionHighlightColor);
+                return;
+            }
+        }
+
+        // Non-renderable entities (cameras, lights): draw a small wireframe cube
+        bool hasVisual = selected.GetComponent<CameraComponent>() != null
+                      || selected.GetComponent<LightComponent>() != null;
+        if (hasVisual)
+        {
+            var pos = selected.Transform.WorldPosition;
+            var halfExt = new Vector3(0.5f);
+            Raylib.DrawBoundingBox(
+                new BoundingBox(pos - halfExt, pos + halfExt),
+                SelectionHighlightColor);
+        }
     }
 }
