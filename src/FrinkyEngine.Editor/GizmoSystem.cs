@@ -53,6 +53,7 @@ public class GizmoSystem
 
         var axes = GetAxes(selected);
 
+        Rlgl.DrawRenderBatchActive();
         Rlgl.DisableDepthTest();
 
         switch (Mode)
@@ -68,6 +69,7 @@ public class GizmoSystem
                 break;
         }
 
+        Rlgl.DrawRenderBatchActive();
         Rlgl.EnableDepthTest();
     }
 

@@ -1,9 +1,9 @@
 {
-  "name": "Untitled",
+  "name": "MainScene",
   "entities": [
     {
       "name": "Main Camera",
-      "id": "9cecba1b-829a-47bd-8028-235fdaa8bab5",
+      "id": "27f35375-0d26-4c1a-bc9e-ffcacefc70fe",
       "active": true,
       "components": [
         {
@@ -16,20 +16,15 @@
               "z": 10
             },
             "LocalRotation": {
-              "x": -0.17364818,
+              "x": -0.17364812,
               "y": 0,
               "z": 0,
-              "w": 0.9848077
+              "w": 0.9848078
             },
             "LocalScale": {
               "x": 1,
               "y": 1,
               "z": 1
-            },
-            "EulerAngles": {
-              "x": -19.999998,
-              "y": 0,
-              "z": 0
             }
           }
         },
@@ -42,9 +37,9 @@
             "FarPlane": 1000,
             "Projection": "Perspective",
             "ClearColor": {
-              "r": 30,
-              "g": 30,
-              "b": 30,
+              "r": 33,
+              "g": 33,
+              "b": 33,
               "a": 255
             },
             "IsMain": true
@@ -55,7 +50,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "80f9337a-6082-45a6-8cb7-5153258b27d5",
+      "id": "2f7f42d2-c5ed-4283-b2f7-8272dac2b843",
       "active": true,
       "components": [
         {
@@ -63,9 +58,54 @@
           "enabled": true,
           "properties": {
             "LocalPosition": {
-              "x": 2,
-              "y": 10,
-              "z": 2
+              "x": 2.8435097,
+              "y": 2.5,
+              "z": 1.5203633
+            },
+            "LocalRotation": {
+              "x": -0.115131855,
+              "y": 0.3785229,
+              "z": 0.3731461,
+              "w": 0.8391824
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "properties": {
+            "LightType": "Point",
+            "LightColor": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            },
+            "Intensity": 1.4,
+            "Range": 11.6
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube ",
+      "id": "8df8119f-3f87-4575-b5c2-a4f320518f85",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 0,
+              "z": 0
             },
             "LocalRotation": {
               "x": 0,
@@ -77,27 +117,68 @@
               "x": 1,
               "y": 1,
               "z": 1
-            },
-            "EulerAngles": {
-              "x": 0,
-              "y": 0,
-              "z": 0
             }
           }
         },
         {
-          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
           "enabled": true,
           "properties": {
-            "LightType": "Directional",
-            "LightColor": {
+            "Width": 5,
+            "Depth": 4.7,
+            "ResolutionX": 1,
+            "ResolutionZ": 1,
+            "MaterialType": "SolidColor",
+            "Tint": {
               "r": 255,
               "g": 255,
               "b": 255,
               "a": 255
             },
-            "Intensity": 1,
-            "Range": 10
+            "TexturePath": ""
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Monkey",
+      "id": "77d134de-91f0-4e3a-aeef-f36a6998868b",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 1.061547,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.MeshRendererComponent",
+          "enabled": true,
+          "properties": {
+            "ModelPath": "MonkeyMesh.obj",
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
           }
         }
       ],
