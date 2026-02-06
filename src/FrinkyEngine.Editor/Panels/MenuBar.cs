@@ -210,6 +210,19 @@ public class MenuBar
                 ImGui.EndMenu();
             }
 
+            if (ImGui.BeginMenu("View"))
+            {
+                if (ImGui.MenuItem(
+                        "Game View",
+                        KeybindManager.Instance.GetShortcutText(EditorAction.ToggleGameView),
+                        _app.IsGameViewEnabled))
+                {
+                    _app.ToggleGameView();
+                }
+
+                ImGui.EndMenu();
+            }
+
             if (ImGui.BeginMenu("Window"))
             {
                 ImGui.MenuItem("Viewport", null, true);

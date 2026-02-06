@@ -75,7 +75,7 @@ public class ViewportPanel
 
                 if (_app.CurrentScene != null)
                 {
-                    bool isEditorMode = _app.Mode == EditorMode.Edit;
+                    bool isEditorMode = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
                     var textureToDisplay = _renderTexture;
 
                     _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
@@ -109,11 +109,13 @@ public class ViewportPanel
 
                     var imageScreenPos = ImGui.GetCursorScreenPos();
                     rlImGui.ImageRenderTexture(textureToDisplay);
-                    bool toolbarHovered = DrawTransformModeToggle(gizmo);
+                    bool toolbarHovered = false;
+                    if (isEditorMode)
+                        toolbarHovered = DrawTransformModeToggle(gizmo);
 
                     // Gizmo input: compute viewport-local mouse position
                     _isHovered = ImGui.IsWindowHovered();
-                    if (_isHovered && !toolbarHovered && _app.Mode == EditorMode.Edit)
+                    if (_isHovered && !toolbarHovered && isEditorMode)
                     {
                         var mousePos = ImGui.GetMousePos();
                         var localMouse = mousePos - imageScreenPos;
@@ -140,26 +142,28 @@ public class ViewportPanel
                             }
                         }
                     }
-                    else if (!_isHovered)
+                    else
                     {
-                        // Clear hover state when viewport not hovered
                         gizmo.Update(camera, Array.Empty<Core.ECS.Entity>(), null, Vector2.Zero, Vector2.One);
                     }
                 }
                 else
                 {
+                    bool isEditorMode = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
                     var imageScreenPos = ImGui.GetCursorScreenPos();
                     rlImGui.ImageRenderTexture(_renderTexture);
-                    bool toolbarHovered = DrawTransformModeToggle(gizmo);
+                    bool toolbarHovered = false;
+                    if (isEditorMode)
+                        toolbarHovered = DrawTransformModeToggle(gizmo);
 
                     _isHovered = ImGui.IsWindowHovered();
-                    if (_isHovered && !toolbarHovered && _app.Mode == EditorMode.Edit)
+                    if (_isHovered && !toolbarHovered && isEditorMode)
                     {
                         var mousePos = ImGui.GetMousePos();
                         var localMouse = mousePos - imageScreenPos;
                         gizmo.Update(camera, selectedEntities, selected, localMouse, new Vector2(w, h));
                     }
-                    else if (!_isHovered)
+                    else
                     {
                         gizmo.Update(camera, Array.Empty<Core.ECS.Entity>(), null, Vector2.Zero, Vector2.One);
                     }

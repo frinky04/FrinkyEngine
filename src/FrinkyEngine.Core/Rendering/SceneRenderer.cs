@@ -62,6 +62,53 @@ public class SceneRenderer
     private int _forwardPlusDroppedTileLights;
     private int _forwardPlusClippedLights;
     private int _frameCounter;
+    private int _lastSceneLightCount;
+    private int _lastVisibleLightCount;
+    private int _lastSkylightCount;
+    private int _lastDirectionalLightCount;
+    private int _lastPointLightCount;
+    private float _lastAverageLightsPerTile;
+    private int _lastMaxLightsPerTile;
+    private bool _lastStatsValid;
+
+    public readonly record struct ForwardPlusFrameStats(
+        bool Valid,
+        int SceneLights,
+        int VisibleLights,
+        int Skylights,
+        int DirectionalLights,
+        int PointLights,
+        int AssignedLights,
+        int ClippedLights,
+        int DroppedTileLinks,
+        int TileSize,
+        int TilesX,
+        int TilesY,
+        int MaxLights,
+        int MaxLightsPerTile,
+        float AverageLightsPerTile,
+        int PeakLightsPerTile);
+
+    public ForwardPlusFrameStats GetForwardPlusFrameStats()
+    {
+        return new ForwardPlusFrameStats(
+            _lastStatsValid,
+            _lastSceneLightCount,
+            _lastVisibleLightCount,
+            _lastSkylightCount,
+            _lastDirectionalLightCount,
+            _lastPointLightCount,
+            _frameLights.Count,
+            _forwardPlusClippedLights,
+            _forwardPlusDroppedTileLights,
+            _forwardPlusSettings.TileSize,
+            _tileCountX,
+            _tileCountY,
+            _forwardPlusSettings.MaxLights,
+            _forwardPlusSettings.MaxLightsPerTile,
+            _lastAverageLightsPerTile,
+            _lastMaxLightsPerTile);
+    }
 
     public void ConfigureForwardPlus(ForwardPlusSettings settings)
     {
@@ -300,17 +347,26 @@ public class SceneRenderer
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
         bool skylightFound = false;
         int eligibleLights = 0;
+        int visibleLights = 0;
+        int skylightCount = 0;
+        int directionalCount = 0;
+        int pointCount = 0;
 
         var cameraPos = camera.Position;
+        var lights = scene.Lights;
+        _lastSceneLightCount = lights.Count;
 
-        foreach (var light in scene.Lights)
+        foreach (var light in lights)
         {
             if (!light.Entity.Active) continue;
             if (light.EditorOnly && !isEditorMode) continue;
             if (!light.Enabled) continue;
 
+            visibleLights++;
+
             if (light.LightType == LightType.Skylight)
             {
+                skylightCount++;
                 if (!skylightFound)
                 {
                     skylightFound = true;
@@ -332,11 +388,13 @@ public class SceneRenderer
             var packed = CreatePackedLight(light);
             if (packed.Type == PackedLightType.Directional)
             {
+                directionalCount++;
                 if (_frameLights.Count < _forwardPlusSettings.MaxLights)
                     _frameLights.Add(packed);
                 continue;
             }
 
+            pointCount++;
             var offset = packed.Position - cameraPos;
             var distanceSquared = offset.LengthSquared();
             _pointCandidates.Add(new PointLightCandidate(packed, distanceSquared));
@@ -351,6 +409,10 @@ public class SceneRenderer
         }
 
         _forwardPlusClippedLights = Math.Max(0, eligibleLights - _frameLights.Count);
+        _lastVisibleLightCount = visibleLights;
+        _lastSkylightCount = skylightCount;
+        _lastDirectionalLightCount = directionalCount;
+        _lastPointLightCount = pointCount;
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
     }
 
@@ -387,6 +449,29 @@ public class SceneRenderer
                 }
             }
         }
+
+        if (_tileCount > 0)
+        {
+            int sum = 0;
+            int peak = 0;
+            for (int i = 0; i < _tileCount; i++)
+            {
+                int count = _tileLightCounts[i];
+                sum += count;
+                if (count > peak)
+                    peak = count;
+            }
+
+            _lastAverageLightsPerTile = sum / (float)_tileCount;
+            _lastMaxLightsPerTile = peak;
+        }
+        else
+        {
+            _lastAverageLightsPerTile = 0f;
+            _lastMaxLightsPerTile = 0;
+        }
+
+        _lastStatsValid = true;
     }
 
     private void TryInsertTileLight(int tileIndex, int lightIndex, float score)

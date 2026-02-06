@@ -42,6 +42,7 @@ public class EditorApplication
     public ProjectSettings? ProjectSettings { get; private set; }
     public EditorProjectSettings? ProjectEditorSettings { get; private set; }
     public bool ShouldResetLayout { get; set; }
+    public bool IsGameViewEnabled { get; private set; }
 
     private string? _playModeSnapshot;
     private Task<bool>? _buildTask;
@@ -257,6 +258,15 @@ public class EditorApplication
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
         FrinkyLog.Info("Exited Play mode.");
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
+    }
+
+    public void ToggleGameView()
+    {
+        IsGameViewEnabled = !IsGameViewEnabled;
+        NotificationManager.Instance.Post(
+            IsGameViewEnabled ? "Game view enabled" : "Game view disabled",
+            NotificationType.Info,
+            2.0f);
     }
 
     public void CreateAndOpenProject(string parentDirectory, string projectName)
@@ -521,6 +531,7 @@ public class EditorApplication
         {
             ClearSelection();
         });
+        km.RegisterAction(EditorAction.ToggleGameView, () => ToggleGameView());
 
         km.RegisterAction(EditorAction.OpenAssetsFolder, () =>
         {
