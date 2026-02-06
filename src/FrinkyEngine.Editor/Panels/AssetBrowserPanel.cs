@@ -4,6 +4,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using ImGuiNET;
+using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
 
@@ -110,10 +111,10 @@ public class AssetBrowserPanel
         // Files
         foreach (var asset in db.GetAssetsInDirectory(_currentDir, filter))
         {
-            var prefix = GetTypePrefix(asset.Type);
-            var label = prefix + asset.FileName;
+            ImGui.PushID(asset.RelativePath);
+            DrawInlineIcon(asset.Type);
 
-            if (ImGui.Selectable(label, false, ImGuiSelectableFlags.AllowDoubleClick))
+            if (ImGui.Selectable(asset.FileName, false, ImGuiSelectableFlags.AllowDoubleClick))
             {
                 if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
                 {
@@ -125,6 +126,7 @@ public class AssetBrowserPanel
                 ImGui.SetTooltip(asset.RelativePath);
 
             DrawContextMenu(asset);
+            ImGui.PopID();
         }
     }
 
@@ -139,10 +141,10 @@ public class AssetBrowserPanel
                 && !asset.FileName.Contains(query, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var prefix = GetTypePrefix(asset.Type);
-            var label = prefix + asset.RelativePath;
+            ImGui.PushID(asset.RelativePath);
+            DrawInlineIcon(asset.Type);
 
-            if (ImGui.Selectable(label, false, ImGuiSelectableFlags.AllowDoubleClick))
+            if (ImGui.Selectable(asset.RelativePath, false, ImGuiSelectableFlags.AllowDoubleClick))
             {
                 if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
                 {
@@ -154,6 +156,7 @@ public class AssetBrowserPanel
                 ImGui.SetTooltip(asset.RelativePath);
 
             DrawContextMenu(asset);
+            ImGui.PopID();
         }
     }
 
@@ -219,12 +222,28 @@ public class AssetBrowserPanel
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
+    private static void DrawInlineIcon(AssetType type)
+    {
+        var icon = EditorIcons.GetIcon(type);
+        if (icon is Texture2D tex)
+        {
+            float size = ImGui.GetFrameHeight();
+            ImGui.Image((nint)tex.Id, new Vector2(size, size));
+            ImGui.SameLine(0, 4);
+        }
+        else
+        {
+            ImGui.TextDisabled(GetTypePrefix(type).TrimEnd());
+            ImGui.SameLine(0, 4);
+        }
+    }
+
     private static string GetTypePrefix(AssetType type) => type switch
     {
-        AssetType.Model => "[M] ",
-        AssetType.Scene => "[S] ",
-        AssetType.Texture => "[T] ",
-        AssetType.Script => "[C] ",
-        _ => "[?] "
+        AssetType.Model => "[M]",
+        AssetType.Scene => "[S]",
+        AssetType.Texture => "[T]",
+        AssetType.Script => "[C]",
+        _ => "[?]"
     };
 }

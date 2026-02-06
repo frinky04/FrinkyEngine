@@ -72,6 +72,7 @@ public class EditorApplication
     public void Initialize()
     {
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
+        EditorIcons.Load();
         NewScene();
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
     }
@@ -670,6 +671,7 @@ public class EditorApplication
     {
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;
+        EditorIcons.Unload();
         ViewportPanel.Shutdown();
         SceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();

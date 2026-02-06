@@ -5,6 +5,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using ImGuiNET;
 using Raylib_cs;
+using Texture2D = Raylib_cs.Texture2D;
 
 namespace FrinkyEngine.Editor.Panels;
 
@@ -245,12 +246,15 @@ public static class ComponentDrawerRegistry
             {
                 foreach (var asset in models)
                 {
+                    ImGui.PushID(asset.RelativePath);
+                    DrawAssetIcon(AssetType.Model);
                     if (ImGui.Selectable(asset.RelativePath))
                     {
                         app.RecordUndo();
                         mr.ModelPath = asset.RelativePath;
                         app.RefreshUndoBaseline();
                     }
+                    ImGui.PopID();
                 }
             }
             ImGui.EndPopup();
@@ -314,6 +318,8 @@ public static class ComponentDrawerRegistry
                             {
                                 foreach (var asset in textures)
                                 {
+                                    ImGui.PushID(asset.RelativePath);
+                                    DrawAssetIcon(AssetType.Texture);
                                     if (ImGui.Selectable(asset.RelativePath))
                                     {
                                         app.RecordUndo();
@@ -321,6 +327,7 @@ public static class ComponentDrawerRegistry
                                         slotsChanged = true;
                                         app.RefreshUndoBaseline();
                                     }
+                                    ImGui.PopID();
                                 }
                             }
                             ImGui.EndPopup();
@@ -379,12 +386,15 @@ public static class ComponentDrawerRegistry
                 {
                     foreach (var asset in textures)
                     {
+                        ImGui.PushID(asset.RelativePath);
+                        DrawAssetIcon(AssetType.Texture);
                         if (ImGui.Selectable(asset.RelativePath))
                         {
                             app.RecordUndo();
                             prim.TexturePath = asset.RelativePath;
                             app.RefreshUndoBaseline();
                         }
+                        ImGui.PopID();
                     }
                 }
                 ImGui.EndPopup();
@@ -501,6 +511,17 @@ public static class ComponentDrawerRegistry
         else
         {
             ImGui.LabelText(label, propType.Name);
+        }
+    }
+
+    private static void DrawAssetIcon(AssetType type)
+    {
+        var icon = EditorIcons.GetIcon(type);
+        if (icon is Texture2D tex)
+        {
+            float size = ImGui.GetFrameHeight();
+            ImGui.Image((nint)tex.Id, new Vector2(size, size));
+            ImGui.SameLine(0, 4);
         }
     }
 
