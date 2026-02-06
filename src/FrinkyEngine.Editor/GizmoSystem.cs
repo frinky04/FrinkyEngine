@@ -37,6 +37,7 @@ public class GizmoSystem
     private const float RotateLineRadius = 0.015f;
     private const float ScaleCubeSize = 0.1f;
     private const float RelativeScaleFactorMin = 0.01f;
+    private const float MinLocalScale = 0.001f;
     private const int CircleSegments = 64;
 
     public GizmoMode Mode { get; set; } = GizmoMode.Translate;
@@ -327,7 +328,16 @@ public class GizmoSystem
                 var perpendicular = offset - parallel;
                 var newWorldPosition = _dragPivot + perpendicular + parallel * scaleFactor;
                 target.Entity.Transform.LocalPosition = WorldToLocalPosition(target, newWorldPosition);
-                target.Entity.Transform.LocalScale = target.StartLocalScale + scaleAxis * signedDistance;
+
+                // In relative mode, derive each target's local scale direction from the gizmo world axis
+                // so rotated selections scale consistently instead of using one fixed local component.
+                var projectedLocalDir = GetProjectedLocalScaleDirection(target, axis, scaleAxis);
+                var localScaleFactor = Vector3.One + projectedLocalDir * signedDistance;
+                var scaledLocal = new Vector3(
+                    target.StartLocalScale.X * MathF.Max(RelativeScaleFactorMin, localScaleFactor.X),
+                    target.StartLocalScale.Y * MathF.Max(RelativeScaleFactorMin, localScaleFactor.Y),
+                    target.StartLocalScale.Z * MathF.Max(RelativeScaleFactorMin, localScaleFactor.Z));
+                target.Entity.Transform.LocalScale = ClampLocalScale(scaledLocal);
             }
 
             return;
@@ -335,7 +345,7 @@ public class GizmoSystem
 
         foreach (var target in _dragTargets)
         {
-            target.Entity.Transform.LocalScale = target.StartLocalScale + scaleAxis * signedDistance;
+            target.Entity.Transform.LocalScale = ClampLocalScale(target.StartLocalScale + scaleAxis * signedDistance);
         }
     }
 
@@ -496,6 +506,26 @@ public class GizmoSystem
         }
 
         return false;
+    }
+
+    private static Vector3 GetProjectedLocalScaleDirection(DragTargetState target, Vector3 worldAxis, Vector3 fallbackLocalAxis)
+    {
+        var inverseWorldRotation = Quaternion.Inverse(target.StartWorldRotation);
+        var localAxis = Vector3.Transform(worldAxis, inverseWorldRotation);
+        var direction = new Vector3(MathF.Abs(localAxis.X), MathF.Abs(localAxis.Y), MathF.Abs(localAxis.Z));
+
+        if (direction.LengthSquared() < 1e-6f)
+            return fallbackLocalAxis;
+
+        return Vector3.Normalize(direction);
+    }
+
+    private static Vector3 ClampLocalScale(Vector3 value)
+    {
+        return new Vector3(
+            MathF.Max(MinLocalScale, value.X),
+            MathF.Max(MinLocalScale, value.Y),
+            MathF.Max(MinLocalScale, value.Z));
     }
 
     private void ResetInteractionState()
