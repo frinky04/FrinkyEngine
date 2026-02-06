@@ -51,6 +51,7 @@ public class ViewportPanel
 
                 var gizmo = _app.GizmoSystem;
                 var selected = _app.SelectedEntity;
+                var selectedEntities = _app.SelectedEntities;
 
                 if (_app.CurrentScene != null)
                 {
@@ -60,9 +61,9 @@ public class ViewportPanel
                         {
                             if (isEditorMode)
                             {
-                                gizmo.Draw(camera, selected);
+                                gizmo.Draw(camera, selectedEntities, selected);
                                 EditorGizmos.DrawAll(_app.CurrentScene, camera);
-                                foreach (var selectedEntity in _app.SelectedEntities)
+                                foreach (var selectedEntity in selectedEntities)
                                     EditorGizmos.DrawSelectionHighlight(selectedEntity);
                             }
                         },
@@ -71,14 +72,15 @@ public class ViewportPanel
 
                 var imageScreenPos = ImGui.GetCursorScreenPos();
                 rlImGui.ImageRenderTexture(_renderTexture);
+                bool toolbarHovered = DrawTransformModeToggle(gizmo);
 
                 // Gizmo input: compute viewport-local mouse position
                 _isHovered = ImGui.IsWindowHovered();
-                if (_isHovered && _app.Mode == EditorMode.Edit)
+                if (_isHovered && !toolbarHovered && _app.Mode == EditorMode.Edit)
                 {
                     var mousePos = ImGui.GetMousePos();
                     var localMouse = mousePos - imageScreenPos;
-                    gizmo.Update(camera, selected, localMouse, new Vector2(w, h));
+                    gizmo.Update(camera, selectedEntities, selected, localMouse, new Vector2(w, h));
 
                     // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                     if (Raylib.IsMouseButtonPressed(MouseButton.Left)
@@ -104,7 +106,7 @@ public class ViewportPanel
                 else if (!_isHovered)
                 {
                     // Clear hover state when viewport not hovered
-                    gizmo.Update(camera, null, Vector2.Zero, Vector2.One);
+                    gizmo.Update(camera, Array.Empty<Core.ECS.Entity>(), null, Vector2.Zero, Vector2.One);
                 }
 
                 // Gizmo drag batching for undo
@@ -131,5 +133,22 @@ public class ViewportPanel
         ImGui.PopStyleVar();
 
         _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.Mode == EditorMode.Edit);
+    }
+
+    private static bool DrawTransformModeToggle(GizmoSystem gizmo)
+    {
+        ImGui.SetCursorPos(new Vector2(10, 10));
+        var label = gizmo.MultiMode == MultiTransformMode.Independent
+            ? "Transform: Independent"
+            : "Transform: Relative";
+
+        if (ImGui.Button(label))
+        {
+            gizmo.MultiMode = gizmo.MultiMode == MultiTransformMode.Independent
+                ? MultiTransformMode.Relative
+                : MultiTransformMode.Independent;
+        }
+
+        return ImGui.IsItemHovered();
     }
 }
