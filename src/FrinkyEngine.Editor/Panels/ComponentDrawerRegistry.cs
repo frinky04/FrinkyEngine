@@ -226,6 +226,75 @@ public static class ComponentDrawerRegistry
         var tint = ColorToVec4(mr.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
             mr.Tint = Vec4ToColor(tint);
+
+        // Material Slots
+        if (mr.MaterialSlots.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Text("Material Slots");
+            ImGui.Spacing();
+
+            bool slotsChanged = false;
+            for (int i = 0; i < mr.MaterialSlots.Count; i++)
+            {
+                var slot = mr.MaterialSlots[i];
+                ImGui.PushID(i);
+
+                if (ImGui.TreeNode($"Slot {i}"))
+                {
+                    var matType = (int)slot.MaterialType;
+                    if (ImGui.Combo("Type", ref matType, "SolidColor\0Textured\0"))
+                    {
+                        slot.MaterialType = (Core.Rendering.MaterialType)matType;
+                        slotsChanged = true;
+                    }
+
+                    if (slot.MaterialType == Core.Rendering.MaterialType.Textured)
+                    {
+                        ImGui.Text("Texture");
+                        ImGui.SetNextItemWidth(-30);
+                        string texPath = slot.TexturePath;
+                        if (ImGui.InputText("##SlotTexture", ref texPath, 256))
+                        {
+                            slot.TexturePath = texPath;
+                            slotsChanged = true;
+                        }
+                        ImGui.SameLine();
+                        if (ImGui.Button("...##BrowseSlotTex"))
+                            ImGui.OpenPopup("SlotTexBrowser");
+
+                        if (ImGui.BeginPopup("SlotTexBrowser"))
+                        {
+                            var textures = AssetDatabase.Instance.GetAssets(AssetType.Texture);
+                            if (textures.Count == 0)
+                            {
+                                ImGui.TextDisabled("No textures found");
+                            }
+                            else
+                            {
+                                foreach (var asset in textures)
+                                {
+                                    if (ImGui.Selectable(asset.RelativePath))
+                                    {
+                                        slot.TexturePath = asset.RelativePath;
+                                        slotsChanged = true;
+                                    }
+                                }
+                            }
+                            ImGui.EndPopup();
+                        }
+                    }
+
+                    ImGui.TreePop();
+                }
+
+                ImGui.PopID();
+            }
+
+            if (slotsChanged)
+                mr.RefreshMaterials();
+        }
     }
 
     private static void DrawPrimitive(Component c)
@@ -296,7 +365,7 @@ public static class ComponentDrawerRegistry
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
             if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
-            if (prop.Name is "LoadedModel" or "GeneratedModel") continue;
+            if (prop.Name is "RenderModel") continue;
 
             DrawProperty(component, prop);
         }

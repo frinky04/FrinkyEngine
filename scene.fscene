@@ -94,7 +94,7 @@
       "children": []
     },
     {
-      "name": "Cube ",
+      "name": "Plate",
       "id": "8df8119f-3f87-4575-b5c2-a4f320518f85",
       "active": true,
       "components": [
@@ -128,14 +128,14 @@
             "Depth": 4.7,
             "ResolutionX": 1,
             "ResolutionZ": 1,
-            "MaterialType": "SolidColor",
+            "MaterialType": "Textured",
+            "TexturePath": "grid_lightchecker.PNG",
             "Tint": {
               "r": 255,
               "g": 255,
               "b": 255,
               "a": 255
-            },
-            "TexturePath": ""
+            }
           }
         }
       ],
@@ -153,7 +153,7 @@
             "LocalPosition": {
               "x": 0,
               "y": 1.061547,
-              "z": 0
+              "z": 0.1
             },
             "LocalRotation": {
               "x": 0,
@@ -173,10 +173,16 @@
           "enabled": true,
           "properties": {
             "ModelPath": "MonkeyMesh.obj",
+            "MaterialSlots": [
+              {
+                "materialType": "SolidColor",
+                "texturePath": "grid_lightchecker.PNG"
+              }
+            ],
             "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
+              "r": 178,
+              "g": 110,
+              "b": 110,
               "a": 255
             }
           }

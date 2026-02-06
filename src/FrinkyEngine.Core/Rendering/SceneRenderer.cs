@@ -64,22 +64,12 @@ public class SceneRenderer
             UpdateLightUniforms(scene);
         }
 
-        foreach (var renderer in scene.Renderers)
+        foreach (var renderable in scene.Renderables)
         {
-            if (!renderer.Enabled) continue;
-            if (!renderer.LoadedModel.HasValue)
-                renderer.EnsureModelLoaded();
-            if (!renderer.LoadedModel.HasValue) continue;
-            DrawModelWithShader(renderer.LoadedModel.Value, renderer.Entity.Transform.WorldMatrix, renderer.Tint);
-        }
-
-        foreach (var primitive in scene.Primitives)
-        {
-            if (!primitive.Enabled) continue;
-            if (!primitive.GeneratedModel.HasValue)
-                primitive.RebuildModel();
-            if (!primitive.GeneratedModel.HasValue) continue;
-            DrawModelWithShader(primitive.GeneratedModel.Value, primitive.Entity.Transform.WorldMatrix, primitive.Tint);
+            if (!renderable.Enabled) continue;
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue) continue;
+            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, renderable.Tint);
         }
 
         DrawGrid(20, 1.0f);

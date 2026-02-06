@@ -1,10 +1,10 @@
 using FrinkyEngine.Core.Assets;
-using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
-public class MeshRendererComponent : Component
+public class MeshRendererComponent : RenderableComponent
 {
     private string _modelPath = string.Empty;
 
@@ -15,22 +15,58 @@ public class MeshRendererComponent : Component
         {
             if (_modelPath == value) return;
             _modelPath = value;
-            LoadedModel = null;
+            RenderModel = null;
         }
     }
 
-    public Color Tint { get; set; } = new(255, 255, 255, 255);
+    public List<MaterialSlot> MaterialSlots { get; set; } = new();
 
-    public Model? LoadedModel { get; internal set; }
-
-    internal void EnsureModelLoaded()
+    internal override void EnsureModelReady()
     {
-        if (LoadedModel.HasValue || string.IsNullOrEmpty(_modelPath)) return;
-        LoadedModel = AssetManager.Instance.LoadModel(_modelPath);
+        if (RenderModel.HasValue || string.IsNullOrEmpty(_modelPath)) return;
+
+        var model = AssetManager.Instance.LoadModel(_modelPath);
+
+        // Extend material slots list to match model's material count
+        while (MaterialSlots.Count < model.MaterialCount)
+            MaterialSlots.Add(new MaterialSlot());
+
+        // Apply material slots
+        unsafe
+        {
+            for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
+            {
+                var slot = MaterialSlots[i];
+                if (slot.MaterialType == MaterialType.Textured && !string.IsNullOrEmpty(slot.TexturePath))
+                {
+                    var texture = AssetManager.Instance.LoadTexture(slot.TexturePath);
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Texture = texture;
+                }
+                else
+                {
+                    // Reset to Raylib's default 1x1 white pixel texture
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Texture = new Texture2D
+                    {
+                        Id = Rlgl.GetTextureIdDefault(),
+                        Width = 1,
+                        Height = 1,
+                        Mipmaps = 1,
+                        Format = PixelFormat.UncompressedR8G8B8A8
+                    };
+                }
+            }
+        }
+
+        RenderModel = model;
+    }
+
+    public void RefreshMaterials()
+    {
+        RenderModel = null;
     }
 
     public override void Start()
     {
-        EnsureModelLoaded();
+        EnsureModelReady();
     }
 }
