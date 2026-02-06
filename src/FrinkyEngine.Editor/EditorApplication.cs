@@ -22,7 +22,13 @@ public class EditorApplication
     public static EditorApplication Instance { get; private set; } = null!;
 
     public Core.Scene.Scene? CurrentScene { get; set; }
-    public Entity? SelectedEntity { get; set; }
+    private readonly List<Entity> _selectedEntities = new();
+    public IReadOnlyList<Entity> SelectedEntities => _selectedEntities;
+    public Entity? SelectedEntity
+    {
+        get => _selectedEntities.Count > 0 ? _selectedEntities[^1] : null;
+        set => SetSingleSelection(value);
+    }
     public EditorMode Mode { get; private set; } = EditorMode.Edit;
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
@@ -71,7 +77,7 @@ public class EditorApplication
 
     public void NewScene()
     {
-        SelectedEntity = null;
+        ClearSelection();
         CurrentScene = SceneManager.Instance.NewScene("Untitled");
 
         var cameraEntity = CurrentScene.CreateEntity("Main Camera");
@@ -86,7 +92,7 @@ public class EditorApplication
         EditorCamera.Reset();
         UpdateWindowTitle();
         UndoRedo.Clear();
-        UndoRedo.SetBaseline(CurrentScene, null);
+        UndoRedo.SetBaseline(CurrentScene, Array.Empty<Guid>());
         NotificationManager.Instance.Post("New scene created", NotificationType.Info);
     }
 
@@ -225,9 +231,9 @@ public class EditorApplication
             _playModeSnapshot = null;
         }
 
-        SelectedEntity = null;
+        ClearSelection();
         Mode = EditorMode.Edit;
-        UndoRedo.SetBaseline(CurrentScene, null);
+        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
         FrinkyLog.Info("Exited Play mode.");
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
@@ -278,7 +284,8 @@ public class EditorApplication
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
         UndoRedo.Clear();
-        UndoRedo.SetBaseline(CurrentScene, null);
+        ClearSelection();
+        UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
@@ -356,9 +363,9 @@ public class EditorApplication
                 refreshed.FilePath = CurrentScene.FilePath;
                 CurrentScene = refreshed;
                 SceneManager.Instance.SetActiveScene(refreshed);
-                SelectedEntity = null;
+                ClearSelection();
             }
-            UndoRedo.SetBaseline(CurrentScene, null);
+            UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
         }
     }
 
@@ -409,34 +416,17 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.DeleteEntity, () =>
         {
-            if (SelectedEntity != null && CurrentScene != null)
-            {
-                RecordUndo();
-                CurrentScene.RemoveEntity(SelectedEntity);
-                SelectedEntity = null;
-                RefreshUndoBaseline();
-            }
+            DeleteSelectedEntities();
         });
 
         km.RegisterAction(EditorAction.DuplicateEntity, () =>
         {
-            if (SelectedEntity != null && CurrentScene != null && Mode == EditorMode.Edit)
-            {
-                RecordUndo();
-                var sourceName = SelectedEntity.Name;
-                var duplicate = SceneSerializer.DuplicateEntity(SelectedEntity, CurrentScene);
-                if (duplicate != null)
-                {
-                    SelectedEntity = duplicate;
-                    NotificationManager.Instance.Post($"Duplicated: {sourceName}", NotificationType.Info, 1.5f);
-                }
-                RefreshUndoBaseline();
-            }
+            DuplicateSelectedEntities();
         });
 
         km.RegisterAction(EditorAction.RenameEntity, () =>
         {
-            if (SelectedEntity != null)
+            if (SelectedEntities.Count == 1)
                 InspectorPanel.FocusNameField = true;
         });
 
@@ -450,7 +440,7 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.DeselectEntity, () =>
         {
-            SelectedEntity = null;
+            ClearSelection();
         });
 
         km.RegisterAction(EditorAction.OpenAssetsFolder, () =>
@@ -496,13 +486,136 @@ public class EditorApplication
     public void RecordUndo()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
-        UndoRedo.RecordUndo(SelectedEntity?.Id);
+        UndoRedo.RecordUndo(GetSelectedEntityIds());
     }
 
     public void RefreshUndoBaseline()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
-        UndoRedo.RefreshBaseline(CurrentScene, SelectedEntity?.Id);
+        UndoRedo.RefreshBaseline(CurrentScene, GetSelectedEntityIds());
+    }
+
+    public bool IsSelected(Entity entity)
+    {
+        return _selectedEntities.Any(e => e.Id == entity.Id);
+    }
+
+    public void ClearSelection()
+    {
+        _selectedEntities.Clear();
+    }
+
+    public void SetSingleSelection(Entity? entity)
+    {
+        if (entity == null)
+        {
+            ClearSelection();
+            return;
+        }
+
+        SetSelection(new[] { entity });
+    }
+
+    public void SetSelection(IEnumerable<Entity> entities)
+    {
+        _selectedEntities.Clear();
+
+        if (CurrentScene == null)
+            return;
+
+        var seen = new HashSet<Guid>();
+        foreach (var entity in entities)
+        {
+            if (entity.Scene != CurrentScene)
+                continue;
+            if (!seen.Add(entity.Id))
+                continue;
+
+            _selectedEntities.Add(entity);
+        }
+    }
+
+    public void ToggleSelection(Entity entity)
+    {
+        if (CurrentScene == null || entity.Scene != CurrentScene)
+            return;
+
+        var index = _selectedEntities.FindIndex(e => e.Id == entity.Id);
+        if (index >= 0)
+        {
+            _selectedEntities.RemoveAt(index);
+            return;
+        }
+
+        _selectedEntities.Add(entity);
+    }
+
+    public List<Guid> GetSelectedEntityIds()
+    {
+        return _selectedEntities.Select(e => e.Id).ToList();
+    }
+
+    public void DeleteSelectedEntities()
+    {
+        if (Mode != EditorMode.Edit || CurrentScene == null || _selectedEntities.Count == 0)
+            return;
+
+        var entitiesToDelete = _selectedEntities.Where(e => e.Scene == CurrentScene).ToList();
+        if (entitiesToDelete.Count == 0)
+            return;
+
+        RecordUndo();
+        foreach (var entity in entitiesToDelete)
+            CurrentScene.RemoveEntity(entity);
+        ClearSelection();
+        RefreshUndoBaseline();
+    }
+
+    public void DuplicateSelectedEntities()
+    {
+        if (Mode != EditorMode.Edit || CurrentScene == null || _selectedEntities.Count == 0)
+            return;
+
+        var selected = _selectedEntities.Where(e => e.Scene == CurrentScene).ToList();
+        if (selected.Count == 0)
+            return;
+
+        var selectedIds = new HashSet<Guid>(selected.Select(e => e.Id));
+        var rootsOnly = selected
+            .Where(entity => !HasSelectedAncestor(entity, selectedIds))
+            .ToList();
+
+        RecordUndo();
+        var duplicates = new List<Entity>();
+        foreach (var entity in rootsOnly)
+        {
+            var duplicate = SceneSerializer.DuplicateEntity(entity, CurrentScene);
+            if (duplicate != null)
+                duplicates.Add(duplicate);
+        }
+
+        SetSelection(duplicates);
+        if (duplicates.Count > 0)
+        {
+            var message = duplicates.Count == 1
+                ? $"Duplicated: {duplicates[0].Name}"
+                : $"Duplicated {duplicates.Count} entities";
+            NotificationManager.Instance.Post(message, NotificationType.Info, 1.5f);
+        }
+        RefreshUndoBaseline();
+    }
+
+    private static bool HasSelectedAncestor(Entity entity, HashSet<Guid> selectedIds)
+    {
+        var parent = entity.Transform.Parent;
+        while (parent != null)
+        {
+            if (selectedIds.Contains(parent.Entity.Id))
+                return true;
+            parent = parent.Parent;
+        }
+
+        return false;
     }
 
     public void Shutdown()

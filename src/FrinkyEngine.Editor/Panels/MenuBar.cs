@@ -116,40 +116,25 @@ public class MenuBar
 
                 ImGui.Separator();
 
-                var hasSelection = _app.SelectedEntity != null;
+                var hasSelection = _app.SelectedEntities.Count > 0;
+                var hasSingleSelection = _app.SelectedEntities.Count == 1;
 
                 ImGui.BeginDisabled(!hasSelection);
                 if (ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
                 {
-                    if (_app.SelectedEntity != null && _app.CurrentScene != null)
-                    {
-                        _app.RecordUndo();
-                        _app.CurrentScene.RemoveEntity(_app.SelectedEntity);
-                        _app.SelectedEntity = null;
-                        _app.RefreshUndoBaseline();
-                    }
+                    _app.DeleteSelectedEntities();
                 }
 
                 if (ImGui.MenuItem("Duplicate", KeybindManager.Instance.GetShortcutText(EditorAction.DuplicateEntity)))
                 {
-                    if (_app.SelectedEntity != null && _app.CurrentScene != null && _app.Mode == EditorMode.Edit)
-                    {
-                        _app.RecordUndo();
-                        var sourceName = _app.SelectedEntity.Name;
-                        var duplicate = SceneSerializer.DuplicateEntity(_app.SelectedEntity, _app.CurrentScene);
-                        if (duplicate != null)
-                        {
-                            _app.SelectedEntity = duplicate;
-                            NotificationManager.Instance.Post($"Duplicated: {sourceName}", NotificationType.Info, 1.5f);
-                        }
-                        _app.RefreshUndoBaseline();
-                    }
+                    _app.DuplicateSelectedEntities();
                 }
+                ImGui.EndDisabled();
 
+                ImGui.BeginDisabled(!hasSingleSelection);
                 if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
                 {
-                    if (_app.SelectedEntity != null)
-                        _app.InspectorPanel.FocusNameField = true;
+                    _app.InspectorPanel.FocusNameField = true;
                 }
                 ImGui.EndDisabled();
 
@@ -270,11 +255,11 @@ public class MenuBar
 
         SceneManager.Instance.LoadScene(result.Path);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
-        _app.SelectedEntity = null;
+        _app.ClearSelection();
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
         _app.UndoRedo.Clear();
-        _app.UndoRedo.SetBaseline(_app.CurrentScene, null);
+        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds());
         FrinkyLog.Info($"Opened scene: {result.Path}");
         NotificationManager.Instance.Post($"Scene opened: {_app.CurrentScene?.Name ?? "scene"}", NotificationType.Success);
     }

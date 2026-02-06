@@ -2,7 +2,7 @@ using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Editor;
 
-public record UndoSnapshot(string SceneJson, Guid? SelectedEntityId);
+public record UndoSnapshot(string SceneJson, List<Guid> SelectedEntityIds);
 
 public class UndoRedoManager
 {
@@ -12,41 +12,40 @@ public class UndoRedoManager
     private readonly List<UndoSnapshot> _redoStack = new();
 
     private string? _currentSnapshot;
-    private Guid? _currentSelectedEntityId;
+    private List<Guid> _currentSelectedEntityIds = new();
 
     // Batch state for continuous edits (gizmo drags, slider drags)
     private bool _isBatching;
     private string? _batchStartSnapshot;
-    private Guid? _batchStartSelectedEntityId;
+    private List<Guid>? _batchStartSelectedEntityIds;
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;
 
-    public void SetBaseline(Core.Scene.Scene? scene, Guid? selectedEntityId)
+    public void SetBaseline(Core.Scene.Scene? scene, IReadOnlyList<Guid> selectedEntityIds)
     {
         if (scene == null) return;
         _currentSnapshot = SceneSerializer.SerializeToString(scene);
-        _currentSelectedEntityId = selectedEntityId;
+        _currentSelectedEntityIds = selectedEntityIds.ToList();
     }
 
-    public void RecordUndo(Guid? currentSelectedEntityId = null)
+    public void RecordUndo(IReadOnlyList<Guid>? currentSelectedEntityIds = null)
     {
         if (_currentSnapshot == null) return;
 
-        // Use the provided current selection, falling back to the stored one
-        var selectionId = currentSelectedEntityId ?? _currentSelectedEntityId;
-        _undoStack.Add(new UndoSnapshot(_currentSnapshot, selectionId));
+        var selectedIds = currentSelectedEntityIds?.ToList() ?? _currentSelectedEntityIds.ToList();
+        _undoStack.Add(new UndoSnapshot(_currentSnapshot, selectedIds));
         if (_undoStack.Count > MaxHistory)
             _undoStack.RemoveAt(0);
 
         _redoStack.Clear();
     }
 
-    public void RefreshBaseline(Core.Scene.Scene? scene, Guid? selectedEntityId)
+    public void RefreshBaseline(Core.Scene.Scene? scene, IReadOnlyList<Guid> selectedEntityIds)
     {
         if (scene == null) return;
         _currentSnapshot = SceneSerializer.SerializeToString(scene);
-        _currentSelectedEntityId = selectedEntityId;
+        _currentSelectedEntityIds = selectedEntityIds.ToList();
     }
 
     public void BeginBatch()
@@ -54,10 +53,10 @@ public class UndoRedoManager
         if (_isBatching) return;
         _isBatching = true;
         _batchStartSnapshot = _currentSnapshot;
-        _batchStartSelectedEntityId = _currentSelectedEntityId;
+        _batchStartSelectedEntityIds = _currentSelectedEntityIds.ToList();
     }
 
-    public void EndBatch(Core.Scene.Scene? scene, Guid? selectedEntityId)
+    public void EndBatch(Core.Scene.Scene? scene, IReadOnlyList<Guid> selectedEntityIds)
     {
         if (!_isBatching) return;
         _isBatching = false;
@@ -65,16 +64,16 @@ public class UndoRedoManager
         if (_batchStartSnapshot == null) return;
 
         // Push the pre-batch state as the undo point
-        _undoStack.Add(new UndoSnapshot(_batchStartSnapshot, _batchStartSelectedEntityId));
+        _undoStack.Add(new UndoSnapshot(_batchStartSnapshot, _batchStartSelectedEntityIds?.ToList() ?? new List<Guid>()));
         if (_undoStack.Count > MaxHistory)
             _undoStack.RemoveAt(0);
 
         _redoStack.Clear();
         _batchStartSnapshot = null;
-        _batchStartSelectedEntityId = null;
+        _batchStartSelectedEntityIds = null;
 
         // Refresh baseline to current state
-        RefreshBaseline(scene, selectedEntityId);
+        RefreshBaseline(scene, selectedEntityIds);
     }
 
     public void Undo(EditorApplication app)
@@ -83,7 +82,7 @@ public class UndoRedoManager
 
         // Push current state onto redo stack
         if (_currentSnapshot != null)
-            _redoStack.Add(new UndoSnapshot(_currentSnapshot, app.SelectedEntity?.Id));
+            _redoStack.Add(new UndoSnapshot(_currentSnapshot, app.GetSelectedEntityIds()));
 
         var snapshot = _undoStack[^1];
         _undoStack.RemoveAt(_undoStack.Count - 1);
@@ -98,7 +97,7 @@ public class UndoRedoManager
 
         // Push current state onto undo stack
         if (_currentSnapshot != null)
-            _undoStack.Add(new UndoSnapshot(_currentSnapshot, app.SelectedEntity?.Id));
+            _undoStack.Add(new UndoSnapshot(_currentSnapshot, app.GetSelectedEntityIds()));
 
         var snapshot = _redoStack[^1];
         _redoStack.RemoveAt(_redoStack.Count - 1);
@@ -122,16 +121,18 @@ public class UndoRedoManager
         app.CurrentScene = restored;
         Core.Scene.SceneManager.Instance.SetActiveScene(restored);
 
-        // Restore selection by entity Id
-        app.SelectedEntity = null;
-        if (snapshot.SelectedEntityId.HasValue)
+        var selectedEntities = new List<Core.ECS.Entity>();
+        foreach (var selectedId in snapshot.SelectedEntityIds)
         {
-            app.SelectedEntity = FindEntityById(restored, snapshot.SelectedEntityId.Value);
+            var selectedEntity = FindEntityById(restored, selectedId);
+            if (selectedEntity != null)
+                selectedEntities.Add(selectedEntity);
         }
+        app.SetSelection(selectedEntities);
 
         // Update baseline
         _currentSnapshot = snapshot.SceneJson;
-        _currentSelectedEntityId = snapshot.SelectedEntityId;
+        _currentSelectedEntityIds = snapshot.SelectedEntityIds.ToList();
     }
 
     private static Core.ECS.Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
@@ -161,9 +162,9 @@ public class UndoRedoManager
         _undoStack.Clear();
         _redoStack.Clear();
         _currentSnapshot = null;
-        _currentSelectedEntityId = null;
+        _currentSelectedEntityIds.Clear();
         _isBatching = false;
         _batchStartSnapshot = null;
-        _batchStartSelectedEntityId = null;
+        _batchStartSelectedEntityIds = null;
     }
 }

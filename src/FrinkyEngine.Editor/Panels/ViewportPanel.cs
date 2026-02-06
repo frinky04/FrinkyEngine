@@ -62,7 +62,8 @@ public class ViewportPanel
                             {
                                 gizmo.Draw(camera, selected);
                                 EditorGizmos.DrawAll(_app.CurrentScene, camera);
-                                EditorGizmos.DrawSelectionHighlight(selected);
+                                foreach (var selectedEntity in _app.SelectedEntities)
+                                    EditorGizmos.DrawSelectionHighlight(selectedEntity);
                             }
                         },
                         isEditorMode: isEditorMode);
@@ -86,8 +87,18 @@ public class ViewportPanel
                         && !Raylib.IsMouseButtonDown(MouseButton.Right)
                         && _app.CurrentScene != null)
                     {
-                        _app.SelectedEntity = _app.PickingSystem.Pick(
+                        var pickedEntity = _app.PickingSystem.Pick(
                             _app.CurrentScene, camera, localMouse, new Vector2(w, h));
+
+                        if (ImGui.GetIO().KeyCtrl)
+                        {
+                            if (pickedEntity != null)
+                                _app.ToggleSelection(pickedEntity);
+                        }
+                        else
+                        {
+                            _app.SetSingleSelection(pickedEntity);
+                        }
                     }
                 }
                 else if (!_isHovered)
@@ -103,7 +114,7 @@ public class ViewportPanel
                 }
                 else if (!gizmo.IsDragging && _wasGizmoDragging)
                 {
-                    _app.UndoRedo.EndBatch(_app.CurrentScene, _app.SelectedEntity?.Id);
+                    _app.UndoRedo.EndBatch(_app.CurrentScene, _app.GetSelectedEntityIds());
                 }
                 _wasGizmoDragging = gizmo.IsDragging;
             }

@@ -162,12 +162,7 @@ public class AssetBrowserPanel
         switch (asset.Type)
         {
             case AssetType.Scene:
-                var fullPath = AssetManager.Instance.ResolvePath(asset.RelativePath);
-                SceneManager.Instance.LoadScene(fullPath);
-                _app.CurrentScene = SceneManager.Instance.ActiveScene;
-                _app.SelectedEntity = null;
-                _app.UpdateWindowTitle();
-                FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
+                OpenSceneAsset(asset);
                 break;
 
             case AssetType.Model:
@@ -195,11 +190,7 @@ public class AssetBrowserPanel
 
         if (asset.Type == AssetType.Scene && ImGui.MenuItem("Open Scene"))
         {
-            var fullPath = AssetManager.Instance.ResolvePath(asset.RelativePath);
-            SceneManager.Instance.LoadScene(fullPath);
-            _app.CurrentScene = SceneManager.Instance.ActiveScene;
-            _app.SelectedEntity = null;
-            _app.UpdateWindowTitle();
+            OpenSceneAsset(asset);
         }
 
         if (asset.Type == AssetType.Model && ImGui.MenuItem("Assign to MeshRenderer"))
@@ -213,6 +204,19 @@ public class AssetBrowserPanel
         }
 
         ImGui.EndPopup();
+    }
+
+    private void OpenSceneAsset(AssetEntry asset)
+    {
+        var fullPath = AssetManager.Instance.ResolvePath(asset.RelativePath);
+        SceneManager.Instance.LoadScene(fullPath);
+        _app.CurrentScene = SceneManager.Instance.ActiveScene;
+        _app.ClearSelection();
+        _app.RestoreEditorCameraFromScene();
+        _app.UpdateWindowTitle();
+        _app.UndoRedo.Clear();
+        _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds());
+        FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
     private static string GetTypePrefix(AssetType type) => type switch
