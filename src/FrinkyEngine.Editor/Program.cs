@@ -14,6 +14,7 @@ public static class Program
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
         Raylib.InitWindow(1600, 900, "FrinkyEngine Editor");
         Raylib.SetTargetFPS(60);
+        Raylib.SetExitKey(0);
 
         rlImGui.Setup(true, true);
 

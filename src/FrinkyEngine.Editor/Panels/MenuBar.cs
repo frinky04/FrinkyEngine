@@ -1,20 +1,17 @@
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using ImGuiNET;
+using NativeFileDialogSharp;
 
 namespace FrinkyEngine.Editor.Panels;
 
 public class MenuBar
 {
     private readonly EditorApplication _app;
-    private string _sceneSavePath = string.Empty;
     private string _newProjectName = string.Empty;
     private string _newProjectParentDir = string.Empty;
-    private string _projectPath = string.Empty;
 
-    private bool _openSaveSceneAs;
     private bool _openNewProject;
-    private bool _openOpenProject;
 
     public MenuBar(EditorApplication app)
     {
@@ -34,7 +31,7 @@ public class MenuBar
 
                 if (ImGui.MenuItem("Open Scene..."))
                 {
-                    FrinkyLog.Info("Use File > Open Project to load a .fproject file.");
+                    OpenSceneDialog();
                 }
 
                 if (ImGui.MenuItem("Save Scene"))
@@ -50,7 +47,9 @@ public class MenuBar
                 }
 
                 if (ImGui.MenuItem("Save Scene As..."))
-                    _openSaveSceneAs = true;
+                {
+                    SaveSceneAs();
+                }
 
                 ImGui.Separator();
 
@@ -58,7 +57,9 @@ public class MenuBar
                     _openNewProject = true;
 
                 if (ImGui.MenuItem("Open Project..."))
-                    _openOpenProject = true;
+                {
+                    OpenProjectDialog();
+                }
 
                 ImGui.Separator();
 
@@ -108,43 +109,72 @@ public class MenuBar
         }
 
         // Open popups at this scope level (outside the menu) so BeginPopup can find them
-        if (_openSaveSceneAs)
-        {
-            ImGui.OpenPopup("SaveSceneAs");
-            _openSaveSceneAs = false;
-        }
         if (_openNewProject)
         {
             ImGui.OpenPopup("NewProject");
             _openNewProject = false;
         }
-        if (_openOpenProject)
-        {
-            ImGui.OpenPopup("OpenProject");
-            _openOpenProject = false;
-        }
 
-        DrawSaveSceneAsPopup();
         DrawNewProjectPopup();
-        DrawOpenProjectPopup();
     }
 
-    private void DrawSaveSceneAsPopup()
+    private void OpenSceneDialog()
     {
-        if (ImGui.BeginPopup("SaveSceneAs"))
+        string? defaultPath = null;
+        if (_app.ProjectDirectory != null && _app.ProjectFile != null)
         {
-            ImGui.InputText("Path", ref _sceneSavePath, 512);
-            if (ImGui.Button("Save") && !string.IsNullOrWhiteSpace(_sceneSavePath))
-            {
-                SceneManager.Instance.SaveScene(_sceneSavePath);
-                FrinkyLog.Info($"Scene saved to: {_sceneSavePath}");
-                ImGui.CloseCurrentPopup();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel"))
-                ImGui.CloseCurrentPopup();
-            ImGui.EndPopup();
+            var assetsDir = _app.ProjectFile.GetAbsoluteAssetsPath(_app.ProjectDirectory);
+            var scenesDir = Path.Combine(assetsDir, "Scenes");
+            if (Directory.Exists(scenesDir))
+                defaultPath = scenesDir;
+            else if (Directory.Exists(assetsDir))
+                defaultPath = assetsDir;
         }
+
+        var result = Dialog.FileOpen("fscene", defaultPath);
+        if (!result.IsOk) return;
+
+        SceneManager.Instance.LoadScene(result.Path);
+        _app.CurrentScene = SceneManager.Instance.ActiveScene;
+        _app.SelectedEntity = null;
+        FrinkyLog.Info($"Opened scene: {result.Path}");
+    }
+
+    private void SaveSceneAs()
+    {
+        if (_app.CurrentScene == null) return;
+
+        // Default to the project's assets directory if a project is open
+        string? defaultPath = null;
+        if (_app.ProjectDirectory != null && _app.ProjectFile != null)
+        {
+            var assetsDir = _app.ProjectFile.GetAbsoluteAssetsPath(_app.ProjectDirectory);
+            var scenesDir = Path.Combine(assetsDir, "Scenes");
+            if (Directory.Exists(scenesDir))
+                defaultPath = scenesDir;
+            else if (Directory.Exists(assetsDir))
+                defaultPath = assetsDir;
+        }
+
+        var result = Dialog.FileSave("fscene", defaultPath);
+        if (!result.IsOk) return;
+
+        var path = result.Path;
+
+        // Auto-append .fscene if missing
+        if (!path.EndsWith(".fscene", StringComparison.OrdinalIgnoreCase))
+            path += ".fscene";
+
+        SceneManager.Instance.SaveScene(path);
+        FrinkyLog.Info($"Scene saved to: {path}");
+    }
+
+    private void OpenProjectDialog()
+    {
+        var result = Dialog.FileOpen("fproject");
+        if (!result.IsOk) return;
+
+        _app.OpenProject(result.Path);
     }
 
     private void DrawNewProjectPopup()
@@ -152,7 +182,16 @@ public class MenuBar
         if (ImGui.BeginPopup("NewProject"))
         {
             ImGui.InputText("Project Name", ref _newProjectName, 256);
+
             ImGui.InputText("Parent Directory", ref _newProjectParentDir, 512);
+            ImGui.SameLine();
+            if (ImGui.Button("Browse..."))
+            {
+                var result = Dialog.FolderPicker(
+                    string.IsNullOrWhiteSpace(_newProjectParentDir) ? null : _newProjectParentDir);
+                if (result.IsOk)
+                    _newProjectParentDir = result.Path;
+            }
 
             if (!string.IsNullOrWhiteSpace(_newProjectName) && !string.IsNullOrWhiteSpace(_newProjectParentDir))
             {
@@ -179,23 +218,6 @@ public class MenuBar
             }
             ImGui.EndDisabled();
 
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel"))
-                ImGui.CloseCurrentPopup();
-            ImGui.EndPopup();
-        }
-    }
-
-    private void DrawOpenProjectPopup()
-    {
-        if (ImGui.BeginPopup("OpenProject"))
-        {
-            ImGui.InputText(".fproject Path", ref _projectPath, 512);
-            if (ImGui.Button("Open") && !string.IsNullOrWhiteSpace(_projectPath))
-            {
-                _app.OpenProject(_projectPath);
-                ImGui.CloseCurrentPopup();
-            }
             ImGui.SameLine();
             if (ImGui.Button("Cancel"))
                 ImGui.CloseCurrentPopup();
