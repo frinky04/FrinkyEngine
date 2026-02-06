@@ -155,6 +155,7 @@ public class EditorApplication
             var restored = SceneSerializer.DeserializeFromString(_playModeSnapshot);
             if (restored != null)
             {
+                restored.FilePath = CurrentScene?.FilePath ?? string.Empty;
                 CurrentScene = restored;
                 SceneManager.Instance.SetActiveScene(restored);
             }
