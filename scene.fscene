@@ -1,16 +1,16 @@
 {
-  "name": "MainScene",
+  "name": "Untitled",
   "editorCameraPosition": {
-    "x": -6.5552526,
-    "y": 6.5530386,
-    "z": 6.8453507
+    "x": 5,
+    "y": 5,
+    "z": 5
   },
-  "editorCameraYaw": -45.599873,
-  "editorCameraPitch": -26.100035,
+  "editorCameraYaw": -135,
+  "editorCameraPitch": -30,
   "entities": [
     {
       "name": "Main Camera",
-      "id": "27f35375-0d26-4c1a-bc9e-ffcacefc70fe",
+      "id": "6f8cc051-b401-43ba-95df-7c7ced6a35ea",
       "active": true,
       "components": [
         {
@@ -20,14 +20,14 @@
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": 2.9339104,
-              "z": 0
+              "y": 5,
+              "z": 10
             },
             "LocalRotation": {
-              "x": 0,
+              "x": -0.17364818,
               "y": 0,
               "z": 0,
-              "w": 1
+              "w": 0.9848077
             },
             "LocalScale": {
               "x": 1,
@@ -41,30 +41,17 @@
           "enabled": true,
           "editorOnly": false,
           "properties": {
-            "FieldOfView": 120,
+            "FieldOfView": 60,
             "NearPlane": 0.1,
             "FarPlane": 1000,
             "Projection": "Perspective",
             "ClearColor": {
-              "r": 0,
-              "g": 0,
-              "b": 0,
+              "r": 30,
+              "g": 30,
+              "b": 30,
               "a": 255
             },
             "IsMain": true
-          }
-        },
-        {
-          "$type": "Testing.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": 45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            }
           }
         }
       ],
@@ -72,7 +59,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "2f7f42d2-c5ed-4283-b2f7-8272dac2b843",
+      "id": "24dbb56f-9655-4c1e-aaf2-965ddbf77d11",
       "active": true,
       "components": [
         {
@@ -81,9 +68,9 @@
           "editorOnly": false,
           "properties": {
             "LocalPosition": {
-              "x": 0,
-              "y": 3.2,
-              "z": 0
+              "x": 2,
+              "y": 10,
+              "z": 2
             },
             "LocalRotation": {
               "x": 0,
@@ -103,70 +90,15 @@
           "enabled": true,
           "editorOnly": false,
           "properties": {
-            "LightType": "Point",
+            "LightType": "Directional",
             "LightColor": {
-              "r": 255,
-              "g": 0,
-              "b": 0,
-              "a": 255
-            },
-            "Intensity": 5,
-            "Range": 10
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube 2",
-      "id": "8df8119f-3f87-4575-b5c2-a4f320518f85",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.MeshRendererComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "ModelPath": "Meshes/Room.obj",
-            "MaterialSlots": [
-              {
-                "materialType": "Textured",
-                "texturePath": "monkey.png"
-              },
-              {
-                "materialType": "Textured",
-                "texturePath": "monkey.png"
-              }
-            ],
-            "Tint": {
               "r": 255,
               "g": 255,
               "b": 255,
               "a": 255
-            }
+            },
+            "Intensity": 1,
+            "Range": 10
           }
         }
       ],

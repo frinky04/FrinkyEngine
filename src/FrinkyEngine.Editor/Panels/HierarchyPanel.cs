@@ -174,24 +174,49 @@ public class HierarchyPanel
     private void DrawToolbar(HierarchySceneState state)
     {
         bool stateChanged = false;
+        bool openFiltersPopup = false;
+        bool openCreatePopup = false;
 
-        if (_focusSearchRequested)
+        if (ImGui.BeginTable(
+                "##HierarchyToolbar",
+                3,
+                ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoPadOuterX | ImGuiTableFlags.NoPadInnerX))
         {
-            ImGui.SetKeyboardFocusHere();
-            _focusSearchRequested = false;
+            ImGui.TableSetupColumn("Search", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Filters", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("Create", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableNextRow();
+
+            ImGui.TableSetColumnIndex(0);
+            if (_focusSearchRequested)
+            {
+                ImGui.SetKeyboardFocusHere();
+                _focusSearchRequested = false;
+            }
+
+            string search = state.SearchQuery;
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.InputTextWithHint("##HierarchySearch", "Search", ref search, 256))
+            {
+                state.SearchQuery = search;
+                stateChanged = true;
+            }
+
+            ImGui.TableSetColumnIndex(1);
+            if (ImGui.Button("Filters"))
+                openFiltersPopup = true;
+
+            ImGui.TableSetColumnIndex(2);
+            if (ImGui.Button("Create"))
+                openCreatePopup = true;
+
+            ImGui.EndTable();
         }
 
-        string search = state.SearchQuery;
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 200f);
-        if (ImGui.InputTextWithHint("##HierarchySearch", "Search entities, folders, components...", ref search, 256))
-        {
-            state.SearchQuery = search;
-            stateChanged = true;
-        }
-
-        ImGui.SameLine();
-        if (ImGui.Button("Filters"))
+        if (openFiltersPopup)
             ImGui.OpenPopup("HierarchyFilters");
+        if (openCreatePopup)
+            ImGui.OpenPopup("HierarchyCreate");
 
         if (ImGui.BeginPopup("HierarchyFilters"))
         {
@@ -273,10 +298,6 @@ public class HierarchyPanel
             ImGui.EndPopup();
         }
 
-        ImGui.SameLine();
-        if (ImGui.Button("Create"))
-            ImGui.OpenPopup("HierarchyCreate");
-
         if (ImGui.BeginPopup("HierarchyCreate"))
         {
             DrawCreateEntityMenuItems(parent: null);
@@ -329,7 +350,10 @@ public class HierarchyPanel
         bool hasChildren = childFolders.Count > 0 || folderEntities.Count > 0;
         bool isFocused = string.Equals(_focusedFolderId, folder.Id, StringComparison.OrdinalIgnoreCase);
 
-        var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow
+                    | ImGuiTreeNodeFlags.SpanAvailWidth
+                    | ImGuiTreeNodeFlags.SpanFullWidth
+                    | ImGuiTreeNodeFlags.FramePadding;
         if (!hasChildren)
             flags |= ImGuiTreeNodeFlags.Leaf;
         if (isFocused)
@@ -401,7 +425,9 @@ public class HierarchyPanel
 
         bool hasChildren = visibleChildren.Count > 0;
 
-        var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow
+                    | ImGuiTreeNodeFlags.SpanAvailWidth
+                    | ImGuiTreeNodeFlags.FramePadding;
         if (!hasChildren)
             flags |= ImGuiTreeNodeFlags.Leaf;
         if (_app.IsSelected(entity))
@@ -456,19 +482,18 @@ public class HierarchyPanel
 
     private void DrawEntityStatusInline(Entity entity)
     {
-        bool active = entity.Active;
-
-        ImGui.SameLine();
-        if (ImGui.Checkbox($"##active_{entity.Id:N}", ref active))
-        {
-            _app.RecordUndo();
-            entity.Active = active;
-            _app.RefreshUndoBaseline();
-        }
-
-        ImGui.SameLine();
         int componentCount = Math.Max(0, entity.Components.Count - 1);
-        ImGui.TextDisabled($"[{componentCount}]");
+        string componentLabel = $"[{componentCount}]";
+
+        float spacing = ImGui.GetStyle().ItemSpacing.X;
+        float componentWidth = ImGui.CalcTextSize(componentLabel).X;
+
+        ImGui.SameLine(0f, spacing);
+        float targetX = ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - componentWidth;
+        if (targetX > ImGui.GetCursorPosX())
+            ImGui.SetCursorPosX(targetX);
+
+        ImGui.TextDisabled(componentLabel);
     }
 
     private void DrawEntityRenameInput(Entity entity, bool isRenaming)
