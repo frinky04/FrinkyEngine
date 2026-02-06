@@ -72,5 +72,5 @@ Minimal standalone player. Loads `.fproject`, initializes AssetManager, loads ga
 
 - Scenes: `.fscene` (JSON), Projects: `.fproject` (JSON)
 - Shaders in `Shaders/` are copied to output via Content build items
-- Editor font (`JetBrains_Mono/`) is copied to Editor output
+- Editor font lives in `EditorAssets/Fonts/JetBrains_Mono/` (copied to output via the `EditorAssets` Content glob)
 - Components go in `Components/`, panels in `Panels/`, serialization converters in `Serialization/`
