@@ -57,7 +57,13 @@ public static class SceneSerializer
 
     private static SceneData SerializeScene(Scene.Scene scene)
     {
-        var data = new SceneData { Name = scene.Name };
+        var data = new SceneData
+        {
+            Name = scene.Name,
+            EditorCameraPosition = scene.EditorCameraPosition,
+            EditorCameraYaw = scene.EditorCameraYaw,
+            EditorCameraPitch = scene.EditorCameraPitch
+        };
         foreach (var entity in scene.Entities)
         {
             data.Entities.Add(SerializeEntity(entity));
@@ -92,14 +98,15 @@ public static class SceneSerializer
         var data = new ComponentData
         {
             Type = ComponentTypeResolver.GetTypeName(component.GetType()),
-            Enabled = component.Enabled
+            Enabled = component.Enabled,
+            EditorOnly = component.EditorOnly
         };
 
         var type = component.GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
+            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EditorOnly") continue;
             if (prop.Name is "EulerAngles") continue;
 
             try
@@ -122,7 +129,13 @@ public static class SceneSerializer
 
     private static Scene.Scene DeserializeScene(SceneData data)
     {
-        var scene = new Scene.Scene { Name = data.Name };
+        var scene = new Scene.Scene
+        {
+            Name = data.Name,
+            EditorCameraPosition = data.EditorCameraPosition,
+            EditorCameraYaw = data.EditorCameraYaw,
+            EditorCameraPitch = data.EditorCameraPitch
+        };
         var parentMap = new Dictionary<Entity, List<EntityData>>();
 
         foreach (var entityData in data.Entities)
@@ -173,12 +186,13 @@ public static class SceneSerializer
         }
 
         component.Enabled = data.Enabled;
+        component.EditorOnly = data.EditorOnly;
 
         foreach (var (propName, jsonElement) in data.Properties)
         {
             var prop = type.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
             if (prop == null || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EulerAngles") continue;
+            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EditorOnly" or "EulerAngles") continue;
 
             try
             {
@@ -196,6 +210,9 @@ public static class SceneSerializer
 public class SceneData
 {
     public string Name { get; set; } = "Untitled";
+    public System.Numerics.Vector3? EditorCameraPosition { get; set; }
+    public float? EditorCameraYaw { get; set; }
+    public float? EditorCameraPitch { get; set; }
     public List<EntityData> Entities { get; set; } = new();
 }
 
@@ -213,5 +230,6 @@ public class ComponentData
     [JsonPropertyName("$type")]
     public string Type { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
+    public bool EditorOnly { get; set; }
     public Dictionary<string, JsonElement> Properties { get; set; } = new();
 }

@@ -17,6 +17,8 @@ public abstract class Component
         }
     }
 
+    public bool EditorOnly { get; set; }
+
     public bool HasStarted { get; internal set; }
 
     public virtual void Awake() { }

@@ -16,9 +16,26 @@ public class EditorCamera
 
     public Camera3D Camera3D { get; private set; }
 
+    public Vector3 Position => _position;
+    public float Yaw => _yaw;
+    public float Pitch => _pitch;
+
     public EditorCamera()
     {
         UpdateCamera3D();
+    }
+
+    public void SetState(Vector3 position, float yaw, float pitch)
+    {
+        _position = position;
+        _yaw = yaw;
+        _pitch = pitch;
+        UpdateCamera3D();
+    }
+
+    public void Reset()
+    {
+        SetState(new Vector3(5f, 5f, 5f), -135f, -30f);
     }
 
     public void Update(float dt, bool isViewportHovered)

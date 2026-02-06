@@ -1,5 +1,12 @@
 {
   "name": "MainScene",
+  "editorCameraPosition": {
+    "x": 1.7046515,
+    "y": 1.6363564,
+    "z": 3.7902696
+  },
+  "editorCameraYaw": 569.0996,
+  "editorCameraPitch": -25.19998,
   "entities": [
     {
       "name": "Main Camera",
@@ -9,17 +16,18 @@
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": 5,
-              "z": 10
+              "y": 1.281836,
+              "z": 4.104308
             },
             "LocalRotation": {
-              "x": -0.17364812,
+              "x": 0,
               "y": 0,
-              "z": 0,
-              "w": 0.9848078
+              "z": 3.9643706E-09,
+              "w": 1
             },
             "LocalScale": {
               "x": 1,
@@ -31,6 +39,7 @@
         {
           "$type": "FrinkyEngine.Core.Components.CameraComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
             "FieldOfView": 60,
             "NearPlane": 0.1,
@@ -56,17 +65,18 @@
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
             "LocalPosition": {
-              "x": 2.8435097,
-              "y": 2.5,
-              "z": 1.5203633
+              "x": 3.2171094,
+              "y": 2.6883838,
+              "z": 2.4143274
             },
             "LocalRotation": {
-              "x": -0.115131855,
-              "y": 0.3785229,
-              "z": 0.3731461,
-              "w": 0.8391824
+              "x": -0.15882356,
+              "y": 0.39750353,
+              "z": 0.35285783,
+              "w": 0.8320201
             },
             "LocalScale": {
               "x": 1,
@@ -78,15 +88,16 @@
         {
           "$type": "FrinkyEngine.Core.Components.LightComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
-            "LightType": "Point",
+            "LightType": "Directional",
             "LightColor": {
               "r": 255,
               "g": 255,
               "b": 255,
               "a": 255
             },
-            "Intensity": 1.4,
+            "Intensity": 1,
             "Range": 11.6
           }
         }
@@ -101,6 +112,7 @@
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
             "LocalPosition": {
               "x": 0,
@@ -123,6 +135,7 @@
         {
           "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
             "Width": 5,
             "Depth": 4.7,
@@ -149,11 +162,76 @@
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",
           "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -0.3909797,
+              "y": 1.061547,
+              "z": 0.1
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": -0.05325459,
+              "z": 0,
+              "w": 0.998581
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.MeshRendererComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "ModelPath": "MonkeyMesh.obj",
+            "MaterialSlots": [
+              {
+                "materialType": "SolidColor",
+                "texturePath": "grid_lightchecker.PNG"
+              }
+            ],
+            "Tint": {
+              "r": 178,
+              "g": 110,
+              "b": 110,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "Testing.Scripts.RotatorComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Speed": 45,
+            "Axis": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            }
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Ambient Light",
+      "id": "aae90fe3-dbd2-4cb6-a223-71e19c870599",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": 1.061547,
-              "z": 0.1
+              "y": 0,
+              "z": 0
             },
             "LocalRotation": {
               "x": 0,
@@ -169,22 +247,19 @@
           }
         },
         {
-          "$type": "FrinkyEngine.Core.Components.MeshRendererComponent",
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
           "enabled": true,
+          "editorOnly": false,
           "properties": {
-            "ModelPath": "MonkeyMesh.obj",
-            "MaterialSlots": [
-              {
-                "materialType": "SolidColor",
-                "texturePath": "grid_lightchecker.PNG"
-              }
-            ],
-            "Tint": {
-              "r": 178,
-              "g": 110,
-              "b": 110,
+            "LightType": "Skylight",
+            "LightColor": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
               "a": 255
-            }
+            },
+            "Intensity": 0.4,
+            "Range": 10
           }
         }
       ],

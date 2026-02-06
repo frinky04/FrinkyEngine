@@ -53,8 +53,17 @@ public class ViewportPanel
 
                 if (_app.CurrentScene != null)
                 {
+                    bool isEditorMode = _app.Mode == EditorMode.Edit;
                     _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
-                        () => gizmo.Draw(camera, selected));
+                        () =>
+                        {
+                            if (isEditorMode)
+                            {
+                                gizmo.Draw(camera, selected);
+                                EditorGizmos.DrawAll(_app.CurrentScene, camera);
+                            }
+                        },
+                        isEditorMode: isEditorMode);
                 }
 
                 var imageScreenPos = ImGui.GetCursorScreenPos();

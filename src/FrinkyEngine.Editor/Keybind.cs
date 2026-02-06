@@ -19,7 +19,9 @@ public enum EditorAction
     GizmoTranslate,
     GizmoRotate,
     GizmoScale,
-    GizmoToggleSpace
+    GizmoToggleSpace,
+    DeselectEntity,
+    OpenAssetsFolder
 }
 
 public struct Keybind

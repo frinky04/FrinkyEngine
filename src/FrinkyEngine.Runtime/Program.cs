@@ -72,7 +72,7 @@ public static class Program
             var camera3D = mainCamera.BuildCamera3D();
 
             Raylib.BeginDrawing();
-            sceneRenderer.Render(scene, camera3D);
+            sceneRenderer.Render(scene, camera3D, isEditorMode: false);
             Raylib.EndDrawing();
         }
 

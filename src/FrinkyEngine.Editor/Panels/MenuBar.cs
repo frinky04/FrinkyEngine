@@ -48,11 +48,13 @@ public class MenuBar
                 {
                     if (_app.CurrentScene != null)
                     {
+                        _app.StoreEditorCameraInScene();
                         var path = !string.IsNullOrEmpty(_app.CurrentScene.FilePath)
                             ? _app.CurrentScene.FilePath
                             : "scene.fscene";
                         SceneManager.Instance.SaveScene(path);
                         FrinkyLog.Info($"Scene saved to: {path}");
+                        NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
                     }
                 }
 
@@ -70,6 +72,27 @@ public class MenuBar
                 {
                     OpenProjectDialog();
                 }
+
+                ImGui.Separator();
+
+                var hasProjectForAssets = _app.ProjectDirectory != null;
+                ImGui.BeginDisabled(!hasProjectForAssets);
+                if (ImGui.MenuItem("Open Assets Folder", KeybindManager.Instance.GetShortcutText(EditorAction.OpenAssetsFolder)))
+                {
+                    if (_app.ProjectDirectory != null && _app.ProjectFile != null)
+                    {
+                        var assetsPath = _app.ProjectFile.GetAbsoluteAssetsPath(_app.ProjectDirectory);
+                        if (Directory.Exists(assetsPath))
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = assetsPath,
+                                UseShellExecute = true
+                            });
+                        }
+                    }
+                }
+                ImGui.EndDisabled();
 
                 ImGui.Separator();
 
@@ -228,13 +251,16 @@ public class MenuBar
         SceneManager.Instance.LoadScene(result.Path);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
         _app.SelectedEntity = null;
+        _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
         FrinkyLog.Info($"Opened scene: {result.Path}");
+        NotificationManager.Instance.Post($"Scene opened: {_app.CurrentScene?.Name ?? "scene"}", NotificationType.Success);
     }
 
     private void SaveSceneAs()
     {
         if (_app.CurrentScene == null) return;
+        _app.StoreEditorCameraInScene();
 
         // Default to the project's assets directory if a project is open
         string? defaultPath = null;
@@ -260,6 +286,7 @@ public class MenuBar
         SceneManager.Instance.SaveScene(path);
         _app.UpdateWindowTitle();
         FrinkyLog.Info($"Scene saved to: {path}");
+        NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
     }
 
     private void OpenProjectDialog()

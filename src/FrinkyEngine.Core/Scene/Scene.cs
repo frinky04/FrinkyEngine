@@ -8,6 +8,11 @@ public class Scene
     public string Name { get; set; } = "Untitled";
     public string FilePath { get; set; } = string.Empty;
 
+    // Editor camera metadata (persisted in .fscene)
+    public System.Numerics.Vector3? EditorCameraPosition { get; set; }
+    public float? EditorCameraYaw { get; set; }
+    public float? EditorCameraPitch { get; set; }
+
     private readonly List<Entity> _entities = new();
     public IReadOnlyList<Entity> Entities => _entities;
 

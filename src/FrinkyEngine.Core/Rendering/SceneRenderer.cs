@@ -45,7 +45,7 @@ public class SceneRenderer
         }
     }
 
-    public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null)
+    public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null, bool isEditorMode = true)
     {
         if (renderTarget.HasValue)
             Raylib.BeginTextureMode(renderTarget.Value);
@@ -61,18 +61,21 @@ public class SceneRenderer
             float[] cameraPos = { camera.Position.X, camera.Position.Y, camera.Position.Z };
             Raylib.SetShaderValue(_lightingShader, _viewPosLoc, cameraPos, ShaderUniformDataType.Vec3);
 
-            UpdateLightUniforms(scene);
+            UpdateLightUniforms(scene, isEditorMode);
         }
 
         foreach (var renderable in scene.Renderables)
         {
+            if (!renderable.Entity.Active) continue;
             if (!renderable.Enabled) continue;
+            if (renderable.EditorOnly && !isEditorMode) continue;
             renderable.EnsureModelReady();
             if (!renderable.RenderModel.HasValue) continue;
             DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, renderable.Tint);
         }
 
-        DrawGrid(20, 1.0f);
+        if (isEditorMode)
+            DrawGrid(20, 1.0f);
 
         postSceneRender?.Invoke();
 
@@ -99,7 +102,7 @@ public class SceneRenderer
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
     }
 
-    private void UpdateLightUniforms(Scene.Scene scene)
+    private void UpdateLightUniforms(Scene.Scene scene, bool isEditorMode = true)
     {
         var lights = scene.Lights;
 
@@ -107,6 +110,8 @@ public class SceneRenderer
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
         foreach (var light in lights)
         {
+            if (!light.Entity.Active) continue;
+            if (light.EditorOnly && !isEditorMode) continue;
             if (light.Enabled && light.LightType == Components.LightType.Skylight)
             {
                 var c = light.LightColor;
@@ -122,6 +127,8 @@ public class SceneRenderer
         foreach (var light in lights)
         {
             if (slot >= 4) break;
+            if (!light.Entity.Active) continue;
+            if (light.EditorOnly && !isEditorMode) continue;
             if (!light.Enabled || light.LightType == Components.LightType.Skylight) continue;
 
             int enabled = 1;

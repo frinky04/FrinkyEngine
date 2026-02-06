@@ -17,6 +17,7 @@
   <ItemGroup>
     <Content Include="..\..\JetBrains_Mono\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="JetBrains_Mono" />
     <Content Include="..\..\Shaders\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="Shaders" />
+    <Content Include="..\..\EditorAssets\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="EditorAssets" Condition="Exists('..\..\EditorAssets')" />
   </ItemGroup>
 
 </Project>

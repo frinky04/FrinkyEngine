@@ -122,10 +122,12 @@ public class KeybindManager
         _bindings[EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true);
         _bindings[EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2);
         _bindings[EditorAction.NewProject] = new Keybind(ImGuiKey.N, ctrl: true, shift: true);
-        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey.W);
-        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey.E);
-        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey.R);
+        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey._1);
+        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey._2);
+        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey._3);
         _bindings[EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X);
+        _bindings[EditorAction.DeselectEntity] = new Keybind(ImGuiKey.Escape);
+        _bindings[EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.E, ctrl: true, shift: true);
     }
 
     private void ApplyConfig(KeybindConfig config)

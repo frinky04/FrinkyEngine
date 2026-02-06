@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
@@ -76,7 +77,9 @@ public class EditorApplication
         lightEntity.Transform.LocalPosition = new System.Numerics.Vector3(2, 10, 2);
         lightEntity.AddComponent<Core.Components.LightComponent>();
 
+        EditorCamera.Reset();
         UpdateWindowTitle();
+        NotificationManager.Instance.Post("New scene created", NotificationType.Info);
     }
 
     public void Update(float dt)
@@ -136,6 +139,7 @@ public class EditorApplication
         CurrentScene.Start();
         Mode = EditorMode.Play;
         FrinkyLog.Info("Entered Play mode.");
+        NotificationManager.Instance.Post("Play mode", NotificationType.Info);
     }
 
     public void ExitPlayMode()
@@ -156,6 +160,7 @@ public class EditorApplication
         SelectedEntity = null;
         Mode = EditorMode.Edit;
         FrinkyLog.Info("Exited Play mode.");
+        NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
 
     public void CreateAndOpenProject(string parentDirectory, string projectName)
@@ -198,6 +203,7 @@ public class EditorApplication
             {
                 SceneManager.Instance.LoadScene(scenePath);
                 CurrentScene = SceneManager.Instance.ActiveScene;
+                RestoreEditorCameraFromScene();
             }
         }
 
@@ -296,11 +302,13 @@ public class EditorApplication
         {
             if (CurrentScene != null)
             {
+                StoreEditorCameraInScene();
                 var path = !string.IsNullOrEmpty(CurrentScene.FilePath)
                     ? CurrentScene.FilePath
                     : "scene.fscene";
                 SceneManager.Instance.SaveScene(path);
                 FrinkyLog.Info($"Scene saved to: {path}");
+                NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
             }
         });
 
@@ -344,6 +352,50 @@ public class EditorApplication
         km.RegisterAction(EditorAction.GizmoScale, () => GizmoSystem.Mode = GizmoMode.Scale);
         km.RegisterAction(EditorAction.GizmoToggleSpace, () =>
             GizmoSystem.Space = GizmoSystem.Space == GizmoSpace.World ? GizmoSpace.Local : GizmoSpace.World);
+
+        km.RegisterAction(EditorAction.DeselectEntity, () =>
+        {
+            SelectedEntity = null;
+        });
+
+        km.RegisterAction(EditorAction.OpenAssetsFolder, () =>
+        {
+            if (ProjectDirectory == null || ProjectFile == null) return;
+            var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
+            if (Directory.Exists(assetsPath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = assetsPath,
+                    UseShellExecute = true
+                });
+            }
+        });
+    }
+
+    public void StoreEditorCameraInScene()
+    {
+        if (CurrentScene == null) return;
+        CurrentScene.EditorCameraPosition = EditorCamera.Position;
+        CurrentScene.EditorCameraYaw = EditorCamera.Yaw;
+        CurrentScene.EditorCameraPitch = EditorCamera.Pitch;
+    }
+
+    public void RestoreEditorCameraFromScene()
+    {
+        if (CurrentScene?.EditorCameraPosition != null &&
+            CurrentScene.EditorCameraYaw != null &&
+            CurrentScene.EditorCameraPitch != null)
+        {
+            EditorCamera.SetState(
+                CurrentScene.EditorCameraPosition.Value,
+                CurrentScene.EditorCameraYaw.Value,
+                CurrentScene.EditorCameraPitch.Value);
+        }
+        else
+        {
+            EditorCamera.Reset();
+        }
     }
 
     public void Shutdown()
