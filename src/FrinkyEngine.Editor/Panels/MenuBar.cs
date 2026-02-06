@@ -195,6 +195,8 @@ public class MenuBar
                 ImGui.MenuItem("Inspector", null, true);
                 ImGui.MenuItem("Console", null, true);
                 ImGui.MenuItem("Assets", null, true);
+                if (ImGui.MenuItem("Performance", null, _app.PerformancePanel.IsVisible))
+                    _app.PerformancePanel.IsVisible = !_app.PerformancePanel.IsVisible;
                 ImGui.Separator();
                 if (ImGui.MenuItem("Reset Layout"))
                 {

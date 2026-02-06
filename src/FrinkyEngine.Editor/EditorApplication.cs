@@ -44,6 +44,7 @@ public class EditorApplication
     public InspectorPanel InspectorPanel { get; }
     public ConsolePanel ConsolePanel { get; }
     public AssetBrowserPanel AssetBrowserPanel { get; }
+    public PerformancePanel PerformancePanel { get; }
     public MenuBar MenuBar { get; }
 
     public EditorApplication()
@@ -54,6 +55,7 @@ public class EditorApplication
         InspectorPanel = new InspectorPanel(this);
         ConsolePanel = new ConsolePanel(this);
         AssetBrowserPanel = new AssetBrowserPanel(this);
+        PerformancePanel = new PerformancePanel(this);
         MenuBar = new MenuBar(this);
         RegisterKeybindActions();
     }
@@ -133,6 +135,7 @@ public class EditorApplication
         InspectorPanel.Draw();
         ConsolePanel.Draw();
         AssetBrowserPanel.Draw();
+        PerformancePanel.Draw();
         NotificationManager.Instance.Draw();
     }
 
