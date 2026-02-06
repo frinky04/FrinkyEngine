@@ -22,6 +22,7 @@ public enum EditorAction
     GizmoToggleSpace,
     DeselectEntity,
     OpenAssetsFolder,
+    OpenProjectInVSCode,
     ExportGame
 }
 

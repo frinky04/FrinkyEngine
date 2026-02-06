@@ -6,6 +6,7 @@ namespace FrinkyEngine.Editor;
 public class EditorPreferences
 {
     public static EditorPreferences Instance { get; } = new();
+    public bool AssetBrowserGridView { get; set; } = true;
 
     private string? _configPath;
 
@@ -51,7 +52,8 @@ public class EditorPreferences
         {
             var data = new EditorPreferencesData
             {
-                IconScale = EditorIcons.IconScale
+                IconScale = EditorIcons.IconScale,
+                AssetBrowserGridView = AssetBrowserGridView
             };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_configPath, json);
@@ -65,10 +67,12 @@ public class EditorPreferences
     private static void Apply(EditorPreferencesData data)
     {
         EditorIcons.IconScale = Math.Clamp(data.IconScale, 0.5f, 3.0f);
+        Instance.AssetBrowserGridView = data.AssetBrowserGridView;
     }
 
     private class EditorPreferencesData
     {
         public float IconScale { get; set; } = 1.0f;
+        public bool AssetBrowserGridView { get; set; } = true;
     }
 }

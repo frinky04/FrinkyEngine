@@ -108,6 +108,11 @@ public class MenuBar
                         }
                     }
                 }
+
+                if (ImGui.MenuItem("Open Project in VS Code", KeybindManager.Instance.GetShortcutText(EditorAction.OpenProjectInVSCode)))
+                {
+                    _app.OpenProjectInVSCode();
+                }
                 ImGui.EndDisabled();
 
                 ImGui.Separator();

@@ -128,6 +128,7 @@ public class KeybindManager
         _bindings[EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X);
         _bindings[EditorAction.DeselectEntity] = new Keybind(ImGuiKey.Escape);
         _bindings[EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.O, ctrl: true, shift: true);
+        _bindings[EditorAction.OpenProjectInVSCode] = new Keybind(ImGuiKey.V, ctrl: true, shift: true);
         _bindings[EditorAction.ExportGame] = new Keybind(ImGuiKey.E, ctrl: true, shift: true);
     }
 

@@ -326,6 +326,28 @@ public class EditorApplication
         Raylib.SetWindowTitle(title);
     }
 
+    public bool OpenProjectInVSCode()
+    {
+        if (ProjectDirectory == null)
+        {
+            NotificationManager.Instance.Post("No project is open.", NotificationType.Warning);
+            return false;
+        }
+
+        return LaunchVSCode(new[] { ProjectDirectory }, "Project opened in VS Code.");
+    }
+
+    public bool OpenFileInVSCode(string absolutePath)
+    {
+        if (string.IsNullOrWhiteSpace(absolutePath) || !File.Exists(absolutePath))
+        {
+            NotificationManager.Instance.Post("Script file not found.", NotificationType.Warning);
+            return false;
+        }
+
+        return LaunchVSCode(new[] { "-g", absolutePath }, successMessage: null);
+    }
+
     public void BuildScripts()
     {
         if (ScriptBuilder.IsBuilding || ProjectDirectory == null || ProjectFile == null)
@@ -511,6 +533,8 @@ public class EditorApplication
                 });
             }
         });
+
+        km.RegisterAction(EditorAction.OpenProjectInVSCode, () => OpenProjectInVSCode());
 
         km.RegisterAction(EditorAction.ExportGame, () => MenuBar.TriggerExportGame());
     }
@@ -721,5 +745,100 @@ public class EditorApplication
             Raylib.SetWindowState(ConfigFlags.VSyncHint);
         else
             Raylib.ClearWindowState(ConfigFlags.VSyncHint);
+    }
+
+    private bool LaunchVSCode(IEnumerable<string> arguments, string? successMessage)
+    {
+        var args = arguments.ToList();
+        var launchCandidates = new List<(string FileName, bool UseShellExecute)>
+        {
+            ("code", false),
+            ("code.cmd", false)
+        };
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrEmpty(localAppData))
+        {
+            var userInstallCmd = Path.Combine(localAppData, "Programs", "Microsoft VS Code", "bin", "code.cmd");
+            if (File.Exists(userInstallCmd))
+                launchCandidates.Add((userInstallCmd, false));
+        }
+
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        if (!string.IsNullOrEmpty(programFiles))
+        {
+            var machineInstallCmd = Path.Combine(programFiles, "Microsoft VS Code", "bin", "code.cmd");
+            if (File.Exists(machineInstallCmd))
+                launchCandidates.Add((machineInstallCmd, false));
+        }
+
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        if (!string.IsNullOrEmpty(programFilesX86))
+        {
+            var x86InstallCmd = Path.Combine(programFilesX86, "Microsoft VS Code", "bin", "code.cmd");
+            if (File.Exists(x86InstallCmd))
+                launchCandidates.Add((x86InstallCmd, false));
+        }
+
+        // Final fallback: let shell resolve command aliases.
+        launchCandidates.Add(("code", true));
+
+        var errors = new List<string>();
+        foreach (var candidate in launchCandidates)
+        {
+            if (TryLaunchProcess(candidate.FileName, candidate.UseShellExecute, args, out string? error))
+            {
+                if (!string.IsNullOrEmpty(successMessage))
+                    NotificationManager.Instance.Post(successMessage, NotificationType.Info, 2.0f);
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(error))
+                errors.Add($"{candidate.FileName} ({(candidate.UseShellExecute ? "shell" : "direct")}): {error}");
+        }
+
+        if (errors.Count > 0)
+            FrinkyLog.Error("Failed to launch VS Code. Attempts: " + string.Join(" | ", errors));
+        else
+            FrinkyLog.Error("Failed to launch VS Code: unknown launch error.");
+
+        NotificationManager.Instance.Post(
+            "Failed to launch VS Code. Ensure VS Code is installed and the 'code' command is available.",
+            NotificationType.Error, 5.0f);
+        return false;
+    }
+
+    private bool TryLaunchProcess(string fileName, bool useShellExecute, IReadOnlyList<string> arguments, out string? error)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                UseShellExecute = useShellExecute,
+                CreateNoWindow = !useShellExecute
+            };
+
+            if (!string.IsNullOrEmpty(ProjectDirectory))
+                psi.WorkingDirectory = ProjectDirectory;
+
+            foreach (var argument in arguments)
+                psi.ArgumentList.Add(argument);
+
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                error = "Process.Start returned null.";
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
     }
 }
