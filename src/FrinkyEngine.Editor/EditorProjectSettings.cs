@@ -135,7 +135,6 @@ public class HierarchySceneState
     public string SearchQuery { get; set; } = string.Empty;
     public bool FilterActiveOnly { get; set; }
     public bool FilterInactiveOnly { get; set; }
-    public bool FilterSelectedOnly { get; set; }
     public string RequiredComponentType { get; set; } = string.Empty;
     public bool ShowOnlyMatches { get; set; } = true;
     public bool AutoExpandMatches { get; set; } = true;
@@ -151,7 +150,6 @@ public class HierarchySceneState
             SearchQuery = SearchQuery,
             FilterActiveOnly = FilterActiveOnly,
             FilterInactiveOnly = FilterInactiveOnly,
-            FilterSelectedOnly = FilterSelectedOnly,
             RequiredComponentType = RequiredComponentType,
             ShowOnlyMatches = ShowOnlyMatches,
             AutoExpandMatches = AutoExpandMatches,

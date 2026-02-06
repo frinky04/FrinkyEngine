@@ -66,6 +66,7 @@ public static class SceneSerializer
         };
         foreach (var entity in scene.Entities)
         {
+            if (entity.Transform.Parent != null) continue;
             data.Entities.Add(SerializeEntity(entity));
         }
         return data;

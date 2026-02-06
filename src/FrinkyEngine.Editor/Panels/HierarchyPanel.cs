@@ -48,14 +48,17 @@ public class HierarchyPanel
 
     public void BeginRenameSelected()
     {
+        if (!string.IsNullOrWhiteSpace(_focusedFolderId))
+        {
+            BeginRenameFolder(_focusedFolderId);
+            return;
+        }
+
         if (_app.SelectedEntity != null)
         {
             BeginRenameEntity(_app.SelectedEntity);
             return;
         }
-
-        if (!string.IsNullOrWhiteSpace(_focusedFolderId))
-            BeginRenameFolder(_focusedFolderId);
     }
 
     public void SelectAllVisibleEntities()
@@ -243,13 +246,6 @@ public class HierarchyPanel
                 stateChanged = true;
             }
 
-            bool selectedOnly = state.FilterSelectedOnly;
-            if (ImGui.Checkbox("Selected Only", ref selectedOnly))
-            {
-                state.FilterSelectedOnly = selectedOnly;
-                stateChanged = true;
-            }
-
             ImGui.Separator();
 
             var componentTypes = ComponentTypeResolver.GetAllComponentTypes()
@@ -370,7 +366,8 @@ public class HierarchyPanel
         bool isOpen = expandedFolders.Contains(folder.Id) || forceOpen;
         ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
 
-        bool opened = ImGui.TreeNodeEx($"folder_{folder.Id}", flags, folder.Name);
+        bool opened = ImGui.TreeNodeEx($"##folder_{folder.Id}", flags);
+        DrawFolderRowLabel(folder.Name);
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
         {
@@ -543,6 +540,38 @@ public class HierarchyPanel
 
         if (submitted || ImGui.IsItemDeactivatedAfterEdit())
             CommitFolderRename(folder);
+    }
+
+    private static void DrawFolderRowLabel(string folderName)
+    {
+        var min = ImGui.GetItemRectMin();
+        float labelOffsetX = ImGui.GetTreeNodeToLabelSpacing();
+        float textLineHeight = ImGui.GetTextLineHeight();
+        float frameHeight = ImGui.GetFrameHeight();
+        float iconSize = MathF.Max(12f, textLineHeight);
+
+        float iconX = min.X + labelOffsetX;
+        float iconY = min.Y + MathF.Max(0f, (frameHeight - iconSize) * 0.5f);
+
+        var drawList = ImGui.GetWindowDrawList();
+        var textColor = ImGui.GetColorU32(ImGuiCol.Text);
+
+        var folderIcon = EditorIcons.GetFolderIcon();
+        if (folderIcon.HasValue)
+        {
+            var texture = folderIcon.Value;
+            drawList.AddImage(
+                (nint)texture.Id,
+                new System.Numerics.Vector2(iconX, iconY),
+                new System.Numerics.Vector2(iconX + iconSize, iconY + iconSize));
+        }
+        else
+        {
+            drawList.AddText(new System.Numerics.Vector2(iconX, min.Y), textColor, "[ ]");
+        }
+
+        float textX = iconX + iconSize + 6f;
+        drawList.AddText(new System.Numerics.Vector2(textX, min.Y), textColor, folderName);
     }
 
     private void DrawEntityContextMenu(Entity entity, HierarchySceneState state)
@@ -1175,8 +1204,6 @@ public class HierarchyPanel
         if (state.FilterActiveOnly && !entity.Active)
             return false;
         if (state.FilterInactiveOnly && entity.Active)
-            return false;
-        if (state.FilterSelectedOnly && !_app.IsSelected(entity))
             return false;
         if (requiredComponent != null && entity.GetComponent(requiredComponent) == null)
             return false;
