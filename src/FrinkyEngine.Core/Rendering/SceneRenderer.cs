@@ -67,31 +67,16 @@ public class SceneRenderer
         foreach (var renderer in scene.Renderers)
         {
             if (!renderer.Enabled || renderer.LoadedModel == null) continue;
-
-            var model = renderer.LoadedModel.Value;
-
-            if (_shaderLoaded)
-            {
-                unsafe
-                {
-                    for (int i = 0; i < model.MaterialCount; i++)
-                    {
-                        model.Materials[i].Shader = _lightingShader;
-                    }
-                }
-            }
-
-            var pos = renderer.Entity.Transform.WorldPosition;
-            Raylib.DrawModel(model, pos, 1f, renderer.Tint);
+            DrawModelWithShader(renderer.LoadedModel.Value, renderer.Entity.Transform.WorldPosition, renderer.Tint);
         }
 
-        foreach (var cube in scene.CubeRenderers)
+        foreach (var primitive in scene.Primitives)
         {
-            if (!cube.Enabled) continue;
-
-            var pos = cube.Entity.Transform.WorldPosition;
-            Raylib.DrawCube(pos, cube.Size, cube.Size, cube.Size, cube.Tint);
-            Raylib.DrawCubeWires(pos, cube.Size, cube.Size, cube.Size, Raylib_cs.Color.Black);
+            if (!primitive.Enabled) continue;
+            if (!primitive.GeneratedModel.HasValue)
+                primitive.RebuildModel();
+            if (!primitive.GeneratedModel.HasValue) continue;
+            DrawModelWithShader(primitive.GeneratedModel.Value, primitive.Entity.Transform.WorldPosition, primitive.Tint);
         }
 
         DrawGrid(20, 1.0f);
@@ -100,6 +85,22 @@ public class SceneRenderer
 
         if (renderTarget.HasValue)
             Raylib.EndTextureMode();
+    }
+
+    private void DrawModelWithShader(Model model, System.Numerics.Vector3 position, Color tint)
+    {
+        if (_shaderLoaded)
+        {
+            unsafe
+            {
+                for (int i = 0; i < model.MaterialCount; i++)
+                {
+                    model.Materials[i].Shader = _lightingShader;
+                }
+            }
+        }
+
+        Raylib.DrawModel(model, position, 1f, tint);
     }
 
     private void UpdateLightUniforms(Scene.Scene scene)

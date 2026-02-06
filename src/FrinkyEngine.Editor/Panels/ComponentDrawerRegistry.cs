@@ -18,7 +18,7 @@ public static class ComponentDrawerRegistry
         Register<CameraComponent>(DrawCamera);
         Register<LightComponent>(DrawLight);
         Register<MeshRendererComponent>(DrawMeshRenderer);
-        Register<CubeRendererComponent>(DrawCubeRenderer);
+        Register<PrimitiveComponent>(DrawPrimitive);
     }
 
     public static void Register<T>(Action<Component> drawer) where T : Component
@@ -28,10 +28,15 @@ public static class ComponentDrawerRegistry
 
     public static bool Draw(Component component)
     {
-        if (_drawers.TryGetValue(component.GetType(), out var drawer))
+        var type = component.GetType();
+        while (type != null && type != typeof(Component))
         {
-            drawer(component);
-            return true;
+            if (_drawers.TryGetValue(type, out var drawer))
+            {
+                drawer(component);
+                return true;
+            }
+            type = type.BaseType;
         }
         return false;
     }
@@ -154,17 +159,40 @@ public static class ComponentDrawerRegistry
             mr.Tint = Vec4ToColor(tint);
     }
 
-    private static void DrawCubeRenderer(Component c)
+    private static void DrawPrimitive(Component c)
     {
-        var cube = (CubeRendererComponent)c;
+        var prim = (PrimitiveComponent)c;
 
-        float size = cube.Size;
-        if (ImGui.DragFloat("Size", ref size, 0.05f, 0.01f, 100f))
-            cube.Size = size;
+        var matType = (int)prim.MaterialType;
+        if (ImGui.Combo("Material Type", ref matType, "SolidColor\0Textured\0"))
+            prim.MaterialType = (FrinkyEngine.Core.Rendering.MaterialType)matType;
 
-        var tint = ColorToVec4(cube.Tint);
+        var tint = ColorToVec4(prim.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
-            cube.Tint = Vec4ToColor(tint);
+            prim.Tint = Vec4ToColor(tint);
+
+        if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.Textured)
+        {
+            string texPath = prim.TexturePath;
+            if (ImGui.InputText("Texture Path", ref texPath, 256))
+                prim.TexturePath = texPath;
+        }
+
+        ImGui.Separator();
+        ImGui.Text("Shape Properties");
+        ImGui.Spacing();
+
+        DrawSubclassProperties(c);
+    }
+
+    private static void DrawSubclassProperties(Component component)
+    {
+        var type = component.GetType();
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+        {
+            if (!prop.CanRead || !prop.CanWrite) continue;
+            DrawProperty(component, prop);
+        }
     }
 
     public static void DrawReflection(Component component)
@@ -174,7 +202,7 @@ public static class ComponentDrawerRegistry
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
             if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
-            if (prop.Name == "LoadedModel") continue;
+            if (prop.Name is "LoadedModel" or "GeneratedModel") continue;
 
             DrawProperty(component, prop);
         }

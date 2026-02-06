@@ -16,7 +16,7 @@ public class Scene
     public IReadOnlyList<CameraComponent> Cameras => _registry.GetComponents<CameraComponent>();
     public IReadOnlyList<LightComponent> Lights => _registry.GetComponents<LightComponent>();
     public IReadOnlyList<MeshRendererComponent> Renderers => _registry.GetComponents<MeshRendererComponent>();
-    public IReadOnlyList<CubeRendererComponent> CubeRenderers => _registry.GetComponents<CubeRendererComponent>();
+    public IReadOnlyList<PrimitiveComponent> Primitives => _registry.GetComponents<PrimitiveComponent>();
 
     public CameraComponent? MainCamera => _registry.GetComponents<CameraComponent>()
         .FirstOrDefault(c => c.IsMain && c.Enabled);
