@@ -23,7 +23,9 @@ public static class ProjectScaffolder
         {
             ProjectName = projectName,
             DefaultScene = "Scenes/MainScene.fscene",
-            AssetsPath = "Assets"
+            AssetsPath = "Assets",
+            GameProject = $"{projectName}.csproj",
+            GameAssembly = $"bin/Debug/net8.0/{projectName}.dll"
         };
         projectFile.Save(fprojectPath);
 

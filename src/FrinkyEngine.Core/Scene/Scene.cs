@@ -11,17 +11,19 @@ public class Scene
     private readonly List<Entity> _entities = new();
     public IReadOnlyList<Entity> Entities => _entities;
 
-    private readonly List<CameraComponent> _cameras = new();
-    private readonly List<LightComponent> _lights = new();
-    private readonly List<MeshRendererComponent> _renderers = new();
-    private readonly List<CubeRendererComponent> _cubeRenderers = new();
+    private readonly ComponentRegistry _registry = new();
 
-    public IReadOnlyList<CameraComponent> Cameras => _cameras;
-    public IReadOnlyList<LightComponent> Lights => _lights;
-    public IReadOnlyList<MeshRendererComponent> Renderers => _renderers;
-    public IReadOnlyList<CubeRendererComponent> CubeRenderers => _cubeRenderers;
+    public IReadOnlyList<CameraComponent> Cameras => _registry.GetComponents<CameraComponent>();
+    public IReadOnlyList<LightComponent> Lights => _registry.GetComponents<LightComponent>();
+    public IReadOnlyList<MeshRendererComponent> Renderers => _registry.GetComponents<MeshRendererComponent>();
+    public IReadOnlyList<CubeRendererComponent> CubeRenderers => _registry.GetComponents<CubeRendererComponent>();
 
-    public CameraComponent? MainCamera => _cameras.FirstOrDefault(c => c.IsMain && c.Enabled);
+    public CameraComponent? MainCamera => _registry.GetComponents<CameraComponent>()
+        .FirstOrDefault(c => c.IsMain && c.Enabled);
+
+    public List<T> GetComponents<T>() where T : Component => _registry.GetComponents<T>();
+
+    public IReadOnlyList<Component> GetComponents(Type type) => _registry.GetComponentsRaw(type);
 
     public Entity CreateEntity(string name = "Entity")
     {
@@ -36,13 +38,13 @@ public class Scene
         _entities.Add(entity);
 
         foreach (var c in entity.Components)
-            RegisterComponent(c);
+            _registry.Register(c);
     }
 
     public void RemoveEntity(Entity entity)
     {
         foreach (var c in entity.Components)
-            UnregisterComponent(c);
+            _registry.Unregister(c);
 
         entity.DestroyComponents();
         entity.Scene = null;
@@ -51,34 +53,12 @@ public class Scene
 
     internal void OnComponentAdded(Entity entity, Component component)
     {
-        RegisterComponent(component);
+        _registry.Register(component);
     }
 
     internal void OnComponentRemoved(Entity entity, Component component)
     {
-        UnregisterComponent(component);
-    }
-
-    private void RegisterComponent(Component component)
-    {
-        switch (component)
-        {
-            case CameraComponent cam: _cameras.Add(cam); break;
-            case LightComponent light: _lights.Add(light); break;
-            case MeshRendererComponent renderer: _renderers.Add(renderer); break;
-            case CubeRendererComponent cube: _cubeRenderers.Add(cube); break;
-        }
-    }
-
-    private void UnregisterComponent(Component component)
-    {
-        switch (component)
-        {
-            case CameraComponent cam: _cameras.Remove(cam); break;
-            case LightComponent light: _lights.Remove(light); break;
-            case MeshRendererComponent renderer: _renderers.Remove(renderer); break;
-            case CubeRendererComponent cube: _cubeRenderers.Remove(cube); break;
-        }
+        _registry.Unregister(component);
     }
 
     public void Start()

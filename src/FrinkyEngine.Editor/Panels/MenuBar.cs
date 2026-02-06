@@ -1,6 +1,8 @@
 using System.Numerics;
+using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
+using FrinkyEngine.Core.Serialization;
 using ImGuiNET;
 using NativeFileDialogSharp;
 
@@ -13,6 +15,13 @@ public class MenuBar
     private string _newProjectParentDir = string.Empty;
 
     private bool _openNewProject;
+    private bool _openCreateScript;
+
+    // Create Script modal state
+    private string _newScriptName = string.Empty;
+    private int _selectedBaseClassIndex;
+    private string[] _baseClassOptions = Array.Empty<string>();
+    private Type[] _baseClassTypes = Array.Empty<Type>();
 
     public MenuBar(EditorApplication app)
     {
@@ -79,6 +88,38 @@ public class MenuBar
                 ImGui.EndMenu();
             }
 
+            if (ImGui.BeginMenu("Scripts"))
+            {
+                var hasProject = _app.ProjectDirectory != null;
+                var isBuilding = ScriptBuilder.IsBuilding;
+
+                ImGui.BeginDisabled(!hasProject || isBuilding);
+                if (ImGui.MenuItem("Build Scripts", "Ctrl+B"))
+                {
+                    _app.BuildScripts();
+                }
+                ImGui.EndDisabled();
+
+                if (isBuilding)
+                {
+                    ImGui.TextDisabled("Building...");
+                }
+
+                ImGui.Separator();
+
+                ImGui.BeginDisabled(!hasProject);
+                if (ImGui.MenuItem("Create Script..."))
+                {
+                    _openCreateScript = true;
+                    _newScriptName = string.Empty;
+                    _selectedBaseClassIndex = 0;
+                    RefreshBaseClassOptions();
+                }
+                ImGui.EndDisabled();
+
+                ImGui.EndMenu();
+            }
+
             if (ImGui.BeginMenu("Window"))
             {
                 ImGui.MenuItem("Viewport", null, true);
@@ -110,6 +151,12 @@ public class MenuBar
             ImGui.EndMainMenuBar();
         }
 
+        // Handle Ctrl+B shortcut
+        if (ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.B))
+        {
+            _app.BuildScripts();
+        }
+
         // Open popups at this scope level (outside the menu) so BeginPopup can find them
         if (_openNewProject)
         {
@@ -117,7 +164,27 @@ public class MenuBar
             _openNewProject = false;
         }
 
+        if (_openCreateScript)
+        {
+            ImGui.OpenPopup("CreateScript");
+            _openCreateScript = false;
+        }
+
         DrawNewProjectPopup();
+        DrawCreateScriptPopup();
+    }
+
+    private void RefreshBaseClassOptions()
+    {
+        var types = new List<Type> { typeof(Component) };
+        foreach (var type in ComponentTypeResolver.GetAllComponentTypes())
+        {
+            if (type != typeof(Core.Components.TransformComponent) && !type.IsAbstract)
+                types.Add(type);
+        }
+
+        _baseClassTypes = types.ToArray();
+        _baseClassOptions = types.Select(t => t.Name).ToArray();
     }
 
     private void OpenSceneDialog()
@@ -231,6 +298,76 @@ public class MenuBar
             ImGui.SameLine();
             if (ImGui.Button("Cancel"))
                 ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+        }
+    }
+
+    private void DrawCreateScriptPopup()
+    {
+        var viewport = ImGui.GetMainViewport();
+        var center = new Vector2(viewport.WorkPos.X + viewport.WorkSize.X * 0.5f,
+                                 viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(450, 0), ImGuiCond.Appearing);
+
+        if (ImGui.BeginPopupModal("CreateScript", ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            ImGui.InputText("Script Name", ref _newScriptName, 256);
+
+            if (_baseClassOptions.Length > 0)
+            {
+                ImGui.Combo("Base Class", ref _selectedBaseClassIndex, _baseClassOptions, _baseClassOptions.Length);
+            }
+
+            // File path preview
+            var nameValid = ScriptCreator.IsValidClassName(_newScriptName);
+            if (nameValid && _app.ProjectDirectory != null)
+            {
+                var filePath = Path.Combine(_app.ProjectDirectory, "Scripts", $"{_newScriptName}.cs");
+                ImGui.TextDisabled($"File: {filePath}");
+
+                if (File.Exists(filePath))
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0.3f, 0.3f, 1));
+                    ImGui.TextWrapped("A script with this name already exists!");
+                    ImGui.PopStyleColor();
+                }
+            }
+            else if (!string.IsNullOrEmpty(_newScriptName) && !nameValid)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0.3f, 0.3f, 1));
+                ImGui.TextWrapped("Invalid C# class name.");
+                ImGui.PopStyleColor();
+            }
+
+            var canCreate = nameValid
+                && _app.ProjectDirectory != null
+                && !File.Exists(Path.Combine(_app.ProjectDirectory, "Scripts", $"{_newScriptName}.cs"));
+
+            ImGui.BeginDisabled(!canCreate);
+            if (ImGui.Button("Create"))
+            {
+                var baseType = _selectedBaseClassIndex < _baseClassTypes.Length
+                    ? _baseClassTypes[_selectedBaseClassIndex]
+                    : typeof(Component);
+
+                var namespaceName = _app.ProjectFile?.ProjectName ?? "Game";
+                var scriptsDir = Path.Combine(_app.ProjectDirectory!, "Scripts");
+                Directory.CreateDirectory(scriptsDir);
+
+                var filePath = Path.Combine(scriptsDir, $"{_newScriptName}.cs");
+                var content = ScriptCreator.GenerateScript(_newScriptName, namespaceName, baseType);
+                File.WriteAllText(filePath, content);
+                FrinkyLog.Info($"Created script: {filePath}");
+
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndDisabled();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+                ImGui.CloseCurrentPopup();
+
             ImGui.EndPopup();
         }
     }

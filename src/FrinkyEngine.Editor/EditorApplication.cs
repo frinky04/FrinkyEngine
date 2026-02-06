@@ -31,6 +31,7 @@ public class EditorApplication
     public bool ShouldResetLayout { get; set; }
 
     private string? _playModeSnapshot;
+    private Task<bool>? _buildTask;
 
     public ViewportPanel ViewportPanel { get; }
     public HierarchyPanel HierarchyPanel { get; }
@@ -76,6 +77,15 @@ public class EditorApplication
 
     public void Update(float dt)
     {
+        if (_buildTask is { IsCompleted: true })
+        {
+            var success = _buildTask.Result;
+            _buildTask = null;
+
+            if (success)
+                ReloadGameAssembly();
+        }
+
         if (Mode == EditorMode.Play && CurrentScene != null)
         {
             CurrentScene.Update(dt);
@@ -172,6 +182,71 @@ public class EditorApplication
         if (CurrentScene != null)
             title += $" - {CurrentScene.Name}";
         Raylib.SetWindowTitle(title);
+    }
+
+    public void BuildScripts()
+    {
+        if (ScriptBuilder.IsBuilding || ProjectDirectory == null || ProjectFile == null)
+            return;
+
+        var csprojPath = FindGameCsproj();
+        if (csprojPath == null)
+        {
+            FrinkyLog.Error("No game .csproj found in project directory.");
+            return;
+        }
+
+        _buildTask = Task.Run(() => ScriptBuilder.BuildAsync(csprojPath));
+    }
+
+    private string? FindGameCsproj()
+    {
+        if (ProjectDirectory == null || ProjectFile == null)
+            return null;
+
+        if (!string.IsNullOrEmpty(ProjectFile.GameProject))
+        {
+            var path = Path.Combine(ProjectDirectory, ProjectFile.GameProject);
+            if (File.Exists(path))
+                return path;
+        }
+
+        var csprojFiles = Directory.GetFiles(ProjectDirectory, "*.csproj", SearchOption.TopDirectoryOnly);
+        return csprojFiles.Length > 0 ? csprojFiles[0] : null;
+    }
+
+    private void ReloadGameAssembly()
+    {
+        if (ProjectDirectory == null || ProjectFile == null)
+            return;
+
+        var dllPath = !string.IsNullOrEmpty(ProjectFile.GameAssembly)
+            ? Path.Combine(ProjectDirectory, ProjectFile.GameAssembly)
+            : null;
+
+        if (dllPath == null || !File.Exists(dllPath))
+        {
+            FrinkyLog.Warning("Game assembly DLL not found after build.");
+            return;
+        }
+
+        AssemblyLoader.ReloadAssembly(dllPath);
+        FrinkyLog.Info("Game assembly reloaded.");
+
+        // Re-serialize and deserialize current scene to refresh component instances
+        if (CurrentScene != null)
+        {
+            var snapshot = SceneSerializer.SerializeToString(CurrentScene);
+            var refreshed = SceneSerializer.DeserializeFromString(snapshot);
+            if (refreshed != null)
+            {
+                refreshed.Name = CurrentScene.Name;
+                refreshed.FilePath = CurrentScene.FilePath;
+                CurrentScene = refreshed;
+                SceneManager.Instance.SetActiveScene(refreshed);
+                SelectedEntity = null;
+            }
+        }
     }
 
     public void Shutdown()

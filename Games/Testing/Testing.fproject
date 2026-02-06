@@ -1,0 +1,7 @@
+{
+  "projectName": "Testing",
+  "defaultScene": "Scenes/MainScene.fscene",
+  "assetsPath": "Assets",
+  "gameAssembly": "bin/Debug/net8.0/Testing.dll",
+  "gameProject": "Testing.csproj"
+}

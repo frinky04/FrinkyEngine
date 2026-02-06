@@ -33,8 +33,17 @@ public class GameAssemblyLoader
 
     public void Unload()
     {
+        if (_gameAssembly != null)
+            ComponentTypeResolver.UnregisterAssembly(_gameAssembly);
+
         _gameAssembly = null;
         _loadContext?.Unload();
         _loadContext = null;
+    }
+
+    public bool ReloadAssembly(string dllPath)
+    {
+        Unload();
+        return LoadAssembly(dllPath);
     }
 }
