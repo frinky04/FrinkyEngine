@@ -96,6 +96,22 @@ public class MenuBar
 
                 ImGui.Separator();
 
+                var canExport = _app.ProjectDirectory != null
+                    && _app.Mode == EditorMode.Edit
+                    && !GameExporter.IsExporting
+                    && !ScriptBuilder.IsBuilding;
+                ImGui.BeginDisabled(!canExport);
+                if (ImGui.MenuItem("Export Game...", KeybindManager.Instance.GetShortcutText(EditorAction.ExportGame)))
+                {
+                    ExportGameDialog();
+                }
+                ImGui.EndDisabled();
+
+                if (GameExporter.IsExporting)
+                    ImGui.TextDisabled("Exporting...");
+
+                ImGui.Separator();
+
                 if (ImGui.MenuItem("Exit"))
                 {
                     Raylib_cs.Raylib.CloseWindow();
@@ -361,6 +377,30 @@ public class MenuBar
     public void TriggerOpenScene() => OpenSceneDialog();
     public void TriggerSaveSceneAs() => SaveSceneAs();
     public void TriggerNewProject() => _openNewProject = true;
+
+    public void TriggerExportGame()
+    {
+        if (_app.ProjectDirectory != null && _app.Mode == EditorMode.Edit
+            && !GameExporter.IsExporting && !ScriptBuilder.IsBuilding)
+        {
+            ExportGameDialog();
+        }
+    }
+
+    private void ExportGameDialog()
+    {
+        var result = Dialog.FolderPicker(_app.ProjectDirectory);
+        if (!result.IsOk) return;
+
+        // Auto-save scene if it has a file path
+        if (_app.CurrentScene != null && !string.IsNullOrEmpty(_app.CurrentScene.FilePath))
+        {
+            _app.StoreEditorCameraInScene();
+            SceneManager.Instance.SaveScene(_app.CurrentScene.FilePath);
+        }
+
+        _app.ExportGame(result.Path);
+    }
 
     private void DrawCreateScriptPopup()
     {

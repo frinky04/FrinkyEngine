@@ -10,19 +10,27 @@ public static class Program
 {
     public static void Main(string[] args)
     {
-        if (args.Length == 0)
+        if (args.Length > 0 && File.Exists(args[0]) && args[0].EndsWith(".fproject", StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine("Usage: FrinkyEngine.Runtime <path-to-.fproject>");
-            return;
+            RunDevMode(args[0]);
         }
-
-        var fprojectPath = args[0];
-        if (!File.Exists(fprojectPath))
+        else
         {
-            Console.WriteLine($"Project file not found: {fprojectPath}");
-            return;
+            var fassetPath = FindFassetNextToExe();
+            if (fassetPath != null)
+            {
+                RunExportedMode(fassetPath);
+            }
+            else
+            {
+                Console.WriteLine("Usage: FrinkyEngine.Runtime <path-to-.fproject>");
+                Console.WriteLine("  Or place a .fasset file next to the executable.");
+            }
         }
+    }
 
+    private static void RunDevMode(string fprojectPath)
+    {
         var projectDir = Path.GetDirectoryName(Path.GetFullPath(fprojectPath))!;
         var project = ProjectFile.Load(fprojectPath);
 
@@ -35,14 +43,61 @@ public static class Program
             assemblyLoader.LoadAssembly(dllPath);
         }
 
+        RunGameLoop(project.ProjectName, "Shaders/lighting.vs", "Shaders/lighting.fs",
+            project.GetAbsoluteScenePath(projectDir), assemblyLoader);
+    }
+
+    private static void RunExportedMode(string fassetPath)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"FrinkyRuntime_{Guid.NewGuid():N}");
+
+        try
+        {
+            FAssetArchive.ExtractAll(fassetPath, tempDir);
+
+            var manifestJson = File.ReadAllText(Path.Combine(tempDir, "manifest.json"));
+            var manifest = ExportManifest.FromJson(manifestJson);
+
+            AssetManager.Instance.AssetsPath = Path.Combine(tempDir, "Assets");
+
+            var assemblyLoader = new GameAssemblyLoader();
+            if (!string.IsNullOrEmpty(manifest.GameAssembly))
+            {
+                var dllPath = Path.Combine(tempDir, manifest.GameAssembly);
+                if (File.Exists(dllPath))
+                    assemblyLoader.LoadAssembly(dllPath);
+            }
+
+            var shaderVs = Path.Combine(tempDir, "Shaders", "lighting.vs");
+            var shaderFs = Path.Combine(tempDir, "Shaders", "lighting.fs");
+            var scenePath = Path.Combine(tempDir, manifest.DefaultScene);
+
+            RunGameLoop(manifest.ProjectName, shaderVs, shaderFs, scenePath, assemblyLoader);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, recursive: true);
+            }
+            catch
+            {
+                // Best effort cleanup
+            }
+        }
+    }
+
+    private static void RunGameLoop(string windowTitle, string shaderVsPath, string shaderFsPath,
+        string scenePath, GameAssemblyLoader assemblyLoader)
+    {
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
-        Raylib.InitWindow(1280, 720, project.ProjectName);
+        Raylib.InitWindow(1280, 720, windowTitle);
         Raylib.SetTargetFPS(60);
 
         var sceneRenderer = new SceneRenderer();
-        sceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
+        sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
 
-        var scenePath = project.GetAbsoluteScenePath(projectDir);
         var scene = SceneManager.Instance.LoadScene(scenePath);
 
         if (scene == null)
@@ -80,5 +135,12 @@ public static class Program
         AssetManager.Instance.UnloadAll();
         assemblyLoader.Unload();
         Raylib.CloseWindow();
+    }
+
+    private static string? FindFassetNextToExe()
+    {
+        var exeDir = AppContext.BaseDirectory;
+        var fassetFiles = Directory.GetFiles(exeDir, "*.fasset");
+        return fassetFiles.Length > 0 ? fassetFiles[0] : null;
     }
 }

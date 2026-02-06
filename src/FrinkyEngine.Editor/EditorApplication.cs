@@ -44,6 +44,8 @@ public class EditorApplication
     private string? _playModeSnapshot;
     private Task<bool>? _buildTask;
     private EditorNotification? _buildNotification;
+    private Task<bool>? _exportTask;
+    private EditorNotification? _exportNotification;
     private AssetFileWatcher? _assetFileWatcher;
 
     public ViewportPanel ViewportPanel { get; }
@@ -116,6 +118,21 @@ public class EditorApplication
 
             if (success)
                 ReloadGameAssembly();
+        }
+
+        if (_exportTask is { IsCompleted: true })
+        {
+            var success = _exportTask.Result;
+            _exportTask = null;
+
+            if (_exportNotification != null)
+            {
+                if (success)
+                    NotificationManager.Instance.Complete(_exportNotification, "Export Succeeded!", NotificationType.Success);
+                else
+                    NotificationManager.Instance.Complete(_exportNotification, "Export Failed.", NotificationType.Error);
+                _exportNotification = null;
+            }
         }
 
         if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged, out var changedPaths))
@@ -317,6 +334,35 @@ public class EditorApplication
         _buildTask = Task.Run(() => ScriptBuilder.BuildAsync(csprojPath));
     }
 
+    public void ExportGame(string outputDirectory)
+    {
+        if (GameExporter.IsExporting || ProjectDirectory == null || ProjectFile == null)
+            return;
+
+        var runtimeCsproj = GameExporter.FindRuntimeCsproj();
+        if (runtimeCsproj == null)
+        {
+            FrinkyLog.Error("Could not locate Runtime .csproj. Ensure FrinkyEngine.sln is accessible.");
+            NotificationManager.Instance.Post("Export failed: Runtime not found.", NotificationType.Error);
+            return;
+        }
+
+        var config = new ExportConfig
+        {
+            ProjectName = ProjectFile.ProjectName,
+            ProjectDirectory = ProjectDirectory,
+            AssetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory),
+            DefaultScene = ProjectFile.DefaultScene,
+            GameCsprojPath = FindGameCsproj(),
+            GameAssemblyDll = !string.IsNullOrEmpty(ProjectFile.GameAssembly) ? ProjectFile.GameAssembly : null,
+            RuntimeCsprojPath = runtimeCsproj,
+            OutputDirectory = outputDirectory
+        };
+
+        _exportNotification = NotificationManager.Instance.PostPersistent("Exporting Game...", NotificationType.Info);
+        _exportTask = Task.Run(() => GameExporter.ExportAsync(config));
+    }
+
     private string? FindGameCsproj()
     {
         if (ProjectDirectory == null || ProjectFile == null)
@@ -456,6 +502,8 @@ public class EditorApplication
                 });
             }
         });
+
+        km.RegisterAction(EditorAction.ExportGame, () => MenuBar.TriggerExportGame());
     }
 
     public void StoreEditorCameraInScene()

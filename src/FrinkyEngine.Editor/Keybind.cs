@@ -21,7 +21,8 @@ public enum EditorAction
     GizmoScale,
     GizmoToggleSpace,
     DeselectEntity,
-    OpenAssetsFolder
+    OpenAssetsFolder,
+    ExportGame
 }
 
 public struct Keybind

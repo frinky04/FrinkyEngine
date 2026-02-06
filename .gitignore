@@ -27,3 +27,4 @@ Assets/
 *.fproject.user
 imgui.ini
 /.claude
+/artifacts
