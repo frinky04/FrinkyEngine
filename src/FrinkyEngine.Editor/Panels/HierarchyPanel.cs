@@ -366,8 +366,13 @@ public class HierarchyPanel
         bool isOpen = expandedFolders.Contains(folder.Id) || forceOpen;
         ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
 
+        bool isRenamingFolder = string.Equals(_renamingFolderId, folder.Id, StringComparison.OrdinalIgnoreCase);
         bool opened = ImGui.TreeNodeEx($"##folder_{folder.Id}", flags);
-        DrawFolderRowLabel(folder.Name);
+
+        if (isRenamingFolder)
+            DrawFolderRenameInput(folder);
+        else
+            DrawFolderRowLabel(folder.Name);
 
         if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
         {
@@ -384,9 +389,6 @@ public class HierarchyPanel
                 expandedFolders.Remove(folder.Id);
             expansionChanged = true;
         }
-
-        if (string.Equals(_renamingFolderId, folder.Id, StringComparison.OrdinalIgnoreCase))
-            DrawFolderRenameInput(folder);
 
         DrawFolderDragDropSource(folder);
         DrawFolderDragDropTarget(folder, scene, state);
@@ -440,7 +442,8 @@ public class HierarchyPanel
         ImGui.SetNextItemOpen(isOpen, ImGuiCond.Always);
 
         bool isRenaming = _renamingEntityId.HasValue && _renamingEntityId.Value == entity.Id;
-        bool opened = ImGui.TreeNodeEx($"entity_{entityKey}", flags, entity.Name);
+        string entityLabel = isRenaming ? string.Empty : entity.Name;
+        bool opened = ImGui.TreeNodeEx($"entity_{entityKey}", flags, entityLabel);
 
         visibleEntities.Add(entity);
 
@@ -496,16 +499,17 @@ public class HierarchyPanel
         if (!isRenaming)
             return;
 
-        float indent = ImGui.GetTreeNodeToLabelSpacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetContentRegionAvail().X));
+        ImGui.SameLine();
+        float labelX = ImGui.GetItemRectMin().X + ImGui.GetTreeNodeToLabelSpacing();
+        ImGui.SetCursorScreenPos(new System.Numerics.Vector2(labelX, ImGui.GetItemRectMin().Y));
+        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetItemRectMax().X - labelX));
         if (_focusRenameInput)
         {
             ImGui.SetKeyboardFocusHere();
             _focusRenameInput = false;
         }
 
-        bool submitted = ImGui.InputText($"##rename_entity_{entity.Id:N}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+        bool submitted = ImGui.InputText($"##rename_entity_{entity.Id:N}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
         bool cancel = ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape);
 
         if (cancel)
@@ -520,16 +524,17 @@ public class HierarchyPanel
 
     private void DrawFolderRenameInput(HierarchyFolderState folder)
     {
-        float indent = ImGui.GetTreeNodeToLabelSpacing();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
-        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetContentRegionAvail().X));
+        ImGui.SameLine();
+        float labelX = ImGui.GetItemRectMin().X + ImGui.GetTreeNodeToLabelSpacing();
+        ImGui.SetCursorScreenPos(new System.Numerics.Vector2(labelX, ImGui.GetItemRectMin().Y));
+        ImGui.SetNextItemWidth(MathF.Max(140f, ImGui.GetItemRectMax().X - labelX));
         if (_focusRenameInput)
         {
             ImGui.SetKeyboardFocusHere();
             _focusRenameInput = false;
         }
 
-        bool submitted = ImGui.InputText($"##rename_folder_{folder.Id}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue);
+        bool submitted = ImGui.InputText($"##rename_folder_{folder.Id}", ref _renameBuffer, 128, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
         bool cancel = ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape);
 
         if (cancel)
@@ -571,7 +576,8 @@ public class HierarchyPanel
         }
 
         float textX = iconX + iconSize + 6f;
-        drawList.AddText(new System.Numerics.Vector2(textX, min.Y), textColor, folderName);
+        float textY = min.Y + MathF.Max(0f, (frameHeight - textLineHeight) * 0.5f);
+        drawList.AddText(new System.Numerics.Vector2(textX, textY), textColor, folderName);
     }
 
     private void DrawEntityContextMenu(Entity entity, HierarchySceneState state)
