@@ -750,44 +750,49 @@ public class EditorApplication
     private bool LaunchVSCode(IEnumerable<string> arguments, string? successMessage)
     {
         var args = arguments.ToList();
-        var launchCandidates = new List<(string FileName, bool UseShellExecute)>
-        {
-            ("code", false),
-            ("code.cmd", false)
-        };
+        var launchCandidates = new List<(string FileName, bool UseShellExecute, string[] PrefixArguments)>();
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrEmpty(localAppData))
+        if (OperatingSystem.IsWindows())
         {
-            var userInstallCmd = Path.Combine(localAppData, "Programs", "Microsoft VS Code", "bin", "code.cmd");
-            if (File.Exists(userInstallCmd))
-                launchCandidates.Add((userInstallCmd, false));
+            var installRoots = new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+            };
+
+            foreach (var root in installRoots.Where(static p => !string.IsNullOrWhiteSpace(p)))
+            {
+                var codeExe = Path.Combine(root, "Programs", "Microsoft VS Code", "Code.exe");
+                if (!File.Exists(codeExe))
+                    codeExe = Path.Combine(root, "Microsoft VS Code", "Code.exe");
+                if (File.Exists(codeExe))
+                    launchCandidates.Add((codeExe, false, Array.Empty<string>()));
+
+                var codeCmd = Path.Combine(root, "Programs", "Microsoft VS Code", "bin", "code.cmd");
+                if (!File.Exists(codeCmd))
+                    codeCmd = Path.Combine(root, "Microsoft VS Code", "bin", "code.cmd");
+                if (File.Exists(codeCmd))
+                    launchCandidates.Add((codeCmd, true, Array.Empty<string>()));
+            }
+
+            launchCandidates.Add(("code.cmd", true, Array.Empty<string>()));
+            launchCandidates.Add(("cmd.exe", false, new[] { "/c", "code.cmd" }));
+            launchCandidates.Add(("code", true, Array.Empty<string>()));
         }
-
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        if (!string.IsNullOrEmpty(programFiles))
+        else
         {
-            var machineInstallCmd = Path.Combine(programFiles, "Microsoft VS Code", "bin", "code.cmd");
-            if (File.Exists(machineInstallCmd))
-                launchCandidates.Add((machineInstallCmd, false));
+            launchCandidates.Add(("code", false, Array.Empty<string>()));
+            launchCandidates.Add(("code", true, Array.Empty<string>()));
         }
-
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        if (!string.IsNullOrEmpty(programFilesX86))
-        {
-            var x86InstallCmd = Path.Combine(programFilesX86, "Microsoft VS Code", "bin", "code.cmd");
-            if (File.Exists(x86InstallCmd))
-                launchCandidates.Add((x86InstallCmd, false));
-        }
-
-        // Final fallback: let shell resolve command aliases.
-        launchCandidates.Add(("code", true));
 
         var errors = new List<string>();
         foreach (var candidate in launchCandidates)
         {
-            if (TryLaunchProcess(candidate.FileName, candidate.UseShellExecute, args, out string? error))
+            if (TryLaunchProcess(candidate.FileName, candidate.UseShellExecute, candidate.PrefixArguments, args, out string? error))
             {
+                var launchMode = candidate.UseShellExecute ? "shell" : "direct";
+                FrinkyLog.Info($"Launched VS Code via '{candidate.FileName}' ({launchMode}).");
                 if (!string.IsNullOrEmpty(successMessage))
                     NotificationManager.Instance.Post(successMessage, NotificationType.Info, 2.0f);
                 return true;
@@ -808,7 +813,12 @@ public class EditorApplication
         return false;
     }
 
-    private bool TryLaunchProcess(string fileName, bool useShellExecute, IReadOnlyList<string> arguments, out string? error)
+    private bool TryLaunchProcess(
+        string fileName,
+        bool useShellExecute,
+        IReadOnlyList<string> prefixArguments,
+        IReadOnlyList<string> arguments,
+        out string? error)
     {
         try
         {
@@ -822,6 +832,9 @@ public class EditorApplication
             if (!string.IsNullOrEmpty(ProjectDirectory))
                 psi.WorkingDirectory = ProjectDirectory;
 
+            foreach (var argument in prefixArguments)
+                psi.ArgumentList.Add(argument);
+
             foreach (var argument in arguments)
                 psi.ArgumentList.Add(argument);
 
@@ -829,6 +842,12 @@ public class EditorApplication
             if (process == null)
             {
                 error = "Process.Start returned null.";
+                return false;
+            }
+
+            if (process.WaitForExit(500) && process.ExitCode != 0)
+            {
+                error = $"Exited with code {process.ExitCode}.";
                 return false;
             }
 
