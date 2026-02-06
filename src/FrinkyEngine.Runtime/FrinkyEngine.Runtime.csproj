@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType Condition="'$(FrinkyExport)' != 'true'">Exe</OutputType>
+    <OutputType Condition="'$(FrinkyExport)' == 'true'">WinExe</OutputType>
     <RootNamespace>FrinkyEngine.Runtime</RootNamespace>
   </PropertyGroup>
 

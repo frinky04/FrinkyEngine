@@ -46,7 +46,7 @@ public static class GameExporter
             // Step 2: Publish Runtime
             var publishDir = Path.Combine(tempDir, "publish");
             FrinkyLog.Info("Publishing runtime...");
-            if (!await RunDotnetAsync($"publish \"{config.RuntimeCsprojPath}\" -c Release -r win-x64 --self-contained true -o \"{publishDir}\""))
+            if (!await RunDotnetAsync($"publish \"{config.RuntimeCsprojPath}\" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:FrinkyExport=true -o \"{publishDir}\""))
             {
                 FrinkyLog.Error("Runtime publish failed. Export aborted.");
                 return false;

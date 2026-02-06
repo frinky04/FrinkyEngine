@@ -12,6 +12,7 @@ public readonly struct LogEntry
     public string Message { get; init; }
     public LogLevel Level { get; init; }
     public DateTime Timestamp { get; init; }
+    public string Source { get; init; }
 }
 
 public static class FrinkyLog
@@ -25,16 +26,20 @@ public static class FrinkyLog
     public static void Warning(string message) => Log(message, LogLevel.Warning);
     public static void Error(string message) => Log(message, LogLevel.Error);
 
-    public static void Log(string message, LogLevel level)
+    public static void Log(string message, LogLevel level) => Log(message, level, "Engine");
+
+    public static void Log(string message, LogLevel level, string source)
     {
         var entry = new LogEntry
         {
             Message = message,
             Level = level,
-            Timestamp = DateTime.Now
+            Timestamp = DateTime.Now,
+            Source = source
         };
         _entries.Add(entry);
         OnLog?.Invoke(entry);
+        Console.WriteLine($"[{entry.Timestamp:HH:mm:ss}] [{entry.Level}] [{entry.Source}] {entry.Message}");
     }
 
     public static void Clear() => _entries.Clear();

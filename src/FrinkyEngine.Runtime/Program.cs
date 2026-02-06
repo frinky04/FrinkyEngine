@@ -91,6 +91,7 @@ public static class Program
     private static void RunGameLoop(string windowTitle, string shaderVsPath, string shaderFsPath,
         string scenePath, GameAssemblyLoader assemblyLoader)
     {
+        RaylibLogger.Install();
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
         Raylib.InitWindow(1280, 720, windowTitle);
         Raylib.SetTargetFPS(60);

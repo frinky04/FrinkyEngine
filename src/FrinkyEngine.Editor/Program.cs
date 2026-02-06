@@ -1,4 +1,5 @@
 using System.Numerics;
+using FrinkyEngine.Core.Rendering;
 using ImGuiNET;
 using Raylib_cs;
 using rlImGui_cs;
@@ -11,6 +12,7 @@ public static class Program
 
     public static void Main(string[] args)
     {
+        RaylibLogger.Install();
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
         Raylib.InitWindow(1600, 900, "FrinkyEngine Editor");
         Raylib.SetTargetFPS(60);
