@@ -2,5 +2,6 @@
   "projectName": "FrinkyGame",
   "defaultScene": "Scenes/MainScene.fscene",
   "assetsPath": "Assets",
-  "gameAssembly": "bin/Debug/net8.0/FrinkyGame.dll"
+  "gameAssembly": "bin/Debug/net8.0/FrinkyGame.dll",
+  "gameProject": "FrinkyGame.csproj"
 }

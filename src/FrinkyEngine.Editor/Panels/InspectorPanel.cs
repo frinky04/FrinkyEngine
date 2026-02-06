@@ -32,15 +32,28 @@ public class InspectorPanel
 
                 ImGui.Separator();
 
+                Component? componentToRemove = null;
                 foreach (var component in entity.Components)
                 {
                     var componentType = component.GetType();
-                    bool enabled = component.Enabled;
-                    bool opened = ImGui.CollapsingHeader(componentType.Name, ref enabled,
-                        ImGuiTreeNodeFlags.DefaultOpen);
+                    bool isTransform = component is Core.Components.TransformComponent;
 
-                    if (enabled != component.Enabled)
-                        component.Enabled = enabled;
+                    bool opened;
+                    if (isTransform)
+                    {
+                        // TransformComponent cannot be removed — no close button
+                        opened = ImGui.CollapsingHeader(componentType.Name,
+                            ImGuiTreeNodeFlags.DefaultOpen);
+                    }
+                    else
+                    {
+                        bool visible = true;
+                        opened = ImGui.CollapsingHeader(componentType.Name, ref visible,
+                            ImGuiTreeNodeFlags.DefaultOpen);
+
+                        if (!visible)
+                            componentToRemove = component;
+                    }
 
                     if (opened)
                     {
@@ -52,6 +65,9 @@ public class InspectorPanel
                         ImGui.PopID();
                     }
                 }
+
+                if (componentToRemove != null)
+                    entity.RemoveComponent(componentToRemove);
 
                 ImGui.Separator();
                 DrawAddComponentButton(entity);

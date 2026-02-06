@@ -43,7 +43,7 @@ public static class ProjectScaffolder
         SceneSerializer.Save(scene, scenePath);
 
         // 4. Create example RotatorComponent script
-        var scriptsDir = Path.Combine(projectDir, "Scripts");
+        var scriptsDir = Path.Combine(projectDir, "Assets", "Scripts");
         Directory.CreateDirectory(scriptsDir);
         var scriptPath = Path.Combine(scriptsDir, "RotatorComponent.cs");
         File.WriteAllText(scriptPath, GenerateRotatorComponent(projectName));

@@ -323,8 +323,9 @@ public class MenuBar
             var nameValid = ScriptCreator.IsValidClassName(_newScriptName);
             if (nameValid && _app.ProjectDirectory != null)
             {
-                var filePath = Path.Combine(_app.ProjectDirectory, "Scripts", $"{_newScriptName}.cs");
-                ImGui.TextDisabled($"File: {filePath}");
+                var filePath = Path.Combine(_app.ProjectDirectory, "Assets", "Scripts", $"{_newScriptName}.cs");
+                var relativePath = Path.GetRelativePath(_app.ProjectDirectory, filePath);
+                ImGui.TextDisabled($"File: {relativePath}");
 
                 if (File.Exists(filePath))
                 {
@@ -342,7 +343,7 @@ public class MenuBar
 
             var canCreate = nameValid
                 && _app.ProjectDirectory != null
-                && !File.Exists(Path.Combine(_app.ProjectDirectory, "Scripts", $"{_newScriptName}.cs"));
+                && !File.Exists(Path.Combine(_app.ProjectDirectory, "Assets", "Scripts", $"{_newScriptName}.cs"));
 
             ImGui.BeginDisabled(!canCreate);
             if (ImGui.Button("Create"))
@@ -352,13 +353,15 @@ public class MenuBar
                     : typeof(Component);
 
                 var namespaceName = _app.ProjectFile?.ProjectName ?? "Game";
-                var scriptsDir = Path.Combine(_app.ProjectDirectory!, "Scripts");
+                var scriptsDir = Path.Combine(_app.ProjectDirectory!, "Assets", "Scripts");
                 Directory.CreateDirectory(scriptsDir);
 
                 var filePath = Path.Combine(scriptsDir, $"{_newScriptName}.cs");
                 var content = ScriptCreator.GenerateScript(_newScriptName, namespaceName, baseType);
                 File.WriteAllText(filePath, content);
-                FrinkyLog.Info($"Created script: {filePath}");
+                var logPath = Path.GetRelativePath(_app.ProjectDirectory!, filePath);
+                FrinkyLog.Info($"Created script: {logPath}");
+                NotificationManager.Instance.Post($"Created script: {_newScriptName}.cs", NotificationType.Success);
 
                 ImGui.CloseCurrentPopup();
             }

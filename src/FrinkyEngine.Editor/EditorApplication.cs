@@ -32,6 +32,8 @@ public class EditorApplication
 
     private string? _playModeSnapshot;
     private Task<bool>? _buildTask;
+    private EditorNotification? _buildNotification;
+    private AssetFileWatcher? _assetFileWatcher;
 
     public ViewportPanel ViewportPanel { get; }
     public HierarchyPanel HierarchyPanel { get; }
@@ -77,13 +79,33 @@ public class EditorApplication
 
     public void Update(float dt)
     {
+        NotificationManager.Instance.Update(dt);
+
         if (_buildTask is { IsCompleted: true })
         {
             var success = _buildTask.Result;
             _buildTask = null;
 
+            if (_buildNotification != null)
+            {
+                if (success)
+                    NotificationManager.Instance.Complete(_buildNotification, "Build Succeeded!", NotificationType.Success);
+                else
+                    NotificationManager.Instance.Complete(_buildNotification, "Build Failed.", NotificationType.Error);
+                _buildNotification = null;
+            }
+
             if (success)
                 ReloadGameAssembly();
+        }
+
+        if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged))
+        {
+            AssetDatabase.Instance.Refresh();
+            NotificationManager.Instance.Post("Assets refreshed", NotificationType.Info, 2.5f);
+
+            if (scriptsChanged)
+                BuildScripts();
         }
 
         if (Mode == EditorMode.Play && CurrentScene != null)
@@ -100,6 +122,7 @@ public class EditorApplication
         InspectorPanel.Draw();
         ConsolePanel.Draw();
         AssetBrowserPanel.Draw();
+        NotificationManager.Instance.Draw();
     }
 
     public void EnterPlayMode()
@@ -153,8 +176,13 @@ public class EditorApplication
 
         if (ProjectDirectory != null)
         {
-            AssetManager.Instance.AssetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
-            AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
+            var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
+            AssetManager.Instance.AssetsPath = assetsPath;
+            AssetDatabase.Instance.Scan(assetsPath);
+
+            _assetFileWatcher?.Dispose();
+            _assetFileWatcher = new AssetFileWatcher();
+            _assetFileWatcher.Watch(assetsPath);
 
             if (!string.IsNullOrEmpty(ProjectFile.GameAssembly))
             {
@@ -171,6 +199,7 @@ public class EditorApplication
         }
 
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
+        NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
     }
 
@@ -196,6 +225,7 @@ public class EditorApplication
             return;
         }
 
+        _buildNotification = NotificationManager.Instance.PostPersistent("Building Scripts...", NotificationType.Info);
         _buildTask = Task.Run(() => ScriptBuilder.BuildAsync(csprojPath));
     }
 
@@ -232,6 +262,7 @@ public class EditorApplication
 
         AssemblyLoader.ReloadAssembly(dllPath);
         FrinkyLog.Info("Game assembly reloaded.");
+        NotificationManager.Instance.Post("Game assembly reloaded.", NotificationType.Info);
 
         // Re-serialize and deserialize current scene to refresh component instances
         if (CurrentScene != null)
@@ -251,6 +282,8 @@ public class EditorApplication
 
     public void Shutdown()
     {
+        _assetFileWatcher?.Dispose();
+        _assetFileWatcher = null;
         SceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
         AssetDatabase.Instance.Clear();
