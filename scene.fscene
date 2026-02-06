@@ -3,7 +3,7 @@
   "entities": [
     {
       "name": "Main Camera",
-      "id": "5c77dd24-b1d3-448f-a8a4-be9c15f2fd02",
+      "id": "9cecba1b-829a-47bd-8028-235fdaa8bab5",
       "active": true,
       "components": [
         {
@@ -55,7 +55,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "96b6eb47-f82b-44b8-a099-d00aa48cc033",
+      "id": "80f9337a-6082-45a6-8cb7-5153258b27d5",
       "active": true,
       "components": [
         {

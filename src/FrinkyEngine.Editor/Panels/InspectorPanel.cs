@@ -9,6 +9,8 @@ public class InspectorPanel
     private readonly EditorApplication _app;
     private string _componentSearch = string.Empty;
 
+    public bool FocusNameField { get; set; }
+
     public InspectorPanel(EditorApplication app)
     {
         _app = app;
@@ -21,6 +23,12 @@ public class InspectorPanel
             var entity = _app.SelectedEntity;
             if (entity != null)
             {
+                if (FocusNameField)
+                {
+                    ImGui.SetKeyboardFocusHere();
+                    FocusNameField = false;
+                }
+
                 string name = entity.Name;
                 if (ImGui.InputText("Name", ref name, 128))
                     entity.Name = name;

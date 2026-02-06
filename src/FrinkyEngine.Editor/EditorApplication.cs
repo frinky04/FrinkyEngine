@@ -51,6 +51,7 @@ public class EditorApplication
         ConsolePanel = new ConsolePanel(this);
         AssetBrowserPanel = new AssetBrowserPanel(this);
         MenuBar = new MenuBar(this);
+        RegisterKeybindActions();
     }
 
     public void Initialize()
@@ -116,6 +117,7 @@ public class EditorApplication
 
     public void DrawUI()
     {
+        KeybindManager.Instance.ProcessKeybinds();
         MenuBar.Draw();
         ViewportPanel.Draw();
         HierarchyPanel.Draw();
@@ -198,6 +200,7 @@ public class EditorApplication
             }
         }
 
+        KeybindManager.Instance.LoadConfig(ProjectDirectory);
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
@@ -278,6 +281,62 @@ public class EditorApplication
                 SelectedEntity = null;
             }
         }
+    }
+
+    private void RegisterKeybindActions()
+    {
+        var km = KeybindManager.Instance;
+
+        km.RegisterAction(EditorAction.NewScene, () => NewScene());
+
+        km.RegisterAction(EditorAction.OpenScene, () => MenuBar.TriggerOpenScene());
+
+        km.RegisterAction(EditorAction.SaveScene, () =>
+        {
+            if (CurrentScene != null)
+            {
+                var path = !string.IsNullOrEmpty(CurrentScene.FilePath)
+                    ? CurrentScene.FilePath
+                    : "scene.fscene";
+                SceneManager.Instance.SaveScene(path);
+                FrinkyLog.Info($"Scene saved to: {path}");
+            }
+        });
+
+        km.RegisterAction(EditorAction.SaveSceneAs, () => MenuBar.TriggerSaveSceneAs());
+
+        km.RegisterAction(EditorAction.Undo, () => FrinkyLog.Info("Undo not yet implemented."));
+        km.RegisterAction(EditorAction.Redo, () => FrinkyLog.Info("Redo not yet implemented."));
+
+        km.RegisterAction(EditorAction.BuildScripts, () => BuildScripts());
+
+        km.RegisterAction(EditorAction.PlayStop, () =>
+        {
+            if (Mode == EditorMode.Edit)
+                EnterPlayMode();
+            else
+                ExitPlayMode();
+        });
+
+        km.RegisterAction(EditorAction.DeleteEntity, () =>
+        {
+            if (SelectedEntity != null && CurrentScene != null)
+            {
+                CurrentScene.RemoveEntity(SelectedEntity);
+                SelectedEntity = null;
+            }
+        });
+
+        km.RegisterAction(EditorAction.DuplicateEntity, () =>
+            FrinkyLog.Info("Duplicate entity not yet implemented."));
+
+        km.RegisterAction(EditorAction.RenameEntity, () =>
+        {
+            if (SelectedEntity != null)
+                InspectorPanel.FocusNameField = true;
+        });
+
+        km.RegisterAction(EditorAction.NewProject, () => MenuBar.TriggerNewProject());
     }
 
     public void Shutdown()

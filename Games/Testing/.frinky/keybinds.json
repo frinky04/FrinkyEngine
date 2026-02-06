@@ -1,0 +1,88 @@
+{
+  "Keybinds": [
+    {
+      "Action": "NewScene",
+      "Key": "N",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "OpenScene",
+      "Key": "O",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "SaveScene",
+      "Key": "S",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "SaveSceneAs",
+      "Key": "S",
+      "Ctrl": true,
+      "Shift": true,
+      "Alt": false
+    },
+    {
+      "Action": "Undo",
+      "Key": "Z",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "Redo",
+      "Key": "Y",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "BuildScripts",
+      "Key": "B",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "PlayStop",
+      "Key": "P",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "DeleteEntity",
+      "Key": "Delete",
+      "Ctrl": false,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "DuplicateEntity",
+      "Key": "D",
+      "Ctrl": true,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "RenameEntity",
+      "Key": "F2",
+      "Ctrl": false,
+      "Shift": false,
+      "Alt": false
+    },
+    {
+      "Action": "NewProject",
+      "Key": "N",
+      "Ctrl": true,
+      "Shift": true,
+      "Alt": false
+    }
+  ]
+}

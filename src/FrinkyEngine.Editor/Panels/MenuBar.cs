@@ -34,17 +34,17 @@ public class MenuBar
         {
             if (ImGui.BeginMenu("File"))
             {
-                if (ImGui.MenuItem("New Scene"))
+                if (ImGui.MenuItem("New Scene", KeybindManager.Instance.GetShortcutText(EditorAction.NewScene)))
                 {
                     _app.NewScene();
                 }
 
-                if (ImGui.MenuItem("Open Scene..."))
+                if (ImGui.MenuItem("Open Scene...", KeybindManager.Instance.GetShortcutText(EditorAction.OpenScene)))
                 {
                     OpenSceneDialog();
                 }
 
-                if (ImGui.MenuItem("Save Scene"))
+                if (ImGui.MenuItem("Save Scene", KeybindManager.Instance.GetShortcutText(EditorAction.SaveScene)))
                 {
                     if (_app.CurrentScene != null)
                     {
@@ -56,14 +56,14 @@ public class MenuBar
                     }
                 }
 
-                if (ImGui.MenuItem("Save Scene As..."))
+                if (ImGui.MenuItem("Save Scene As...", KeybindManager.Instance.GetShortcutText(EditorAction.SaveSceneAs)))
                 {
                     SaveSceneAs();
                 }
 
                 ImGui.Separator();
 
-                if (ImGui.MenuItem("New Project..."))
+                if (ImGui.MenuItem("New Project...", KeybindManager.Instance.GetShortcutText(EditorAction.NewProject)))
                     _openNewProject = true;
 
                 if (ImGui.MenuItem("Open Project..."))
@@ -83,8 +83,35 @@ public class MenuBar
 
             if (ImGui.BeginMenu("Edit"))
             {
-                ImGui.MenuItem("Undo", "Ctrl+Z", false, false);
-                ImGui.MenuItem("Redo", "Ctrl+Y", false, false);
+                ImGui.MenuItem("Undo", KeybindManager.Instance.GetShortcutText(EditorAction.Undo), false, false);
+                ImGui.MenuItem("Redo", KeybindManager.Instance.GetShortcutText(EditorAction.Redo), false, false);
+
+                ImGui.Separator();
+
+                var hasSelection = _app.SelectedEntity != null;
+
+                ImGui.BeginDisabled(!hasSelection);
+                if (ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
+                {
+                    if (_app.SelectedEntity != null && _app.CurrentScene != null)
+                    {
+                        _app.CurrentScene.RemoveEntity(_app.SelectedEntity);
+                        _app.SelectedEntity = null;
+                    }
+                }
+
+                if (ImGui.MenuItem("Duplicate", KeybindManager.Instance.GetShortcutText(EditorAction.DuplicateEntity)))
+                {
+                    FrinkyLog.Info("Duplicate entity not yet implemented.");
+                }
+
+                if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
+                {
+                    if (_app.SelectedEntity != null)
+                        _app.InspectorPanel.FocusNameField = true;
+                }
+                ImGui.EndDisabled();
+
                 ImGui.EndMenu();
             }
 
@@ -94,7 +121,7 @@ public class MenuBar
                 var isBuilding = ScriptBuilder.IsBuilding;
 
                 ImGui.BeginDisabled(!hasProject || isBuilding);
-                if (ImGui.MenuItem("Build Scripts", "Ctrl+B"))
+                if (ImGui.MenuItem("Build Scripts", KeybindManager.Instance.GetShortcutText(EditorAction.BuildScripts)))
                 {
                     _app.BuildScripts();
                 }
@@ -137,24 +164,19 @@ public class MenuBar
 
             ImGui.Separator();
 
+            var shortcut = KeybindManager.Instance.GetShortcutText(EditorAction.PlayStop);
             if (_app.Mode == EditorMode.Edit)
             {
-                if (ImGui.MenuItem("Play"))
+                if (ImGui.MenuItem("Play", shortcut))
                     _app.EnterPlayMode();
             }
             else
             {
-                if (ImGui.MenuItem("Stop"))
+                if (ImGui.MenuItem("Stop", shortcut))
                     _app.ExitPlayMode();
             }
 
             ImGui.EndMainMenuBar();
-        }
-
-        // Handle Ctrl+B shortcut
-        if (ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.B))
-        {
-            _app.BuildScripts();
         }
 
         // Open popups at this scope level (outside the menu) so BeginPopup can find them
@@ -301,6 +323,10 @@ public class MenuBar
             ImGui.EndPopup();
         }
     }
+
+    public void TriggerOpenScene() => OpenSceneDialog();
+    public void TriggerSaveSceneAs() => SaveSceneAs();
+    public void TriggerNewProject() => _openNewProject = true;
 
     private void DrawCreateScriptPopup()
     {
