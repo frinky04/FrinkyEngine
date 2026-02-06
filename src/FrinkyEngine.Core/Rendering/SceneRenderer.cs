@@ -66,7 +66,10 @@ public class SceneRenderer
 
         foreach (var renderer in scene.Renderers)
         {
-            if (!renderer.Enabled || renderer.LoadedModel == null) continue;
+            if (!renderer.Enabled) continue;
+            if (!renderer.LoadedModel.HasValue)
+                renderer.EnsureModelLoaded();
+            if (!renderer.LoadedModel.HasValue) continue;
             DrawModelWithShader(renderer.LoadedModel.Value, renderer.Entity.Transform.WorldPosition, renderer.Tint);
         }
 
@@ -106,30 +109,54 @@ public class SceneRenderer
     private void UpdateLightUniforms(Scene.Scene scene)
     {
         var lights = scene.Lights;
-        for (int i = 0; i < 4; i++)
+
+        // Find first enabled Skylight for ambient, otherwise use default
+        float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
+        foreach (var light in lights)
         {
-            if (i < lights.Count && lights[i].Enabled)
+            if (light.Enabled && light.LightType == Components.LightType.Skylight)
             {
-                int enabled = 1;
-                Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[i], enabled, ShaderUniformDataType.Int);
-
-                int type = (int)lights[i].LightType;
-                Raylib.SetShaderValue(_lightingShader, _lightTypeLoc[i], type, ShaderUniformDataType.Int);
-
-                var pos = lights[i].Entity.Transform.WorldPosition;
-                float[] posArr = { pos.X, pos.Y, pos.Z };
-                Raylib.SetShaderValue(_lightingShader, _lightPositionLoc[i], posArr, ShaderUniformDataType.Vec3);
-
-                var c = lights[i].LightColor;
-                float intensity = lights[i].Intensity;
-                float[] colorArr = { c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity, c.A / 255f };
-                Raylib.SetShaderValue(_lightingShader, _lightColorLoc[i], colorArr, ShaderUniformDataType.Vec4);
+                var c = light.LightColor;
+                float intensity = light.Intensity;
+                ambient = new[] { c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity, 1.0f };
+                break;
             }
-            else
-            {
-                int disabled = 0;
-                Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[i], disabled, ShaderUniformDataType.Int);
-            }
+        }
+        Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
+
+        // Fill shader light slots (0-3) with non-Skylight lights only
+        int slot = 0;
+        foreach (var light in lights)
+        {
+            if (slot >= 4) break;
+            if (!light.Enabled || light.LightType == Components.LightType.Skylight) continue;
+
+            int enabled = 1;
+            Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[slot], enabled, ShaderUniformDataType.Int);
+
+            int type = (int)light.LightType;
+            Raylib.SetShaderValue(_lightingShader, _lightTypeLoc[slot], type, ShaderUniformDataType.Int);
+
+            // Directional lights use forward vector; point lights use world position
+            var posVec = light.LightType == Components.LightType.Directional
+                ? light.Entity.Transform.Forward
+                : light.Entity.Transform.WorldPosition;
+            float[] posArr = { posVec.X, posVec.Y, posVec.Z };
+            Raylib.SetShaderValue(_lightingShader, _lightPositionLoc[slot], posArr, ShaderUniformDataType.Vec3);
+
+            var c = light.LightColor;
+            float intensity = light.Intensity;
+            float[] colorArr = { c.R / 255f * intensity, c.G / 255f * intensity, c.B / 255f * intensity, c.A / 255f };
+            Raylib.SetShaderValue(_lightingShader, _lightColorLoc[slot], colorArr, ShaderUniformDataType.Vec4);
+
+            slot++;
+        }
+
+        // Disable remaining unused slots
+        for (int i = slot; i < 4; i++)
+        {
+            int disabled = 0;
+            Raylib.SetShaderValue(_lightingShader, _lightEnabledLoc[i], disabled, ShaderUniformDataType.Int);
         }
     }
 

@@ -91,7 +91,7 @@ public static class ComponentDrawerRegistry
         var light = (LightComponent)c;
 
         var lightType = (int)light.LightType;
-        if (ImGui.Combo("Type", ref lightType, "Directional\0Point\0"))
+        if (ImGui.Combo("Type", ref lightType, "Directional\0Point\0Skylight\0"))
             light.LightType = (LightType)lightType;
 
         var color = ColorToVec4(light.LightColor);
@@ -146,14 +146,6 @@ public static class ComponentDrawerRegistry
 
         ImGui.Spacing();
 
-        // Material Path
-        ImGui.Text("Material Path");
-        string matPath = mr.MaterialPath;
-        if (ImGui.InputText("##MaterialPath", ref matPath, 256))
-            mr.MaterialPath = matPath;
-
-        ImGui.Spacing();
-
         var tint = ColorToVec4(mr.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
             mr.Tint = Vec4ToColor(tint);
@@ -173,9 +165,34 @@ public static class ComponentDrawerRegistry
 
         if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.Textured)
         {
+            ImGui.Text("Texture Path");
+            ImGui.SetNextItemWidth(-30);
             string texPath = prim.TexturePath;
-            if (ImGui.InputText("Texture Path", ref texPath, 256))
+            if (ImGui.InputText("##TexturePath", ref texPath, 256))
                 prim.TexturePath = texPath;
+            ImGui.SameLine();
+            if (ImGui.Button("...##BrowseTexture"))
+                ImGui.OpenPopup("TextureBrowser");
+
+            if (ImGui.BeginPopup("TextureBrowser"))
+            {
+                var textures = AssetDatabase.Instance.GetAssets(AssetType.Texture);
+                if (textures.Count == 0)
+                {
+                    ImGui.TextDisabled("No textures found");
+                }
+                else
+                {
+                    foreach (var asset in textures)
+                    {
+                        if (ImGui.Selectable(asset.RelativePath))
+                        {
+                            prim.TexturePath = asset.RelativePath;
+                        }
+                    }
+                }
+                ImGui.EndPopup();
+            }
         }
 
         ImGui.Separator();

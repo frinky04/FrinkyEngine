@@ -6,7 +6,8 @@ namespace FrinkyEngine.Core.Components;
 public enum LightType
 {
     Directional = 0,
-    Point = 1
+    Point = 1,
+    Skylight = 2
 }
 
 public class LightComponent : Component
