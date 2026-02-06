@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Rendering;
@@ -8,6 +9,8 @@ public class SceneRenderer
 {
     private Shader _lightingShader;
     private bool _shaderLoaded;
+    private Shader _selectionMaskShader;
+    private bool _selectionMaskShaderLoaded;
     private int _ambientLoc;
     private int _viewPosLoc;
 
@@ -34,6 +37,16 @@ public class SceneRenderer
         }
 
         _shaderLoaded = true;
+
+        var shaderDir = Path.GetDirectoryName(vsPath) ?? "Shaders";
+        var selectionMaskVsPath = Path.Combine(shaderDir, "selection_mask.vs");
+        var selectionMaskFsPath = Path.Combine(shaderDir, "selection_mask.fs");
+
+        if (File.Exists(selectionMaskVsPath) && File.Exists(selectionMaskFsPath))
+        {
+            _selectionMaskShader = Raylib.LoadShader(selectionMaskVsPath, selectionMaskFsPath);
+            _selectionMaskShaderLoaded = true;
+        }
     }
 
     public void UnloadShader()
@@ -42,6 +55,12 @@ public class SceneRenderer
         {
             Raylib.UnloadShader(_lightingShader);
             _shaderLoaded = false;
+        }
+
+        if (_selectionMaskShaderLoaded)
+        {
+            Raylib.UnloadShader(_selectionMaskShader);
+            _selectionMaskShaderLoaded = false;
         }
     }
 
@@ -100,6 +119,77 @@ public class SceneRenderer
 
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
+    }
+
+    public void RenderSelectionMask(
+        Scene.Scene scene,
+        Camera3D camera,
+        IReadOnlyList<Entity> selectedEntities,
+        RenderTexture2D renderTarget,
+        bool isEditorMode = true)
+    {
+        if (!_selectionMaskShaderLoaded || selectedEntities.Count == 0)
+        {
+            Raylib.BeginTextureMode(renderTarget);
+            Raylib.ClearBackground(new Color(0, 0, 0, 0));
+            Raylib.EndTextureMode();
+            return;
+        }
+
+        Raylib.BeginTextureMode(renderTarget);
+        Raylib.ClearBackground(new Color(0, 0, 0, 0));
+        Raylib.BeginMode3D(camera);
+
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.EnableDepthTest();
+        Rlgl.EnableDepthMask();
+        Rlgl.ColorMask(false, false, false, false);
+
+        foreach (var renderable in scene.Renderables)
+        {
+            if (!renderable.Entity.Active) continue;
+            if (!renderable.Enabled) continue;
+            if (renderable.EditorOnly && !isEditorMode) continue;
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue) continue;
+            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, renderable.Tint);
+        }
+
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.ColorMask(true, true, true, true);
+        Rlgl.DisableDepthMask();
+
+        foreach (var entity in selectedEntities)
+        {
+            if (!entity.Active)
+                continue;
+
+            var renderable = entity.GetComponent<RenderableComponent>();
+            if (renderable == null || !renderable.Enabled)
+                continue;
+
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue)
+                continue;
+
+            var model = renderable.RenderModel.Value;
+
+            unsafe
+            {
+                for (int i = 0; i < model.MaterialCount; i++)
+                {
+                    model.Materials[i].Shader = _selectionMaskShader;
+                }
+            }
+
+            model.Transform = Matrix4x4.Transpose(entity.Transform.WorldMatrix);
+            Raylib.DrawModel(model, Vector3.Zero, 1f, Color.White);
+        }
+
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.EnableDepthMask();
+        Raylib.EndMode3D();
+        Raylib.EndTextureMode();
     }
 
     private void UpdateLightUniforms(Scene.Scene scene, bool isEditorMode = true)

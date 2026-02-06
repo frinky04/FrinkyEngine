@@ -133,24 +133,18 @@ public static class EditorGizmos
         Raylib.DrawSphereWires(pos, light.Range, 8, 8, color);
     }
 
-    public static void DrawSelectionHighlight(Entity? selected)
+    public static void DrawSelectionFallbackHighlight(Entity? selected)
     {
         if (selected == null || !selected.Active) return;
 
         var renderable = selected.GetComponent<RenderableComponent>();
-        if (renderable != null && renderable.Enabled)
-        {
-            var bb = renderable.GetWorldBoundingBox();
-            if (bb.HasValue)
-            {
-                Raylib.DrawBoundingBox(bb.Value, SelectionHighlightColor);
-                return;
-            }
-        }
+        if (renderable != null && renderable.Enabled) return;
 
         // Non-renderable entities (cameras, lights): draw a small wireframe cube
-        bool hasVisual = selected.GetComponent<CameraComponent>() != null
-                      || selected.GetComponent<LightComponent>() != null;
+        var camera = selected.GetComponent<CameraComponent>();
+        var light = selected.GetComponent<LightComponent>();
+        bool hasVisual = (camera != null && camera.Enabled)
+                      || (light != null && light.Enabled);
         if (hasVisual)
         {
             var pos = selected.Transform.WorldPosition;

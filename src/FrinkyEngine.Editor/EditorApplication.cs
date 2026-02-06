@@ -622,6 +622,7 @@ public class EditorApplication
     {
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;
+        ViewportPanel.Shutdown();
         SceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
         AssetDatabase.Instance.Clear();
