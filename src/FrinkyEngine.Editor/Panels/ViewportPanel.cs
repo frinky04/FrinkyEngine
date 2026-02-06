@@ -1,4 +1,5 @@
 using System.Numerics;
+using FrinkyEngine.Core.Rendering;
 using ImGuiNET;
 using Raylib_cs;
 using rlImGui_cs;
@@ -16,7 +17,6 @@ public class ViewportPanel
     private RenderTexture2D _outlineCompositeTexture;
     private Shader _selectionOutlinePostShader;
     private bool _selectionOutlinePostShaderLoaded;
-    private int _maskTextureLoc = -1;
     private int _texelSizeLoc = -1;
     private int _outlineColorLoc = -1;
     private int _outlineWidthLoc = -1;
@@ -219,7 +219,13 @@ public class ViewportPanel
             return;
 
         _selectionOutlinePostShader = Raylib.LoadShader(vsPath, fsPath);
-        _maskTextureLoc = Raylib.GetShaderLocation(_selectionOutlinePostShader, "maskTexture");
+        if (_selectionOutlinePostShader.Id == 0)
+        {
+            FrinkyLog.Error("Failed to load selection outline post shader.");
+            _selectionOutlinePostShaderLoaded = false;
+            return;
+        }
+
         _texelSizeLoc = Raylib.GetShaderLocation(_selectionOutlinePostShader, "texelSize");
         _outlineColorLoc = Raylib.GetShaderLocation(_selectionOutlinePostShader, "outlineColor");
         _outlineWidthLoc = Raylib.GetShaderLocation(_selectionOutlinePostShader, "outlineWidth");
@@ -228,7 +234,7 @@ public class ViewportPanel
 
     private void CompositeSelectionOutline(int width, int height)
     {
-        if (!_selectionOutlinePostShaderLoaded)
+        if (!_selectionOutlinePostShaderLoaded || _selectionOutlinePostShader.Id == 0)
             return;
 
         Raylib.BeginTextureMode(_outlineCompositeTexture);
@@ -236,12 +242,10 @@ public class ViewportPanel
 
         // Pass 1: copy lit scene as-is.
         DrawFullscreenTexture(_renderTexture.Texture, width, height);
+        Rlgl.DrawRenderBatchActive();
 
         // Pass 2: draw outline overlay from mask using post shader.
         Raylib.BeginShaderMode(_selectionOutlinePostShader);
-
-        if (_maskTextureLoc >= 0)
-            Raylib.SetShaderValueTexture(_selectionOutlinePostShader, _maskTextureLoc, _selectionMaskTexture.Texture);
 
         if (_texelSizeLoc >= 0)
         {
@@ -267,7 +271,7 @@ public class ViewportPanel
             Raylib.SetShaderValue(_selectionOutlinePostShader, _outlineWidthLoc, outlineWidth, ShaderUniformDataType.Float);
         }
 
-        DrawFullscreenTexture(_renderTexture.Texture, width, height);
+        DrawFullscreenTexture(_selectionMaskTexture.Texture, width, height);
         Raylib.EndShaderMode();
         Raylib.EndTextureMode();
     }

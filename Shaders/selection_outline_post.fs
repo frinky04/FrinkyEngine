@@ -3,7 +3,7 @@
 in vec2 fragTexCoord;
 in vec4 fragColor;
 
-uniform sampler2D maskTexture;
+uniform sampler2D texture0;
 uniform vec2 texelSize;
 uniform vec4 outlineColor;
 uniform float outlineWidth;
@@ -12,7 +12,7 @@ out vec4 finalColor;
 
 float SampleMask(vec2 uv)
 {
-    return texture(maskTexture, uv).a;
+    return texture(texture0, uv).a;
 }
 
 void main()
