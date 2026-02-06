@@ -359,9 +359,13 @@ public class EditorApplication
             if (SelectedEntity != null && CurrentScene != null && Mode == EditorMode.Edit)
             {
                 RecordUndo();
+                var sourceName = SelectedEntity.Name;
                 var duplicate = SceneSerializer.DuplicateEntity(SelectedEntity, CurrentScene);
                 if (duplicate != null)
+                {
                     SelectedEntity = duplicate;
+                    NotificationManager.Instance.Post($"Duplicated: {sourceName}", NotificationType.Info, 1.5f);
+                }
                 RefreshUndoBaseline();
             }
         });
@@ -428,7 +432,7 @@ public class EditorApplication
     public void RecordUndo()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
-        UndoRedo.RecordUndo();
+        UndoRedo.RecordUndo(SelectedEntity?.Id);
     }
 
     public void RefreshUndoBaseline()

@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -0.047893703,
-    "y": 6.001893,
-    "z": 5.9070106
+    "x": -6.5552526,
+    "y": 6.5530386,
+    "z": 6.8453507
   },
-  "editorCameraYaw": -91.0499,
-  "editorCameraPitch": -39.000015,
+  "editorCameraYaw": -45.599873,
+  "editorCameraPitch": -26.100035,
   "entities": [
     {
       "name": "Main Camera",
@@ -20,13 +20,13 @@
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": 1.5544943,
-              "z": 3.9663424
+              "y": 2.9339104,
+              "z": 0
             },
             "LocalRotation": {
               "x": 0,
               "y": 0,
-              "z": 3.9643706E-09,
+              "z": 0,
               "w": 1
             },
             "LocalScale": {
@@ -41,17 +41,30 @@
           "enabled": true,
           "editorOnly": false,
           "properties": {
-            "FieldOfView": 60,
+            "FieldOfView": 120,
             "NearPlane": 0.1,
             "FarPlane": 1000,
             "Projection": "Perspective",
             "ClearColor": {
-              "r": 33,
-              "g": 33,
-              "b": 33,
+              "r": 0,
+              "g": 0,
+              "b": 0,
               "a": 255
             },
             "IsMain": true
+          }
+        },
+        {
+          "$type": "Testing.Scripts.RotatorComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Speed": 45,
+            "Axis": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            }
           }
         }
       ],
@@ -68,15 +81,15 @@
           "editorOnly": false,
           "properties": {
             "LocalPosition": {
-              "x": 3.2171094,
-              "y": 2.6883838,
-              "z": 2.4143274
+              "x": 0,
+              "y": 3.2,
+              "z": 0
             },
             "LocalRotation": {
-              "x": -0.17282616,
-              "y": 0.40339512,
-              "z": 0.34610724,
-              "w": 0.8292245
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
             },
             "LocalScale": {
               "x": 1,
@@ -84,12 +97,28 @@
               "z": 1
             }
           }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LightType": "Point",
+            "LightColor": {
+              "r": 255,
+              "g": 0,
+              "b": 0,
+              "a": 255
+            },
+            "Intensity": 5,
+            "Range": 10
+          }
         }
       ],
       "children": []
     },
     {
-      "name": "Plate",
+      "name": "Cube 2",
       "id": "8df8119f-3f87-4575-b5c2-a4f320518f85",
       "active": true,
       "components": [
@@ -117,520 +146,21 @@
           }
         },
         {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Monkey",
-      "id": "77d134de-91f0-4e3a-aeef-f36a6998868b",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0.7720437,
-              "y": 1.061547,
-              "z": 0.1
-            },
-            "LocalRotation": {
-              "x": 0.034227576,
-              "y": 0.0407986,
-              "z": 0.6418038,
-              "w": -0.7650176
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
           "$type": "FrinkyEngine.Core.Components.MeshRendererComponent",
           "enabled": true,
           "editorOnly": false,
           "properties": {
-            "ModelPath": "MonkeyMesh.obj",
+            "ModelPath": "Meshes/Room.obj",
             "MaterialSlots": [
               {
-                "materialType": "SolidColor",
-                "texturePath": "grid_lightchecker.PNG"
+                "materialType": "Textured",
+                "texturePath": "monkey.png"
+              },
+              {
+                "materialType": "Textured",
+                "texturePath": "monkey.png"
               }
             ],
-            "Tint": {
-              "r": 178,
-              "g": 110,
-              "b": 110,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "Testing.Scripts.TatoComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": 45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Ambient Light",
-      "id": "aae90fe3-dbd2-4cb6-a223-71e19c870599",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.LightComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LightType": "Skylight",
-            "LightColor": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            },
-            "Intensity": 0.4,
-            "Range": 10
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Light",
-      "id": "5732735a-82b2-4a69-8d69-11c4dd585d8b",
-      "active": false,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -0.16712773,
-              "y": 1.4626051,
-              "z": 1.3128344
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.LightComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LightType": "Directional",
-            "LightColor": {
-              "r": 255,
-              "g": 4,
-              "b": 4,
-              "a": 255
-            },
-            "Intensity": 1,
-            "Range": 10
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Sphere",
-      "id": "e1aa8053-a5e9-4745-8fc5-f9282586bcba",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -4.710314,
-              "y": 2.427004,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0.3818609,
-              "z": 0,
-              "w": 0.9242198
-            },
-            "LocalScale": {
-              "x": 15,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.SpherePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Radius": 0.5,
-            "Rings": 16,
-            "Slices": 16,
-            "MaterialType": "SolidColor",
-            "TexturePath": "",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Light",
-      "id": "009638e9-6ded-4da3-936f-3e5462125285",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -1.5330466,
-              "y": 1.3627466,
-              "z": 1.2830508
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.LightComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LightType": "Point",
-            "LightColor": {
-              "r": 255,
-              "g": 0,
-              "b": 0,
-              "a": 255
-            },
-            "Intensity": 1,
-            "Range": 10
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plate (1)",
-      "id": "b544b8d4-76a1-49b1-9f3a-17ab70397bd3",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0,
-              "y": 1.6894197,
-              "z": -2.0595381
-            },
-            "LocalRotation": {
-              "x": 0.4687864,
-              "y": 0,
-              "z": 0,
-              "w": 0.88331157
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plate (2)",
-      "id": "f48e209b-7c89-4e01-a278-e884f80bb6d2",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -2.5537384,
-              "y": 1.6894197,
-              "z": 0.04
-            },
-            "LocalRotation": {
-              "x": 0.35245222,
-              "y": 0.3090923,
-              "z": -0.58240783,
-              "w": 0.6641089
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plate (3)",
-      "id": "5d8810ea-1568-41ba-983c-556f003d1176",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 2.377879,
-              "y": 1.6894197,
-              "z": 0.119146585
-            },
-            "LocalRotation": {
-              "x": 0.0877754,
-              "y": -0.045884557,
-              "z": 0.6875721,
-              "w": 0.7193294
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plate (4)",
-      "id": "19ad0379-08e0-46b1-984f-05a420a76b9f",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 1.3498689,
-              "y": 1.3107023,
-              "z": -1.6243992
-            },
-            "LocalRotation": {
-              "x": 0.25732058,
-              "y": 0.4187357,
-              "z": 0.48214015,
-              "w": 0.72524995
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plate (5)",
-      "id": "69a92c41-6379-4b35-a58f-4d086f78d151",
-      "active": true,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -1.6693592,
-              "y": 1.3107023,
-              "z": -1.532331
-            },
-            "LocalRotation": {
-              "x": 0.5011852,
-              "y": 0.7787099,
-              "z": 0.21791461,
-              "w": 0.3081196
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 5,
-            "Depth": 4.7,
-            "ResolutionX": 4,
-            "ResolutionZ": 4,
-            "MaterialType": "Textured",
-            "TexturePath": "grid_lightchecker.PNG",
             "Tint": {
               "r": 255,
               "g": 255,

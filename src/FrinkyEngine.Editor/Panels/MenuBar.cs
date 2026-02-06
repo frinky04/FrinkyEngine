@@ -135,9 +135,13 @@ public class MenuBar
                     if (_app.SelectedEntity != null && _app.CurrentScene != null && _app.Mode == EditorMode.Edit)
                     {
                         _app.RecordUndo();
+                        var sourceName = _app.SelectedEntity.Name;
                         var duplicate = SceneSerializer.DuplicateEntity(_app.SelectedEntity, _app.CurrentScene);
                         if (duplicate != null)
+                        {
                             _app.SelectedEntity = duplicate;
+                            NotificationManager.Instance.Post($"Duplicated: {sourceName}", NotificationType.Info, 1.5f);
+                        }
                         _app.RefreshUndoBaseline();
                     }
                 }

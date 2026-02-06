@@ -29,11 +29,13 @@ public class UndoRedoManager
         _currentSelectedEntityId = selectedEntityId;
     }
 
-    public void RecordUndo()
+    public void RecordUndo(Guid? currentSelectedEntityId = null)
     {
         if (_currentSnapshot == null) return;
 
-        _undoStack.Add(new UndoSnapshot(_currentSnapshot, _currentSelectedEntityId));
+        // Use the provided current selection, falling back to the stored one
+        var selectionId = currentSelectedEntityId ?? _currentSelectedEntityId;
+        _undoStack.Add(new UndoSnapshot(_currentSnapshot, selectionId));
         if (_undoStack.Count > MaxHistory)
             _undoStack.RemoveAt(0);
 
@@ -81,12 +83,13 @@ public class UndoRedoManager
 
         // Push current state onto redo stack
         if (_currentSnapshot != null)
-            _redoStack.Add(new UndoSnapshot(_currentSnapshot, _currentSelectedEntityId));
+            _redoStack.Add(new UndoSnapshot(_currentSnapshot, app.SelectedEntity?.Id));
 
         var snapshot = _undoStack[^1];
         _undoStack.RemoveAt(_undoStack.Count - 1);
 
         RestoreSnapshot(app, snapshot);
+        NotificationManager.Instance.Post("Undo", NotificationType.Info, 1.5f);
     }
 
     public void Redo(EditorApplication app)
@@ -95,12 +98,13 @@ public class UndoRedoManager
 
         // Push current state onto undo stack
         if (_currentSnapshot != null)
-            _undoStack.Add(new UndoSnapshot(_currentSnapshot, _currentSelectedEntityId));
+            _undoStack.Add(new UndoSnapshot(_currentSnapshot, app.SelectedEntity?.Id));
 
         var snapshot = _redoStack[^1];
         _redoStack.RemoveAt(_redoStack.Count - 1);
 
         RestoreSnapshot(app, snapshot);
+        NotificationManager.Instance.Post("Redo", NotificationType.Info, 1.5f);
     }
 
     private void RestoreSnapshot(EditorApplication app, UndoSnapshot snapshot)

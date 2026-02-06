@@ -54,6 +54,10 @@ public class MeshRendererComponent : RenderableComponent
                         Format = PixelFormat.UncompressedR8G8B8A8
                     };
                 }
+
+                // Reset albedo map color to white so colDiffuse doesn't zero out the shader output.
+                // Model files often set secondary materials to black diffuse, causing pitch-black rendering.
+                model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Color = new Color(255, 255, 255, 255);
             }
         }
 
