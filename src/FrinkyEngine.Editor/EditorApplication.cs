@@ -40,6 +40,7 @@ public class EditorApplication
     public string? ProjectDirectory { get; private set; }
     public ProjectFile? ProjectFile { get; private set; }
     public ProjectSettings? ProjectSettings { get; private set; }
+    public EditorProjectSettings? ProjectEditorSettings { get; private set; }
     public bool ShouldResetLayout { get; set; }
 
     private string? _playModeSnapshot;
@@ -279,6 +280,7 @@ public class EditorApplication
         if (ProjectDirectory != null)
         {
             ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
+            ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
@@ -300,9 +302,9 @@ public class EditorApplication
                 CurrentScene = SceneManager.Instance.ActiveScene;
                 RestoreEditorCameraFromScene();
             }
-
-            ApplyProjectSettingsImmediate();
         }
+
+        ApplyEditorSettingsImmediate();
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
         EditorPreferences.Instance.LoadConfig(ProjectDirectory);
@@ -694,15 +696,30 @@ public class EditorApplication
         settings.Normalize(ProjectFile.ProjectName);
         settings.Save(path);
         ProjectSettings = settings;
-        ApplyProjectSettingsImmediate();
     }
 
-    private void ApplyProjectSettingsImmediate()
+    public void SaveEditorProjectSettings(EditorProjectSettings settings)
     {
-        var settings = ProjectSettings;
+        if (ProjectDirectory == null)
+            return;
+
+        settings.Normalize();
+        settings.Save(ProjectDirectory);
+        ProjectEditorSettings = settings;
+        ApplyEditorSettingsImmediate();
+    }
+
+    private void ApplyEditorSettingsImmediate()
+    {
+        var settings = ProjectEditorSettings;
         if (settings == null)
             return;
 
-        Raylib.SetTargetFPS(settings.Editor.TargetFps);
+        Raylib.SetTargetFPS(settings.TargetFps);
+
+        if (settings.VSync)
+            Raylib.SetWindowState(ConfigFlags.VSyncHint);
+        else
+            Raylib.ClearWindowState(ConfigFlags.VSyncHint);
     }
 }

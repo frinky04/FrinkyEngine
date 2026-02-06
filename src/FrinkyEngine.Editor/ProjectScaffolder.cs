@@ -33,6 +33,9 @@ public static class ProjectScaffolder
         var settings = ProjectSettings.GetDefault(projectName);
         settings.Save(settingsPath);
 
+        var editorSettings = EditorProjectSettings.GetDefault();
+        editorSettings.Save(projectDir);
+
         // 2. Create .csproj with ProjectReference to FrinkyEngine.Core
         var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
         var coreProjectPath = FindCoreProjectPath(projectDir);

@@ -105,8 +105,8 @@ public static class Program
             RunGameLoop(shaderVs, shaderFs, scenePath, assemblyLoader, windowTitle,
                 new RuntimeLaunchSettings
                 {
-                    TargetFps = manifest.TargetFps ?? 60,
-                    VSync = manifest.VSync ?? false,
+                    TargetFps = manifest.TargetFps ?? 120,
+                    VSync = manifest.VSync ?? true,
                     WindowWidth = manifest.WindowWidth ?? 1280,
                     WindowHeight = manifest.WindowHeight ?? 720,
                     Resizable = manifest.Resizable ?? true,
@@ -200,7 +200,7 @@ public static class Program
 
         return new RuntimeLaunchSettings
         {
-            TargetFps = ClampOrDefault(settings.TargetFps, 30, 500, 60),
+            TargetFps = ClampOrDefault(settings.TargetFps, 30, 500, 120),
             VSync = settings.VSync,
             WindowWidth = ClampOrDefault(settings.WindowWidth, 320, 10000, 1280),
             WindowHeight = ClampOrDefault(settings.WindowHeight, 200, 10000, 720),

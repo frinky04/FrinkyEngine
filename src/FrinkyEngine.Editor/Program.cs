@@ -13,9 +13,14 @@ public static class Program
     public static void Main(string[] args)
     {
         RaylibLogger.Install();
-        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
+        var startupEditorSettings = TryLoadStartupEditorSettings(args);
+        var flags = ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint;
+        if (startupEditorSettings?.VSync == true)
+            flags |= ConfigFlags.VSyncHint;
+
+        Raylib.SetConfigFlags(flags);
         Raylib.InitWindow(1600, 900, "FrinkyEngine Editor");
-        Raylib.SetTargetFPS(60);
+        Raylib.SetTargetFPS(startupEditorSettings?.TargetFps ?? 120);
         Raylib.SetExitKey(0);
 
         rlImGui.Setup(true, true);
@@ -73,6 +78,22 @@ public static class Program
         app.Shutdown();
         rlImGui.Shutdown();
         Raylib.CloseWindow();
+    }
+
+    private static EditorProjectSettings? TryLoadStartupEditorSettings(string[] args)
+    {
+        if (args.Length == 0)
+            return null;
+
+        var path = args[0];
+        if (!File.Exists(path) || !path.EndsWith(".fproject", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var projectDirectory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (string.IsNullOrWhiteSpace(projectDirectory))
+            return null;
+
+        return EditorProjectSettings.LoadOrCreate(projectDirectory);
     }
 
     private static void DrawDockspace(EditorApplication app)

@@ -20,6 +20,8 @@ public class MenuBar
     private bool _openProjectSettings;
     private ProjectSettings? _projectSettingsDraft;
     private ProjectSettings? _projectSettingsBaseline;
+    private EditorProjectSettings? _editorProjectSettingsDraft;
+    private EditorProjectSettings? _editorProjectSettingsBaseline;
 
     // Create Script modal state
     private string _newScriptName = string.Empty;
@@ -77,7 +79,9 @@ public class MenuBar
                     OpenProjectDialog();
                 }
 
-                var hasProjectSettings = _app.ProjectDirectory != null && _app.ProjectSettings != null;
+                var hasProjectSettings = _app.ProjectDirectory != null
+                                         && _app.ProjectSettings != null
+                                         && _app.ProjectEditorSettings != null;
                 ImGui.BeginDisabled(!hasProjectSettings);
                 if (ImGui.MenuItem("Project Settings..."))
                 {
@@ -496,11 +500,13 @@ public class MenuBar
 
     private void OpenProjectSettingsPopup()
     {
-        if (_app.ProjectSettings == null)
+        if (_app.ProjectSettings == null || _app.ProjectEditorSettings == null)
             return;
 
         _projectSettingsDraft = _app.ProjectSettings.Clone();
         _projectSettingsBaseline = _app.ProjectSettings.Clone();
+        _editorProjectSettingsDraft = _app.ProjectEditorSettings.Clone();
+        _editorProjectSettingsBaseline = _app.ProjectEditorSettings.Clone();
         _openProjectSettings = true;
     }
 
@@ -515,7 +521,10 @@ public class MenuBar
         if (!ImGui.BeginPopupModal("ProjectSettings", ImGuiWindowFlags.AlwaysAutoResize))
             return;
 
-        if (_projectSettingsDraft == null || _projectSettingsBaseline == null)
+        if (_projectSettingsDraft == null
+            || _projectSettingsBaseline == null
+            || _editorProjectSettingsDraft == null
+            || _editorProjectSettingsBaseline == null)
         {
             ImGui.TextDisabled("Project settings are not loaded.");
             if (ImGui.Button("Close"))
@@ -525,6 +534,7 @@ public class MenuBar
         }
 
         var draft = _projectSettingsDraft;
+        var editorDraft = _editorProjectSettingsDraft;
 
         if (ImGui.CollapsingHeader("Project", ImGuiTreeNodeFlags.DefaultOpen))
         {
@@ -547,9 +557,13 @@ public class MenuBar
 
         if (ImGui.CollapsingHeader("Editor", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            int editorFps = draft.Editor.TargetFps;
+            int editorFps = editorDraft.TargetFps;
             if (ImGui.InputInt("Editor Target FPS", ref editorFps))
-                draft.Editor.TargetFps = editorFps;
+                editorDraft.TargetFps = editorFps;
+
+            bool editorVSync = editorDraft.VSync;
+            if (ImGui.Checkbox("Editor VSync", ref editorVSync))
+                editorDraft.VSync = editorVSync;
         }
 
         if (ImGui.CollapsingHeader("Runtime", ImGuiTreeNodeFlags.DefaultOpen))
@@ -586,10 +600,8 @@ public class MenuBar
             if (ImGui.Checkbox("Start Maximized", ref startMaximized))
                 draft.Runtime.StartMaximized = startMaximized;
 
-            var startupSceneOverride = draft.Runtime.StartupSceneOverride;
-            EditText("Startup Scene Override", ref startupSceneOverride, 256);
-            draft.Runtime.StartupSceneOverride = startupSceneOverride;
-            ImGui.TextDisabled("Leave Startup Scene Override empty to use .fproject defaultScene.");
+            DrawStartupSceneSelector(draft);
+            ImGui.TextDisabled("Use .fproject defaultScene or choose any scene asset.");
         }
 
         if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))
@@ -608,7 +620,10 @@ public class MenuBar
         if (ImGui.Button("Apply"))
         {
             var requiresRestartNotice = HasDeferredRuntimeWindowChanges(_projectSettingsBaseline, draft);
+            var editorSettingsChanged = _editorProjectSettingsBaseline.TargetFps != editorDraft.TargetFps
+                                        || _editorProjectSettingsBaseline.VSync != editorDraft.VSync;
             _app.SaveProjectSettings(draft.Clone());
+            _app.SaveEditorProjectSettings(editorDraft.Clone());
 
             if (requiresRestartNotice)
             {
@@ -619,6 +634,13 @@ public class MenuBar
             else
             {
                 NotificationManager.Instance.Post("Project settings saved.", NotificationType.Success);
+            }
+
+            if (editorSettingsChanged)
+            {
+                NotificationManager.Instance.Post(
+                    "Editor FPS/VSync applied immediately.",
+                    NotificationType.Info, 2.5f);
             }
 
             ImGui.CloseCurrentPopup();
@@ -641,6 +663,59 @@ public class MenuBar
                || before.Runtime.StartMaximized != after.Runtime.StartMaximized
                || !string.Equals(before.Runtime.WindowTitle, after.Runtime.WindowTitle, StringComparison.Ordinal)
                || !string.Equals(before.Runtime.StartupSceneOverride, after.Runtime.StartupSceneOverride, StringComparison.Ordinal);
+    }
+
+    private static void DrawStartupSceneSelector(ProjectSettings draft)
+    {
+        var current = NormalizeAssetPath(draft.Runtime.StartupSceneOverride);
+        var sceneAssets = AssetDatabase.Instance.GetAssets(AssetType.Scene)
+            .Select(a => a.RelativePath)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var hasCurrent = !string.IsNullOrWhiteSpace(current)
+                         && sceneAssets.Any(path => string.Equals(path, current, StringComparison.OrdinalIgnoreCase));
+
+        string preview;
+        if (string.IsNullOrWhiteSpace(current))
+            preview = "Use .fproject default";
+        else if (hasCurrent)
+            preview = current;
+        else
+            preview = $"{current} (missing)";
+
+        if (ImGui.BeginCombo("Startup Scene Override", preview))
+        {
+            var isDefaultSelected = string.IsNullOrWhiteSpace(current);
+            if (ImGui.Selectable("Use .fproject default", isDefaultSelected))
+                draft.Runtime.StartupSceneOverride = string.Empty;
+
+            foreach (var scene in sceneAssets)
+            {
+                var selected = string.Equals(scene, current, StringComparison.OrdinalIgnoreCase);
+                if (ImGui.Selectable(scene, selected))
+                    draft.Runtime.StartupSceneOverride = scene;
+            }
+
+            if (!string.IsNullOrWhiteSpace(current) && !hasCurrent)
+            {
+                ImGui.Separator();
+                ImGui.TextDisabled($"Missing: {current}");
+            }
+
+            ImGui.EndCombo();
+        }
+    }
+
+    private static string NormalizeAssetPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return string.Empty;
+
+        var normalized = path.Trim().Replace('\\', '/');
+        if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized["Assets/".Length..];
+        return normalized;
     }
 
     private static void EditText(string label, ref string value, uint maxLength)
