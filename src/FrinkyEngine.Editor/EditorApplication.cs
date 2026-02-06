@@ -39,6 +39,7 @@ public class EditorApplication
 
     public string? ProjectDirectory { get; private set; }
     public ProjectFile? ProjectFile { get; private set; }
+    public ProjectSettings? ProjectSettings { get; private set; }
     public bool ShouldResetLayout { get; set; }
 
     private string? _playModeSnapshot;
@@ -277,6 +278,7 @@ public class EditorApplication
 
         if (ProjectDirectory != null)
         {
+            ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
@@ -298,6 +300,8 @@ public class EditorApplication
                 CurrentScene = SceneManager.Instance.ActiveScene;
                 RestoreEditorCameraFromScene();
             }
+
+            ApplyProjectSettingsImmediate();
         }
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
@@ -358,7 +362,8 @@ public class EditorApplication
             GameCsprojPath = FindGameCsproj(),
             GameAssemblyDll = !string.IsNullOrEmpty(ProjectFile.GameAssembly) ? ProjectFile.GameAssembly : null,
             RuntimeCsprojPath = runtimeCsproj,
-            OutputDirectory = outputDirectory
+            OutputDirectory = outputDirectory,
+            ProjectSettings = ProjectSettings
         };
 
         _exportNotification = NotificationManager.Instance.PostPersistent("Exporting Game...", NotificationType.Info);
@@ -678,5 +683,26 @@ public class EditorApplication
         AssetManager.Instance.UnloadAll();
         AssetDatabase.Instance.Clear();
         AssemblyLoader.Unload();
+    }
+
+    public void SaveProjectSettings(ProjectSettings settings)
+    {
+        if (ProjectDirectory == null || ProjectFile == null)
+            return;
+
+        var path = Core.Assets.ProjectSettings.GetPath(ProjectDirectory);
+        settings.Normalize(ProjectFile.ProjectName);
+        settings.Save(path);
+        ProjectSettings = settings;
+        ApplyProjectSettingsImmediate();
+    }
+
+    private void ApplyProjectSettingsImmediate()
+    {
+        var settings = ProjectSettings;
+        if (settings == null)
+            return;
+
+        Raylib.SetTargetFPS(settings.Editor.TargetFps);
     }
 }

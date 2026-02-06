@@ -1,0 +1,61 @@
+{
+  "name": "MainScene",
+  "entities": [
+    {
+      "name": "Main Camera",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": { "x": 0, "y": 5, "z": 10 },
+            "LocalRotation": { "x": -0.17364818, "y": 0, "z": 0, "w": 0.98480775 },
+            "LocalScale": { "x": 1, "y": 1, "z": 1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CameraComponent",
+          "enabled": true,
+          "properties": {
+            "FieldOfView": 60,
+            "NearPlane": 0.1,
+            "FarPlane": 1000,
+            "Projection": "Perspective",
+            "ClearColor": { "r": 30, "g": 30, "b": 30, "a": 255 },
+            "IsMain": true
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Directional Light",
+      "id": "00000000-0000-0000-0000-000000000002",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": { "x": 2, "y": 10, "z": 2 },
+            "LocalRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+            "LocalScale": { "x": 1, "y": 1, "z": 1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "properties": {
+            "LightType": "Directional",
+            "LightColor": { "r": 255, "g": 255, "b": 255, "a": 255 },
+            "Intensity": 1.0,
+            "Range": 10.0
+          }
+        }
+      ],
+      "children": []
+    }
+  ]
+}

@@ -14,6 +14,7 @@ public class ExportConfig
     public string? GameAssemblyDll { get; set; }
     public string RuntimeCsprojPath { get; set; } = string.Empty;
     public string OutputDirectory { get; set; } = string.Empty;
+    public ProjectSettings? ProjectSettings { get; set; }
 }
 
 public static class GameExporter
@@ -55,6 +56,10 @@ public static class GameExporter
             // Step 3: Collect archive entries
             FrinkyLog.Info("Collecting assets...");
             var entries = new List<FAssetEntry>();
+            var projectSettings = config.ProjectSettings?.Clone() ?? ProjectSettings.GetDefault(config.ProjectName);
+            projectSettings.Normalize(config.ProjectName);
+            var outputName = SanitizeFileName(projectSettings.Build.OutputName, config.ProjectName);
+            var defaultSceneRelative = projectSettings.ResolveStartupScene(config.DefaultScene);
 
             // 3a: Assets directory
             if (Directory.Exists(config.AssetsPath))
@@ -107,8 +112,18 @@ public static class GameExporter
             var manifest = new ExportManifest
             {
                 ProjectName = config.ProjectName,
-                DefaultScene = "Assets/" + config.DefaultScene,
-                GameAssembly = gameAssemblyRelPath
+                ProductName = outputName,
+                BuildVersion = projectSettings.Build.BuildVersion,
+                DefaultScene = "Assets/" + defaultSceneRelative,
+                GameAssembly = gameAssemblyRelPath,
+                TargetFps = projectSettings.Runtime.TargetFps,
+                VSync = projectSettings.Runtime.VSync,
+                WindowTitle = projectSettings.Runtime.WindowTitle,
+                WindowWidth = projectSettings.Runtime.WindowWidth,
+                WindowHeight = projectSettings.Runtime.WindowHeight,
+                Resizable = projectSettings.Runtime.Resizable,
+                Fullscreen = projectSettings.Runtime.Fullscreen,
+                StartMaximized = projectSettings.Runtime.StartMaximized
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");
@@ -117,7 +132,7 @@ public static class GameExporter
 
             // Step 4: Write .fasset
             FrinkyLog.Info($"Packing {entries.Count} files into archive...");
-            var fassetPath = Path.Combine(tempDir, $"{config.ProjectName}.fasset");
+            var fassetPath = Path.Combine(tempDir, $"{outputName}.fasset");
             FAssetArchive.Write(fassetPath, entries);
 
             // Step 5: Copy published Runtime to output, rename exe
@@ -136,7 +151,7 @@ public static class GameExporter
                 }
             }
 
-            var outputExe = Path.Combine(config.OutputDirectory, $"{config.ProjectName}.exe");
+            var outputExe = Path.Combine(config.OutputDirectory, $"{outputName}.exe");
             File.Copy(runtimeExe, outputExe, overwrite: true);
 
             // Copy all other runtime files (DLLs, native libs, etc.) except the exe itself and Shaders
@@ -158,7 +173,7 @@ public static class GameExporter
             }
 
             // Step 6: Move .fasset next to the exe
-            var outputFasset = Path.Combine(config.OutputDirectory, $"{config.ProjectName}.fasset");
+            var outputFasset = Path.Combine(config.OutputDirectory, $"{outputName}.fasset");
             File.Copy(fassetPath, outputFasset, overwrite: true);
 
             FrinkyLog.Info($"Export complete: {config.OutputDirectory}");
@@ -239,5 +254,13 @@ public static class GameExporter
         }
 
         return process.ExitCode == 0;
+    }
+
+    private static string SanitizeFileName(string value, string fallback)
+    {
+        var selected = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(selected.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray()).Trim();
+        return string.IsNullOrWhiteSpace(sanitized) ? fallback : sanitized;
     }
 }

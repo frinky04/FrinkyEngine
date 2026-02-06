@@ -1,4 +1,5 @@
 using System.Numerics;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
@@ -16,6 +17,9 @@ public class MenuBar
 
     private bool _openNewProject;
     private bool _openCreateScript;
+    private bool _openProjectSettings;
+    private ProjectSettings? _projectSettingsDraft;
+    private ProjectSettings? _projectSettingsBaseline;
 
     // Create Script modal state
     private string _newScriptName = string.Empty;
@@ -72,6 +76,14 @@ public class MenuBar
                 {
                     OpenProjectDialog();
                 }
+
+                var hasProjectSettings = _app.ProjectDirectory != null && _app.ProjectSettings != null;
+                ImGui.BeginDisabled(!hasProjectSettings);
+                if (ImGui.MenuItem("Project Settings..."))
+                {
+                    OpenProjectSettingsPopup();
+                }
+                ImGui.EndDisabled();
 
                 ImGui.Separator();
 
@@ -236,8 +248,15 @@ public class MenuBar
             _openCreateScript = false;
         }
 
+        if (_openProjectSettings)
+        {
+            ImGui.OpenPopup("ProjectSettings");
+            _openProjectSettings = false;
+        }
+
         DrawNewProjectPopup();
         DrawCreateScriptPopup();
+        DrawProjectSettingsPopup();
     }
 
     private void RefreshBaseClassOptions()
@@ -473,5 +492,168 @@ public class MenuBar
 
             ImGui.EndPopup();
         }
+    }
+
+    private void OpenProjectSettingsPopup()
+    {
+        if (_app.ProjectSettings == null)
+            return;
+
+        _projectSettingsDraft = _app.ProjectSettings.Clone();
+        _projectSettingsBaseline = _app.ProjectSettings.Clone();
+        _openProjectSettings = true;
+    }
+
+    private void DrawProjectSettingsPopup()
+    {
+        var viewport = ImGui.GetMainViewport();
+        var center = new Vector2(viewport.WorkPos.X + viewport.WorkSize.X * 0.5f,
+                                 viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(620, 0), ImGuiCond.Appearing);
+
+        if (!ImGui.BeginPopupModal("ProjectSettings", ImGuiWindowFlags.AlwaysAutoResize))
+            return;
+
+        if (_projectSettingsDraft == null || _projectSettingsBaseline == null)
+        {
+            ImGui.TextDisabled("Project settings are not loaded.");
+            if (ImGui.Button("Close"))
+                ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+            return;
+        }
+
+        var draft = _projectSettingsDraft;
+
+        if (ImGui.CollapsingHeader("Project", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            var version = draft.Project.Version;
+            EditText("Version", ref version, 64);
+            draft.Project.Version = version;
+
+            var author = draft.Project.Author;
+            EditText("Author", ref author, 128);
+            draft.Project.Author = author;
+
+            var company = draft.Project.Company;
+            EditText("Company", ref company, 128);
+            draft.Project.Company = company;
+
+            var description = draft.Project.Description;
+            EditTextMultiline("Description", ref description, 512, new Vector2(560, 64));
+            draft.Project.Description = description;
+        }
+
+        if (ImGui.CollapsingHeader("Editor", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            int editorFps = draft.Editor.TargetFps;
+            if (ImGui.InputInt("Editor Target FPS", ref editorFps))
+                draft.Editor.TargetFps = editorFps;
+        }
+
+        if (ImGui.CollapsingHeader("Runtime", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            int runtimeFps = draft.Runtime.TargetFps;
+            if (ImGui.InputInt("Runtime Target FPS", ref runtimeFps))
+                draft.Runtime.TargetFps = runtimeFps;
+
+            bool vSync = draft.Runtime.VSync;
+            if (ImGui.Checkbox("VSync", ref vSync))
+                draft.Runtime.VSync = vSync;
+
+            var windowTitle = draft.Runtime.WindowTitle;
+            EditText("Window Title", ref windowTitle, 256);
+            draft.Runtime.WindowTitle = windowTitle;
+
+            int windowWidth = draft.Runtime.WindowWidth;
+            if (ImGui.InputInt("Window Width", ref windowWidth))
+                draft.Runtime.WindowWidth = windowWidth;
+
+            int windowHeight = draft.Runtime.WindowHeight;
+            if (ImGui.InputInt("Window Height", ref windowHeight))
+                draft.Runtime.WindowHeight = windowHeight;
+
+            bool resizable = draft.Runtime.Resizable;
+            if (ImGui.Checkbox("Resizable", ref resizable))
+                draft.Runtime.Resizable = resizable;
+
+            bool fullscreen = draft.Runtime.Fullscreen;
+            if (ImGui.Checkbox("Fullscreen", ref fullscreen))
+                draft.Runtime.Fullscreen = fullscreen;
+
+            bool startMaximized = draft.Runtime.StartMaximized;
+            if (ImGui.Checkbox("Start Maximized", ref startMaximized))
+                draft.Runtime.StartMaximized = startMaximized;
+
+            var startupSceneOverride = draft.Runtime.StartupSceneOverride;
+            EditText("Startup Scene Override", ref startupSceneOverride, 256);
+            draft.Runtime.StartupSceneOverride = startupSceneOverride;
+            ImGui.TextDisabled("Leave Startup Scene Override empty to use .fproject defaultScene.");
+        }
+
+        if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            var outputName = draft.Build.OutputName;
+            EditText("Output Name", ref outputName, 128);
+            draft.Build.OutputName = outputName;
+
+            var buildVersion = draft.Build.BuildVersion;
+            EditText("Build Version", ref buildVersion, 64);
+            draft.Build.BuildVersion = buildVersion;
+        }
+
+        ImGui.Separator();
+
+        if (ImGui.Button("Apply"))
+        {
+            var requiresRestartNotice = HasDeferredRuntimeWindowChanges(_projectSettingsBaseline, draft);
+            _app.SaveProjectSettings(draft.Clone());
+
+            if (requiresRestartNotice)
+            {
+                NotificationManager.Instance.Post(
+                    "Settings saved. Runtime window mode/size changes apply on next launch.",
+                    NotificationType.Info, 4.0f);
+            }
+            else
+            {
+                NotificationManager.Instance.Post("Project settings saved.", NotificationType.Success);
+            }
+
+            ImGui.CloseCurrentPopup();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel"))
+            ImGui.CloseCurrentPopup();
+
+        ImGui.EndPopup();
+    }
+
+    private static bool HasDeferredRuntimeWindowChanges(ProjectSettings before, ProjectSettings after)
+    {
+        return before.Runtime.VSync != after.Runtime.VSync
+               || before.Runtime.WindowWidth != after.Runtime.WindowWidth
+               || before.Runtime.WindowHeight != after.Runtime.WindowHeight
+               || before.Runtime.Resizable != after.Runtime.Resizable
+               || before.Runtime.Fullscreen != after.Runtime.Fullscreen
+               || before.Runtime.StartMaximized != after.Runtime.StartMaximized
+               || !string.Equals(before.Runtime.WindowTitle, after.Runtime.WindowTitle, StringComparison.Ordinal)
+               || !string.Equals(before.Runtime.StartupSceneOverride, after.Runtime.StartupSceneOverride, StringComparison.Ordinal);
+    }
+
+    private static void EditText(string label, ref string value, uint maxLength)
+    {
+        var local = value;
+        if (ImGui.InputText(label, ref local, maxLength))
+            value = local;
+    }
+
+    private static void EditTextMultiline(string label, ref string value, uint maxLength, Vector2 size)
+    {
+        var local = value;
+        if (ImGui.InputTextMultiline(label, ref local, maxLength, size))
+            value = local;
     }
 }

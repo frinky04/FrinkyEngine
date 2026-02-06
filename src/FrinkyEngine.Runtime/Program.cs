@@ -8,6 +8,17 @@ namespace FrinkyEngine.Runtime;
 
 public static class Program
 {
+    private sealed class RuntimeLaunchSettings
+    {
+        public int TargetFps { get; init; } = 60;
+        public bool VSync { get; init; }
+        public int WindowWidth { get; init; } = 1280;
+        public int WindowHeight { get; init; } = 720;
+        public bool Resizable { get; init; } = true;
+        public bool Fullscreen { get; init; }
+        public bool StartMaximized { get; init; }
+    }
+
     public static void Main(string[] args)
     {
         if (args.Length > 0 && File.Exists(args[0]) && args[0].EndsWith(".fproject", StringComparison.OrdinalIgnoreCase))
@@ -33,6 +44,8 @@ public static class Program
     {
         var projectDir = Path.GetDirectoryName(Path.GetFullPath(fprojectPath))!;
         var project = ProjectFile.Load(fprojectPath);
+        var settings = ProjectSettings.LoadOrCreate(projectDir, project.ProjectName);
+        var sceneRelativePath = settings.ResolveStartupScene(project.DefaultScene);
 
         AssetManager.Instance.AssetsPath = project.GetAbsoluteAssetsPath(projectDir);
 
@@ -43,8 +56,22 @@ public static class Program
             assemblyLoader.LoadAssembly(dllPath);
         }
 
-        RunGameLoop(project.ProjectName, "Shaders/lighting.vs", "Shaders/lighting.fs",
-            project.GetAbsoluteScenePath(projectDir), assemblyLoader);
+        var scenePath = Path.GetFullPath(Path.Combine(AssetManager.Instance.AssetsPath, sceneRelativePath));
+        var windowTitle = string.IsNullOrWhiteSpace(settings.Runtime.WindowTitle)
+            ? project.ProjectName
+            : settings.Runtime.WindowTitle;
+
+        RunGameLoop("Shaders/lighting.vs", "Shaders/lighting.fs",
+            scenePath, assemblyLoader, windowTitle, new RuntimeLaunchSettings
+            {
+                TargetFps = settings.Runtime.TargetFps,
+                VSync = settings.Runtime.VSync,
+                WindowWidth = settings.Runtime.WindowWidth,
+                WindowHeight = settings.Runtime.WindowHeight,
+                Resizable = settings.Runtime.Resizable,
+                Fullscreen = settings.Runtime.Fullscreen,
+                StartMaximized = settings.Runtime.StartMaximized
+            });
     }
 
     private static void RunExportedMode(string fassetPath)
@@ -71,8 +98,21 @@ public static class Program
             var shaderVs = Path.Combine(tempDir, "Shaders", "lighting.vs");
             var shaderFs = Path.Combine(tempDir, "Shaders", "lighting.fs");
             var scenePath = Path.Combine(tempDir, manifest.DefaultScene);
+            var windowTitle = !string.IsNullOrWhiteSpace(manifest.WindowTitle)
+                ? manifest.WindowTitle
+                : (!string.IsNullOrWhiteSpace(manifest.ProductName) ? manifest.ProductName : manifest.ProjectName);
 
-            RunGameLoop(manifest.ProjectName, shaderVs, shaderFs, scenePath, assemblyLoader);
+            RunGameLoop(shaderVs, shaderFs, scenePath, assemblyLoader, windowTitle,
+                new RuntimeLaunchSettings
+                {
+                    TargetFps = manifest.TargetFps ?? 60,
+                    VSync = manifest.VSync ?? false,
+                    WindowWidth = manifest.WindowWidth ?? 1280,
+                    WindowHeight = manifest.WindowHeight ?? 720,
+                    Resizable = manifest.Resizable ?? true,
+                    Fullscreen = manifest.Fullscreen ?? false,
+                    StartMaximized = manifest.StartMaximized ?? false
+                });
         }
         finally
         {
@@ -88,13 +128,24 @@ public static class Program
         }
     }
 
-    private static void RunGameLoop(string windowTitle, string shaderVsPath, string shaderFsPath,
-        string scenePath, GameAssemblyLoader assemblyLoader)
+    private static void RunGameLoop(string shaderVsPath, string shaderFsPath,
+        string scenePath, GameAssemblyLoader assemblyLoader, string runtimeWindowTitle, RuntimeLaunchSettings launchSettings)
     {
         RaylibLogger.Install();
-        Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint);
-        Raylib.InitWindow(1280, 720, windowTitle);
-        Raylib.SetTargetFPS(60);
+        launchSettings = SanitizeLaunchSettings(launchSettings);
+        var flags = ConfigFlags.Msaa4xHint;
+        if (launchSettings.Resizable)
+            flags |= ConfigFlags.ResizableWindow;
+        if (launchSettings.VSync)
+            flags |= ConfigFlags.VSyncHint;
+        if (launchSettings.Fullscreen)
+            flags |= ConfigFlags.FullscreenMode;
+        if (launchSettings.StartMaximized)
+            flags |= ConfigFlags.MaximizedWindow;
+
+        Raylib.SetConfigFlags(flags);
+        Raylib.InitWindow(launchSettings.WindowWidth, launchSettings.WindowHeight, runtimeWindowTitle);
+        Raylib.SetTargetFPS(launchSettings.TargetFps);
 
         var sceneRenderer = new SceneRenderer();
         sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
@@ -136,6 +187,27 @@ public static class Program
         AssetManager.Instance.UnloadAll();
         assemblyLoader.Unload();
         Raylib.CloseWindow();
+    }
+
+    private static RuntimeLaunchSettings SanitizeLaunchSettings(RuntimeLaunchSettings settings)
+    {
+        static int ClampOrDefault(int value, int min, int max, int fallback)
+        {
+            if (value < min || value > max)
+                return fallback;
+            return value;
+        }
+
+        return new RuntimeLaunchSettings
+        {
+            TargetFps = ClampOrDefault(settings.TargetFps, 30, 500, 60),
+            VSync = settings.VSync,
+            WindowWidth = ClampOrDefault(settings.WindowWidth, 320, 10000, 1280),
+            WindowHeight = ClampOrDefault(settings.WindowHeight, 200, 10000, 720),
+            Resizable = settings.Resizable,
+            Fullscreen = settings.Fullscreen,
+            StartMaximized = settings.StartMaximized
+        };
     }
 
     private static string? FindFassetNextToExe()
