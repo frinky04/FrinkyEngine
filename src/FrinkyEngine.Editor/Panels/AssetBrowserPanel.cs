@@ -12,6 +12,7 @@ public class AssetBrowserPanel
     private readonly EditorApplication _app;
     private string _currentDir = "";
     private string _searchQuery = "";
+    private bool _flatView = true;
     private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Script
     private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Scripts" };
     private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Script };
@@ -30,13 +31,14 @@ public class AssetBrowserPanel
         }
 
         DrawToolbar();
-        DrawBreadcrumb();
+        if (!_flatView)
+            DrawBreadcrumb();
         ImGui.Separator();
 
         var filter = FilterTypes[_filterIndex];
         var isSearching = !string.IsNullOrWhiteSpace(_searchQuery);
 
-        if (isSearching)
+        if (isSearching || _flatView)
             DrawSearchResults(filter);
         else
             DrawDirectoryContents(filter);
@@ -48,6 +50,9 @@ public class AssetBrowserPanel
     {
         if (ImGui.Button("Refresh"))
             AssetDatabase.Instance.Refresh();
+
+        ImGui.SameLine();
+        ImGui.Checkbox("Flat", ref _flatView);
 
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100);

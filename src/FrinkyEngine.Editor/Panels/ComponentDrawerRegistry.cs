@@ -18,6 +18,7 @@ public static class ComponentDrawerRegistry
         Register<CameraComponent>(DrawCamera);
         Register<LightComponent>(DrawLight);
         Register<MeshRendererComponent>(DrawMeshRenderer);
+        Register<CubeRendererComponent>(DrawCubeRenderer);
     }
 
     public static void Register<T>(Action<Component> drawer) where T : Component
@@ -108,10 +109,12 @@ public static class ComponentDrawerRegistry
     {
         var mr = (MeshRendererComponent)c;
 
+        // Model Path with browse button on its own row
+        ImGui.Text("Model Path");
+        ImGui.SetNextItemWidth(-30);
         string modelPath = mr.ModelPath;
-        if (ImGui.InputText("Model Path", ref modelPath, 256))
+        if (ImGui.InputText("##ModelPath", ref modelPath, 256))
             mr.ModelPath = modelPath;
-
         ImGui.SameLine();
         if (ImGui.Button("...##BrowseModel"))
             ImGui.OpenPopup("ModelBrowser");
@@ -136,13 +139,32 @@ public static class ComponentDrawerRegistry
             ImGui.EndPopup();
         }
 
+        ImGui.Spacing();
+
+        // Material Path
+        ImGui.Text("Material Path");
         string matPath = mr.MaterialPath;
-        if (ImGui.InputText("Material Path", ref matPath, 256))
+        if (ImGui.InputText("##MaterialPath", ref matPath, 256))
             mr.MaterialPath = matPath;
+
+        ImGui.Spacing();
 
         var tint = ColorToVec4(mr.Tint);
         if (ImGui.ColorEdit4("Tint", ref tint))
             mr.Tint = Vec4ToColor(tint);
+    }
+
+    private static void DrawCubeRenderer(Component c)
+    {
+        var cube = (CubeRendererComponent)c;
+
+        float size = cube.Size;
+        if (ImGui.DragFloat("Size", ref size, 0.05f, 0.01f, 100f))
+            cube.Size = size;
+
+        var tint = ColorToVec4(cube.Tint);
+        if (ImGui.ColorEdit4("Tint", ref tint))
+            cube.Tint = Vec4ToColor(tint);
     }
 
     public static void DrawReflection(Component component)

@@ -14,10 +14,12 @@ public class Scene
     private readonly List<CameraComponent> _cameras = new();
     private readonly List<LightComponent> _lights = new();
     private readonly List<MeshRendererComponent> _renderers = new();
+    private readonly List<CubeRendererComponent> _cubeRenderers = new();
 
     public IReadOnlyList<CameraComponent> Cameras => _cameras;
     public IReadOnlyList<LightComponent> Lights => _lights;
     public IReadOnlyList<MeshRendererComponent> Renderers => _renderers;
+    public IReadOnlyList<CubeRendererComponent> CubeRenderers => _cubeRenderers;
 
     public CameraComponent? MainCamera => _cameras.FirstOrDefault(c => c.IsMain && c.Enabled);
 
@@ -64,6 +66,7 @@ public class Scene
             case CameraComponent cam: _cameras.Add(cam); break;
             case LightComponent light: _lights.Add(light); break;
             case MeshRendererComponent renderer: _renderers.Add(renderer); break;
+            case CubeRendererComponent cube: _cubeRenderers.Add(cube); break;
         }
     }
 
@@ -74,6 +77,7 @@ public class Scene
             case CameraComponent cam: _cameras.Remove(cam); break;
             case LightComponent light: _lights.Remove(light); break;
             case MeshRendererComponent renderer: _renderers.Remove(renderer); break;
+            case CubeRendererComponent cube: _cubeRenderers.Remove(cube); break;
         }
     }
 

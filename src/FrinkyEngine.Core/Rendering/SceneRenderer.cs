@@ -85,6 +85,15 @@ public class SceneRenderer
             Raylib.DrawModel(model, pos, 1f, renderer.Tint);
         }
 
+        foreach (var cube in scene.CubeRenderers)
+        {
+            if (!cube.Enabled) continue;
+
+            var pos = cube.Entity.Transform.WorldPosition;
+            Raylib.DrawCube(pos, cube.Size, cube.Size, cube.Size, cube.Tint);
+            Raylib.DrawCubeWires(pos, cube.Size, cube.Size, cube.Size, Raylib_cs.Color.Black);
+        }
+
         DrawGrid(20, 1.0f);
 
         Raylib.EndMode3D();
