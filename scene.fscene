@@ -1,16 +1,16 @@
 {
   "name": "Untitled",
   "editorCameraPosition": {
-    "x": 5,
-    "y": 5,
-    "z": 5
+    "x": 19.985773,
+    "y": 11.740581,
+    "z": 5.3426285
   },
-  "editorCameraYaw": -135,
-  "editorCameraPitch": -30,
+  "editorCameraYaw": -172.49997,
+  "editorCameraPitch": -7.649996,
   "entities": [
     {
       "name": "Main Camera",
-      "id": "6f8cc051-b401-43ba-95df-7c7ced6a35ea",
+      "id": "2977ab3c-023e-4596-b919-4ae322edb75c",
       "active": true,
       "components": [
         {
@@ -59,7 +59,7 @@
     },
     {
       "name": "Directional Light",
-      "id": "24dbb56f-9655-4c1e-aaf2-965ddbf77d11",
+      "id": "10778b9c-6407-4db1-802d-7d3c2da26b98",
       "active": true,
       "components": [
         {

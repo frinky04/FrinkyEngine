@@ -119,7 +119,7 @@ public class HierarchyPanel
         _app.MarkHierarchyStateDirty();
     }
 
-    public void Draw()
+    public unsafe void Draw()
     {
         if (!ImGui.Begin("Hierarchy"))
         {
@@ -129,12 +129,6 @@ public class HierarchyPanel
         }
 
         _isWindowFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-
-        if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
-        {
-            _draggedEntityId = null;
-            _draggedFolderId = null;
-        }
 
         if (_app.CurrentScene == null)
         {
@@ -164,6 +158,12 @@ public class HierarchyPanel
             state.ExpandedFolderIds = expandedFolders.ToList();
             state.ExpandedEntityIds = expandedEntities.ToList();
             _app.MarkHierarchyStateDirty();
+        }
+
+        if (ImGui.GetDragDropPayload().NativePtr == null)
+        {
+            _draggedEntityId = null;
+            _draggedFolderId = null;
         }
 
         HandleKeyboardNavigation(visibleEntities);
@@ -676,25 +676,52 @@ public class HierarchyPanel
     private unsafe void DrawRootDropZone(HierarchySceneState state)
     {
         ImGui.Separator();
-        ImGui.TextDisabled("Drop Here to Move to Root");
+        const string dropLabel = "Drop Here to Move to Root";
+        float width = MathF.Max(1f, ImGui.GetContentRegionAvail().X);
+        float height = ImGui.GetFrameHeight();
+        var min = ImGui.GetCursorScreenPos();
+
+        ImGui.InvisibleButton("##RootDropZone", new System.Numerics.Vector2(width, height));
+
+        var max = new System.Numerics.Vector2(min.X + width, min.Y + height);
+        var drawList = ImGui.GetWindowDrawList();
+        uint bg = ImGui.GetColorU32(ImGuiCol.FrameBg);
+        uint border = ImGui.GetColorU32(ImGuiCol.Border);
+        uint textColor = ImGui.GetColorU32(ImGuiCol.TextDisabled);
+
+        drawList.AddRectFilled(min, max, bg, 2f);
+        drawList.AddRect(min, max, border, 2f);
+
+        var textSize = ImGui.CalcTextSize(dropLabel);
+        var textPos = new System.Numerics.Vector2(
+            min.X + MathF.Max(0f, (width - textSize.X) * 0.5f),
+            min.Y + MathF.Max(0f, (height - textSize.Y) * 0.5f));
+        drawList.AddText(textPos, textColor, dropLabel);
 
         if (!ImGui.BeginDragDropTarget())
             return;
 
         var entityPayload = ImGui.AcceptDragDropPayload(EntityDragPayload);
-        if (entityPayload.NativePtr != null && _draggedEntityId.HasValue)
+        if (entityPayload.NativePtr != null && entityPayload.Delivery && _draggedEntityId.HasValue)
         {
             var entity = _app.FindEntityById(_draggedEntityId.Value);
-            if (entity != null && entity.Transform.Parent == null)
+            if (entity != null)
             {
+                bool changed = false;
                 _app.RecordUndo();
-                if (_app.SetRootEntityFolder(entity, null))
+
+                if (entity.Transform.Parent != null)
+                    changed |= _app.ReparentEntity(entity, null);
+
+                changed |= _app.SetRootEntityFolder(entity, null);
+
+                if (changed)
                     _app.RefreshUndoBaseline();
             }
         }
 
         var folderPayload = ImGui.AcceptDragDropPayload(FolderDragPayload);
-        if (folderPayload.NativePtr != null && !string.IsNullOrWhiteSpace(_draggedFolderId))
+        if (folderPayload.NativePtr != null && folderPayload.Delivery && !string.IsNullOrWhiteSpace(_draggedFolderId))
         {
             var folder = state.Folders.FirstOrDefault(f => string.Equals(f.Id, _draggedFolderId, StringComparison.OrdinalIgnoreCase));
             if (folder != null && !string.IsNullOrWhiteSpace(folder.ParentFolderId))
@@ -739,7 +766,7 @@ public class HierarchyPanel
             return;
 
         var payload = ImGui.AcceptDragDropPayload(EntityDragPayload);
-        if (payload.NativePtr != null && _draggedEntityId.HasValue)
+        if (payload.NativePtr != null && payload.Delivery && _draggedEntityId.HasValue)
         {
             var dragged = _app.FindEntityById(_draggedEntityId.Value);
             if (dragged != null && dragged.Id != target.Id)
@@ -759,7 +786,7 @@ public class HierarchyPanel
             return;
 
         var folderPayload = ImGui.AcceptDragDropPayload(FolderDragPayload);
-        if (folderPayload.NativePtr != null && !string.IsNullOrWhiteSpace(_draggedFolderId))
+        if (folderPayload.NativePtr != null && folderPayload.Delivery && !string.IsNullOrWhiteSpace(_draggedFolderId))
         {
             var draggedFolder = state.Folders.FirstOrDefault(f => string.Equals(f.Id, _draggedFolderId, StringComparison.OrdinalIgnoreCase));
             if (draggedFolder != null && !string.Equals(draggedFolder.Id, targetFolder.Id, StringComparison.OrdinalIgnoreCase))
@@ -778,7 +805,7 @@ public class HierarchyPanel
         }
 
         var entityPayload = ImGui.AcceptDragDropPayload(EntityDragPayload);
-        if (entityPayload.NativePtr != null && _draggedEntityId.HasValue)
+        if (entityPayload.NativePtr != null && entityPayload.Delivery && _draggedEntityId.HasValue)
         {
             var draggedEntity = _app.FindEntityById(_draggedEntityId.Value);
             if (draggedEntity != null && draggedEntity.Transform.Parent == null)
