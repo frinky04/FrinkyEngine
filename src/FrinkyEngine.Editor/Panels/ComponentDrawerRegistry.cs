@@ -247,8 +247,7 @@ public static class ComponentDrawerRegistry
                 foreach (var asset in models)
                 {
                     ImGui.PushID(asset.RelativePath);
-                    DrawAssetIcon(AssetType.Model);
-                    if (ImGui.Selectable(asset.RelativePath))
+                    if (AssetSelectable(AssetType.Model, asset.RelativePath))
                     {
                         app.RecordUndo();
                         mr.ModelPath = asset.RelativePath;
@@ -319,8 +318,7 @@ public static class ComponentDrawerRegistry
                                 foreach (var asset in textures)
                                 {
                                     ImGui.PushID(asset.RelativePath);
-                                    DrawAssetIcon(AssetType.Texture);
-                                    if (ImGui.Selectable(asset.RelativePath))
+                                    if (AssetSelectable(AssetType.Texture, asset.RelativePath))
                                     {
                                         app.RecordUndo();
                                         slot.TexturePath = asset.RelativePath;
@@ -387,8 +385,7 @@ public static class ComponentDrawerRegistry
                     foreach (var asset in textures)
                     {
                         ImGui.PushID(asset.RelativePath);
-                        DrawAssetIcon(AssetType.Texture);
-                        if (ImGui.Selectable(asset.RelativePath))
+                        if (AssetSelectable(AssetType.Texture, asset.RelativePath))
                         {
                             app.RecordUndo();
                             prim.TexturePath = asset.RelativePath;
@@ -514,15 +511,33 @@ public static class ComponentDrawerRegistry
         }
     }
 
-    private static void DrawAssetIcon(AssetType type)
+    private static bool AssetSelectable(AssetType type, string label)
     {
+        float iconSize = DrawAssetIcon(type);
+
+        var textPos = ImGui.GetCursorPos();
+        bool clicked = ImGui.Selectable("##sel", false, ImGuiSelectableFlags.None, new Vector2(0, iconSize));
+
+        var afterPos = ImGui.GetCursorPos();
+        float textH = ImGui.GetTextLineHeight();
+        ImGui.SetCursorPos(new Vector2(textPos.X, textPos.Y + Math.Max(0f, (iconSize - textH) * 0.5f)));
+        ImGui.TextUnformatted(label);
+        ImGui.SetCursorPos(afterPos);
+        ImGui.Dummy(Vector2.Zero);
+
+        return clicked;
+    }
+
+    private static float DrawAssetIcon(AssetType type)
+    {
+        float size = EditorIcons.GetIconSize();
         var icon = EditorIcons.GetIcon(type);
         if (icon is Texture2D tex)
         {
-            float size = ImGui.GetFrameHeight();
             ImGui.Image((nint)tex.Id, new Vector2(size, size));
             ImGui.SameLine(0, 4);
         }
+        return size;
     }
 
     private static void TrackContinuousUndo(EditorApplication app)

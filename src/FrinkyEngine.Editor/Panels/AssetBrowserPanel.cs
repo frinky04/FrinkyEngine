@@ -56,6 +56,14 @@ public class AssetBrowserPanel
         ImGui.Checkbox("Flat", ref _flatView);
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(80);
+        float iconScale = EditorIcons.IconScale;
+        if (ImGui.SliderFloat("##IconSize", ref iconScale, 0.5f, 3.0f, "%.1fx"))
+            EditorIcons.IconScale = iconScale;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            EditorPreferences.Instance.SaveConfig();
+
+        ImGui.SameLine();
         ImGui.SetNextItemWidth(100);
         ImGui.Combo("##Filter", ref _filterIndex, FilterNames, FilterNames.Length);
 
@@ -112,20 +120,7 @@ public class AssetBrowserPanel
         foreach (var asset in db.GetAssetsInDirectory(_currentDir, filter))
         {
             ImGui.PushID(asset.RelativePath);
-            DrawInlineIcon(asset.Type);
-
-            if (ImGui.Selectable(asset.FileName, false, ImGuiSelectableFlags.AllowDoubleClick))
-            {
-                if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-                {
-                    HandleDoubleClick(asset);
-                }
-            }
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(asset.RelativePath);
-
-            DrawContextMenu(asset);
+            DrawAssetRow(asset, asset.FileName);
             ImGui.PopID();
         }
     }
@@ -142,20 +137,7 @@ public class AssetBrowserPanel
                 continue;
 
             ImGui.PushID(asset.RelativePath);
-            DrawInlineIcon(asset.Type);
-
-            if (ImGui.Selectable(asset.RelativePath, false, ImGuiSelectableFlags.AllowDoubleClick))
-            {
-                if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-                {
-                    HandleDoubleClick(asset);
-                }
-            }
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(asset.RelativePath);
-
-            DrawContextMenu(asset);
+            DrawAssetRow(asset, asset.RelativePath);
             ImGui.PopID();
         }
     }
@@ -222,28 +204,39 @@ public class AssetBrowserPanel
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
-    private static void DrawInlineIcon(AssetType type)
+    private void DrawAssetRow(AssetEntry asset, string displayLabel)
     {
+        float iconSize = DrawInlineIcon(asset.Type);
+
+        var textPos = ImGui.GetCursorPos();
+        bool clicked = ImGui.Selectable("##sel", false, ImGuiSelectableFlags.AllowDoubleClick, new Vector2(0, iconSize));
+
+        if (clicked && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+            HandleDoubleClick(asset);
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(asset.RelativePath);
+
+        DrawContextMenu(asset);
+
+        // Overlay vertically centered text
+        var afterPos = ImGui.GetCursorPos();
+        float textH = ImGui.GetTextLineHeight();
+        ImGui.SetCursorPos(new Vector2(textPos.X, textPos.Y + Math.Max(0f, (iconSize - textH) * 0.5f)));
+        ImGui.TextUnformatted(displayLabel);
+        ImGui.SetCursorPos(afterPos);
+        ImGui.Dummy(Vector2.Zero);
+    }
+
+    private static float DrawInlineIcon(AssetType type)
+    {
+        float size = EditorIcons.GetIconSize();
         var icon = EditorIcons.GetIcon(type);
         if (icon is Texture2D tex)
         {
-            float size = ImGui.GetFrameHeight();
             ImGui.Image((nint)tex.Id, new Vector2(size, size));
             ImGui.SameLine(0, 4);
         }
-        else
-        {
-            ImGui.TextDisabled(GetTypePrefix(type).TrimEnd());
-            ImGui.SameLine(0, 4);
-        }
+        return size;
     }
-
-    private static string GetTypePrefix(AssetType type) => type switch
-    {
-        AssetType.Model => "[M]",
-        AssetType.Scene => "[S]",
-        AssetType.Texture => "[T]",
-        AssetType.Script => "[C]",
-        _ => "[?]"
-    };
 }

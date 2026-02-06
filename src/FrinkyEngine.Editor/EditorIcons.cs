@@ -6,6 +6,10 @@ namespace FrinkyEngine.Editor;
 
 public static class EditorIcons
 {
+    public static float IconScale { get; set; } = 1.0f;
+
+    public static float GetIconSize() => ImGuiNET.ImGui.GetFrameHeight() * IconScale;
+
     private static readonly Dictionary<AssetType, Texture2D> _icons = new();
 
     private static readonly Dictionary<AssetType, string> _iconPaths = new()

@@ -301,6 +301,7 @@ public class EditorApplication
         }
 
         KeybindManager.Instance.LoadConfig(ProjectDirectory);
+        EditorPreferences.Instance.LoadConfig(ProjectDirectory);
         UndoRedo.Clear();
         ClearSelection();
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds());
