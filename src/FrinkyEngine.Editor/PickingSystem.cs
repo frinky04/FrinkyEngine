@@ -7,7 +7,8 @@ namespace FrinkyEngine.Editor;
 
 public class PickingSystem
 {
-    private const float IconHalfExtent = 0.5f;
+    private const float IconPickRadius = 0.5f;
+    private const float HitDistanceEpsilon = 1e-5f;
 
     public Entity? Pick(Core.Scene.Scene scene, Camera3D camera, Vector2 mousePos, Vector2 viewportSize)
     {
@@ -26,28 +27,44 @@ public class PickingSystem
                 var bb = renderable.GetWorldBoundingBox();
                 if (bb.HasValue)
                 {
-                    var collision = Raylib.GetRayCollisionBox(ray, bb.Value);
-                    if (collision.Hit && collision.Distance < closestDist)
+                    var broadphaseCollision = Raylib.GetRayCollisionBox(ray, bb.Value);
+                    if (broadphaseCollision.Hit)
                     {
-                        closestDist = collision.Distance;
-                        closest = entity;
+                        var preciseCollision = renderable.GetWorldRayCollision(ray, out bool hasMeshData, frontFacesOnly: true);
+                        if (preciseCollision.HasValue)
+                        {
+                            float hitDistance = preciseCollision.Value.Distance;
+                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
+                            {
+                                closestDist = hitDistance;
+                                closest = entity;
+                            }
+                        }
+                        else if (!hasMeshData)
+                        {
+                            // Fallback path if a renderable cannot provide mesh geometry for narrowphase testing.
+                            float hitDistance = broadphaseCollision.Distance;
+                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
+                            {
+                                closestDist = hitDistance;
+                                closest = entity;
+                            }
+                        }
                     }
                 }
                 continue;
             }
 
             // Non-renderable entities with visual editor presence (cameras, lights)
-            bool hasVisualComponent = entity.GetComponent<CameraComponent>() != null
-                                   || entity.GetComponent<LightComponent>() != null;
+            var cameraComponent = entity.GetComponent<CameraComponent>();
+            var lightComponent = entity.GetComponent<LightComponent>();
+            bool hasVisualComponent = (cameraComponent != null && cameraComponent.Enabled)
+                                   || (lightComponent != null && lightComponent.Enabled);
             if (hasVisualComponent)
             {
                 var pos = entity.Transform.WorldPosition;
-                var syntheticBB = new BoundingBox(
-                    pos - new Vector3(IconHalfExtent),
-                    pos + new Vector3(IconHalfExtent));
-
-                var collision = Raylib.GetRayCollisionBox(ray, syntheticBB);
-                if (collision.Hit && collision.Distance < closestDist)
+                var collision = Raylib.GetRayCollisionSphere(ray, pos, IconPickRadius);
+                if (collision.Hit && collision.Distance > HitDistanceEpsilon && collision.Distance < closestDist)
                 {
                     closestDist = collision.Distance;
                     closest = entity;
