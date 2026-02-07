@@ -231,10 +231,11 @@ public class AssetBrowserPanel
 
         foreach (var asset in db.GetAssets(filter))
         {
-            // Search filter
+            // Search filter — matches path, filename, or any tag name
             if (hasQuery
                 && !asset.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase)
-                && !asset.FileName.Contains(query, StringComparison.OrdinalIgnoreCase))
+                && !asset.FileName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !AssetMatchesTagSearch(tagDb, asset.RelativePath, query))
             {
                 continue;
             }
@@ -803,6 +804,21 @@ public class AssetBrowserPanel
         int g = Math.Clamp((int)(color.Y * 255f), 0, 255);
         int b = Math.Clamp((int)(color.Z * 255f), 0, 255);
         return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    private static bool AssetMatchesTagSearch(AssetTagDatabase? tagDb, string relativePath, string query)
+    {
+        if (tagDb == null)
+            return false;
+
+        var tags = tagDb.GetTagsForAsset(relativePath);
+        foreach (var tag in tags)
+        {
+            if (tag.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     private static uint ImGuiColorToU32(Vector4 color)
