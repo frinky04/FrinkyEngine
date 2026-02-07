@@ -36,10 +36,12 @@ public static class ProjectScaffolder
         var editorSettings = EditorProjectSettings.GetDefault();
         editorSettings.Save(projectDir);
 
-        // 2. Create .csproj with ProjectReference to FrinkyEngine.Core
+        // 2. Create .csproj with FrinkyEngine.Core reference
         var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
         var coreProjectPath = FindCoreProjectPath(projectDir);
-        var csprojContent = GenerateCsproj(coreProjectPath);
+        var csprojContent = coreProjectPath != null
+            ? GenerateCsprojWithProjectReference(coreProjectPath)
+            : GenerateCsprojWithAssemblyReference(PrepareLocalCoreAssemblyReference(projectDir));
         File.WriteAllText(csprojPath, csprojContent);
 
         // 3. Create default scene (camera + light, same as NewScene)
@@ -58,7 +60,7 @@ public static class ProjectScaffolder
         return fprojectPath;
     }
 
-    private static string FindCoreProjectPath(string projectDir)
+    private static string? FindCoreProjectPath(string projectDir)
     {
         // Walk up from the editor's base directory looking for FrinkyEngine.sln
         var dir = AppContext.BaseDirectory;
@@ -75,13 +77,33 @@ public static class ProjectScaffolder
             dir = Path.GetDirectoryName(dir);
         }
 
-        // Fallback: assume a relative path from project dir up to the engine
-        return Path.GetRelativePath(projectDir,
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-                "src", "FrinkyEngine.Core", "FrinkyEngine.Core.csproj"));
+        return null;
     }
 
-    private static string GenerateCsproj(string coreRelativePath)
+    private static string PrepareLocalCoreAssemblyReference(string projectDir)
+    {
+        var sourceCoreAssembly = typeof(Component).Assembly.Location;
+        if (!File.Exists(sourceCoreAssembly))
+            throw new FileNotFoundException("Could not locate FrinkyEngine.Core.dll for project scaffolding.", sourceCoreAssembly);
+
+        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
+        Directory.CreateDirectory(engineDir);
+
+        var targetCoreAssembly = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
+        File.Copy(sourceCoreAssembly, targetCoreAssembly, overwrite: true);
+
+        var sourcePdb = Path.ChangeExtension(sourceCoreAssembly, ".pdb");
+        if (File.Exists(sourcePdb))
+        {
+            var targetPdb = Path.Combine(engineDir, "FrinkyEngine.Core.pdb");
+            File.Copy(sourcePdb, targetPdb, overwrite: true);
+        }
+
+        FrinkyLog.Info("Scaffold: using local FrinkyEngine.Core assembly reference.");
+        return Path.GetRelativePath(projectDir, targetCoreAssembly).Replace('\\', '/');
+    }
+
+    private static string GenerateCsprojWithProjectReference(string coreRelativePath)
     {
         // Normalize to forward slashes for cross-platform .csproj compatibility
         var normalizedPath = coreRelativePath.Replace('\\', '/');
@@ -99,6 +121,31 @@ public static class ProjectScaffolder
               <ItemGroup>
                 <PackageReference Include="Raylib-cs" Version="7.0.2" />
                 <ProjectReference Include="{normalizedPath}" />
+              </ItemGroup>
+
+            </Project>
+            """;
+    }
+
+    private static string GenerateCsprojWithAssemblyReference(string coreHintPath)
+    {
+        return $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+                <Nullable>enable</Nullable>
+                <LangVersion>12</LangVersion>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <OutputType>Library</OutputType>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Raylib-cs" Version="7.0.2" />
+                <Reference Include="FrinkyEngine.Core">
+                  <HintPath>{coreHintPath}</HintPath>
+                  <Private>false</Private>
+                </Reference>
               </ItemGroup>
 
             </Project>
