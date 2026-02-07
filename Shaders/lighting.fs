@@ -42,8 +42,6 @@ void main()
 {
     vec4 texelColor = texture(texture0, fragTexCoord);
     vec3 normal = normalize(fragNormal);
-    vec3 viewDir = normalize(viewPos - fragPosition);
-
     vec3 lightEffect = ambient.rgb;
     ivec2 pixel = ivec2(clamp(gl_FragCoord.xy, vec2(0.0), vec2(screenSize) - vec2(1.0)));
     int topLeftY = (screenSize.y - 1) - pixel.y;
@@ -102,12 +100,7 @@ void main()
         float NdotL = max(dot(normal, lightDir), 0.0);
         vec3 diffuse = lightColor * NdotL * attenuation;
 
-        // Specular
-        vec3 reflectDir = reflect(-lightDir, normal);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-        vec3 specular = lightColor * spec * 0.5 * attenuation;
-
-        lightEffect += diffuse + specular;
+        lightEffect += diffuse;
     }
 
     finalColor = (texelColor * colDiffuse * fragColor) * vec4(lightEffect, 1.0);
