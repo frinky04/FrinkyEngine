@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Prefabs;
 using Raylib_cs;
 
@@ -87,7 +88,8 @@ public static class SceneSerializer
             Name = scene.Name,
             EditorCameraPosition = scene.EditorCameraPosition,
             EditorCameraYaw = scene.EditorCameraYaw,
-            EditorCameraPitch = scene.EditorCameraPitch
+            EditorCameraPitch = scene.EditorCameraPitch,
+            Physics = scene.PhysicsSettings.Clone()
         };
         foreach (var entity in scene.Entities)
         {
@@ -161,8 +163,10 @@ public static class SceneSerializer
             Name = data.Name,
             EditorCameraPosition = data.EditorCameraPosition,
             EditorCameraYaw = data.EditorCameraYaw,
-            EditorCameraPitch = data.EditorCameraPitch
+            EditorCameraPitch = data.EditorCameraPitch,
+            PhysicsSettings = data.Physics?.Clone() ?? new PhysicsSettings()
         };
+        scene.PhysicsSettings.Normalize();
 
         foreach (var entityData in data.Entities)
         {
@@ -303,6 +307,11 @@ public class SceneData
     /// Saved editor camera pitch angle.
     /// </summary>
     public float? EditorCameraPitch { get; set; }
+
+    /// <summary>
+    /// Scene physics configuration.
+    /// </summary>
+    public PhysicsSettings? Physics { get; set; } = new();
 
     /// <summary>
     /// Serialized root entities (children are nested within each entity).

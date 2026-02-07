@@ -169,6 +169,11 @@ jobs:
             **/*.csproj
             Directory.Build.props
 
+      - name: Ensure NuGet cache path exists
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:USERPROFILE\.nuget\packages" | Out-Null
+
       - name: Restore template project
         run: dotnet restore templates/FrinkyEngine.Templates/FrinkyEngine.Templates.csproj
 

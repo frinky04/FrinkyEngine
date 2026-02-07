@@ -257,6 +257,14 @@ public class MenuBar
                     _app.ToggleGameView();
                 }
 
+                if (ImGui.MenuItem(
+                        "Physics Hitboxes",
+                        KeybindManager.Instance.GetShortcutText(EditorAction.TogglePhysicsHitboxPreview),
+                        _app.IsPhysicsHitboxPreviewEnabled))
+                {
+                    _app.TogglePhysicsHitboxPreview();
+                }
+
                 ImGui.EndMenu();
             }
 

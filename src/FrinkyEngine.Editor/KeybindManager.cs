@@ -132,6 +132,7 @@ public class KeybindManager
         _bindings[EditorAction.CollapseSelection] = new Keybind(ImGuiKey.LeftArrow);
         _bindings[EditorAction.FocusHierarchySearch] = new Keybind(ImGuiKey.F, ctrl: true);
         _bindings[EditorAction.ToggleGameView] = new Keybind(ImGuiKey.G);
+        _bindings[EditorAction.TogglePhysicsHitboxPreview] = new Keybind(ImGuiKey.F8);
         _bindings[EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.O, ctrl: true, shift: true);
         _bindings[EditorAction.OpenProjectInVSCode] = new Keybind(ImGuiKey.V, ctrl: true, shift: true);
         _bindings[EditorAction.ExportGame] = new Keybind(ImGuiKey.E, ctrl: true, shift: true);

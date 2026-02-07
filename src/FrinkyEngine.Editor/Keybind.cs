@@ -26,6 +26,7 @@ public enum EditorAction
     CollapseSelection,
     FocusHierarchySearch,
     ToggleGameView,
+    TogglePhysicsHitboxPreview,
     OpenAssetsFolder,
     OpenProjectInVSCode,
     ExportGame,

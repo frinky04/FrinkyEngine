@@ -52,6 +52,7 @@ public class EditorApplication
     public bool ShouldResetLayout { get; set; }
     public bool IsGameViewEnabled { get; private set; }
     public bool IsSceneDirty { get; private set; }
+    public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
 
     private string? _playModeSnapshot;
     private Task<bool>? _buildTask;
@@ -341,6 +342,22 @@ public class EditorApplication
 
         EditorCamera.FocusOn(center, radius);
     }
+  
+    public void TogglePhysicsHitboxPreview()
+    {
+        IsPhysicsHitboxPreviewEnabled = !IsPhysicsHitboxPreviewEnabled;
+
+        if (ProjectDirectory != null && ProjectEditorSettings != null)
+        {
+            ProjectEditorSettings.ShowPhysicsHitboxes = IsPhysicsHitboxPreviewEnabled;
+            ProjectEditorSettings.Save(ProjectDirectory);
+        }
+
+        NotificationManager.Instance.Post(
+            IsPhysicsHitboxPreviewEnabled ? "Physics hitbox preview enabled" : "Physics hitbox preview disabled",
+            NotificationType.Info,
+            2.0f);
+    }
 
     public void CreateAndOpenProject(string parentDirectory, string projectName)
     {
@@ -363,11 +380,13 @@ public class EditorApplication
         PrefabDatabase.Instance.Clear();
         _sessionHierarchyStates.Clear();
         _hierarchyStateDirty = false;
+        IsPhysicsHitboxPreviewEnabled = false;
 
         if (ProjectDirectory != null)
         {
             ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
+            IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
@@ -648,6 +667,7 @@ public class EditorApplication
             HierarchyPanel.FocusSearch();
         });
         km.RegisterAction(EditorAction.ToggleGameView, () => ToggleGameView());
+        km.RegisterAction(EditorAction.TogglePhysicsHitboxPreview, () => TogglePhysicsHitboxPreview());
 
         km.RegisterAction(EditorAction.OpenAssetsFolder, () =>
         {
@@ -1229,6 +1249,7 @@ public class EditorApplication
         settings.Normalize();
         settings.Save(ProjectDirectory);
         ProjectEditorSettings = settings;
+        IsPhysicsHitboxPreviewEnabled = settings.ShowPhysicsHitboxes;
         _hierarchyStateDirty = false;
         ApplyEditorSettingsImmediate();
     }
