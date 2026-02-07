@@ -324,6 +324,8 @@ public class EditorApplication
             _assetFileWatcher = new AssetFileWatcher();
             _assetFileWatcher.Watch(assetsPath);
 
+            ProjectScaffolder.UpdateCoreAssemblyIfNeeded(ProjectDirectory);
+
             if (!string.IsNullOrEmpty(ProjectFile.GameAssembly))
             {
                 var dllPath = Path.Combine(ProjectDirectory, ProjectFile.GameAssembly);

@@ -39,26 +39,29 @@ public static class ProjectScaffolder
 
         // 2. Create .csproj with FrinkyEngine.Core reference
         var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
-        var coreProjectPath = FindCoreProjectPath(projectDir);
-        var csprojContent = coreProjectPath != null
-            ? GenerateCsprojWithProjectReference(coreProjectPath)
+        var coreRelativePath = FindCoreProjectPath(projectDir);
+        var csprojContent = coreRelativePath != null
+            ? GenerateCsprojWithProjectReference(coreRelativePath)
             : GenerateCsprojWithAssemblyReference(PrepareLocalCoreAssemblyReference(projectDir));
         File.WriteAllText(csprojPath, csprojContent);
 
-        // 3. Create default scene (camera + light, same as NewScene)
+        // 3. Create .sln and restore NuGet packages
+        CreateSolutionAndRestore(projectDir, projectName);
+
+        // 4. Create default scene (camera + light, same as NewScene)
         var scenesDir = Path.Combine(projectDir, "Assets", "Scenes");
         Directory.CreateDirectory(scenesDir);
         var scenePath = Path.Combine(scenesDir, "MainScene.fscene");
         var scene = BuildDefaultScene();
         SceneSerializer.Save(scene, scenePath);
 
-        // 4. Create example RotatorComponent script
+        // 5. Create example RotatorComponent script
         var scriptsDir = Path.Combine(projectDir, "Assets", "Scripts");
         Directory.CreateDirectory(scriptsDir);
         var scriptPath = Path.Combine(scriptsDir, "RotatorComponent.cs");
         File.WriteAllText(scriptPath, GenerateRotatorComponent(projectName));
 
-        // 5. Write .gitignore and initialize git repo
+        // 6. Write .gitignore and initialize git repo
         var gitignorePath = Path.Combine(projectDir, ".gitignore");
         File.WriteAllText(gitignorePath, GenerateGitignore());
         InitializeGitRepo(projectDir);
@@ -86,24 +89,71 @@ public static class ProjectScaffolder
         return null;
     }
 
-    private static string PrepareLocalCoreAssemblyReference(string projectDir)
+    /// <summary>
+    /// Copies FrinkyEngine.Core DLL (and PDB/XML if present) into the given engine directory.
+    /// Skips copy if the target DLL is already up to date.
+    /// Returns true if files were copied, false if source doesn't exist or target is already current.
+    /// </summary>
+    internal static bool CopyCoreAssemblyFiles(string engineDir)
     {
-        var sourceCoreAssembly = typeof(Component).Assembly.Location;
-        if (!File.Exists(sourceCoreAssembly))
-            throw new FileNotFoundException("Could not locate FrinkyEngine.Core.dll for project scaffolding.", sourceCoreAssembly);
+        var sourceDll = typeof(Component).Assembly.Location;
+        if (string.IsNullOrEmpty(sourceDll) || !File.Exists(sourceDll))
+            return false;
 
-        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
         Directory.CreateDirectory(engineDir);
 
-        var targetCoreAssembly = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
-        File.Copy(sourceCoreAssembly, targetCoreAssembly, overwrite: true);
-
-        var sourcePdb = Path.ChangeExtension(sourceCoreAssembly, ".pdb");
-        if (File.Exists(sourcePdb))
+        var targetDll = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
+        if (File.Exists(targetDll) &&
+            File.GetLastWriteTimeUtc(targetDll) >= File.GetLastWriteTimeUtc(sourceDll))
         {
-            var targetPdb = Path.Combine(engineDir, "FrinkyEngine.Core.pdb");
-            File.Copy(sourcePdb, targetPdb, overwrite: true);
+            return false;
         }
+
+        File.Copy(sourceDll, targetDll, overwrite: true);
+
+        var sourcePdb = Path.ChangeExtension(sourceDll, ".pdb");
+        if (File.Exists(sourcePdb))
+            File.Copy(sourcePdb, Path.Combine(engineDir, "FrinkyEngine.Core.pdb"), overwrite: true);
+
+        var sourceXml = Path.ChangeExtension(sourceDll, ".xml");
+        if (File.Exists(sourceXml))
+            File.Copy(sourceXml, Path.Combine(engineDir, "FrinkyEngine.Core.xml"), overwrite: true);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Updates .frinky/engine/ assemblies if the editor ships a newer Core DLL.
+    /// Safe to call on any project — returns silently if the directory doesn't exist
+    /// (i.e. the project uses a ProjectReference to engine source).
+    /// </summary>
+    public static void UpdateCoreAssemblyIfNeeded(string projectDir)
+    {
+        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
+        if (!Directory.Exists(engineDir))
+            return;
+
+        try
+        {
+            if (CopyCoreAssemblyFiles(engineDir))
+                FrinkyLog.Info("Updated .frinky/engine/ assemblies to match current editor.");
+            else
+                FrinkyLog.Info(".frinky/engine/ assemblies are up to date.");
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Could not update .frinky/engine/ assemblies: {ex.Message}");
+        }
+    }
+
+    private static string PrepareLocalCoreAssemblyReference(string projectDir)
+    {
+        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
+        CopyCoreAssemblyFiles(engineDir);
+
+        var targetCoreAssembly = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
+        if (!File.Exists(targetCoreAssembly))
+            throw new FileNotFoundException("Could not locate FrinkyEngine.Core.dll for project scaffolding.", targetCoreAssembly);
 
         FrinkyLog.Info("Scaffold: using local FrinkyEngine.Core assembly reference.");
         return Path.GetRelativePath(projectDir, targetCoreAssembly).Replace('\\', '/');
@@ -228,6 +278,21 @@ public static class ProjectScaffolder
             """;
     }
 
+    private static void CreateSolutionAndRestore(string projectDir, string projectName)
+    {
+        try
+        {
+            RunDotnet(projectDir, $"new sln -n \"{projectName}\"");
+            RunDotnet(projectDir, $"sln \"{projectName}.sln\" add \"{projectName}.csproj\"");
+            RunDotnet(projectDir, "restore");
+            FrinkyLog.Info("Scaffold: created solution and restored packages.");
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Scaffold: could not create solution or restore packages (dotnet SDK may not be installed): {ex.Message}");
+        }
+    }
+
     private static void InitializeGitRepo(string projectDir)
     {
         try
@@ -240,6 +305,29 @@ public static class ProjectScaffolder
         catch (Exception ex)
         {
             FrinkyLog.Warning($"Scaffold: could not initialize git repo (git may not be installed): {ex.Message}");
+        }
+    }
+
+    private static void RunDotnet(string workingDirectory, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(psi)!;
+        process.WaitForExit(60_000);
+
+        if (process.ExitCode != 0)
+        {
+            var stderr = process.StandardError.ReadToEnd();
+            throw new InvalidOperationException($"dotnet {arguments} failed: {stderr}");
         }
     }
 

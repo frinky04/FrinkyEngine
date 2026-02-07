@@ -146,14 +146,10 @@ public static class ScriptBuilder
 
         if (!hasValidProjectReference && !hasValidAssemblyReference)
         {
-            var sourceCoreAssembly = typeof(Component).Assembly.Location;
-            if (File.Exists(sourceCoreAssembly))
+            var localEngineDir = Path.Combine(projectDir, ".frinky", "engine");
+            if (ProjectScaffolder.CopyCoreAssemblyFiles(localEngineDir))
             {
-                var localEngineDir = Path.Combine(projectDir, ".frinky", "engine");
-                Directory.CreateDirectory(localEngineDir);
                 var localCoreAssembly = Path.Combine(localEngineDir, "FrinkyEngine.Core.dll");
-                File.Copy(sourceCoreAssembly, localCoreAssembly, overwrite: true);
-
                 var relativeHintPath = Path.GetRelativePath(projectDir, localCoreAssembly).Replace('\\', '/');
                 EnsureAssemblyReference(root, ns, relativeHintPath);
                 changed = true;
