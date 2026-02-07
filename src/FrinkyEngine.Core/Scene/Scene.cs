@@ -1,5 +1,6 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Physics;
 
 namespace FrinkyEngine.Core.Scene;
 
@@ -7,7 +8,7 @@ namespace FrinkyEngine.Core.Scene;
 /// A container of <see cref="Entity"/> instances that make up a game level or environment.
 /// Maintains quick-access lists for cameras, lights, and renderables.
 /// </summary>
-public class Scene
+public class Scene : IDisposable
 {
     /// <summary>
     /// Display name of this scene.
@@ -36,6 +37,11 @@ public class Scene
     /// </summary>
     public float? EditorCameraPitch { get; set; }
 
+    /// <summary>
+    /// Physics settings used by this scene.
+    /// </summary>
+    public PhysicsSettings PhysicsSettings { get; set; } = new();
+
     private readonly List<Entity> _entities = new();
 
     /// <summary>
@@ -59,6 +65,9 @@ public class Scene
     /// All active <see cref="RenderableComponent"/> instances in the scene.
     /// </summary>
     public IReadOnlyList<RenderableComponent> Renderables => _registry.GetComponents<RenderableComponent>();
+
+    internal PhysicsSystem? PhysicsSystem { get; private set; }
+    private bool _started;
 
     /// <summary>
     /// Gets the first enabled camera marked as <see cref="CameraComponent.IsMain"/>, or <c>null</c> if none exists.
@@ -103,6 +112,9 @@ public class Scene
 
         foreach (var c in entity.Components)
             _registry.Register(c);
+
+        if (_started)
+            PhysicsSystem?.OnComponentStateChanged();
     }
 
     /// <summary>
@@ -120,6 +132,8 @@ public class Scene
             var current = subtree[i];
             if (current.Scene != this)
                 continue;
+
+            PhysicsSystem?.OnEntityRemoved(current);
 
             current.Transform.SetParent(null);
 
@@ -142,11 +156,21 @@ public class Scene
     internal void OnComponentAdded(Entity entity, Component component)
     {
         _registry.Register(component);
+        if (_started)
+            PhysicsSystem?.OnComponentStateChanged();
     }
 
     internal void OnComponentRemoved(Entity entity, Component component)
     {
         _registry.Unregister(component);
+        if (_started)
+            PhysicsSystem?.OnComponentStateChanged();
+    }
+
+    internal void NotifyPhysicsStateChanged()
+    {
+        if (_started)
+            PhysicsSystem?.OnComponentStateChanged();
     }
 
     /// <summary>
@@ -154,11 +178,20 @@ public class Scene
     /// </summary>
     public void Start()
     {
+        if (_started)
+            return;
+
+        PhysicsSettings.Normalize();
+        PhysicsSystem ??= new PhysicsSystem(this);
+        PhysicsSystem.Initialize();
+
         foreach (var entity in _entities)
         {
             if (entity.Active)
                 entity.StartComponents();
         }
+
+        _started = true;
     }
 
     /// <summary>
@@ -173,10 +206,22 @@ public class Scene
                 entity.UpdateComponents(dt);
         }
 
+        PhysicsSystem?.Step(dt);
+
         foreach (var entity in _entities)
         {
             if (entity.Active)
                 entity.LateUpdateComponents(dt);
         }
+    }
+
+    /// <summary>
+    /// Releases runtime resources associated with this scene (for example physics simulation state).
+    /// </summary>
+    public void Dispose()
+    {
+        PhysicsSystem?.Dispose();
+        PhysicsSystem = null;
+        _started = false;
     }
 }
