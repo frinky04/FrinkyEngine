@@ -118,6 +118,7 @@ public class KeybindManager
         _bindings[EditorAction.Redo] = new Keybind(ImGuiKey.Y, ctrl: true);
         _bindings[EditorAction.BuildScripts] = new Keybind(ImGuiKey.B, ctrl: true);
         _bindings[EditorAction.PlayStop] = new Keybind(ImGuiKey.P, ctrl: true);
+        _bindings[EditorAction.SimulateStop] = new Keybind(ImGuiKey.P, ctrl: true, shift: true);
         _bindings[EditorAction.DeleteEntity] = new Keybind(ImGuiKey.Delete);
         _bindings[EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true);
         _bindings[EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2);

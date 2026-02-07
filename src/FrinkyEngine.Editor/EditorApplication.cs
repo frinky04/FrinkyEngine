@@ -16,7 +16,8 @@ namespace FrinkyEngine.Editor;
 public enum EditorMode
 {
     Edit,
-    Play
+    Play,
+    Simulate
 }
 
 public class EditorApplication
@@ -53,8 +54,11 @@ public class EditorApplication
     public bool IsGameViewEnabled { get; private set; }
     public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
+    public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
+    public bool CanEditScene => Mode is EditorMode.Edit or EditorMode.Simulate;
+    public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;
 
-    private string? _playModeSnapshot;
+    private string? _runtimeModeSnapshot;
     private Task<bool>? _buildTask;
     private EditorNotification? _buildNotification;
     private Task<bool>? _exportTask;
@@ -241,7 +245,7 @@ public class EditorApplication
 
         FlushHierarchyStateIfDirty();
 
-        if (Mode == EditorMode.Play && CurrentScene != null)
+        if (IsInRuntimeMode && CurrentScene != null)
         {
             CurrentScene.Update(dt);
         }
@@ -262,35 +266,58 @@ public class EditorApplication
 
     public void EnterPlayMode()
     {
-        if (Mode == EditorMode.Play || CurrentScene == null) return;
+        EnterRuntimeMode(EditorMode.Play);
+    }
 
-        _playModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
+    public void EnterSimulateMode()
+    {
+        EnterRuntimeMode(EditorMode.Simulate);
+    }
+
+    private void EnterRuntimeMode(EditorMode targetMode)
+    {
+        if (targetMode is not (EditorMode.Play or EditorMode.Simulate))
+            return;
+        if (Mode != EditorMode.Edit || CurrentScene == null)
+            return;
+
+        _runtimeModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
         CurrentScene.Start();
-        Mode = EditorMode.Play;
-        FrinkyLog.Info("Entered Play mode.");
-        NotificationManager.Instance.Post("Play mode", NotificationType.Info);
+        Mode = targetMode;
+
+        var label = targetMode == EditorMode.Play ? "Play" : "Simulate";
+        FrinkyLog.Info($"Entered {label} mode.");
+        NotificationManager.Instance.Post($"{label} mode", NotificationType.Info);
     }
 
     public void ExitPlayMode()
     {
-        if (Mode == EditorMode.Edit) return;
+        ExitRuntimeMode();
+    }
 
-        if (_playModeSnapshot != null)
+    public void ExitRuntimeMode()
+    {
+        if (!IsInRuntimeMode)
+            return;
+
+        var exitingMode = Mode;
+        if (_runtimeModeSnapshot != null)
         {
-            var restored = SceneSerializer.DeserializeFromString(_playModeSnapshot);
+            var restored = SceneSerializer.DeserializeFromString(_runtimeModeSnapshot);
             if (restored != null)
             {
                 restored.FilePath = CurrentScene?.FilePath ?? string.Empty;
                 CurrentScene = restored;
                 SceneManager.Instance.SetActiveScene(restored);
             }
-            _playModeSnapshot = null;
+            _runtimeModeSnapshot = null;
         }
 
         ClearSelection();
         Mode = EditorMode.Edit;
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
-        FrinkyLog.Info("Exited Play mode.");
+        var label = exitingMode == EditorMode.Play ? "Play" : "Simulate";
+        FrinkyLog.Info($"Exited {label} mode.");
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
 
@@ -305,7 +332,7 @@ public class EditorApplication
 
     public void FrameSelected()
     {
-        if (Mode != EditorMode.Edit || _selectedEntities.Count == 0) return;
+        if (!CanUseEditorViewportTools || _selectedEntities.Count == 0) return;
 
         var min = new System.Numerics.Vector3(float.MaxValue);
         var max = new System.Numerics.Vector3(float.MinValue);
@@ -611,8 +638,16 @@ public class EditorApplication
         {
             if (Mode == EditorMode.Edit)
                 EnterPlayMode();
-            else
-                ExitPlayMode();
+            else if (IsInRuntimeMode)
+                ExitRuntimeMode();
+        });
+
+        km.RegisterAction(EditorAction.SimulateStop, () =>
+        {
+            if (Mode == EditorMode.Edit)
+                EnterSimulateMode();
+            else if (IsInRuntimeMode)
+                ExitRuntimeMode();
         });
 
         km.RegisterAction(EditorAction.DeleteEntity, () =>
@@ -627,6 +662,9 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.RenameEntity, () =>
         {
+            if (!CanEditScene)
+                return;
+
             if (HierarchyPanel.IsWindowFocused)
                 HierarchyPanel.BeginRenameSelected();
             else if (SelectedEntities.Count == 1)
@@ -750,7 +788,7 @@ public class EditorApplication
 
     public void CreatePrefabFromSelection()
     {
-        if (Mode != EditorMode.Edit || SelectedEntity == null)
+        if (!CanEditScene || SelectedEntity == null)
             return;
 
         RecordUndo();
@@ -764,7 +802,7 @@ public class EditorApplication
 
     public void InstantiatePrefabAsset(string assetPath)
     {
-        if (Mode != EditorMode.Edit || CurrentScene == null)
+        if (!CanEditScene || CurrentScene == null)
             return;
 
         RecordUndo();
@@ -779,7 +817,7 @@ public class EditorApplication
 
     public void ApplySelectedPrefab()
     {
-        if (Mode != EditorMode.Edit || SelectedEntity == null)
+        if (!CanEditScene || SelectedEntity == null)
             return;
 
         RecordUndo();
@@ -792,7 +830,7 @@ public class EditorApplication
 
     public void RevertSelectedPrefab()
     {
-        if (Mode != EditorMode.Edit || SelectedEntity == null)
+        if (!CanEditScene || SelectedEntity == null)
             return;
 
         if (Prefabs.RevertPrefab(SelectedEntity))
@@ -801,7 +839,7 @@ public class EditorApplication
 
     public void MakeUniqueSelectedPrefab()
     {
-        if (Mode != EditorMode.Edit || SelectedEntity == null)
+        if (!CanEditScene || SelectedEntity == null)
             return;
 
         Prefabs.MakeUnique(SelectedEntity);
@@ -809,7 +847,7 @@ public class EditorApplication
 
     public void UnpackSelectedPrefab()
     {
-        if (Mode != EditorMode.Edit || SelectedEntity == null)
+        if (!CanEditScene || SelectedEntity == null)
             return;
 
         if (Prefabs.UnpackPrefab(SelectedEntity))
@@ -878,7 +916,7 @@ public class EditorApplication
 
     public void DeleteSelectedEntities()
     {
-        if (Mode != EditorMode.Edit || CurrentScene == null || _selectedEntities.Count == 0)
+        if (!CanEditScene || CurrentScene == null || _selectedEntities.Count == 0)
             return;
 
         var entitiesToDelete = _selectedEntities.Where(e => e.Scene == CurrentScene).ToList();
@@ -895,7 +933,7 @@ public class EditorApplication
 
     public void DuplicateSelectedEntities()
     {
-        if (Mode != EditorMode.Edit || CurrentScene == null || _selectedEntities.Count == 0)
+        if (!CanEditScene || CurrentScene == null || _selectedEntities.Count == 0)
             return;
 
         var selected = _selectedEntities.Where(e => e.Scene == CurrentScene).ToList();

@@ -287,16 +287,21 @@ public class MenuBar
 
             ImGui.Separator();
 
-            var shortcut = KeybindManager.Instance.GetShortcutText(EditorAction.PlayStop);
+            var playShortcut = KeybindManager.Instance.GetShortcutText(EditorAction.PlayStop);
+            var simulateShortcut = KeybindManager.Instance.GetShortcutText(EditorAction.SimulateStop);
             if (_app.Mode == EditorMode.Edit)
             {
-                if (ImGui.MenuItem("Play", shortcut))
+                if (ImGui.MenuItem("Play", playShortcut))
                     _app.EnterPlayMode();
+
+                ImGui.SameLine();
+                if (ImGui.MenuItem("Simulate", simulateShortcut))
+                    _app.EnterSimulateMode();
             }
             else
             {
-                if (ImGui.MenuItem("Stop", shortcut))
-                    _app.ExitPlayMode();
+                if (ImGui.MenuItem("Stop", playShortcut))
+                    _app.ExitRuntimeMode();
             }
 
             ImGui.EndMainMenuBar();

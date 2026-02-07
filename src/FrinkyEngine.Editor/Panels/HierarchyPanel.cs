@@ -148,7 +148,12 @@ public class HierarchyPanel
 
         _app.CleanupHierarchyStateForCurrentScene();
         var state = _app.GetOrCreateHierarchySceneState();
+        bool canEditScene = _app.CanEditScene;
 
+        if (!canEditScene)
+            ImGui.TextDisabled("Editing is disabled in Play mode.");
+
+        ImGui.BeginDisabled(!canEditScene);
         DrawToolbar(state);
         DrawCreateFolderPopup(state);
         ImGui.Separator();
@@ -178,6 +183,7 @@ public class HierarchyPanel
 
         HandleKeyboardNavigation(visibleEntities);
         _lastVisibleEntities = visibleEntities;
+        ImGui.EndDisabled();
         ImGui.End();
     }
 

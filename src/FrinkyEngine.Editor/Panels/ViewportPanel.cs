@@ -75,7 +75,7 @@ public class ViewportPanel
 
                 if (_app.CurrentScene != null)
                 {
-                    bool isEditorMode = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
+                    bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     var textureToDisplay = _renderTexture;
 
@@ -155,7 +155,7 @@ public class ViewportPanel
                 }
                 else
                 {
-                    bool isEditorMode = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
+                    bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
                     var imageScreenPos = ImGui.GetCursorScreenPos();
                     rlImGui.ImageRenderTexture(_renderTexture);
                     bool toolbarHovered = false;
@@ -176,16 +176,16 @@ public class ViewportPanel
                 }
 
                 // Gizmo drag batching for undo
-                if (gizmo.IsDragging && !_wasGizmoDragging)
+                if (_app.Mode == EditorMode.Edit && gizmo.IsDragging && !_wasGizmoDragging)
                 {
                     _app.UndoRedo.BeginBatch(_app.GetSelectedEntityIds());
                 }
-                else if (!gizmo.IsDragging && _wasGizmoDragging)
+                else if (_app.Mode == EditorMode.Edit && !gizmo.IsDragging && _wasGizmoDragging)
                 {
                     _app.Prefabs.RecalculateOverridesForScene();
                     _app.UndoRedo.EndBatch(_app.CurrentScene, _app.GetSelectedEntityIds());
                 }
-                _wasGizmoDragging = gizmo.IsDragging;
+                _wasGizmoDragging = _app.Mode == EditorMode.Edit && gizmo.IsDragging;
             }
             else
             {
@@ -199,7 +199,7 @@ public class ViewportPanel
         ImGui.End();
         ImGui.PopStyleVar();
 
-        _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.Mode == EditorMode.Edit);
+        _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.CanUseEditorViewportTools);
     }
 
     private static bool DrawViewportToolbar(GizmoSystem gizmo)
@@ -328,7 +328,7 @@ public class ViewportPanel
         if (_app.IsPhysicsHitboxPreviewEnabled)
             return PhysicsHitboxDrawMode.All;
 
-        bool isDefaultEditorView = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
+        bool isDefaultEditorView = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
         return isDefaultEditorView ? PhysicsHitboxDrawMode.SelectedOnly : PhysicsHitboxDrawMode.Off;
     }
 

@@ -24,7 +24,12 @@ public class InspectorPanel
     {
         if (ImGui.Begin("Inspector"))
         {
+            if (!_app.CanEditScene)
+                ImGui.TextDisabled("Editing is disabled in Play mode.");
+
+            ImGui.BeginDisabled(!_app.CanEditScene);
             DrawInspectorContents();
+            ImGui.EndDisabled();
         }
         ImGui.End();
     }

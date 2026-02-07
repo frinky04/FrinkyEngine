@@ -12,6 +12,7 @@ public enum EditorAction
     Redo,
     BuildScripts,
     PlayStop,
+    SimulateStop,
     DeleteEntity,
     DuplicateEntity,
     RenameEntity,

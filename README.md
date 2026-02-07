@@ -255,9 +255,11 @@ Main panels:
 - **Console**: log stream
 - **Performance**: optional performance panel
 
-Play mode behavior:
-- Editor snapshots the current scene before entering play mode
-- Runtime changes made during play are restored on stop
+Runtime preview modes:
+- **Play** (`Ctrl+P`): runs gameplay from the scene's main camera and locks scene editing.
+- **Simulate** (`Ctrl+Shift+P`): runs gameplay while keeping editor camera/tools available (respects `Game View` toggle for overlays).
+- Editor snapshots the current scene before entering either runtime mode.
+- Runtime and scene edits made during Play/Simulate are restored on Stop.
 
 ## Architecture Snapshot
 
