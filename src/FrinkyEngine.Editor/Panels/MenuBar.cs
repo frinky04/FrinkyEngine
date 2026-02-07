@@ -59,6 +59,7 @@ public class MenuBar
                             ? _app.CurrentScene.FilePath
                             : "scene.fscene";
                         SceneManager.Instance.SaveScene(path);
+                        _app.ClearSceneDirty();
                         FrinkyLog.Info($"Scene saved to: {path}");
                         NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
                     }
@@ -385,7 +386,7 @@ public class MenuBar
             path += ".fscene";
 
         SceneManager.Instance.SaveScene(path);
-        _app.UpdateWindowTitle();
+        _app.ClearSceneDirty();
         FrinkyLog.Info($"Scene saved to: {path}");
         NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
     }

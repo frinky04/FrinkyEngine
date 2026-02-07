@@ -38,6 +38,17 @@ public class EditorCamera
         SetState(new Vector3(5f, 5f, 5f), -135f, -30f);
     }
 
+    public void FocusOn(Vector3 center, float radius)
+    {
+        float fovRad = 60f * FrinkyEngine.Core.FrinkyMath.Deg2Rad;
+        float distance = (radius * 1.2f) / MathF.Tan(fovRad * 0.5f);
+        distance = MathF.Max(distance, 0.5f);
+
+        var forward = GetForward();
+        _position = center - forward * distance;
+        UpdateCamera3D();
+    }
+
     public void Update(float dt, bool isViewportHovered)
     {
         bool rightMouse = Raylib.IsMouseButtonDown(MouseButton.Right);

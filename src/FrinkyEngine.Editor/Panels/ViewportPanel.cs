@@ -111,7 +111,7 @@ public class ViewportPanel
                     rlImGui.ImageRenderTexture(textureToDisplay);
                     bool toolbarHovered = false;
                     if (isEditorMode)
-                        toolbarHovered = DrawTransformModeToggle(gizmo);
+                        toolbarHovered = DrawViewportToolbar(gizmo);
 
                     // Gizmo input: compute viewport-local mouse position
                     _isHovered = ImGui.IsWindowHovered();
@@ -154,7 +154,7 @@ public class ViewportPanel
                     rlImGui.ImageRenderTexture(_renderTexture);
                     bool toolbarHovered = false;
                     if (isEditorMode)
-                        toolbarHovered = DrawTransformModeToggle(gizmo);
+                        toolbarHovered = DrawViewportToolbar(gizmo);
 
                     _isHovered = ImGui.IsWindowHovered();
                     if (_isHovered && !toolbarHovered && isEditorMode)
@@ -196,21 +196,125 @@ public class ViewportPanel
         _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.Mode == EditorMode.Edit);
     }
 
-    private static bool DrawTransformModeToggle(GizmoSystem gizmo)
+    private static bool DrawViewportToolbar(GizmoSystem gizmo)
     {
-        ImGui.SetCursorPos(new Vector2(10, 10));
-        var label = gizmo.MultiMode == MultiTransformMode.Independent
-            ? "Transform: Independent"
-            : "Transform: Relative";
+        ImGui.SetCursorPos(new Vector2(8, 8));
+        bool anyHovered = false;
 
-        if (ImGui.Button(label))
-        {
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 4));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(2, 0));
+
+        // Gizmo mode buttons (T/R/S)
+        anyHovered |= DrawToolbarToggle("T", gizmo.Mode == GizmoMode.Translate, () => gizmo.Mode = GizmoMode.Translate);
+        ImGui.SameLine();
+        anyHovered |= DrawToolbarToggle("R", gizmo.Mode == GizmoMode.Rotate, () => gizmo.Mode = GizmoMode.Rotate);
+        ImGui.SameLine();
+        anyHovered |= DrawToolbarToggle("S", gizmo.Mode == GizmoMode.Scale, () => gizmo.Mode = GizmoMode.Scale);
+
+        // Separator
+        ImGui.SameLine(0, 12);
+        anyHovered |= DrawToolbarSeparator();
+
+        // Space toggle (World/Local)
+        ImGui.SameLine(0, 12);
+        var spaceLabel = gizmo.Space == GizmoSpace.World ? "World" : "Local";
+        if (ImGui.Button(spaceLabel))
+            gizmo.Space = gizmo.Space == GizmoSpace.World ? GizmoSpace.Local : GizmoSpace.World;
+        anyHovered |= ImGui.IsItemHovered();
+
+        // Separator
+        ImGui.SameLine(0, 12);
+        anyHovered |= DrawToolbarSeparator();
+
+        // Snap controls
+        ImGui.SameLine(0, 12);
+        anyHovered |= DrawSnapToggleAndPreset("Pos", ref gizmo.SnapTranslation, ref gizmo.TranslationSnapValue, GizmoSystem.TranslationSnapPresets);
+        ImGui.SameLine(0, 8);
+        anyHovered |= DrawSnapToggleAndPreset("Rot", ref gizmo.SnapRotation, ref gizmo.RotationSnapValue, GizmoSystem.RotationSnapPresets);
+        ImGui.SameLine(0, 8);
+        anyHovered |= DrawSnapToggleAndPreset("Scl", ref gizmo.SnapScale, ref gizmo.ScaleSnapValue, GizmoSystem.ScaleSnapPresets);
+
+        // Separator
+        ImGui.SameLine(0, 12);
+        anyHovered |= DrawToolbarSeparator();
+
+        // Multi-transform mode
+        ImGui.SameLine(0, 12);
+        var multiLabel = gizmo.MultiMode == MultiTransformMode.Independent ? "Independent" : "Relative";
+        if (ImGui.Button(multiLabel))
             gizmo.MultiMode = gizmo.MultiMode == MultiTransformMode.Independent
                 ? MultiTransformMode.Relative
                 : MultiTransformMode.Independent;
+        anyHovered |= ImGui.IsItemHovered();
+
+        ImGui.PopStyleVar(2);
+
+        return anyHovered;
+    }
+
+    private static bool DrawToolbarToggle(string label, bool active, Action onClick)
+    {
+        if (active)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetColorU32(ImGuiCol.ButtonActive));
         }
 
+        if (ImGui.Button(label))
+            onClick();
+
+        if (active)
+            ImGui.PopStyleColor();
+
         return ImGui.IsItemHovered();
+    }
+
+    private static bool DrawToolbarSeparator()
+    {
+        var pos = ImGui.GetCursorScreenPos();
+        var drawList = ImGui.GetWindowDrawList();
+        float height = ImGui.GetFrameHeight();
+        drawList.AddLine(
+            new Vector2(pos.X, pos.Y),
+            new Vector2(pos.X, pos.Y + height),
+            ImGui.GetColorU32(ImGuiCol.Separator));
+        ImGui.Dummy(new Vector2(1, height));
+        return false;
+    }
+
+    private static bool DrawSnapToggleAndPreset(string label, ref bool snapEnabled, ref float snapValue, float[] presets)
+    {
+        bool hovered = false;
+
+        // Toggle button
+        bool wasEnabled = snapEnabled;
+        if (wasEnabled)
+            ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetColorU32(ImGuiCol.ButtonActive));
+        if (ImGui.Button(label))
+            snapEnabled = !snapEnabled;
+        if (wasEnabled)
+            ImGui.PopStyleColor();
+        hovered |= ImGui.IsItemHovered();
+
+        // Dropdown for presets
+        ImGui.SameLine(0, 2);
+        ImGui.PushItemWidth(56);
+        var previewText = snapValue.ToString("G4");
+        if (ImGui.BeginCombo($"##{label}Snap", previewText, ImGuiComboFlags.NoArrowButton))
+        {
+            foreach (var preset in presets)
+            {
+                bool selected = MathF.Abs(preset - snapValue) < 1e-6f;
+                if (ImGui.Selectable(preset.ToString("G4"), selected))
+                    snapValue = preset;
+                if (selected)
+                    ImGui.SetItemDefaultFocus();
+            }
+            ImGui.EndCombo();
+        }
+        hovered |= ImGui.IsItemHovered();
+        ImGui.PopItemWidth();
+
+        return hovered;
     }
 
     private void EnsureSelectionOutlineShaderLoaded()

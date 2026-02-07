@@ -32,6 +32,9 @@ public static unsafe class ImGuiDockBuilder
     [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
     private static extern void igDockBuilderFinish(uint node_id);
 
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr igDockBuilderGetNode(uint node_id);
+
     public static uint AddNode(uint nodeId, ImGuiDockNodeFlags flags = ImGuiDockNodeFlags.None)
         => igDockBuilderAddNode(nodeId, flags);
 
@@ -56,4 +59,13 @@ public static unsafe class ImGuiDockBuilder
 
     public static void Finish(uint nodeId)
         => igDockBuilderFinish(nodeId);
+
+    public static void SetNodeLocalFlags(uint nodeId, ImGuiDockNodeFlags flags)
+    {
+        var node = igDockBuilderGetNode(nodeId);
+        if (node == IntPtr.Zero) return;
+        // ImGuiDockNode layout: ID(4) + SharedFlags(4) + LocalFlags(4)
+        var localFlagsPtr = (int*)((byte*)node + 8);
+        *localFlagsPtr |= (int)flags;
+    }
 }
