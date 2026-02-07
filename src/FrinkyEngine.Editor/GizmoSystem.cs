@@ -291,9 +291,8 @@ public class GizmoSystem
             foreach (var target in _dragTargets)
             {
                 var rotatedOffset = Vector3.Transform(target.StartWorldPosition - _dragPivot, groupRotation);
-                var newWorldPosition = _dragPivot + rotatedOffset;
-                var newWorldRotation = Quaternion.Normalize(groupRotation * target.StartWorldRotation);
-                SetWorldTransform(target, newWorldPosition, newWorldRotation);
+                target.Entity.Transform.WorldPosition = _dragPivot + rotatedOffset;
+                target.Entity.Transform.WorldRotation = Quaternion.Normalize(groupRotation * target.StartWorldRotation);
             }
 
             return;
@@ -303,17 +302,9 @@ public class GizmoSystem
         {
             foreach (var target in _dragTargets)
             {
-                if (target.HasParentInverse)
-                {
-                    var localAxis = Vector3.Normalize(Vector3.TransformNormal(axis, target.ParentInverseWorldMatrix));
-                    target.Entity.Transform.LocalRotation = Quaternion.Normalize(
-                        Quaternion.CreateFromAxisAngle(localAxis, deltaAngle) * target.StartLocalRotation);
-                }
-                else
-                {
-                    target.Entity.Transform.LocalRotation = Quaternion.Normalize(
-                        Quaternion.CreateFromAxisAngle(axis, deltaAngle) * target.StartLocalRotation);
-                }
+                var worldDelta = Quaternion.CreateFromAxisAngle(axis, deltaAngle);
+                target.Entity.Transform.WorldRotation = Quaternion.Normalize(
+                    worldDelta * target.StartWorldRotation);
             }
 
             return;
@@ -345,7 +336,7 @@ public class GizmoSystem
                 var parallel = Vector3.Dot(offset, axis) * axis;
                 var perpendicular = offset - parallel;
                 var newWorldPosition = _dragPivot + perpendicular + parallel * scaleFactor;
-                target.Entity.Transform.LocalPosition = WorldToLocalPosition(target, newWorldPosition);
+                target.Entity.Transform.WorldPosition = newWorldPosition;
 
                 // In relative mode, derive each target's local scale direction from the gizmo world axis
                 // so rotated selections scale consistently instead of using one fixed local component.
@@ -375,38 +366,7 @@ public class GizmoSystem
 
     private static void ApplyWorldTranslation(DragTargetState target, Vector3 worldDelta)
     {
-        if (target.HasParentInverse)
-        {
-            var localDelta = Vector3.TransformNormal(worldDelta, target.ParentInverseWorldMatrix);
-            target.Entity.Transform.LocalPosition = target.StartLocalPosition + localDelta;
-        }
-        else
-        {
-            target.Entity.Transform.LocalPosition = target.StartLocalPosition + worldDelta;
-        }
-    }
-
-    private static Vector3 WorldToLocalPosition(DragTargetState target, Vector3 worldPosition)
-    {
-        if (!target.HasParentInverse)
-            return worldPosition;
-        return Vector3.Transform(worldPosition, target.ParentInverseWorldMatrix);
-    }
-
-    private static Quaternion WorldToLocalRotation(DragTargetState target, Quaternion worldRotation)
-    {
-        if (target.Parent == null)
-            return worldRotation;
-
-        var parentWorld = target.Parent.WorldRotation;
-        var parentInverse = Quaternion.Inverse(parentWorld);
-        return Quaternion.Normalize(parentInverse * worldRotation);
-    }
-
-    private static void SetWorldTransform(DragTargetState target, Vector3 worldPosition, Quaternion worldRotation)
-    {
-        target.Entity.Transform.LocalPosition = WorldToLocalPosition(target, worldPosition);
-        target.Entity.Transform.LocalRotation = WorldToLocalRotation(target, worldRotation);
+        target.Entity.Transform.WorldPosition = target.StartWorldPosition + worldDelta;
     }
 
     private Vector3 GetGizmoOrigin(IReadOnlyList<Entity> selectedRoots, Entity primary)
@@ -462,31 +422,15 @@ public class GizmoSystem
     private static DragTargetState CaptureTargetState(Entity entity)
     {
         var transform = entity.Transform;
-        var parent = transform.Parent;
-        var hasParentInverse = false;
-        var parentInverseWorld = Matrix4x4.Identity;
-
-        if (parent != null)
-        {
-            var parentWorld = parent.WorldMatrix;
-            if (Matrix4x4.Invert(parentWorld, out parentInverseWorld))
-                hasParentInverse = true;
-        }
-
-        var state = new DragTargetState
+        return new DragTargetState
         {
             Entity = entity,
-            Parent = parent,
             StartLocalPosition = transform.LocalPosition,
             StartLocalRotation = transform.LocalRotation,
             StartLocalScale = transform.LocalScale,
             StartWorldPosition = transform.WorldPosition,
             StartWorldRotation = transform.WorldRotation,
-            ParentInverseWorldMatrix = parentInverseWorld,
-            HasParentInverse = hasParentInverse
         };
-
-        return state;
     }
 
     private static Vector3 ComputeSelectionCenter(IReadOnlyList<DragTargetState> targets)
@@ -753,8 +697,5 @@ public class GizmoSystem
         public required Vector3 StartLocalScale { get; init; }
         public required Vector3 StartWorldPosition { get; init; }
         public required Quaternion StartWorldRotation { get; init; }
-        public required TransformComponent? Parent { get; init; }
-        public Matrix4x4 ParentInverseWorldMatrix { get; init; }
-        public bool HasParentInverse { get; init; }
     }
 }

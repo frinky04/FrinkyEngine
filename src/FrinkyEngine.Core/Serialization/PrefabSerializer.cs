@@ -108,7 +108,7 @@ public static class PrefabSerializer
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
             if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EditorOnly") continue;
-            if (prop.Name is "EulerAngles") continue;
+            if (prop.Name is "EulerAngles" or "WorldPosition" or "WorldRotation") continue;
 
             try
             {
@@ -152,7 +152,7 @@ public static class PrefabSerializer
         {
             var prop = type.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
             if (prop == null || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EditorOnly" or "EulerAngles") continue;
+            if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "EditorOnly" or "EulerAngles" or "WorldPosition" or "WorldRotation") continue;
 
             try
             {

@@ -94,6 +94,20 @@ public class TransformComponent : Component
             var world = WorldMatrix;
             return new Vector3(world.M41, world.M42, world.M43);
         }
+        set
+        {
+            if (_parent != null)
+            {
+                if (Matrix4x4.Invert(_parent.WorldMatrix, out var parentInverse))
+                    _localPosition = Vector3.Transform(value, parentInverse);
+                else
+                    _localPosition = value;
+            }
+            else
+            {
+                _localPosition = value;
+            }
+        }
     }
 
     /// <summary>
@@ -175,6 +189,19 @@ public class TransformComponent : Component
                 return _localRotation * _parent.WorldRotation;
             return _localRotation;
         }
+        set
+        {
+            if (_parent != null)
+            {
+                var parentInverse = Quaternion.Inverse(_parent.WorldRotation);
+                _localRotation = Quaternion.Normalize(value * parentInverse);
+            }
+            else
+            {
+                _localRotation = Quaternion.Normalize(value);
+            }
+            _eulerDirty = true;
+        }
     }
 
     /// <summary>
@@ -207,6 +234,46 @@ public class TransformComponent : Component
 
     private void AddChildInternal(TransformComponent child) => _children.Add(child);
     private void RemoveChildInternal(TransformComponent child) => _children.Remove(child);
+
+    /// <summary>
+    /// Transforms a point from local space to world space.
+    /// </summary>
+    public Vector3 TransformPoint(Vector3 point) => Vector3.Transform(point, WorldMatrix);
+
+    /// <summary>
+    /// Transforms a point from world space to local space.
+    /// </summary>
+    public Vector3 InverseTransformPoint(Vector3 point)
+    {
+        if (Matrix4x4.Invert(WorldMatrix, out var inverse))
+            return Vector3.Transform(point, inverse);
+        return point;
+    }
+
+    /// <summary>
+    /// Transforms a direction from local space to world space (rotation only, ignores scale).
+    /// </summary>
+    public Vector3 TransformDirection(Vector3 direction) => Vector3.Transform(direction, WorldRotation);
+
+    /// <summary>
+    /// Transforms a direction from world space to local space (rotation only, ignores scale).
+    /// </summary>
+    public Vector3 InverseTransformDirection(Vector3 direction) => Vector3.Transform(direction, Quaternion.Inverse(WorldRotation));
+
+    /// <summary>
+    /// Transforms a vector from local space to world space (rotation and scale).
+    /// </summary>
+    public Vector3 TransformVector(Vector3 vector) => Vector3.TransformNormal(vector, WorldMatrix);
+
+    /// <summary>
+    /// Transforms a vector from world space to local space (rotation and scale).
+    /// </summary>
+    public Vector3 InverseTransformVector(Vector3 vector)
+    {
+        if (Matrix4x4.Invert(WorldMatrix, out var inverse))
+            return Vector3.TransformNormal(vector, inverse);
+        return vector;
+    }
 
     private static Vector3 QuaternionToEuler(Quaternion q)
     {

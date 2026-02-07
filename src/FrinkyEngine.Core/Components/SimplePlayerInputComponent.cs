@@ -411,12 +411,7 @@ public class SimplePlayerInputComponent : Component
         if (RotatePitch && (!ApplyPitchToCharacterBody || controller == null))
             appliedPitch = _lookPitchDegrees;
 
-        var desiredWorldRotation = BuildYawPitchRotation(_lookYawDegrees, appliedPitch);
-        var parentWorldRotation = _attachedCameraTransform.Parent?.WorldRotation ?? Quaternion.Identity;
-        var parentInverse = Quaternion.Normalize(Quaternion.Conjugate(parentWorldRotation));
-
-        // TransformComponent composes as local * parentWorldRotation; solve local from desired world.
-        _attachedCameraTransform.LocalRotation = Quaternion.Normalize(desiredWorldRotation * parentInverse);
+        _attachedCameraTransform.WorldRotation = BuildYawPitchRotation(_lookYawDegrees, appliedPitch);
     }
 
     private static TransformComponent? FindAttachedCameraTransform(TransformComponent root)
