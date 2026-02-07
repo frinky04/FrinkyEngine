@@ -19,5 +19,5 @@ if "%~1"=="" (
 if errorlevel 1 (
     echo.
     echo [ERROR] Editor exited with errors.
-    pause
+    if not defined FRINKY_NO_PAUSE pause
 )

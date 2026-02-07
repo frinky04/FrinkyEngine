@@ -5,23 +5,43 @@ echo   Publish FrinkyEngine Editor
 echo ========================================
 echo.
 
-set OUTDIR=artifacts\Editor
-echo Publishing Editor to %OUTDIR%...
-echo.
+set RID=win-x64
+if not "%~1"=="" set RID=%~1
 
-dotnet publish src\FrinkyEngine.Editor\FrinkyEngine.Editor.csproj ^
-    -c Release ^
-    -o "%OUTDIR%" ^
-    --self-contained false
+set PUBLISH_DIR=artifacts\release\editor\%RID%
+if not "%~2"=="" set PUBLISH_DIR=%~2
+
+echo Restoring Editor project...
+echo.
+dotnet restore src\FrinkyEngine.Editor\FrinkyEngine.Editor.csproj -r %RID%
 
 if errorlevel 1 (
     echo.
-    echo [ERROR] Publish failed.
-    pause
+    echo [ERROR] Restore failed.
+    if not defined FRINKY_NO_PAUSE pause
     exit /b 1
 )
 
 echo.
-echo Editor published to: %OUTDIR%
-echo Run with: %OUTDIR%\FrinkyEngine.Editor.exe [optional .fproject path]
-pause
+echo Publishing Editor (%RID%) to %PUBLISH_DIR%...
+echo.
+
+dotnet publish src\FrinkyEngine.Editor\FrinkyEngine.Editor.csproj ^
+    -c Release ^
+    -r %RID% ^
+    -o "%PUBLISH_DIR%" ^
+    --self-contained false ^
+    -warnaserror ^
+    --no-restore
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Publish failed.
+    if not defined FRINKY_NO_PAUSE pause
+    exit /b 1
+)
+
+echo.
+echo Editor published to: %PUBLISH_DIR%
+echo Run with: %PUBLISH_DIR%\FrinkyEngine.Editor.exe [optional .fproject path]
+if not defined FRINKY_NO_PAUSE pause

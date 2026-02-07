@@ -8,7 +8,7 @@ echo.
 if "%~1"=="" (
     echo Usage: launch-runtime.bat path\to\Game.fproject
     echo.
-    pause
+    if not defined FRINKY_NO_PAUSE pause
     exit /b 1
 )
 
@@ -19,5 +19,5 @@ dotnet run --project src\FrinkyEngine.Runtime -- "%~1"
 if errorlevel 1 (
     echo.
     echo [ERROR] Runtime exited with errors.
-    pause
+    if not defined FRINKY_NO_PAUSE pause
 )

@@ -74,7 +74,7 @@ jobs:
             Directory.Build.props
 
       - name: Restore editor project
-        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj -r win-x64
 
       - name: Publish editor (win-x64)
         run: >
@@ -117,7 +117,7 @@ jobs:
             Directory.Build.props
 
       - name: Restore runtime project
-        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj -r win-x64
 
       - name: Publish runtime (win-x64)
         run: >

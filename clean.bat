@@ -21,4 +21,4 @@ if exist artifacts (
 
 echo.
 echo Clean complete.
-pause
+if not defined FRINKY_NO_PAUSE pause

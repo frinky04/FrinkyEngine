@@ -12,11 +12,11 @@ dotnet new install .\templates\FrinkyEngine.Templates --force
 if errorlevel 1 (
     echo.
     echo [ERROR] Template installation failed.
-    pause
+    if not defined FRINKY_NO_PAUSE pause
     exit /b 1
 )
 
 echo.
 echo Template installed. Create a new game project with:
 echo   dotnet new frinky-game -n MyGame
-pause
+if not defined FRINKY_NO_PAUSE pause
