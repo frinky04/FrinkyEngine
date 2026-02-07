@@ -27,6 +27,7 @@ public class ViewportPanel
     private int _lastHeight;
     private bool _isHovered;
     private bool _wasGizmoDragging;
+    private System.Numerics.Vector3? _dragPreviewPosition;
 
     public ViewportPanel(EditorApplication app)
     {
@@ -57,6 +58,8 @@ public class ViewportPanel
 
     public void Draw()
     {
+        _dragPreviewPosition = null;
+
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
         if (ImGui.Begin("Viewport"))
         {
@@ -97,6 +100,9 @@ public class ViewportPanel
                                 foreach (var selectedEntity in selectedEntities)
                                     EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
                             }
+
+                            if (_dragPreviewPosition.HasValue)
+                                DrawDropPreview(_dragPreviewPosition.Value);
                         },
                         isEditorMode: isEditorMode);
 
@@ -214,6 +220,26 @@ public class ViewportPanel
         if (!ImGui.BeginDragDropTarget())
             return;
 
+        // Peek to update live preview each frame while hovering
+        var peekPayload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload, ImGuiDragDropFlags.AcceptPeekOnly);
+        if (peekPayload.NativePtr != null)
+        {
+            var assetPath = _app.DraggedAssetPath;
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                var asset = AssetDatabase.Instance.GetAssets()
+                    .FirstOrDefault(a => string.Equals(a.RelativePath, assetPath, StringComparison.OrdinalIgnoreCase));
+
+                if (asset != null && asset.Type is AssetType.Prefab or AssetType.Model)
+                {
+                    var mousePos = ImGui.GetMousePos();
+                    var localMouse = mousePos - imageScreenPos;
+                    _dragPreviewPosition = ComputeDropWorldPosition(camera, localMouse, new Vector2(w, h));
+                }
+            }
+        }
+
+        // Accept delivery for the actual drop
         var payload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload);
         if (payload.NativePtr != null && payload.Delivery)
         {
@@ -230,6 +256,8 @@ public class ViewportPanel
                     HandleAssetDrop(asset, camera, localMouse, new Vector2(w, h));
                 }
             }
+
+            _dragPreviewPosition = null;
         }
 
         ImGui.EndDragDropTarget();
@@ -314,6 +342,36 @@ public class ViewportPanel
 
         // Fallback: 10 units in front of camera
         return ray.Position + ray.Direction * 10f;
+    }
+
+    private static void DrawDropPreview(System.Numerics.Vector3 pos)
+    {
+        var previewColor = new Color(255, 220, 50, 200);
+
+        // Flat ring on Y=0 ground plane
+        Raylib.DrawCircle3D(
+            new System.Numerics.Vector3(pos.X, pos.Y, pos.Z),
+            0.5f,
+            new System.Numerics.Vector3(1, 0, 0),
+            90f,
+            previewColor);
+
+        // Vertical line from ground to indicate placement point
+        Raylib.DrawLine3D(
+            new System.Numerics.Vector3(pos.X, pos.Y, pos.Z),
+            new System.Numerics.Vector3(pos.X, pos.Y + 1.0f, pos.Z),
+            previewColor);
+
+        // Small cross on the ground
+        const float crossSize = 0.3f;
+        Raylib.DrawLine3D(
+            new System.Numerics.Vector3(pos.X - crossSize, pos.Y, pos.Z),
+            new System.Numerics.Vector3(pos.X + crossSize, pos.Y, pos.Z),
+            previewColor);
+        Raylib.DrawLine3D(
+            new System.Numerics.Vector3(pos.X, pos.Y, pos.Z - crossSize),
+            new System.Numerics.Vector3(pos.X, pos.Y, pos.Z + crossSize),
+            previewColor);
     }
 
     private static bool DrawViewportToolbar(GizmoSystem gizmo)

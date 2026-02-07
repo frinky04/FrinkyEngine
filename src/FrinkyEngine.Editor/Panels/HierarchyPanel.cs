@@ -484,6 +484,7 @@ public class HierarchyPanel
 
         DrawEntityDragDropSource(entity);
         DrawEntityDragDropTarget(entity);
+        DrawAssetBrowserDropTarget(entity);
         DrawEntityContextMenu(entity, state);
         DrawEntityRenameInput(entity, isRenaming);
         DrawEntityStatusInline(entity);
@@ -946,6 +947,48 @@ public class HierarchyPanel
                 _app.RecordUndo();
                 if (_app.ReparentEntity(dragged, target))
                     _app.RefreshUndoBaseline();
+            }
+        }
+
+        ImGui.EndDragDropTarget();
+    }
+
+    private unsafe void DrawAssetBrowserDropTarget(Entity entity)
+    {
+        if (!ImGui.BeginDragDropTarget())
+            return;
+
+        var payload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload);
+        if (payload.NativePtr != null && payload.Delivery)
+        {
+            var assetPath = _app.DraggedAssetPath;
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                var asset = AssetDatabase.Instance.GetAssets()
+                    .FirstOrDefault(a => string.Equals(a.RelativePath, assetPath, StringComparison.OrdinalIgnoreCase));
+
+                if (asset is { Type: AssetType.Script })
+                {
+                    var typeName = Path.GetFileNameWithoutExtension(asset.FileName);
+                    var componentType = ComponentTypeResolver.Resolve(typeName);
+
+                    if (componentType == null)
+                    {
+                        NotificationManager.Instance.Post("Build scripts first.", NotificationType.Warning);
+                    }
+                    else if (entity.GetComponent(componentType) != null)
+                    {
+                        NotificationManager.Instance.Post($"{typeName} already exists on {entity.Name}.", NotificationType.Warning);
+                    }
+                    else
+                    {
+                        _app.RecordUndo();
+                        entity.AddComponent(componentType);
+                        _app.SetSingleSelection(entity);
+                        _app.RefreshUndoBaseline();
+                        NotificationManager.Instance.Post($"Added {typeName} to {entity.Name}", NotificationType.Info, 1.5f);
+                    }
+                }
             }
         }
 
