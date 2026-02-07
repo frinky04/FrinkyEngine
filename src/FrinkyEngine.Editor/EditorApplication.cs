@@ -395,9 +395,10 @@ public class EditorApplication
             return;
 
         var runtimeCsproj = GameExporter.FindRuntimeCsproj();
-        if (runtimeCsproj == null)
+        var runtimeTemplateDir = GameExporter.FindRuntimeTemplateDirectory();
+        if (runtimeCsproj == null && runtimeTemplateDir == null)
         {
-            FrinkyLog.Error("Could not locate Runtime .csproj. Ensure FrinkyEngine.sln is accessible.");
+            FrinkyLog.Error("Could not locate Runtime source project or bundled runtime template.");
             NotificationManager.Instance.Post("Export failed: Runtime not found.", NotificationType.Error);
             return;
         }
@@ -410,7 +411,8 @@ public class EditorApplication
             DefaultScene = ProjectFile.DefaultScene,
             GameCsprojPath = FindGameCsproj(),
             GameAssemblyDll = !string.IsNullOrEmpty(ProjectFile.GameAssembly) ? ProjectFile.GameAssembly : null,
-            RuntimeCsprojPath = runtimeCsproj,
+            RuntimeCsprojPath = runtimeCsproj ?? string.Empty,
+            RuntimeTemplateDirectory = runtimeTemplateDir,
             OutputDirectory = outputDirectory,
             ProjectSettings = ProjectSettings
         };
@@ -450,7 +452,13 @@ public class EditorApplication
             return;
         }
 
-        AssemblyLoader.ReloadAssembly(dllPath);
+        if (!AssemblyLoader.ReloadAssembly(dllPath))
+        {
+            FrinkyLog.Error("Game assembly reload failed.");
+            NotificationManager.Instance.Post("Game assembly reload failed.", NotificationType.Error);
+            return;
+        }
+
         FrinkyLog.Info("Game assembly reloaded.");
         NotificationManager.Instance.Post("Game assembly reloaded.", NotificationType.Info);
 

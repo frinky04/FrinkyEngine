@@ -46,14 +46,8 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Restore solution
-        run: dotnet restore FrinkyEngine.sln
-
-      - name: Restore editor project (win-x64)
-        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj -r win-x64
-
-      - name: Restore runtime project (win-x64)
-        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj -r win-x64
+      - name: Restore solution (win-x64)
+        run: dotnet restore FrinkyEngine.sln -r win-x64
 
       - name: Publish editor (win-x64)
         run: >
@@ -61,8 +55,18 @@ jobs:
           -c Release
           -r win-x64
           --self-contained false
-          --no-restore
           -o artifacts/release/editor/win-x64
+
+      - name: Publish runtime template for editor export (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:FrinkyExport=true
+          -o artifacts/release/editor/win-x64/RuntimeTemplate
 
       - name: Publish runtime (win-x64)
         run: >
@@ -71,7 +75,6 @@ jobs:
           -r win-x64
           --self-contained false
           -p:FrinkyExport=true
-          --no-restore
           -o artifacts/release/runtime/win-x64
 
       - name: Verify release publish outputs
@@ -81,6 +84,7 @@ jobs:
             "artifacts/release/editor/win-x64/FrinkyEngine.Editor.exe",
             "artifacts/release/editor/win-x64/Shaders/lighting.vs",
             "artifacts/release/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf",
+            "artifacts/release/editor/win-x64/RuntimeTemplate/FrinkyEngine.Runtime.exe",
             "artifacts/release/runtime/win-x64/FrinkyEngine.Runtime.exe",
             "artifacts/release/runtime/win-x64/Shaders/lighting.vs"
           )

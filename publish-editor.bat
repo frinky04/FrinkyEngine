@@ -11,9 +11,9 @@ if not "%~1"=="" set RID=%~1
 set PUBLISH_DIR=artifacts\release\editor\%RID%
 if not "%~2"=="" set PUBLISH_DIR=%~2
 
-echo Restoring Editor project...
+echo Restoring projects...
 echo.
-dotnet restore src\FrinkyEngine.Editor\FrinkyEngine.Editor.csproj -r %RID%
+dotnet restore FrinkyEngine.sln -r %RID%
 
 if errorlevel 1 (
     echo.
@@ -31,8 +31,7 @@ dotnet publish src\FrinkyEngine.Editor\FrinkyEngine.Editor.csproj ^
     -r %RID% ^
     -o "%PUBLISH_DIR%" ^
     --self-contained false ^
-    -warnaserror ^
-    --no-restore
+    -warnaserror
 
 if errorlevel 1 (
     echo.
@@ -42,6 +41,28 @@ if errorlevel 1 (
 )
 
 echo.
+echo Publishing bundled Runtime template for Export Game...
+echo.
+
+dotnet publish src\FrinkyEngine.Runtime\FrinkyEngine.Runtime.csproj ^
+    -c Release ^
+    -r %RID% ^
+    -p:FrinkyExport=true ^
+    -p:PublishSingleFile=true ^
+    -p:IncludeNativeLibrariesForSelfExtract=true ^
+    -o "%PUBLISH_DIR%\RuntimeTemplate" ^
+    --self-contained true ^
+    -warnaserror
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Runtime template publish failed.
+    if not defined FRINKY_NO_PAUSE pause
+    exit /b 1
+)
+
+echo.
 echo Editor published to: %PUBLISH_DIR%
 echo Run with: %PUBLISH_DIR%\FrinkyEngine.Editor.exe [optional .fproject path]
+echo Runtime template: %PUBLISH_DIR%\RuntimeTemplate
 if not defined FRINKY_NO_PAUSE pause

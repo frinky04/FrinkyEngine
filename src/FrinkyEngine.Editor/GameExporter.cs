@@ -13,6 +13,7 @@ public class ExportConfig
     public string? GameCsprojPath { get; set; }
     public string? GameAssemblyDll { get; set; }
     public string RuntimeCsprojPath { get; set; } = string.Empty;
+    public string? RuntimeTemplateDirectory { get; set; }
     public string OutputDirectory { get; set; } = string.Empty;
     public ProjectSettings? ProjectSettings { get; set; }
 }
@@ -28,6 +29,7 @@ public static class GameExporter
 
         IsExporting = true;
         var tempDir = Path.Combine(Path.GetTempPath(), $"FrinkyExport_{Guid.NewGuid():N}");
+        string? builtGameAssemblyPath = null;
 
         try
         {
@@ -37,19 +39,24 @@ public static class GameExporter
             if (!string.IsNullOrEmpty(config.GameCsprojPath) && File.Exists(config.GameCsprojPath))
             {
                 FrinkyLog.Info("Building game scripts (Release)...");
-                if (!await RunDotnetAsync($"build \"{config.GameCsprojPath}\" -c Release"))
+                var gameBuildOutputDir = Path.Combine(tempDir, "gamebuild");
+                if (!await RunDotnetAsync($"build \"{config.GameCsprojPath}\" -c Release -o \"{gameBuildOutputDir}\""))
                 {
                     FrinkyLog.Error("Game script build failed. Export aborted.");
                     return false;
                 }
+
+                builtGameAssemblyPath = ResolveBuiltGameAssemblyPath(config, gameBuildOutputDir);
+                if (builtGameAssemblyPath != null)
+                    FrinkyLog.Info($"Using built game assembly: {Path.GetFileName(builtGameAssemblyPath)}");
             }
 
-            // Step 2: Publish Runtime
+            // Step 2: Prepare Runtime (publish from source or use bundled template)
             var publishDir = Path.Combine(tempDir, "publish");
-            FrinkyLog.Info("Publishing runtime...");
-            if (!await RunDotnetAsync($"publish \"{config.RuntimeCsprojPath}\" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:FrinkyExport=true -o \"{publishDir}\""))
+            FrinkyLog.Info("Preparing runtime...");
+            if (!await PrepareRuntimeAsync(config, publishDir))
             {
-                FrinkyLog.Error("Runtime publish failed. Export aborted.");
+                FrinkyLog.Error("Runtime preparation failed. Export aborted.");
                 return false;
             }
 
@@ -84,28 +91,33 @@ public static class GameExporter
 
             // 3c: Game assembly + dependencies
             string? gameAssemblyRelPath = null;
-            if (!string.IsNullOrEmpty(config.GameAssemblyDll))
+            var gameDllFullPath = ResolveGameAssemblyPath(config, builtGameAssemblyPath);
+            if (!string.IsNullOrEmpty(gameDllFullPath) && File.Exists(gameDllFullPath))
             {
-                var gameDllFullPath = Path.Combine(config.ProjectDirectory, config.GameAssemblyDll);
-                if (File.Exists(gameDllFullPath))
+                var gameDllDir = Path.GetDirectoryName(gameDllFullPath)!;
+                var runtimeDlls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var f in Directory.GetFiles(publishDir, "*.dll"))
+                    runtimeDlls.Add(Path.GetFileName(f));
+
+                foreach (var file in Directory.GetFiles(gameDllDir, "*.dll"))
                 {
-                    var gameDllDir = Path.GetDirectoryName(gameDllFullPath)!;
-                    var runtimeDlls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var f in Directory.GetFiles(publishDir, "*.dll"))
-                        runtimeDlls.Add(Path.GetFileName(f));
+                    var fileName = Path.GetFileName(file);
+                    if (runtimeDlls.Contains(fileName))
+                        continue;
 
-                    foreach (var file in Directory.GetFiles(gameDllDir, "*.dll"))
-                    {
-                        var fileName = Path.GetFileName(file);
-                        if (runtimeDlls.Contains(fileName))
-                            continue;
-
-                        var relativePath = "GameAssembly/" + fileName;
-                        entries.Add(new FAssetEntry { RelativePath = relativePath, SourcePath = file });
-                    }
-
-                    gameAssemblyRelPath = "GameAssembly/" + Path.GetFileName(gameDllFullPath);
+                    var relativePath = "GameAssembly/" + fileName;
+                    entries.Add(new FAssetEntry { RelativePath = relativePath, SourcePath = file });
                 }
+
+                gameAssemblyRelPath = "GameAssembly/" + Path.GetFileName(gameDllFullPath);
+            }
+            else if (!string.IsNullOrWhiteSpace(config.GameAssemblyDll))
+            {
+                FrinkyLog.Warning($"Configured game assembly was not found for export: {config.GameAssemblyDll}");
+            }
+            else
+            {
+                FrinkyLog.Warning("No game assembly configured. Export will run without scripts.");
             }
 
             // 3d: Manifest
@@ -219,6 +231,128 @@ public static class GameExporter
             dir = Path.GetDirectoryName(dir);
         }
         return null;
+    }
+
+    public static string? FindRuntimeTemplateDirectory()
+    {
+        return ResolveRuntimeTemplateDirectory(null);
+    }
+
+    private static async Task<bool> PrepareRuntimeAsync(ExportConfig config, string publishDir)
+    {
+        if (!string.IsNullOrWhiteSpace(config.RuntimeCsprojPath) && File.Exists(config.RuntimeCsprojPath))
+        {
+            FrinkyLog.Info("Publishing runtime from source project...");
+            return await RunDotnetAsync(
+                $"publish \"{config.RuntimeCsprojPath}\" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:FrinkyExport=true -o \"{publishDir}\"");
+        }
+
+        var runtimeTemplateDir = ResolveRuntimeTemplateDirectory(config.RuntimeTemplateDirectory);
+        if (!string.IsNullOrWhiteSpace(runtimeTemplateDir))
+        {
+            FrinkyLog.Info("Using bundled runtime template for export.");
+            CopyDirectory(runtimeTemplateDir, publishDir);
+            return true;
+        }
+
+        FrinkyLog.Error("Runtime source project and bundled runtime template were not found.");
+        return false;
+    }
+
+    private static string? ResolveBuiltGameAssemblyPath(ExportConfig config, string buildOutputDir)
+    {
+        if (!Directory.Exists(buildOutputDir))
+            return null;
+
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(config.GameAssemblyDll))
+            candidates.Add(Path.Combine(buildOutputDir, Path.GetFileName(config.GameAssemblyDll)));
+        if (!string.IsNullOrWhiteSpace(config.GameCsprojPath))
+        {
+            var fromProjectName = Path.Combine(
+                buildOutputDir,
+                Path.GetFileNameWithoutExtension(config.GameCsprojPath) + ".dll");
+            candidates.Add(fromProjectName);
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        var knownEngineAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "FrinkyEngine.Core.dll",
+            "FrinkyEngine.Runtime.dll",
+            "FrinkyEngine.Editor.dll"
+        };
+
+        var fallback = Directory.GetFiles(buildOutputDir, "*.dll", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(path => !knownEngineAssemblies.Contains(Path.GetFileName(path)));
+
+        return fallback;
+    }
+
+    private static string? ResolveGameAssemblyPath(ExportConfig config, string? builtGameAssemblyPath)
+    {
+        if (!string.IsNullOrWhiteSpace(builtGameAssemblyPath) && File.Exists(builtGameAssemblyPath))
+            return builtGameAssemblyPath;
+
+        if (!string.IsNullOrWhiteSpace(config.GameAssemblyDll))
+        {
+            var configuredPath = Path.Combine(config.ProjectDirectory, config.GameAssemblyDll);
+            if (File.Exists(configuredPath))
+                return configuredPath;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveRuntimeTemplateDirectory(string? configuredPath)
+    {
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+            candidates.Add(configuredPath);
+
+        candidates.Add(Path.Combine(AppContext.BaseDirectory, "RuntimeTemplate"));
+        candidates.Add(Path.Combine(Environment.CurrentDirectory, "RuntimeTemplate"));
+
+        foreach (var candidate in candidates)
+        {
+            if (!Directory.Exists(candidate))
+                continue;
+            if (!ContainsRuntimeExecutable(candidate))
+                continue;
+            return candidate;
+        }
+
+        return null;
+    }
+
+    private static bool ContainsRuntimeExecutable(string directory)
+    {
+        var exePath = Path.Combine(directory, "FrinkyEngine.Runtime.exe");
+        if (File.Exists(exePath))
+            return true;
+
+        var noExtPath = Path.Combine(directory, "FrinkyEngine.Runtime");
+        return File.Exists(noExtPath);
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var destPath = Path.Combine(destinationDir, relative);
+            var parent = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrWhiteSpace(parent))
+                Directory.CreateDirectory(parent);
+            File.Copy(file, destPath, overwrite: true);
+        }
     }
 
     private static async Task<bool> RunDotnetAsync(string arguments)

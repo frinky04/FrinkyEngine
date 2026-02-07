@@ -73,8 +73,8 @@ jobs:
             **/*.csproj
             Directory.Build.props
 
-      - name: Restore editor project
-        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj -r win-x64
+      - name: Restore solution (win-x64)
+        run: dotnet restore FrinkyEngine.sln -r win-x64
 
       - name: Publish editor (win-x64)
         run: >
@@ -82,8 +82,18 @@ jobs:
           -c Release
           -r win-x64
           --self-contained false
-          --no-restore
           -o artifacts/editor/win-x64
+
+      - name: Publish runtime template for editor export (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:FrinkyExport=true
+          -o artifacts/editor/win-x64/RuntimeTemplate
 
       - name: Verify editor publish output
         shell: pwsh
@@ -91,7 +101,8 @@ jobs:
           $required = @(
             "artifacts/editor/win-x64/FrinkyEngine.Editor.exe",
             "artifacts/editor/win-x64/Shaders/lighting.vs",
-            "artifacts/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf"
+            "artifacts/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf",
+            "artifacts/editor/win-x64/RuntimeTemplate/FrinkyEngine.Runtime.exe"
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) {
@@ -116,8 +127,8 @@ jobs:
             **/*.csproj
             Directory.Build.props
 
-      - name: Restore runtime project
-        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj -r win-x64
+      - name: Restore solution (win-x64)
+        run: dotnet restore FrinkyEngine.sln -r win-x64
 
       - name: Publish runtime (win-x64)
         run: >
@@ -126,7 +137,6 @@ jobs:
           -r win-x64
           --self-contained false
           -p:FrinkyExport=true
-          --no-restore
           -o artifacts/runtime/win-x64
 
       - name: Verify runtime publish output

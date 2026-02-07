@@ -17,8 +17,18 @@ public static class ComponentTypeResolver
     public static void RegisterAssembly(Assembly assembly)
     {
         var keys = new List<string>();
+        IEnumerable<Type> candidateTypes;
 
-        foreach (var type in assembly.GetTypes())
+        try
+        {
+            candidateTypes = assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            candidateTypes = ex.Types.Where(t => t != null)!;
+        }
+
+        foreach (var type in candidateTypes)
         {
             if (type.IsSubclassOf(typeof(Component)) && !type.IsAbstract)
             {

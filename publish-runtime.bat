@@ -11,9 +11,9 @@ if not "%~1"=="" set RID=%~1
 set PUBLISH_DIR=artifacts\release\runtime\%RID%
 if not "%~2"=="" set PUBLISH_DIR=%~2
 
-echo Restoring Runtime project...
+echo Restoring solution...
 echo.
-dotnet restore src\FrinkyEngine.Runtime\FrinkyEngine.Runtime.csproj -r %RID%
+dotnet restore FrinkyEngine.sln -r %RID%
 
 if errorlevel 1 (
     echo.
@@ -32,8 +32,7 @@ dotnet publish src\FrinkyEngine.Runtime\FrinkyEngine.Runtime.csproj ^
     -p:FrinkyExport=true ^
     -o "%PUBLISH_DIR%" ^
     --self-contained false ^
-    -warnaserror ^
-    --no-restore
+    -warnaserror
 
 if errorlevel 1 (
     echo.
