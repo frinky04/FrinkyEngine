@@ -283,6 +283,7 @@ Script-side input options:
 - Unreal-style: `AddMovementInput(...)`, `Jump()`
 - Direct planar input: `SetMoveInput(new Vector2(x, y))`
 - Godot-style convenience: `MoveAndSlide(desiredVelocity, requestJump)`
+- Quick setup component: `SimplePlayerInputComponent` with configurable keys (WASD default) and mouse look
 
 See template script example:
 - `templates/FrinkyEngine.Templates/content/Assets/Scripts/CharacterControllerExample.cs`
