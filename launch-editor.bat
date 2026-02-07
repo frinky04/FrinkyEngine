@@ -7,7 +7,7 @@ echo.
 
 :: Optional: pass a .fproject path as argument
 if "%~1"=="" (
-    echo Launching editor (no project)...
+    echo Launching editor ^(no project^)...
     echo.
     dotnet run --project src\FrinkyEngine.Editor
 ) else (
