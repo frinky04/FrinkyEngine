@@ -573,6 +573,7 @@ internal sealed class PhysicsSystem : IDisposable
         {
             var transform = state.Entity.Transform;
             var targetPose = BuildBodyPose(transform, state.Collider);
+            var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
 
             if (state.Rigidbody.MotionType == BodyMotionType.Static)
             {
@@ -599,13 +600,34 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             }
 
+            if (hasCharacterController)
+            {
+                var characterPositionChanged = !ApproximatelyEqual(transform.LocalPosition, state.LastTransformPosition);
+                if (characterPositionChanged)
+                {
+                    var currentPose = body.Pose;
+                    var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, currentPose.Orientation);
+                    currentPose.Position = transform.LocalPosition + offset;
+                    body.Pose = currentPose;
+                    body.Velocity.Linear = Vector3.Zero;
+                    body.Awake = true;
+                }
+
+                state.LastTransformPosition = transform.LocalPosition;
+                state.LastTransformRotation = transform.LocalRotation;
+                continue;
+            }
+
             // Allow explicit transform edits to teleport dynamics before stepping.
-            if (!ApproximatelyEqual(transform.LocalPosition, state.LastTransformPosition) ||
-                !ApproximatelyEqual(transform.LocalRotation, state.LastTransformRotation))
+            var positionChanged = !ApproximatelyEqual(transform.LocalPosition, state.LastTransformPosition);
+            var rotationChanged = !ApproximatelyEqual(transform.LocalRotation, state.LastTransformRotation);
+            if (positionChanged || rotationChanged)
             {
                 body.Pose = targetPose;
+
                 body.Velocity.Linear = Vector3.Zero;
                 body.Velocity.Angular = Vector3.Zero;
+
                 body.Awake = true;
             }
         }
@@ -698,10 +720,12 @@ internal sealed class PhysicsSystem : IDisposable
             var body = _simulation.Bodies.GetBodyReference(bodyHandle);
             var pose = body.Pose;
             var transform = state.Entity.Transform;
+            var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
 
             var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, pose.Orientation);
             transform.LocalPosition = pose.Position - offset;
-            transform.LocalRotation = Quaternion.Normalize(pose.Orientation);
+            if (!hasCharacterController)
+                transform.LocalRotation = Quaternion.Normalize(pose.Orientation);
 
             state.LastTransformPosition = transform.LocalPosition;
             state.LastTransformRotation = transform.LocalRotation;

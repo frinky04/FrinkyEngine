@@ -21,6 +21,8 @@ public class SimplePlayerInputComponent : Component
     private bool _requireLookMouseButton;
     private MouseButton _lookMouseButton = MouseButton.Right;
     private bool _rotatePitch = true;
+    private bool _useViewDirectionOverrideForCharacterLook = true;
+    private bool _applyPitchToCharacterBody;
     private bool _invertMouseY;
     private float _mouseSensitivity = 0.1f;
     private float _minPitchDegrees = -85f;
@@ -30,6 +32,9 @@ public class SimplePlayerInputComponent : Component
     private bool _allowJump = true;
     private float _fallbackMoveSpeed = 4f;
     private float _fallbackJumpImpulse = 3f;
+    private float _lookYawDegrees;
+    private float _lookPitchDegrees;
+    private bool _lookInitialized;
 
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
@@ -113,6 +118,26 @@ public class SimplePlayerInputComponent : Component
     }
 
     /// <summary>
+    /// If true, character look uses <see cref="CharacterControllerComponent.ViewDirectionOverride"/>
+    /// so pitch does not have to rotate the physics body.
+    /// </summary>
+    public bool UseViewDirectionOverrideForCharacterLook
+    {
+        get => _useViewDirectionOverrideForCharacterLook;
+        set => _useViewDirectionOverrideForCharacterLook = value;
+    }
+
+    /// <summary>
+    /// If true and a character controller is active, pitch is applied to the entity transform.
+    /// Keeping this false avoids tilting the character body.
+    /// </summary>
+    public bool ApplyPitchToCharacterBody
+    {
+        get => _applyPitchToCharacterBody;
+        set => _applyPitchToCharacterBody = value;
+    }
+
+    /// <summary>
     /// Inverts mouse Y input for pitch rotation.
     /// </summary>
     public bool InvertMouseY
@@ -193,25 +218,35 @@ public class SimplePlayerInputComponent : Component
     }
 
     /// <inheritdoc />
+    public override void Start()
+    {
+        InitializeLookState();
+    }
+
+    /// <inheritdoc />
     public override void Update(float dt)
     {
         if (!float.IsFinite(dt) || dt <= 0f)
             return;
 
-        ApplyMouseLook();
+        CharacterControllerComponent? controller = null;
+        if (UseCharacterController)
+        {
+            var candidate = Entity.GetComponent<CharacterControllerComponent>();
+            if (candidate is { Enabled: true })
+                controller = candidate;
+        }
+
+        ApplyMouseLook(controller);
 
         var moveInput = ReadMoveInput();
 
-        if (UseCharacterController)
+        if (controller != null)
         {
-            var controller = Entity.GetComponent<CharacterControllerComponent>();
-            if (controller is { Enabled: true })
-            {
-                controller.SetMoveInput(moveInput);
-                if (AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
-                    controller.Jump();
-                return;
-            }
+            controller.SetMoveInput(moveInput);
+            if (AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
+                controller.Jump();
+            return;
         }
 
         ApplyFallbackMovement(moveInput, dt);
@@ -237,7 +272,7 @@ public class SimplePlayerInputComponent : Component
         return input;
     }
 
-    private void ApplyMouseLook()
+    private void ApplyMouseLook(CharacterControllerComponent? controller)
     {
         if (!EnableMouseLook)
             return;
@@ -245,21 +280,58 @@ public class SimplePlayerInputComponent : Component
         if (RequireLookMouseButton && !FrinkyInput.IsMouseButtonDown(LookMouseButton))
             return;
 
-        var delta = FrinkyInput.MouseDelta;
-        if (delta == Vector2.Zero)
-            return;
+        InitializeLookState();
 
-        var euler = Entity.Transform.EulerAngles;
-        euler.Y += delta.X * MouseSensitivity;
+        var delta = FrinkyInput.MouseDelta;
+        _lookYawDegrees += delta.X * MouseSensitivity;
 
         if (RotatePitch)
         {
             var pitchSign = InvertMouseY ? 1f : -1f;
-            var nextPitch = euler.X + delta.Y * MouseSensitivity * pitchSign;
-            euler.X = Math.Clamp(nextPitch, MinPitchDegrees, MaxPitchDegrees);
+            var nextPitch = _lookPitchDegrees + delta.Y * MouseSensitivity * pitchSign;
+            _lookPitchDegrees = Math.Clamp(nextPitch, MinPitchDegrees, MaxPitchDegrees);
         }
 
-        Entity.Transform.EulerAngles = euler;
+        if (controller != null && UseViewDirectionOverrideForCharacterLook)
+        {
+            var euler = Entity.Transform.EulerAngles;
+            euler.Y = _lookYawDegrees;
+            if (ApplyPitchToCharacterBody && RotatePitch)
+                euler.X = _lookPitchDegrees;
+            Entity.Transform.EulerAngles = euler;
+
+            if (controller.UseEntityForwardAsViewDirection)
+                controller.UseEntityForwardAsViewDirection = false;
+
+            controller.ViewDirectionOverride = BuildViewDirection(_lookYawDegrees, _lookPitchDegrees);
+            return;
+        }
+
+        var fallbackEuler = Entity.Transform.EulerAngles;
+        fallbackEuler.Y = _lookYawDegrees;
+        if (RotatePitch)
+            fallbackEuler.X = _lookPitchDegrees;
+        Entity.Transform.EulerAngles = fallbackEuler;
+    }
+
+    private void InitializeLookState()
+    {
+        if (_lookInitialized)
+            return;
+
+        var euler = Entity.Transform.EulerAngles;
+        _lookYawDegrees = euler.Y;
+        _lookPitchDegrees = Math.Clamp(euler.X, MinPitchDegrees, MaxPitchDegrees);
+        _lookInitialized = true;
+    }
+
+    private static Vector3 BuildViewDirection(float yawDegrees, float pitchDegrees)
+    {
+        var yawRadians = yawDegrees * (MathF.PI / 180f);
+        var pitchRadians = pitchDegrees * (MathF.PI / 180f);
+        var rotation = Quaternion.CreateFromYawPitchRoll(yawRadians, pitchRadians, 0f);
+        var forward = Vector3.Transform(-Vector3.UnitZ, rotation);
+        return SafeNormalize(forward, -Vector3.UnitZ);
     }
 
     private void ApplyFallbackMovement(Vector2 moveInput, float dt)

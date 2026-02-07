@@ -161,7 +161,6 @@ public class CharacterControllerComponent : Component
                 return;
 
             _useEntityForwardAsViewDirection = value;
-            MarkControllerDirty();
         }
     }
 
@@ -177,7 +176,6 @@ public class CharacterControllerComponent : Component
                 return;
 
             _viewDirectionOverride = value;
-            MarkControllerDirty();
         }
     }
 
