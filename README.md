@@ -1,160 +1,312 @@
 # FrinkyEngine
 
-A 3D game engine framework built with C#, .NET 8, and [Raylib](https://www.raylib.com/). Features a Dear ImGui editor, composition-based entity/component architecture, JSON scene serialization, and a `dotnet new` template for game projects.
+FrinkyEngine is a C#/.NET 8 3D engine with a Dear ImGui editor, a standalone runtime, JSON scene files, and a `dotnet new` template for game projects.
+
+## What You Get
+
+- ECS-style component workflow for gameplay code
+- Editor with viewport, hierarchy, inspector, console, assets, and play mode
+- Runtime that can run from either `.fproject` (dev mode) or `.fasset` (export mode)
+- Scene serialization to `.fscene` JSON
+- Project template and scripts for build, publish, packaging, and local release
 
 ## Requirements
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- Windows for `.bat` helper scripts
+- Optional: use direct `dotnet` commands if you do not want to use scripts
 
-## Building
+## Quick Start (5 Steps)
 
-```bash
-dotnet build FrinkyEngine.sln
+1. Build the solution.
+
+```powershell
+.\build.bat
 ```
 
-## Running the Editor
+```bash
+dotnet build FrinkyEngine.sln -c Release
+```
+
+2. Launch the editor.
+
+```powershell
+.\launch-editor.bat
+```
 
 ```bash
 dotnet run --project src/FrinkyEngine.Editor
 ```
 
-The editor opens a 1600x900 window with dockable panels:
+3. Open a project, for example:
 
-- **Viewport** -- 3D scene view with transform gizmos. Right-click + WASD to fly, QE for up/down, scroll to zoom.
-- **Hierarchy** -- Entity tree. Click to select, right-click to create entities.
-- **Inspector** -- Edit the selected entity's components. Supports custom drawers for built-in types and reflection-based editing for user-defined components.
-- **Asset Browser** -- Browse and manage project assets with file-watching for external changes.
-- **Console** -- Color-coded log output.
-- **Menu Bar** -- File (New/Open/Save Scene, Open Project), Edit, Window, Play/Stop. Configurable keybindings.
+```powershell
+.\launch-editor.bat Games\Testing\Testing.fproject
+```
 
-## Running the Runtime
+```bash
+dotnet run --project src/FrinkyEngine.Editor -- Games/Testing/Testing.fproject
+```
+
+4. Build game scripts from the editor (`Scripts -> Build Scripts`) or:
+
+```bash
+dotnet build path/to/MyGame.csproj --configuration Debug
+```
+
+5. Run the runtime with a project file.
+
+```powershell
+.\launch-runtime.bat Games\Testing\Testing.fproject
+```
 
 ```bash
 dotnet run --project src/FrinkyEngine.Runtime -- path/to/MyGame.fproject
 ```
 
-The runtime loads a `.fproject` file, loads the game assembly and default scene, and runs the game loop.
+## Command Cheat Sheet
 
-## Creating a Game Project
+| Goal | Windows script | Dotnet equivalent |
+|---|---|---|
+| Build all projects | `.\build.bat [debug]` | `dotnet build FrinkyEngine.sln -c Release` |
+| Run editor | `.\launch-editor.bat [Game.fproject]` | `dotnet run --project src/FrinkyEngine.Editor -- [Game.fproject]` |
+| Run runtime (dev mode) | `.\launch-runtime.bat Game.fproject` | `dotnet run --project src/FrinkyEngine.Runtime -- Game.fproject` |
+| Install template | `.\install-template.bat` | `dotnet new install .\templates\FrinkyEngine.Templates --force` |
+| Publish editor | `.\publish-editor.bat [rid] [outDir]` | `dotnet publish src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj -c Release -r win-x64 --self-contained false -o artifacts/release/editor/win-x64` |
+| Publish runtime | `.\publish-runtime.bat [rid] [outDir]` | `dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj -c Release -r win-x64 -p:FrinkyExport=true --self-contained false -o artifacts/release/runtime/win-x64` |
+| Package a game | `.\package-game.bat path\to\Game.fproject [outDir] [rid]` | Run build + publish + copy steps manually |
+| Local release zips | `.\release-local.bat vX.Y.Z` | Run restore/build/publish/pack/zip steps manually |
 
-Install the template pack and scaffold a new project:
+## Create a New Game Project
+
+Install the template:
+
+```powershell
+.\install-template.bat
+```
 
 ```bash
-dotnet new install ./templates/FrinkyEngine.Templates
+dotnet new install ./templates/FrinkyEngine.Templates --force
+```
+
+Create project:
+
+```bash
 dotnet new frinky-game -n MyGame
 ```
 
-This creates:
+Template output:
 
-```
+```text
 MyGame/
-  MyGame.csproj          # Class library referencing FrinkyEngine.Core
-  MyGame.fproject        # Project file (points to default scene and game DLL)
-  Assets/Scenes/
-    MainScene.fscene     # Default scene with a camera and directional light
-  Scripts/
-    RotatorComponent.cs  # Example component that rotates an entity
+  MyGame.fproject
+  MyGame.csproj
+  Assets/
+    Scenes/MainScene.fscene
+    Scripts/RotatorComponent.cs
 ```
 
-Add a project reference to FrinkyEngine.Core in `MyGame.csproj`, build, then open `MyGame.fproject` in the editor.
+Important:
+- The template `MyGame.csproj` includes a placeholder comment for `FrinkyEngine.Core`.
+- Add a `ProjectReference` to your local `src/FrinkyEngine.Core/FrinkyEngine.Core.csproj` if needed.
 
-## Project Structure
+## Runtime Modes
 
+### Dev Mode (`.fproject`)
+
+Use when iterating in-editor and running from source/build outputs.
+
+```bash
+dotnet run --project src/FrinkyEngine.Runtime -- path/to/MyGame.fproject
 ```
+
+Behavior:
+- Loads `.fproject`
+- Resolves `assetsPath` and `defaultScene`
+- Loads `gameAssembly` if configured
+- Runs the scene loop
+
+### Exported Mode (`.fasset`)
+
+Use for packaged game distribution.
+
+Behavior:
+- Runtime checks for a `.fasset` file in the executable directory
+- Extracts archive to a temp folder
+- Loads `manifest.json`, assets, shaders, and optional game assembly
+- Runs the startup scene from the archive
+
+If no `.fproject` argument and no `.fasset` is found next to the executable, runtime prints usage help.
+
+## Export and Packaging Workflows
+
+### Editor Export (`File -> Export Game...`)
+
+The editor export pipeline:
+1. Builds game scripts in `Release`
+2. Publishes runtime (`win-x64`, self-contained, single-file settings)
+3. Packs assets, shaders, manifest, and game assembly dependencies into `.fasset`
+4. Writes output as:
+   - `<OutputName>.exe`
+   - `<OutputName>.fasset`
+
+`OutputName` and `BuildVersion` come from `project_settings.json` build settings.
+
+### Script Packaging (`package-game.bat`)
+
+```powershell
+.\package-game.bat path\to\Game.fproject
+```
+
+What it does:
+1. Builds game project in `Release`
+2. Publishes runtime framework-dependent (`--self-contained false`)
+3. Copies `.fproject`, game DLL, and game content folders
+4. Creates `Play.bat` launcher
+
+### Local Release (`release-local.bat`)
+
+```powershell
+.\release-local.bat v0.1.0
+```
+
+What it does:
+1. Validates version tag format (`vMAJOR.MINOR.PATCH`)
+2. Restores and builds solution with warnings as errors
+3. Publishes editor and runtime (`win-x64`)
+4. Packs template NuGet package
+5. Creates editor/runtime zip artifacts in `artifacts/release`
+
+## Project and Settings Files
+
+### `.fproject`
+
+Defines project identity and where runtime/editor load content from.
+
+```json
+{
+  "projectName": "MyGame",
+  "defaultScene": "Scenes/MainScene.fscene",
+  "assetsPath": "Assets",
+  "gameAssembly": "bin/Debug/net8.0/MyGame.dll",
+  "gameProject": "MyGame.csproj"
+}
+```
+
+Notes:
+- `defaultScene` is relative to `assetsPath`.
+- Editor script build uses `Debug` by default, so template `gameAssembly` points to `bin/Debug`.
+
+### `project_settings.json`
+
+Stored at the project root. Controls metadata, runtime launch settings, and build output naming.
+
+```json
+{
+  "project": {
+    "version": "0.1.0",
+    "author": "",
+    "company": "",
+    "description": ""
+  },
+  "runtime": {
+    "targetFps": 120,
+    "vSync": true,
+    "windowTitle": "MyGame",
+    "windowWidth": 1280,
+    "windowHeight": 720,
+    "resizable": true,
+    "fullscreen": false,
+    "startMaximized": false,
+    "startupSceneOverride": "",
+    "forwardPlusTileSize": 16,
+    "forwardPlusMaxLights": 256,
+    "forwardPlusMaxLightsPerTile": 64
+  },
+  "build": {
+    "outputName": "MyGame",
+    "buildVersion": "0.1.0"
+  }
+}
+```
+
+### `.frinky/editor_settings.json` and `.frinky/keybinds.json`
+
+Per-project editor preferences and shortcuts.
+
+`editor_settings.json` (minimal example):
+
+```json
+{
+  "targetFps": 120,
+  "vSync": false
+}
+```
+
+`keybinds.json` is auto-created with defaults when a project opens.
+
+## Editor Overview
+
+Main panels:
+- **Viewport**: scene rendering + transform gizmos
+- **Hierarchy**: entity tree and scene filtering
+- **Inspector**: component editing for selected entity
+- **Assets**: asset browser with file watcher updates
+- **Console**: log stream
+- **Performance**: optional performance panel
+
+Play mode behavior:
+- Editor snapshots the current scene before entering play mode
+- Runtime changes made during play are restored on stop
+
+## Architecture Snapshot
+
+- `Entity` has a list of `Component` instances
+- Each entity always has a `TransformComponent`
+- Component lifecycle includes `Awake`, `Start`, `Update`, `LateUpdate`, `OnEnable`, `OnDisable`, `OnDestroy`
+- Scenes (`.fscene`) are JSON and use `$type` for component polymorphism
+- Rendering uses Raylib and bundled shader content in `Shaders/`
+- Game assemblies load through `AssemblyLoadContext` to discover custom components
+
+## Repository Layout
+
+```text
 FrinkyEngine/
-  FrinkyEngine.sln
-  Directory.Build.props        # Shared: net8.0, C# 12, nullable, unsafe
-
   src/
-    FrinkyEngine.Core/         # Shared engine library
-      ECS/                     # Component base class (with EditorOnly flag), Entity
-      Components/              # Transform, Camera, MeshRenderer, Light, Primitives, Materials
-      Scene/                   # Scene, SceneManager, ComponentRegistry
-      Rendering/               # SceneRenderer, FrinkyLog, MaterialType
-      Serialization/           # JSON scene serializer, type resolver, converters
-      Scripting/               # GameAssemblyLoader (collectible AssemblyLoadContext)
-      Assets/                  # AssetManager, AssetDatabase, ProjectFile
-      Input/                   # Static input wrapper
-      FrinkyMath.cs            # Shared math utilities
-
-    FrinkyEngine.Editor/       # ImGui editor executable
-      Panels/                  # Viewport, Hierarchy, Inspector, Console, AssetBrowser, MenuBar
-      EditorApplication.cs     # Central editor state, Play/Stop mode
-      EditorCamera.cs          # Free-fly editor camera
-      EditorGizmos.cs          # Transform gizmo rendering
-      GizmoSystem.cs           # Gizmo interaction logic
-      KeybindManager.cs        # Configurable keybindings
-      NotificationManager.cs   # Toast notification system
-      AssetFileWatcher.cs      # Watches project files for external changes
-      ScriptBuilder.cs         # Compiles game scripts
-      ScriptCreator.cs         # Creates new script files from templates
-      ProjectScaffolder.cs     # Scaffolds new game projects
-      ImGuiDockBuilder.cs      # Custom P/Invoke bindings for dock layout
-
-    FrinkyEngine.Runtime/      # Standalone game player executable
-
+    FrinkyEngine.Core/      # Engine core, ECS, scene, serialization, assets, rendering
+    FrinkyEngine.Editor/    # Editor app and panels
+    FrinkyEngine.Runtime/   # Standalone runtime app
   templates/
-    FrinkyEngine.Templates/    # dotnet new template pack
-
-  Shaders/
-    lighting.vs, lighting.fs   # Basic lighting (ambient + 4 point/directional lights)
-
-  EditorAssets/
-    Fonts/
-      JetBrains_Mono/          # Editor UI font
-
-  Games/
-    Testing/                   # Example game project
+    FrinkyEngine.Templates/ # dotnet new template pack
+  Shaders/                  # Runtime/editor shader sources copied to output
+  EditorAssets/             # Editor fonts and icon assets
+  Games/                    # Sample or local game projects
+  artifacts/                # Publish/build outputs
 ```
 
-## Architecture
+## Troubleshooting
 
-Entities own a flat list of **Components**. Every entity always has a `TransformComponent` with parent-child hierarchy support. Components have lifecycle methods:
+- Runtime says "Failed to load scene"
+  - Check `.fproject` `assetsPath` and `defaultScene`.
+  - Confirm the scene file exists under `<project>/Assets/...`.
 
-| Method | Called |
-|---|---|
-| `Awake()` | When the component is added to an entity |
-| `Start()` | Once, before the first `Update` |
-| `Update(dt)` | Every frame |
-| `LateUpdate(dt)` | Every frame, after all `Update` calls |
-| `OnEnable()` / `OnDisable()` | When `Enabled` changes |
-| `OnDestroy()` | When the component is removed |
+- Custom script component does not appear in Add Component
+  - Build scripts first (`Scripts -> Build Scripts`).
+  - Confirm `.fproject` `gameAssembly` path matches built DLL.
 
-Components can be marked `EditorOnly` so they are excluded from runtime builds.
+- Runtime does not start in exported mode
+  - Confirm `.fasset` is in the same folder as the executable.
 
-A **Scene** holds entities and maintains quick-access lists for cameras, lights, and renderers. The **SceneRenderer** draws the scene using Raylib with a bundled lighting shader. The renderer supports an editor mode that respects the `EditorOnly` flag.
-
-### Rendering
-
-Built-in renderable components include `MeshRendererComponent` and a set of **primitive shapes** (Cube, Sphere, Cylinder, Plane) that share a common `PrimitiveComponent` base. Materials are configured via `MaterialSlot` with support for different `MaterialType` presets.
-
-### Serialization
-
-Scenes are saved as `.fscene` JSON files. The serializer uses reflection to persist all public read/write properties on components, with custom converters for `Vector3`, `Quaternion`, and `Color`. A `$type` discriminator enables polymorphic component deserialization.
-
-### Game Scripting
-
-Game projects compile to a .NET class library. The engine loads the DLL at runtime via `AssemblyLoadContext`, making all `Component` subclasses available to the serializer and the editor's Add Component menu. The editor can compile game scripts and create new script files from templates.
-
-### Editor Features
-
-- **Gizmos** -- Transform gizmos for manipulating entity position, rotation, and scale in the viewport.
-- **Keybindings** -- Configurable keyboard shortcuts stored per-project in `.frinky/keybinds.json`.
-- **Notifications** -- Toast notification system for editor feedback.
-- **Asset file watching** -- Detects external changes to project files and reloads assets automatically.
-- **Project scaffolding** -- Create new game projects from within the editor.
-
-### Play Mode
-
-The editor snapshots the scene to JSON before entering play mode and restores it on stop, so runtime changes don't persist.
+- Missing shader or black render output
+  - Use publish/build outputs that include the `Shaders/` folder content.
 
 ## Dependencies
 
-| Project | Packages |
+| Project | Package references |
 |---|---|
-| Core | Raylib-cs 7.0.2 |
-| Editor | rlImGui-cs 3.2.0 (brings Raylib-cs + ImGui.NET) |
-| Runtime | Raylib-cs 7.0.2 |
+| `FrinkyEngine.Core` | `Raylib-cs` `7.0.2` |
+| `FrinkyEngine.Editor` | `NativeFileDialogSharp` `0.5.0`, `rlImGui-cs` `3.2.0` |
+| `FrinkyEngine.Runtime` | `Raylib-cs` `7.0.2` |
 
 ## License
 
