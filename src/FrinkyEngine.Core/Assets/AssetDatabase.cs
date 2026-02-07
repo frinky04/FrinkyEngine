@@ -1,7 +1,13 @@
 namespace FrinkyEngine.Core.Assets;
 
+/// <summary>
+/// Singleton that scans a project's assets directory and provides filtered access to discovered files.
+/// </summary>
 public class AssetDatabase
 {
+    /// <summary>
+    /// The global asset database instance.
+    /// </summary>
     public static AssetDatabase Instance { get; } = new();
 
     private readonly Dictionary<string, AssetType> _extensionMap = new(StringComparer.OrdinalIgnoreCase)
@@ -24,11 +30,20 @@ public class AssetDatabase
     private List<AssetEntry> _assets = new();
     private string _assetsPath = string.Empty;
 
+    /// <summary>
+    /// Registers a custom file extension to be recognized as a specific asset type during scanning.
+    /// </summary>
+    /// <param name="ext">File extension (with or without leading dot).</param>
+    /// <param name="type">The asset type to associate with the extension.</param>
     public void RegisterExtension(string ext, AssetType type)
     {
         _extensionMap[ext.StartsWith('.') ? ext : "." + ext] = type;
     }
 
+    /// <summary>
+    /// Scans the given directory recursively and rebuilds the asset list.
+    /// </summary>
+    /// <param name="assetsPath">Absolute path to the assets root directory.</param>
     public void Scan(string assetsPath)
     {
         _assetsPath = assetsPath;
@@ -48,12 +63,20 @@ public class AssetDatabase
         _assets.Sort((a, b) => string.Compare(a.RelativePath, b.RelativePath, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Rescans the previously scanned assets directory.
+    /// </summary>
     public void Refresh()
     {
         if (!string.IsNullOrEmpty(_assetsPath))
             Scan(_assetsPath);
     }
 
+    /// <summary>
+    /// Gets all discovered assets, optionally filtered by type.
+    /// </summary>
+    /// <param name="filter">If specified, only assets of this type are returned.</param>
+    /// <returns>A read-only list of matching asset entries.</returns>
     public IReadOnlyList<AssetEntry> GetAssets(AssetType? filter = null)
     {
         if (filter == null)
@@ -62,6 +85,12 @@ public class AssetDatabase
         return _assets.Where(a => a.Type == filter.Value).ToList();
     }
 
+    /// <summary>
+    /// Gets assets that are direct children of the specified directory (non-recursive).
+    /// </summary>
+    /// <param name="relativeDir">Relative directory path (empty string for root).</param>
+    /// <param name="filter">If specified, only assets of this type are returned.</param>
+    /// <returns>A read-only list of matching asset entries.</returns>
     public IReadOnlyList<AssetEntry> GetAssetsInDirectory(string relativeDir, AssetType? filter = null)
     {
         var prefix = string.IsNullOrEmpty(relativeDir) ? "" : relativeDir.TrimEnd('/') + "/";
@@ -80,6 +109,11 @@ public class AssetDatabase
         }).ToList();
     }
 
+    /// <summary>
+    /// Gets the names of immediate subdirectories under the specified directory.
+    /// </summary>
+    /// <param name="relativeDir">Relative directory path (empty string for root).</param>
+    /// <returns>An alphabetically sorted list of subdirectory names.</returns>
     public IReadOnlyList<string> GetSubdirectories(string relativeDir)
     {
         var prefix = string.IsNullOrEmpty(relativeDir) ? "" : relativeDir.TrimEnd('/') + "/";
@@ -101,6 +135,9 @@ public class AssetDatabase
         return dirs.OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>
+    /// Clears all cached asset entries and resets the scan path.
+    /// </summary>
     public void Clear()
     {
         _assets.Clear();

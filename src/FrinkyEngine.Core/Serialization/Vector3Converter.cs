@@ -4,8 +4,12 @@ using System.Text.Json.Serialization;
 
 namespace FrinkyEngine.Core.Serialization;
 
+/// <summary>
+/// JSON converter that serializes <see cref="Vector3"/> as <c>{ "x": ..., "y": ..., "z": ... }</c>.
+/// </summary>
 public class Vector3Converter : JsonConverter<Vector3>
 {
+    /// <inheritdoc />
     public override Vector3 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -29,6 +33,7 @@ public class Vector3Converter : JsonConverter<Vector3>
         return new Vector3(x, y, z);
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Vector3 value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();

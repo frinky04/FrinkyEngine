@@ -2,8 +2,15 @@ using System.Text.Json;
 
 namespace FrinkyEngine.Core.Assets;
 
+/// <summary>
+/// Persisted project settings stored in <c>project_settings.json</c> alongside the <c>.fproject</c> file.
+/// Covers metadata, runtime configuration, and build options.
+/// </summary>
 public class ProjectSettings
 {
+    /// <summary>
+    /// The settings file name on disk.
+    /// </summary>
     public const string FileName = "project_settings.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -12,15 +19,36 @@ public class ProjectSettings
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    /// <summary>
+    /// Metadata about the project (version, author, etc.).
+    /// </summary>
     public ProjectMetadataSettings Project { get; set; } = new();
+
+    /// <summary>
+    /// Runtime behavior settings (FPS, window size, Forward+ config, etc.).
+    /// </summary>
     public RuntimeProjectSettings Runtime { get; set; } = new();
+
+    /// <summary>
+    /// Build and export settings (output name, version).
+    /// </summary>
     public BuildProjectSettings Build { get; set; } = new();
 
+    /// <summary>
+    /// Gets the full path to the settings file within a project directory.
+    /// </summary>
+    /// <param name="projectDirectory">Absolute path to the project directory.</param>
+    /// <returns>The full path to the settings file.</returns>
     public static string GetPath(string projectDirectory)
     {
         return Path.Combine(projectDirectory, FileName);
     }
 
+    /// <summary>
+    /// Creates a <see cref="ProjectSettings"/> populated with sensible defaults.
+    /// </summary>
+    /// <param name="projectName">Project name used for window title and output name.</param>
+    /// <returns>A new settings instance with default values.</returns>
     public static ProjectSettings GetDefault(string projectName)
     {
         var normalizedProjectName = string.IsNullOrWhiteSpace(projectName) ? "Untitled" : projectName.Trim();
@@ -57,6 +85,12 @@ public class ProjectSettings
         };
     }
 
+    /// <summary>
+    /// Loads settings from disk, or creates and saves defaults if the file doesn't exist.
+    /// </summary>
+    /// <param name="projectDirectory">Absolute path to the project directory.</param>
+    /// <param name="projectName">Fallback project name if none is stored.</param>
+    /// <returns>The loaded or newly created settings.</returns>
     public static ProjectSettings LoadOrCreate(string projectDirectory, string? projectName = null)
     {
         var path = GetPath(projectDirectory);
@@ -71,6 +105,12 @@ public class ProjectSettings
         return defaults;
     }
 
+    /// <summary>
+    /// Loads settings from the specified file path, falling back to defaults on error.
+    /// </summary>
+    /// <param name="path">Path to the settings JSON file.</param>
+    /// <param name="projectName">Fallback project name for normalization.</param>
+    /// <returns>The loaded settings.</returns>
     public static ProjectSettings Load(string path, string? projectName = null)
     {
         var defaultProjectName = ResolveProjectName(projectName, Path.GetDirectoryName(path));
@@ -91,6 +131,10 @@ public class ProjectSettings
         }
     }
 
+    /// <summary>
+    /// Saves these settings to disk as JSON.
+    /// </summary>
+    /// <param name="path">Destination file path.</param>
     public void Save(string path)
     {
         var defaultProjectName = ResolveProjectName(null, Path.GetDirectoryName(path));
@@ -99,6 +143,10 @@ public class ProjectSettings
         File.WriteAllText(path, json);
     }
 
+    /// <summary>
+    /// Creates a deep copy of these settings.
+    /// </summary>
+    /// <returns>A new <see cref="ProjectSettings"/> with the same values.</returns>
     public ProjectSettings Clone()
     {
         return new ProjectSettings
@@ -133,6 +181,10 @@ public class ProjectSettings
         };
     }
 
+    /// <summary>
+    /// Ensures all fields have valid values, clamping out-of-range numbers and filling empty strings.
+    /// </summary>
+    /// <param name="defaultProjectName">Project name to use as a fallback for empty fields.</param>
     public void Normalize(string defaultProjectName)
     {
         var safeProjectName = string.IsNullOrWhiteSpace(defaultProjectName) ? "Untitled" : defaultProjectName.Trim();
@@ -158,6 +210,11 @@ public class ProjectSettings
         Build.BuildVersion = Coalesce(Build.BuildVersion, Project.Version);
     }
 
+    /// <summary>
+    /// Resolves the startup scene path, preferring <see cref="RuntimeProjectSettings.StartupSceneOverride"/> if set.
+    /// </summary>
+    /// <param name="defaultScene">The default scene path from the project file.</param>
+    /// <returns>The resolved scene path.</returns>
     public string ResolveStartupScene(string defaultScene)
     {
         var scene = string.IsNullOrWhiteSpace(Runtime.StartupSceneOverride)
@@ -212,32 +269,110 @@ public class ProjectSettings
     }
 }
 
+/// <summary>
+/// Project metadata such as version, author, and description.
+/// </summary>
 public class ProjectMetadataSettings
 {
+    /// <summary>
+    /// Semantic version string (e.g. "0.1.0").
+    /// </summary>
     public string Version { get; set; } = "0.1.0";
+
+    /// <summary>
+    /// Project author name.
+    /// </summary>
     public string Author { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Company or organization name.
+    /// </summary>
     public string Company { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Short project description (single line).
+    /// </summary>
     public string Description { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Settings that control runtime behavior (window, rendering, performance).
+/// </summary>
 public class RuntimeProjectSettings
 {
+    /// <summary>
+    /// Target frames per second (clamped to 30–500, defaults to 120).
+    /// </summary>
     public int TargetFps { get; set; } = 120;
+
+    /// <summary>
+    /// Whether vertical sync is enabled.
+    /// </summary>
     public bool VSync { get; set; } = true;
+
+    /// <summary>
+    /// Title displayed in the window title bar.
+    /// </summary>
     public string WindowTitle { get; set; } = "Untitled";
+
+    /// <summary>
+    /// Initial window width in pixels.
+    /// </summary>
     public int WindowWidth { get; set; } = 1280;
+
+    /// <summary>
+    /// Initial window height in pixels.
+    /// </summary>
     public int WindowHeight { get; set; } = 720;
+
+    /// <summary>
+    /// Whether the window can be resized by the user.
+    /// </summary>
     public bool Resizable { get; set; } = true;
+
+    /// <summary>
+    /// Whether the game starts in fullscreen mode.
+    /// </summary>
     public bool Fullscreen { get; set; }
+
+    /// <summary>
+    /// Whether the game window starts maximized.
+    /// </summary>
     public bool StartMaximized { get; set; }
+
+    /// <summary>
+    /// Optional scene path that overrides the project's default scene on startup.
+    /// </summary>
     public string StartupSceneOverride { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Forward+ tile size in pixels (clamped to 8–64, defaults to 16).
+    /// </summary>
     public int ForwardPlusTileSize { get; set; } = 16;
+
+    /// <summary>
+    /// Maximum total lights processed by the Forward+ renderer (clamped to 16–2048, defaults to 256).
+    /// </summary>
     public int ForwardPlusMaxLights { get; set; } = 256;
+
+    /// <summary>
+    /// Maximum lights assigned to a single tile (clamped to 8–256, defaults to 64).
+    /// </summary>
     public int ForwardPlusMaxLightsPerTile { get; set; } = 64;
 }
 
+/// <summary>
+/// Settings that control game export and packaging.
+/// </summary>
 public class BuildProjectSettings
 {
+    /// <summary>
+    /// Name of the exported executable (without extension).
+    /// </summary>
     public string OutputName { get; set; } = "Untitled";
+
+    /// <summary>
+    /// Version string embedded in the export.
+    /// </summary>
     public string BuildVersion { get; set; } = "0.1.0";
 }

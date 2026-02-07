@@ -4,8 +4,12 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Serialization;
 
+/// <summary>
+/// JSON converter that serializes <see cref="Color"/> as <c>{ "r": ..., "g": ..., "b": ..., "a": ... }</c>.
+/// </summary>
 public class ColorConverter : JsonConverter<Color>
 {
+    /// <inheritdoc />
     public override Color Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -30,6 +34,7 @@ public class ColorConverter : JsonConverter<Color>
         return new Color(r, g, b, a);
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();

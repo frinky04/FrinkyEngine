@@ -8,6 +8,10 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Serialization;
 
+/// <summary>
+/// Handles saving and loading scenes in the <c>.fscene</c> JSON format.
+/// Also provides entity duplication via serialization round-trips.
+/// </summary>
 public static class SceneSerializer
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -23,6 +27,11 @@ public static class SceneSerializer
         }
     };
 
+    /// <summary>
+    /// Saves a scene to a <c>.fscene</c> file.
+    /// </summary>
+    /// <param name="scene">The scene to save.</param>
+    /// <param name="path">Destination file path.</param>
     public static void Save(Scene.Scene scene, string path)
     {
         var data = SerializeScene(scene);
@@ -33,6 +42,11 @@ public static class SceneSerializer
         File.WriteAllText(path, json);
     }
 
+    /// <summary>
+    /// Loads a scene from a <c>.fscene</c> file.
+    /// </summary>
+    /// <param name="path">Path to the scene file.</param>
+    /// <returns>The loaded scene, or <c>null</c> if the file doesn't exist or is invalid.</returns>
     public static Scene.Scene? Load(string path)
     {
         if (!File.Exists(path)) return null;
@@ -42,12 +56,22 @@ public static class SceneSerializer
         return DeserializeScene(data);
     }
 
+    /// <summary>
+    /// Serializes a scene to a JSON string (useful for snapshots and clipboard operations).
+    /// </summary>
+    /// <param name="scene">The scene to serialize.</param>
+    /// <returns>The JSON string.</returns>
     public static string SerializeToString(Scene.Scene scene)
     {
         var data = SerializeScene(scene);
         return JsonSerializer.Serialize(data, JsonOptions);
     }
 
+    /// <summary>
+    /// Deserializes a scene from a JSON string.
+    /// </summary>
+    /// <param name="json">The JSON string to parse.</param>
+    /// <returns>The deserialized scene, or <c>null</c> if the JSON is invalid.</returns>
     public static Scene.Scene? DeserializeFromString(string json)
     {
         var data = JsonSerializer.Deserialize<SceneData>(json, JsonOptions);
@@ -171,6 +195,12 @@ public static class SceneSerializer
         }
     }
 
+    /// <summary>
+    /// Creates a deep copy of an entity (and its children) and adds it to the scene.
+    /// </summary>
+    /// <param name="source">The entity to duplicate.</param>
+    /// <param name="scene">The scene to add the duplicate to.</param>
+    /// <returns>The duplicated entity, or <c>null</c> if duplication failed.</returns>
     public static Entity? DuplicateEntity(Entity source, Scene.Scene scene)
     {
         var data = SerializeEntity(source);
@@ -194,6 +224,11 @@ public static class SceneSerializer
             AssignNewIds(child);
     }
 
+    /// <summary>
+    /// Generates a duplicate name by appending or incrementing a " (N)" suffix.
+    /// </summary>
+    /// <param name="name">The original entity name.</param>
+    /// <returns>The new name with an incremented suffix.</returns>
     public static string GenerateDuplicateName(string name)
     {
         // Check if name ends with " (N)" pattern
@@ -244,29 +279,91 @@ public static class SceneSerializer
     }
 }
 
+/// <summary>
+/// JSON-serializable representation of a scene.
+/// </summary>
 public class SceneData
 {
+    /// <summary>
+    /// Scene display name.
+    /// </summary>
     public string Name { get; set; } = "Untitled";
+
+    /// <summary>
+    /// Saved editor camera position.
+    /// </summary>
     public System.Numerics.Vector3? EditorCameraPosition { get; set; }
+
+    /// <summary>
+    /// Saved editor camera yaw angle.
+    /// </summary>
     public float? EditorCameraYaw { get; set; }
+
+    /// <summary>
+    /// Saved editor camera pitch angle.
+    /// </summary>
     public float? EditorCameraPitch { get; set; }
+
+    /// <summary>
+    /// Serialized root entities (children are nested within each entity).
+    /// </summary>
     public List<EntityData> Entities { get; set; } = new();
 }
 
+/// <summary>
+/// JSON-serializable representation of an entity.
+/// </summary>
 public class EntityData
 {
+    /// <summary>
+    /// Entity display name.
+    /// </summary>
     public string Name { get; set; } = "Entity";
+
+    /// <summary>
+    /// Unique identifier.
+    /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Whether the entity is active.
+    /// </summary>
     public bool Active { get; set; } = true;
+
+    /// <summary>
+    /// Serialized components attached to this entity.
+    /// </summary>
     public List<ComponentData> Components { get; set; } = new();
+
+    /// <summary>
+    /// Serialized child entities.
+    /// </summary>
     public List<EntityData> Children { get; set; } = new();
 }
 
+/// <summary>
+/// JSON-serializable representation of a component, discriminated by the <c>$type</c> field.
+/// </summary>
 public class ComponentData
 {
+    /// <summary>
+    /// Fully qualified type name used by <see cref="ComponentTypeResolver"/> for deserialization.
+    /// </summary>
     [JsonPropertyName("$type")]
     public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the component is enabled.
+    /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether the component is editor-only.
+    /// </summary>
     public bool EditorOnly { get; set; }
+
+    /// <summary>
+    /// Serialized public properties as key-value pairs of JSON elements.
+    /// </summary>
     public Dictionary<string, JsonElement> Properties { get; set; } = new();
 }

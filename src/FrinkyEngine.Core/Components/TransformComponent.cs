@@ -3,6 +3,14 @@ using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Components;
 
+/// <summary>
+/// Defines an entity's position, rotation, and scale in 3D space.
+/// Supports parent-child hierarchies for nested transforms.
+/// </summary>
+/// <remarks>
+/// Every <see cref="Entity"/> always has exactly one <see cref="TransformComponent"/> that cannot be removed.
+/// Local properties are relative to the parent transform; world properties account for the full hierarchy.
+/// </remarks>
 public class TransformComponent : Component
 {
     private Vector3 _localPosition = Vector3.Zero;
@@ -13,12 +21,18 @@ public class TransformComponent : Component
     private Vector3 _cachedEuler = Vector3.Zero;
     private bool _eulerDirty = true;
 
+    /// <summary>
+    /// Position relative to the parent transform (or world origin if no parent).
+    /// </summary>
     public Vector3 LocalPosition
     {
         get => _localPosition;
         set => _localPosition = value;
     }
 
+    /// <summary>
+    /// Rotation relative to the parent transform as a quaternion.
+    /// </summary>
     public Quaternion LocalRotation
     {
         get => _localRotation;
@@ -29,12 +43,18 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// Scale relative to the parent transform (defaults to <c>(1, 1, 1)</c>).
+    /// </summary>
     public Vector3 LocalScale
     {
         get => _localScale;
         set => _localScale = value;
     }
 
+    /// <summary>
+    /// Local rotation expressed as Euler angles in degrees (X = pitch, Y = yaw, Z = roll).
+    /// </summary>
     public Vector3 EulerAngles
     {
         get
@@ -54,9 +74,19 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The parent transform in the hierarchy, or <c>null</c> if this is a root transform.
+    /// </summary>
     public TransformComponent? Parent => _parent;
+
+    /// <summary>
+    /// The immediate child transforms in the hierarchy.
+    /// </summary>
     public IReadOnlyList<TransformComponent> Children => _children;
 
+    /// <summary>
+    /// The position in world space, computed from the full hierarchy.
+    /// </summary>
     public Vector3 WorldPosition
     {
         get
@@ -66,6 +96,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The local transform matrix (scale * rotation * translation).
+    /// </summary>
     public Matrix4x4 LocalMatrix
     {
         get
@@ -76,6 +109,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The world transform matrix, combining this transform with all parent transforms.
+    /// </summary>
     public Matrix4x4 WorldMatrix
     {
         get
@@ -86,6 +122,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The forward direction (negative Z axis) in world space.
+    /// </summary>
     public Vector3 Forward
     {
         get
@@ -97,6 +136,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The right direction (positive X axis) in world space.
+    /// </summary>
     public Vector3 Right
     {
         get
@@ -108,6 +150,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The up direction (positive Y axis) in world space.
+    /// </summary>
     public Vector3 Up
     {
         get
@@ -119,6 +164,9 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// The rotation in world space, combining local rotation with all parent rotations.
+    /// </summary>
     public Quaternion WorldRotation
     {
         get
@@ -129,6 +177,13 @@ public class TransformComponent : Component
         }
     }
 
+    /// <summary>
+    /// Sets a new parent for this transform, updating the hierarchy.
+    /// </summary>
+    /// <param name="newParent">The new parent transform, or <c>null</c> to make this a root transform.</param>
+    /// <remarks>
+    /// Circular hierarchies are prevented — if this transform is an ancestor of <paramref name="newParent"/>, the call is ignored.
+    /// </remarks>
     public void SetParent(TransformComponent? newParent)
     {
         if (newParent == this) return;

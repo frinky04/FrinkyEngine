@@ -3,6 +3,9 @@ using System.Runtime.InteropServices;
 
 namespace FrinkyEngine.Core.Rendering;
 
+/// <summary>
+/// Redirects Raylib's native trace log output to <see cref="FrinkyLog"/>.
+/// </summary>
 public static unsafe class RaylibLogger
 {
     [DllImport("raylib", CallingConvention = CallingConvention.Cdecl)]
@@ -29,6 +32,9 @@ public static unsafe class RaylibLogger
         FrinkyLog.Log(message, level, "Raylib");
     }
 
+    /// <summary>
+    /// Installs the Raylib trace log callback. Call once during initialization.
+    /// </summary>
     public static void Install()
     {
         SetTraceLogCallback(&TraceLogCallback);

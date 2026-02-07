@@ -4,8 +4,12 @@ using System.Text.Json.Serialization;
 
 namespace FrinkyEngine.Core.Serialization;
 
+/// <summary>
+/// JSON converter that serializes <see cref="Quaternion"/> as <c>{ "x": ..., "y": ..., "z": ..., "w": ... }</c>.
+/// </summary>
 public class QuaternionConverter : JsonConverter<Quaternion>
 {
+    /// <inheritdoc />
     public override Quaternion Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -30,6 +34,7 @@ public class QuaternionConverter : JsonConverter<Quaternion>
         return new Quaternion(x, y, z, w);
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Quaternion value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();

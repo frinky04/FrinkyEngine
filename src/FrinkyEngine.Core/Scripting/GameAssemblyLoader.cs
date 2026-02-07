@@ -5,6 +5,10 @@ using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.Scripting;
 
+/// <summary>
+/// Loads and unloads game script assemblies using a collectible <see cref="AssemblyLoadContext"/> for hot-reload support.
+/// Automatically registers loaded component types with <see cref="ComponentTypeResolver"/>.
+/// </summary>
 public class GameAssemblyLoader
 {
     private sealed class GameAssemblyLoadContext : AssemblyLoadContext
@@ -44,8 +48,16 @@ public class GameAssemblyLoader
     private AssemblyLoadContext? _loadContext;
     private Assembly? _gameAssembly;
 
+    /// <summary>
+    /// The currently loaded game assembly, or <c>null</c> if none is loaded.
+    /// </summary>
     public Assembly? GameAssembly => _gameAssembly;
 
+    /// <summary>
+    /// Loads a game assembly from the specified DLL path into an isolated load context.
+    /// </summary>
+    /// <param name="dllPath">Path to the game assembly DLL.</param>
+    /// <returns><c>true</c> if the assembly was loaded successfully.</returns>
     public bool LoadAssembly(string dllPath)
     {
         if (!File.Exists(dllPath))
@@ -80,6 +92,9 @@ public class GameAssemblyLoader
         }
     }
 
+    /// <summary>
+    /// Unloads the current game assembly and its load context, unregistering all its component types.
+    /// </summary>
     public void Unload()
     {
         if (_gameAssembly != null)
@@ -90,6 +105,11 @@ public class GameAssemblyLoader
         _loadContext = null;
     }
 
+    /// <summary>
+    /// Unloads the current assembly and loads a new one from the specified path (hot-reload).
+    /// </summary>
+    /// <param name="dllPath">Path to the new game assembly DLL.</param>
+    /// <returns><c>true</c> if the new assembly was loaded successfully.</returns>
     public bool ReloadAssembly(string dllPath)
     {
         Unload();

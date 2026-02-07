@@ -4,10 +4,17 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
+/// <summary>
+/// Renders a 3D model loaded from a file (e.g. .obj, .gltf, .glb).
+/// Supports multiple material slots for per-material texture assignment.
+/// </summary>
 public class MeshRendererComponent : RenderableComponent
 {
     private string _modelPath = string.Empty;
 
+    /// <summary>
+    /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
+    /// </summary>
     public string ModelPath
     {
         get => _modelPath;
@@ -19,6 +26,9 @@ public class MeshRendererComponent : RenderableComponent
         }
     }
 
+    /// <summary>
+    /// Per-material configurations for this model. Slots are auto-created to match the model's material count.
+    /// </summary>
     public List<MaterialSlot> MaterialSlots { get; set; } = new();
 
     internal override void EnsureModelReady()
@@ -64,11 +74,15 @@ public class MeshRendererComponent : RenderableComponent
         RenderModel = model;
     }
 
+    /// <summary>
+    /// Forces the model and materials to be reloaded from disk on the next frame.
+    /// </summary>
     public void RefreshMaterials()
     {
         RenderModel = null;
     }
 
+    /// <inheritdoc />
     public override void Start()
     {
         EnsureModelReady();

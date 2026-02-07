@@ -4,24 +4,47 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
+/// <summary>
+/// Abstract base class for components that can be drawn by the <see cref="Rendering.SceneRenderer"/>.
+/// Provides tint color, ray-collision testing, and world-space bounding box computation.
+/// </summary>
 public abstract class RenderableComponent : Component
 {
     private const float HitDistanceEpsilon = 1e-5f;
     private const float FrontFaceDotThreshold = -1e-4f;
 
+    /// <summary>
+    /// Color multiplier applied when drawing this renderable (defaults to white / fully opaque).
+    /// </summary>
     public Color Tint { get; set; } = new(255, 255, 255, 255);
 
     internal Model? RenderModel { get; set; }
 
+    /// <summary>
+    /// Marks the internal render model as stale so it will be rebuilt before the next draw.
+    /// </summary>
     public virtual void Invalidate() { RenderModel = null; }
 
     internal abstract void EnsureModelReady();
 
+    /// <summary>
+    /// Casts a ray against this renderable's mesh in world space.
+    /// </summary>
+    /// <param name="ray">The ray to test.</param>
+    /// <param name="frontFacesOnly">When <c>true</c>, ignores back-facing triangles.</param>
+    /// <returns>The closest hit, or <c>null</c> if the ray misses.</returns>
     public RayCollision? GetWorldRayCollision(Ray ray, bool frontFacesOnly = true)
     {
         return GetWorldRayCollision(ray, out _, frontFacesOnly);
     }
 
+    /// <summary>
+    /// Casts a ray against this renderable's mesh in world space, also reporting whether mesh data was available.
+    /// </summary>
+    /// <param name="ray">The ray to test.</param>
+    /// <param name="hasMeshData">Set to <c>true</c> if the model has mesh data to test against.</param>
+    /// <param name="frontFacesOnly">When <c>true</c>, ignores back-facing triangles.</param>
+    /// <returns>The closest hit, or <c>null</c> if the ray misses.</returns>
     public RayCollision? GetWorldRayCollision(Ray ray, out bool hasMeshData, bool frontFacesOnly = true)
     {
         EnsureModelReady();
@@ -73,6 +96,10 @@ public abstract class RenderableComponent : Component
         return closestCollision;
     }
 
+    /// <summary>
+    /// Computes the axis-aligned bounding box of this renderable in world space.
+    /// </summary>
+    /// <returns>The world-space bounding box, or <c>null</c> if no mesh data is available.</returns>
     public BoundingBox? GetWorldBoundingBox()
     {
         EnsureModelReady();

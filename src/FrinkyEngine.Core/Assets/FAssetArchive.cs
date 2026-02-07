@@ -1,18 +1,45 @@
 namespace FrinkyEngine.Core.Assets;
 
+/// <summary>
+/// Represents a single file entry within an <see cref="FAssetArchive"/>.
+/// </summary>
 public class FAssetEntry
 {
+    /// <summary>
+    /// Path of the file relative to the assets root, using forward slashes.
+    /// </summary>
     public string RelativePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Absolute path to the source file on disk (used during archive creation).
+    /// </summary>
     public string SourcePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Byte offset of this file's data within the archive.
+    /// </summary>
     public ulong DataOffset { get; set; }
+
+    /// <summary>
+    /// Size of this file's data in bytes.
+    /// </summary>
     public ulong DataSize { get; set; }
 }
 
+/// <summary>
+/// Packs and extracts binary asset archives in the <c>.fasset</c> format.
+/// The archive stores a header, a file table, and concatenated file data.
+/// </summary>
 public static class FAssetArchive
 {
     private static readonly byte[] Magic = "FARC"u8.ToArray();
     private const uint Version = 1;
 
+    /// <summary>
+    /// Writes a set of asset entries into a single archive file.
+    /// </summary>
+    /// <param name="outputPath">Destination path for the archive.</param>
+    /// <param name="entries">The files to pack. Each entry's <see cref="FAssetEntry.SourcePath"/> must point to an existing file.</param>
     public static void Write(string outputPath, IReadOnlyList<FAssetEntry> entries)
     {
         using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
@@ -67,6 +94,11 @@ public static class FAssetArchive
         }
     }
 
+    /// <summary>
+    /// Extracts all files from an archive to the specified output directory, recreating subdirectories.
+    /// </summary>
+    /// <param name="archivePath">Path to the <c>.fasset</c> archive.</param>
+    /// <param name="outputDirectory">Directory to extract files into.</param>
     public static void ExtractAll(string archivePath, string outputDirectory)
     {
         using var fs = new FileStream(archivePath, FileMode.Open, FileAccess.Read);

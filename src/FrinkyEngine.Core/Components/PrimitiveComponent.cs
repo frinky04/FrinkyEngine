@@ -4,12 +4,19 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
+/// <summary>
+/// Abstract base class for procedurally generated mesh primitives (cubes, spheres, etc.).
+/// Handles mesh generation, material assignment, and automatic rebuilds when properties change.
+/// </summary>
 public abstract class PrimitiveComponent : RenderableComponent
 {
     private MaterialType _materialType = MaterialType.SolidColor;
     private string _texturePath = string.Empty;
     private bool _meshDirty;
 
+    /// <summary>
+    /// Whether the primitive surface uses a solid color or a texture (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
+    /// </summary>
     public MaterialType MaterialType
     {
         get => _materialType;
@@ -21,6 +28,9 @@ public abstract class PrimitiveComponent : RenderableComponent
         }
     }
 
+    /// <summary>
+    /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.Textured"/>.
+    /// </summary>
     public string TexturePath
     {
         get => _texturePath;
@@ -32,6 +42,7 @@ public abstract class PrimitiveComponent : RenderableComponent
         }
     }
 
+    /// <inheritdoc />
     public override void Invalidate()
     {
         if (RenderModel.HasValue)
@@ -40,8 +51,15 @@ public abstract class PrimitiveComponent : RenderableComponent
         _meshDirty = true;
     }
 
+    /// <summary>
+    /// Creates the procedural mesh for this primitive. Subclasses implement this to define their geometry.
+    /// </summary>
+    /// <returns>The generated <see cref="Mesh"/>.</returns>
     protected abstract Mesh CreateMesh();
 
+    /// <summary>
+    /// Flags the mesh as needing a rebuild, triggering regeneration on the next frame.
+    /// </summary>
     protected void MarkMeshDirty()
     {
         if (RenderModel.HasValue)
@@ -50,12 +68,14 @@ public abstract class PrimitiveComponent : RenderableComponent
             _meshDirty = true;
     }
 
+    /// <inheritdoc />
     public override void Start()
     {
         if (!RenderModel.HasValue || _meshDirty)
             RebuildModel();
     }
 
+    /// <inheritdoc />
     public override void OnDestroy()
     {
         if (RenderModel.HasValue)

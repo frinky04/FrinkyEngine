@@ -5,6 +5,9 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Rendering;
 
+/// <summary>
+/// Renders scenes using a Forward+ tiled lighting pipeline with support for multiple light types.
+/// </summary>
 public class SceneRenderer
 {
     private const int LightTexelsPerLight = 4;
@@ -71,6 +74,9 @@ public class SceneRenderer
     private int _lastMaxLightsPerTile;
     private bool _lastStatsValid;
 
+    /// <summary>
+    /// Diagnostic statistics from the most recent Forward+ frame.
+    /// </summary>
     public readonly record struct ForwardPlusFrameStats(
         bool Valid,
         int SceneLights,
@@ -89,6 +95,10 @@ public class SceneRenderer
         float AverageLightsPerTile,
         int PeakLightsPerTile);
 
+    /// <summary>
+    /// Gets diagnostic statistics from the most recent Forward+ render pass.
+    /// </summary>
+    /// <returns>A snapshot of the current frame's lighting statistics.</returns>
     public ForwardPlusFrameStats GetForwardPlusFrameStats()
     {
         return new ForwardPlusFrameStats(
@@ -110,6 +120,10 @@ public class SceneRenderer
             _lastMaxLightsPerTile);
     }
 
+    /// <summary>
+    /// Applies new Forward+ configuration settings, reallocating tile buffers if needed.
+    /// </summary>
+    /// <param name="settings">The new settings to apply (values will be normalized/clamped).</param>
     public void ConfigureForwardPlus(ForwardPlusSettings settings)
     {
         var normalized = settings.Normalize();
@@ -125,6 +139,11 @@ public class SceneRenderer
         _tileIndexEntries = 0;
     }
 
+    /// <summary>
+    /// Loads the lighting shader from vertex and fragment shader files.
+    /// </summary>
+    /// <param name="vsPath">Path to the vertex shader file.</param>
+    /// <param name="fsPath">Path to the fragment shader file.</param>
     public void LoadShader(string vsPath, string fsPath)
     {
         _lightingShader = Raylib.LoadShader(vsPath, fsPath);
@@ -167,6 +186,9 @@ public class SceneRenderer
         }
     }
 
+    /// <summary>
+    /// Unloads all shaders and releases Forward+ GPU textures.
+    /// </summary>
     public void UnloadShader()
     {
         ReleaseForwardPlusTextures();
@@ -184,6 +206,14 @@ public class SceneRenderer
         }
     }
 
+    /// <summary>
+    /// Renders the scene from the given camera, optionally into a render texture.
+    /// </summary>
+    /// <param name="scene">The scene to render.</param>
+    /// <param name="camera">The camera viewpoint.</param>
+    /// <param name="renderTarget">Optional render texture target (renders to screen if <c>null</c>).</param>
+    /// <param name="postSceneRender">Optional callback invoked after 3D drawing but before EndMode3D.</param>
+    /// <param name="isEditorMode">When <c>true</c>, editor-only objects and the grid are drawn.</param>
     public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null, bool isEditorMode = true)
     {
         if (renderTarget.HasValue)
@@ -247,6 +277,14 @@ public class SceneRenderer
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
     }
 
+    /// <summary>
+    /// Renders a binary selection mask of the specified entities into a render texture, used for outline effects.
+    /// </summary>
+    /// <param name="scene">The scene containing the entities.</param>
+    /// <param name="camera">The camera viewpoint.</param>
+    /// <param name="selectedEntities">The entities to highlight.</param>
+    /// <param name="renderTarget">The render texture to draw the mask into.</param>
+    /// <param name="isEditorMode">When <c>true</c>, editor-only objects participate in depth testing.</param>
     public void RenderSelectionMask(
         Scene.Scene scene,
         Camera3D camera,
