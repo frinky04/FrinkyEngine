@@ -55,7 +55,8 @@ public class GameAssemblyLoader
         {
             var fullPath = Path.GetFullPath(dllPath);
             _loadContext = new GameAssemblyLoadContext(fullPath);
-            _gameAssembly = _loadContext.LoadFromAssemblyPath(fullPath);
+            var bytes = File.ReadAllBytes(fullPath);
+            _gameAssembly = _loadContext.LoadFromStream(new MemoryStream(bytes));
             ComponentTypeResolver.RegisterAssembly(_gameAssembly);
             return true;
         }

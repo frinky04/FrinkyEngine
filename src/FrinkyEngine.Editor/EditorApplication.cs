@@ -385,6 +385,7 @@ public class EditorApplication
             return;
         }
 
+        AssemblyLoader.Unload();
         _buildNotification = NotificationManager.Instance.PostPersistent("Building Scripts...", NotificationType.Info);
         _buildTask = Task.Run(() => ScriptBuilder.BuildAsync(csprojPath));
     }
