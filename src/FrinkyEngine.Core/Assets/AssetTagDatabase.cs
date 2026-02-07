@@ -3,20 +3,28 @@ using System.Text.Json.Serialization;
 
 namespace FrinkyEngine.Core.Assets;
 
+/// <summary>Represents a single tag definition with a name and display color.</summary>
 public class AssetTag
 {
+    /// <summary>Display name of the tag.</summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>Hex color string (e.g. "#FF0000") used for UI display.</summary>
     public string Color { get; set; } = "#FFFFFF";
 }
 
+/// <summary>Serialization container for tag definitions and per-asset tag assignments.</summary>
 public class AssetTagData
 {
+    /// <summary>All defined tags.</summary>
     public List<AssetTag> Tags { get; set; } = new();
+    /// <summary>Maps asset relative paths to lists of assigned tag names.</summary>
     public Dictionary<string, List<string>> AssetTags { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>Manages asset tag definitions and per-asset tag assignments, persisted as JSON.</summary>
 public class AssetTagDatabase
 {
+    /// <summary>Default file name for the tag database.</summary>
     public const string FileName = "asset_tags.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -27,6 +35,7 @@ public class AssetTagDatabase
 
     private AssetTagData _data = new();
 
+    /// <summary>Loads the tag database from the project directory, or creates a new empty one.</summary>
     public static AssetTagDatabase LoadOrCreate(string projectDirectory)
     {
         var db = new AssetTagDatabase();
@@ -48,6 +57,7 @@ public class AssetTagDatabase
         return db;
     }
 
+    /// <summary>Saves the tag database to the project directory, sorting entries for clean diffs.</summary>
     public void Save(string projectDirectory)
     {
         var path = Path.Combine(projectDirectory, FileName);
@@ -70,11 +80,13 @@ public class AssetTagDatabase
         File.WriteAllText(path, json);
     }
 
+    /// <summary>Returns all defined tags.</summary>
     public List<AssetTag> GetAllTags()
     {
         return _data.Tags;
     }
 
+    /// <summary>Returns the resolved tag objects assigned to the given asset.</summary>
     public List<AssetTag> GetTagsForAsset(string relativePath)
     {
         if (!_data.AssetTags.TryGetValue(relativePath, out var tagNames))
@@ -87,6 +99,7 @@ public class AssetTagDatabase
             .ToList();
     }
 
+    /// <summary>Replaces all tag assignments for an asset.</summary>
     public void SetAssetTags(string relativePath, List<string> tagNames)
     {
         if (tagNames.Count == 0)
@@ -95,6 +108,7 @@ public class AssetTagDatabase
             _data.AssetTags[relativePath] = tagNames.ToList();
     }
 
+    /// <summary>Adds a tag to multiple assets at once.</summary>
     public void AddTagToAssets(IEnumerable<string> relativePaths, string tagName)
     {
         foreach (var path in relativePaths)
@@ -110,6 +124,7 @@ public class AssetTagDatabase
         }
     }
 
+    /// <summary>Removes a tag from multiple assets at once.</summary>
     public void RemoveTagFromAssets(IEnumerable<string> relativePaths, string tagName)
     {
         foreach (var path in relativePaths)
@@ -123,6 +138,7 @@ public class AssetTagDatabase
         }
     }
 
+    /// <summary>Creates a new tag definition if one with the same name does not already exist.</summary>
     public void CreateTag(string name, string hexColor)
     {
         if (_data.Tags.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
@@ -131,6 +147,7 @@ public class AssetTagDatabase
         _data.Tags.Add(new AssetTag { Name = name, Color = hexColor });
     }
 
+    /// <summary>Deletes a tag definition and removes it from all asset assignments.</summary>
     public void DeleteTag(string name)
     {
         _data.Tags.RemoveAll(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -146,6 +163,7 @@ public class AssetTagDatabase
         }
     }
 
+    /// <summary>Renames a tag and updates all asset assignments to use the new name.</summary>
     public void RenameTag(string oldName, string newName)
     {
         var tag = _data.Tags.FirstOrDefault(t => string.Equals(t.Name, oldName, StringComparison.OrdinalIgnoreCase));
@@ -165,6 +183,7 @@ public class AssetTagDatabase
         }
     }
 
+    /// <summary>Updates the display color for a tag.</summary>
     public void UpdateTagColor(string name, string hexColor)
     {
         var tag = _data.Tags.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -172,6 +191,7 @@ public class AssetTagDatabase
             tag.Color = hexColor;
     }
 
+    /// <summary>Returns the set of asset paths that have the given tag assigned.</summary>
     public HashSet<string> GetAssetsWithTag(string tagName)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -184,6 +204,7 @@ public class AssetTagDatabase
         return result;
     }
 
+    /// <summary>Checks whether the given asset has a specific tag assigned.</summary>
     public bool AssetHasTag(string relativePath, string tagName)
     {
         if (!_data.AssetTags.TryGetValue(relativePath, out var tags))
@@ -192,6 +213,7 @@ public class AssetTagDatabase
         return tags.Any(t => string.Equals(t, tagName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>Removes tag assignments for assets that no longer exist.</summary>
     public void CleanupStaleEntries(IReadOnlySet<string> existingAssetPaths)
     {
         var staleKeys = _data.AssetTags.Keys
