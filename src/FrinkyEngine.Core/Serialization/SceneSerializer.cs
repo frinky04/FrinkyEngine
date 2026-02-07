@@ -163,7 +163,6 @@ public static class SceneSerializer
             EditorCameraYaw = data.EditorCameraYaw,
             EditorCameraPitch = data.EditorCameraPitch
         };
-        var parentMap = new Dictionary<Entity, List<EntityData>>();
 
         foreach (var entityData in data.Entities)
         {
@@ -173,7 +172,7 @@ public static class SceneSerializer
         return scene;
     }
 
-    private static void DeserializeEntityTree(EntityData data, Scene.Scene scene, TransformComponent? parent)
+    private static Entity DeserializeEntityTree(EntityData data, Scene.Scene scene, TransformComponent? parent)
     {
         var entity = new Entity(data.Name)
         {
@@ -196,6 +195,8 @@ public static class SceneSerializer
         {
             DeserializeEntityTree(childData, scene, entity.Transform);
         }
+
+        return entity;
     }
 
     /// <summary>
@@ -213,11 +214,7 @@ public static class SceneSerializer
         // Find the parent of the source entity
         var parent = source.Transform.Parent;
 
-        DeserializeEntityTree(data, scene, parent);
-
-        // The newly added entity is the last one in the scene
-        var entities = scene.Entities;
-        return entities.Count > 0 ? entities[^1] : null;
+        return DeserializeEntityTree(data, scene, parent);
     }
 
     private static void AssignNewIds(EntityData data)
