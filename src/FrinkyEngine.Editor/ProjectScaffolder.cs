@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
@@ -56,6 +57,11 @@ public static class ProjectScaffolder
         Directory.CreateDirectory(scriptsDir);
         var scriptPath = Path.Combine(scriptsDir, "RotatorComponent.cs");
         File.WriteAllText(scriptPath, GenerateRotatorComponent(projectName));
+
+        // 5. Write .gitignore and initialize git repo
+        var gitignorePath = Path.Combine(projectDir, ".gitignore");
+        File.WriteAllText(gitignorePath, GenerateGitignore());
+        InitializeGitRepo(projectDir);
 
         return fprojectPath;
     }
@@ -189,5 +195,74 @@ public static class ProjectScaffolder
                 }
             }
             """;
+    }
+
+    private static string GenerateGitignore()
+    {
+        return """
+            ## .NET
+            bin/
+            obj/
+            *.user
+            *.suo
+            *.cache
+
+            ## IDE
+            .vs/
+            .idea/
+            *.swp
+            *~
+
+            ## Build
+            publish/
+            out/
+
+            ## OS
+            Thumbs.db
+            .DS_Store
+
+            ## Engine
+            .frinky/
+            *.fproject.user
+            imgui.ini
+            """;
+    }
+
+    private static void InitializeGitRepo(string projectDir)
+    {
+        try
+        {
+            RunGit(projectDir, "init");
+            RunGit(projectDir, "add .");
+            RunGit(projectDir, "commit -m \"Initial commit\"");
+            FrinkyLog.Info("Scaffold: initialized git repository.");
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Scaffold: could not initialize git repo (git may not be installed): {ex.Message}");
+        }
+    }
+
+    private static void RunGit(string workingDirectory, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "git",
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(psi)!;
+        process.WaitForExit(10_000);
+
+        if (process.ExitCode != 0)
+        {
+            var stderr = process.StandardError.ReadToEnd();
+            throw new InvalidOperationException($"git {arguments} failed: {stderr}");
+        }
     }
 }
