@@ -76,11 +76,17 @@ public class ViewportPanel
                 if (_app.CurrentScene != null)
                 {
                     bool isEditorMode = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
+                    var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     var textureToDisplay = _renderTexture;
 
                     _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
                         () =>
                         {
+                            if (physicsHitboxDrawMode != PhysicsHitboxDrawMode.Off)
+                            {
+                                EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, physicsHitboxDrawMode);
+                            }
+
                             if (isEditorMode)
                             {
                                 gizmo.Draw(camera, selectedEntities, selected);
@@ -211,6 +217,15 @@ public class ViewportPanel
         }
 
         return ImGui.IsItemHovered();
+    }
+
+    private PhysicsHitboxDrawMode ResolvePhysicsHitboxDrawMode()
+    {
+        if (_app.IsPhysicsHitboxPreviewEnabled)
+            return PhysicsHitboxDrawMode.All;
+
+        bool isDefaultEditorView = _app.Mode == EditorMode.Edit && !_app.IsGameViewEnabled;
+        return isDefaultEditorView ? PhysicsHitboxDrawMode.SelectedOnly : PhysicsHitboxDrawMode.Off;
     }
 
     private void EnsureSelectionOutlineShaderLoaded()

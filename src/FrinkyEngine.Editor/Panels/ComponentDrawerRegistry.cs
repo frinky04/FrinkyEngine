@@ -20,6 +20,10 @@ public static class ComponentDrawerRegistry
         Register<LightComponent>(DrawLight);
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
+        Register<RigidbodyComponent>(DrawRigidbody);
+        Register<BoxColliderComponent>(DrawBoxCollider);
+        Register<SphereColliderComponent>(DrawSphereCollider);
+        Register<CapsuleColliderComponent>(DrawCapsuleCollider);
     }
 
     public static void Register<T>(Action<Component> drawer) where T : Component
@@ -452,6 +456,183 @@ public static class ComponentDrawerRegistry
         ImGui.Spacing();
 
         DrawSubclassProperties(c);
+    }
+
+    private static void DrawRigidbody(Component c)
+    {
+        var rb = (RigidbodyComponent)c;
+        var app = EditorApplication.Instance;
+
+        int motion = (int)rb.MotionType;
+        if (ImGui.Combo("Motion Type", ref motion, "Dynamic\0Kinematic\0Static\0"))
+        {
+            app.RecordUndo();
+            rb.MotionType = (BodyMotionType)motion;
+            app.RefreshUndoBaseline();
+        }
+
+        if (rb.MotionType == BodyMotionType.Dynamic)
+        {
+            float mass = rb.Mass;
+            if (ImGui.DragFloat("Mass", ref mass, 0.05f, 0.0001f, 100000f))
+                rb.Mass = mass;
+            TrackContinuousUndo(app);
+        }
+        else
+        {
+            ImGui.TextDisabled("Mass is used for Dynamic bodies only.");
+        }
+
+        float linearDamping = rb.LinearDamping;
+        if (ImGui.DragFloat("Linear Damping", ref linearDamping, 0.005f, 0f, 1f))
+            rb.LinearDamping = linearDamping;
+        TrackContinuousUndo(app);
+
+        float angularDamping = rb.AngularDamping;
+        if (ImGui.DragFloat("Angular Damping", ref angularDamping, 0.005f, 0f, 1f))
+            rb.AngularDamping = angularDamping;
+        TrackContinuousUndo(app);
+
+        bool continuousDetection = rb.ContinuousDetection;
+        if (ImGui.Checkbox("Continuous Detection", ref continuousDetection))
+        {
+            app.RecordUndo();
+            rb.ContinuousDetection = continuousDetection;
+            app.RefreshUndoBaseline();
+        }
+
+        ImGui.Separator();
+        ImGui.Text("Axis Locks");
+
+        bool lockPositionX = rb.LockPositionX;
+        if (ImGui.Checkbox("Lock Position X", ref lockPositionX))
+        {
+            app.RecordUndo();
+            rb.LockPositionX = lockPositionX;
+            app.RefreshUndoBaseline();
+        }
+
+        bool lockPositionY = rb.LockPositionY;
+        if (ImGui.Checkbox("Lock Position Y", ref lockPositionY))
+        {
+            app.RecordUndo();
+            rb.LockPositionY = lockPositionY;
+            app.RefreshUndoBaseline();
+        }
+
+        bool lockPositionZ = rb.LockPositionZ;
+        if (ImGui.Checkbox("Lock Position Z", ref lockPositionZ))
+        {
+            app.RecordUndo();
+            rb.LockPositionZ = lockPositionZ;
+            app.RefreshUndoBaseline();
+        }
+
+        bool lockRotationX = rb.LockRotationX;
+        if (ImGui.Checkbox("Lock Rotation X", ref lockRotationX))
+        {
+            app.RecordUndo();
+            rb.LockRotationX = lockRotationX;
+            app.RefreshUndoBaseline();
+        }
+
+        bool lockRotationY = rb.LockRotationY;
+        if (ImGui.Checkbox("Lock Rotation Y", ref lockRotationY))
+        {
+            app.RecordUndo();
+            rb.LockRotationY = lockRotationY;
+            app.RefreshUndoBaseline();
+        }
+
+        bool lockRotationZ = rb.LockRotationZ;
+        if (ImGui.Checkbox("Lock Rotation Z", ref lockRotationZ))
+        {
+            app.RecordUndo();
+            rb.LockRotationZ = lockRotationZ;
+            app.RefreshUndoBaseline();
+        }
+
+        bool hasCollider = rb.Entity.Components.Any(component => component is ColliderComponent collider && collider.Enabled);
+        if (!hasCollider)
+        {
+            ImGui.Spacing();
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Rigidbody is ignored until an enabled collider component is added.");
+            ImGui.PopStyleColor();
+        }
+
+        if (rb.Entity.Transform.Parent != null)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Parented rigidbodies are not simulated.");
+            ImGui.PopStyleColor();
+        }
+    }
+
+    private static void DrawBoxCollider(Component c)
+    {
+        var collider = (BoxColliderComponent)c;
+        DrawColliderCommon(collider);
+
+        var size = collider.Size;
+        if (ImGui.DragFloat3("Size", ref size, 0.05f, 0.001f, 10000f))
+            collider.Size = size;
+        TrackContinuousUndo(EditorApplication.Instance);
+    }
+
+    private static void DrawSphereCollider(Component c)
+    {
+        var collider = (SphereColliderComponent)c;
+        DrawColliderCommon(collider);
+
+        float radius = collider.Radius;
+        if (ImGui.DragFloat("Radius", ref radius, 0.05f, 0.001f, 10000f))
+            collider.Radius = radius;
+        TrackContinuousUndo(EditorApplication.Instance);
+    }
+
+    private static void DrawCapsuleCollider(Component c)
+    {
+        var collider = (CapsuleColliderComponent)c;
+        DrawColliderCommon(collider);
+
+        float radius = collider.Radius;
+        if (ImGui.DragFloat("Radius", ref radius, 0.05f, 0.001f, 10000f))
+            collider.Radius = radius;
+        TrackContinuousUndo(EditorApplication.Instance);
+
+        float length = collider.Length;
+        if (ImGui.DragFloat("Length", ref length, 0.05f, 0.001f, 10000f))
+            collider.Length = length;
+        TrackContinuousUndo(EditorApplication.Instance);
+    }
+
+    private static void DrawColliderCommon(ColliderComponent collider)
+    {
+        var app = EditorApplication.Instance;
+
+        float friction = collider.Friction;
+        if (ImGui.DragFloat("Friction", ref friction, 0.01f, 0f, 10f))
+            collider.Friction = friction;
+        TrackContinuousUndo(app);
+
+        float restitution = collider.Restitution;
+        if (ImGui.DragFloat("Restitution", ref restitution, 0.01f, 0f, 1f))
+            collider.Restitution = restitution;
+        TrackContinuousUndo(app);
+
+        var center = collider.Center;
+        if (ImGui.DragFloat3("Center", ref center, 0.05f))
+            collider.Center = center;
+        TrackContinuousUndo(app);
+
+        int colliderCount = collider.Entity.Components.Count(component => component is ColliderComponent enabledCollider && enabledCollider.Enabled);
+        if (colliderCount > 1)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Multiple enabled colliders are present. Only the first enabled collider is used.");
+            ImGui.PopStyleColor();
+        }
     }
 
     private static void DrawSubclassProperties(Component component)

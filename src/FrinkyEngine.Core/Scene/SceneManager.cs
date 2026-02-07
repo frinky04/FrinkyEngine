@@ -24,6 +24,7 @@ public class SceneManager
     /// <returns>The newly created scene.</returns>
     public Scene NewScene(string name = "Untitled")
     {
+        ActiveScene?.Dispose();
         var scene = new Scene { Name = name };
         ActiveScene = scene;
         return scene;
@@ -35,6 +36,8 @@ public class SceneManager
     /// <param name="scene">The scene to activate.</param>
     public void SetActiveScene(Scene scene)
     {
+        if (!ReferenceEquals(ActiveScene, scene))
+            ActiveScene?.Dispose();
         ActiveScene = scene;
     }
 
@@ -60,6 +63,7 @@ public class SceneManager
         if (scene != null)
         {
             scene.FilePath = path;
+            ActiveScene?.Dispose();
             ActiveScene = scene;
         }
         return scene;
