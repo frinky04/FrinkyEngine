@@ -50,10 +50,12 @@ public class EditorApplication
     public ProjectFile? ProjectFile { get; private set; }
     public ProjectSettings? ProjectSettings { get; private set; }
     public EditorProjectSettings? ProjectEditorSettings { get; private set; }
+    public AssetTagDatabase? TagDatabase { get; private set; }
     public bool ShouldResetLayout { get; set; }
     public bool IsGameViewEnabled { get; private set; }
     public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
+    public string? DraggedAssetPath { get; set; }
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
     public bool CanEditScene => Mode is EditorMode.Edit or EditorMode.Simulate;
     public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;
@@ -413,6 +415,7 @@ public class EditorApplication
         {
             ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
+            TagDatabase = AssetTagDatabase.LoadOrCreate(ProjectDirectory);
             IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
@@ -1277,6 +1280,14 @@ public class EditorApplication
         settings.Save(path);
         ProjectSettings = settings;
         ApplyRuntimeRenderSettingsImmediate();
+    }
+
+    public void SaveTagDatabase()
+    {
+        if (ProjectDirectory == null || TagDatabase == null)
+            return;
+
+        TagDatabase.Save(ProjectDirectory);
     }
 
     public void SaveEditorProjectSettings(EditorProjectSettings settings)
