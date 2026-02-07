@@ -14,6 +14,7 @@ public class AssetManager
 
     private readonly Dictionary<string, Model> _models = new();
     private readonly Dictionary<string, Texture2D> _textures = new();
+    private readonly Dictionary<TriplanarParamKey, Texture2D> _triplanarParamsTextures = new();
 
     /// <summary>
     /// Root directory for resolving relative asset paths (defaults to "Assets").
@@ -63,6 +64,33 @@ public class AssetManager
     }
 
     /// <summary>
+    /// Gets or creates a 1x1 float texture used to pass triplanar material parameters to shaders.
+    /// </summary>
+    /// <param name="enabled">Whether triplanar mode is enabled for this material.</param>
+    /// <param name="scale">Triplanar texture scale.</param>
+    /// <param name="blendSharpness">Triplanar axis blend sharpness.</param>
+    /// <param name="useWorldSpace">Whether projection uses world-space coordinates.</param>
+    /// <returns>A cached 1x1 parameter texture.</returns>
+    public Texture2D GetTriplanarParamsTexture(bool enabled, float scale, float blendSharpness, bool useWorldSpace)
+    {
+        if (!float.IsFinite(scale))
+            scale = 1f;
+        if (!float.IsFinite(blendSharpness))
+            blendSharpness = 4f;
+
+        scale = MathF.Max(0.0001f, scale);
+        blendSharpness = MathF.Max(0.0001f, blendSharpness);
+
+        var key = new TriplanarParamKey(enabled, Quantize(scale), Quantize(blendSharpness), useWorldSpace);
+        if (_triplanarParamsTextures.TryGetValue(key, out var cached))
+            return cached;
+
+        var texture = CreateTriplanarParamsTexture(enabled, scale, blendSharpness, useWorldSpace);
+        _triplanarParamsTextures[key] = texture;
+        return texture;
+    }
+
+    /// <summary>
     /// Removes a specific asset from the cache and unloads its GPU resources.
     /// </summary>
     /// <param name="relativePath">Path relative to the assets root (forward slashes are normalized).</param>
@@ -88,5 +116,49 @@ public class AssetManager
         foreach (var texture in _textures.Values)
             Raylib.UnloadTexture(texture);
         _textures.Clear();
+
+        foreach (var texture in _triplanarParamsTextures.Values)
+            Raylib.UnloadTexture(texture);
+        _triplanarParamsTextures.Clear();
     }
+
+    private static int Quantize(float value) => (int)MathF.Round(value * 1000f);
+
+    private static unsafe Texture2D CreateTriplanarParamsTexture(bool enabled, float scale, float blendSharpness, bool useWorldSpace)
+    {
+        float[] data =
+        {
+            enabled ? 1f : 0f,
+            scale,
+            blendSharpness,
+            useWorldSpace ? 1f : 0f
+        };
+
+        fixed (float* ptr = data)
+        {
+            uint textureId = Rlgl.LoadTexture(ptr, 1, 1, PixelFormat.UncompressedR32G32B32A32, 1);
+            var texture = new Texture2D
+            {
+                Id = textureId,
+                Width = 1,
+                Height = 1,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedR32G32B32A32
+            };
+
+            if (texture.Id != 0)
+            {
+                Raylib.SetTextureFilter(texture, TextureFilter.Point);
+                Raylib.SetTextureWrap(texture, TextureWrap.Clamp);
+            }
+
+            return texture;
+        }
+    }
+
+    private readonly record struct TriplanarParamKey(
+        bool Enabled,
+        int ScaleMilli,
+        int BlendSharpnessMilli,
+        bool UseWorldSpace);
 }

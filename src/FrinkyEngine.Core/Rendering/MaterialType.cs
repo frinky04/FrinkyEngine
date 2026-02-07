@@ -13,5 +13,10 @@ public enum MaterialType
     /// <summary>
     /// Renders using a texture image mapped onto the surface.
     /// </summary>
-    Textured
+    Textured,
+
+    /// <summary>
+    /// Renders using triplanar mapping of a texture image (UVs are not required).
+    /// </summary>
+    TriplanarTexture
 }

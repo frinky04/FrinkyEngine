@@ -1,4 +1,3 @@
-using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
 using Raylib_cs;
 
@@ -12,10 +11,13 @@ public abstract class PrimitiveComponent : RenderableComponent
 {
     private MaterialType _materialType = MaterialType.SolidColor;
     private string _texturePath = string.Empty;
+    private float _triplanarScale = 1f;
+    private float _triplanarBlendSharpness = 4f;
+    private bool _triplanarUseWorldSpace = true;
     private bool _meshDirty;
 
     /// <summary>
-    /// Whether the primitive surface uses a solid color or a texture (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
+    /// Which material mapping mode the primitive uses (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
     /// </summary>
     public MaterialType MaterialType
     {
@@ -29,7 +31,8 @@ public abstract class PrimitiveComponent : RenderableComponent
     }
 
     /// <summary>
-    /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.Textured"/>.
+    /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is
+    /// <see cref="Rendering.MaterialType.Textured"/> or <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
     public string TexturePath
     {
@@ -38,6 +41,49 @@ public abstract class PrimitiveComponent : RenderableComponent
         {
             if (_texturePath == value) return;
             _texturePath = value;
+            MarkMeshDirty();
+        }
+    }
+
+    /// <summary>
+    /// Triplanar projection scale, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
+    /// </summary>
+    public float TriplanarScale
+    {
+        get => _triplanarScale;
+        set
+        {
+            if (_triplanarScale == value) return;
+            _triplanarScale = value;
+            MarkMeshDirty();
+        }
+    }
+
+    /// <summary>
+    /// Triplanar axis blend sharpness, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
+    /// </summary>
+    public float TriplanarBlendSharpness
+    {
+        get => _triplanarBlendSharpness;
+        set
+        {
+            if (_triplanarBlendSharpness == value) return;
+            _triplanarBlendSharpness = value;
+            MarkMeshDirty();
+        }
+    }
+
+    /// <summary>
+    /// Whether triplanar projection uses world-space coordinates (<c>true</c>) or object-space coordinates (<c>false</c>).
+    /// Used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
+    /// </summary>
+    public bool TriplanarUseWorldSpace
+    {
+        get => _triplanarUseWorldSpace;
+        set
+        {
+            if (_triplanarUseWorldSpace == value) return;
+            _triplanarUseWorldSpace = value;
             MarkMeshDirty();
         }
     }
@@ -99,14 +145,14 @@ public abstract class PrimitiveComponent : RenderableComponent
         var mesh = CreateMesh();
         var model = Raylib.LoadModelFromMesh(mesh);
 
-        if (_materialType == MaterialType.Textured && !string.IsNullOrEmpty(_texturePath))
-        {
-            var texture = AssetManager.Instance.LoadTexture(_texturePath);
-            unsafe
-            {
-                model.Materials[0].Maps[(int)MaterialMapIndex.Albedo].Texture = texture;
-            }
-        }
+        MaterialApplicator.ApplyToModel(
+            model,
+            0,
+            _materialType,
+            _texturePath,
+            _triplanarScale,
+            _triplanarBlendSharpness,
+            _triplanarUseWorldSpace);
 
         RenderModel = model;
         _meshDirty = false;

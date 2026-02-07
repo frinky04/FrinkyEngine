@@ -1,12 +1,11 @@
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
-using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Renders a 3D model loaded from a file (e.g. .obj, .gltf, .glb).
-/// Supports multiple material slots for per-material texture assignment.
+/// Supports multiple material slots for per-material mapping and texture assignment.
 /// </summary>
 public class MeshRendererComponent : RenderableComponent
 {
@@ -42,33 +41,17 @@ public class MeshRendererComponent : RenderableComponent
             MaterialSlots.Add(new MaterialSlot());
 
         // Apply material slots
-        unsafe
+        for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
         {
-            for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
-            {
-                var slot = MaterialSlots[i];
-                if (slot.MaterialType == MaterialType.Textured && !string.IsNullOrEmpty(slot.TexturePath))
-                {
-                    var texture = AssetManager.Instance.LoadTexture(slot.TexturePath);
-                    model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Texture = texture;
-                }
-                else
-                {
-                    // Reset to Raylib's default 1x1 white pixel texture
-                    model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Texture = new Texture2D
-                    {
-                        Id = Rlgl.GetTextureIdDefault(),
-                        Width = 1,
-                        Height = 1,
-                        Mipmaps = 1,
-                        Format = PixelFormat.UncompressedR8G8B8A8
-                    };
-                }
-
-                // Reset albedo map color to white so colDiffuse doesn't zero out the shader output.
-                // Model files often set secondary materials to black diffuse, causing pitch-black rendering.
-                model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Color = new Color(255, 255, 255, 255);
-            }
+            var slot = MaterialSlots[i];
+            MaterialApplicator.ApplyToModel(
+                model,
+                i,
+                slot.MaterialType,
+                slot.TexturePath,
+                slot.TriplanarScale,
+                slot.TriplanarBlendSharpness,
+                slot.TriplanarUseWorldSpace);
         }
 
         RenderModel = model;

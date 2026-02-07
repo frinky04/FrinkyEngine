@@ -283,7 +283,7 @@ public static class ComponentDrawerRegistry
                 if (ImGui.TreeNode($"Slot {i}"))
                 {
                     var matType = (int)slot.MaterialType;
-                    if (ImGui.Combo("Type", ref matType, "SolidColor\0Textured\0"))
+                    if (ImGui.Combo("Type", ref matType, "SolidColor\0Textured\0TriplanarTexture\0"))
                     {
                         app.RecordUndo();
                         slot.MaterialType = (Core.Rendering.MaterialType)matType;
@@ -291,7 +291,7 @@ public static class ComponentDrawerRegistry
                         app.RefreshUndoBaseline();
                     }
 
-                    if (slot.MaterialType == Core.Rendering.MaterialType.Textured)
+                    if (slot.MaterialType is Core.Rendering.MaterialType.Textured or Core.Rendering.MaterialType.TriplanarTexture)
                     {
                         ImGui.Text("Texture");
                         ImGui.SetNextItemWidth(-30);
@@ -332,6 +332,34 @@ public static class ComponentDrawerRegistry
                         }
                     }
 
+                    if (slot.MaterialType == Core.Rendering.MaterialType.TriplanarTexture)
+                    {
+                        float scale = slot.TriplanarScale;
+                        if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
+                        {
+                            slot.TriplanarScale = scale;
+                            slotsChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+
+                        float sharpness = slot.TriplanarBlendSharpness;
+                        if (ImGui.DragFloat("Blend Sharpness", ref sharpness, 0.05f, 0.01f, 64f))
+                        {
+                            slot.TriplanarBlendSharpness = sharpness;
+                            slotsChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+
+                        bool useWorldSpace = slot.TriplanarUseWorldSpace;
+                        if (ImGui.Checkbox("Use World Space", ref useWorldSpace))
+                        {
+                            app.RecordUndo();
+                            slot.TriplanarUseWorldSpace = useWorldSpace;
+                            slotsChanged = true;
+                            app.RefreshUndoBaseline();
+                        }
+                    }
+
                     ImGui.TreePop();
                 }
 
@@ -349,7 +377,7 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
 
         var matType = (int)prim.MaterialType;
-        if (ImGui.Combo("Material Type", ref matType, "SolidColor\0Textured\0"))
+        if (ImGui.Combo("Material Type", ref matType, "SolidColor\0Textured\0TriplanarTexture\0"))
         {
             app.RecordUndo();
             prim.MaterialType = (FrinkyEngine.Core.Rendering.MaterialType)matType;
@@ -361,7 +389,7 @@ public static class ComponentDrawerRegistry
             prim.Tint = Vec4ToColor(tint);
         TrackContinuousUndo(app);
 
-        if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.Textured)
+        if (prim.MaterialType is FrinkyEngine.Core.Rendering.MaterialType.Textured or FrinkyEngine.Core.Rendering.MaterialType.TriplanarTexture)
         {
             ImGui.Text("Texture Path");
             ImGui.SetNextItemWidth(-30);
@@ -395,6 +423,27 @@ public static class ComponentDrawerRegistry
                     }
                 }
                 ImGui.EndPopup();
+            }
+        }
+
+        if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.TriplanarTexture)
+        {
+            float scale = prim.TriplanarScale;
+            if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
+                prim.TriplanarScale = scale;
+            TrackContinuousUndo(app);
+
+            float sharpness = prim.TriplanarBlendSharpness;
+            if (ImGui.DragFloat("Blend Sharpness", ref sharpness, 0.05f, 0.01f, 64f))
+                prim.TriplanarBlendSharpness = sharpness;
+            TrackContinuousUndo(app);
+
+            bool useWorldSpace = prim.TriplanarUseWorldSpace;
+            if (ImGui.Checkbox("Use World Space", ref useWorldSpace))
+            {
+                app.RecordUndo();
+                prim.TriplanarUseWorldSpace = useWorldSpace;
+                app.RefreshUndoBaseline();
             }
         }
 

@@ -29,6 +29,7 @@ public class SceneRenderer
     private int _lightDataTexLoc = -1;
     private int _tileHeaderTexLoc = -1;
     private int _tileIndexTexLoc = -1;
+    private int _triplanarParamsTexLoc = -1;
     private int _lightDataTexSizeLoc = -1;
     private int _tileHeaderTexSizeLoc = -1;
     private int _tileIndexTexSizeLoc = -1;
@@ -156,6 +157,7 @@ public class SceneRenderer
         _lightDataTexLoc = Raylib.GetShaderLocation(_lightingShader, "lightDataTex");
         _tileHeaderTexLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTex");
         _tileIndexTexLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTex");
+        _triplanarParamsTexLoc = Raylib.GetShaderLocation(_lightingShader, "triplanarParamsTex");
         _lightDataTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "lightDataTexSize");
         _tileHeaderTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTexSize");
         _tileIndexTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTexSize");
@@ -168,6 +170,7 @@ public class SceneRenderer
             _lightingShader.Locs[(int)ShaderLocationIndex.MapOcclusion] = _lightDataTexLoc;
             _lightingShader.Locs[(int)ShaderLocationIndex.MapEmission] = _tileHeaderTexLoc;
             _lightingShader.Locs[(int)ShaderLocationIndex.MapHeight] = _tileIndexTexLoc;
+            _lightingShader.Locs[(int)ShaderLocationIndex.MapBrdf] = _triplanarParamsTexLoc;
         }
 
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };

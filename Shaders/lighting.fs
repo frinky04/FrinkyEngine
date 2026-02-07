@@ -1,11 +1,14 @@
 #version 330
 
 in vec3 fragPosition;
+in vec3 fragLocalPosition;
 in vec2 fragTexCoord;
 in vec4 fragColor;
 in vec3 fragNormal;
+in vec3 fragLocalNormal;
 
 uniform sampler2D texture0;
+uniform sampler2D triplanarParamsTex;
 uniform vec4 colDiffuse;
 
 out vec4 finalColor;
@@ -38,9 +41,37 @@ vec4 FetchLightTexel(int lightIndex, int texelOffset)
     return FetchPacked(lightDataTex, lightDataTexSize, lightIndex * 4 + texelOffset);
 }
 
+vec4 SampleAlbedo()
+{
+    vec4 triplanarParams = texelFetch(triplanarParamsTex, ivec2(0, 0), 0);
+    float mode = triplanarParams.x;
+    if (mode < 0.5)
+        return texture(texture0, fragTexCoord);
+
+    float scale = max(triplanarParams.y, 0.0001);
+    float blendSharpness = max(triplanarParams.z, 0.0001);
+    bool useWorldSpace = triplanarParams.w >= 0.5;
+
+    vec3 samplePosition = useWorldSpace ? fragPosition : fragLocalPosition;
+    vec3 projectionNormal = useWorldSpace ? normalize(fragNormal) : normalize(fragLocalNormal);
+    vec3 weights = abs(projectionNormal);
+    weights = pow(weights, vec3(blendSharpness));
+    float weightSum = max(weights.x + weights.y + weights.z, 0.0001);
+    weights /= weightSum;
+
+    vec2 uvX = samplePosition.zy * scale;
+    vec2 uvY = samplePosition.xz * scale;
+    vec2 uvZ = samplePosition.xy * scale;
+
+    vec4 xProj = texture(texture0, uvX);
+    vec4 yProj = texture(texture0, uvY);
+    vec4 zProj = texture(texture0, uvZ);
+    return xProj * weights.x + yProj * weights.y + zProj * weights.z;
+}
+
 void main()
 {
-    vec4 texelColor = texture(texture0, fragTexCoord);
+    vec4 texelColor = SampleAlbedo();
     vec3 normal = normalize(fragNormal);
     vec3 lightEffect = ambient.rgb;
     ivec2 pixel = ivec2(clamp(gl_FragCoord.xy, vec2(0.0), vec2(screenSize) - vec2(1.0)));
