@@ -55,6 +55,7 @@ public class EditorApplication
     private EditorNotification? _buildNotification;
     private Task<bool>? _exportTask;
     private EditorNotification? _exportNotification;
+    private string? _exportOutputDirectory;
     private AssetFileWatcher? _assetFileWatcher;
     private readonly Dictionary<string, HierarchySceneState> _sessionHierarchyStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _hierarchyStateDirty;
@@ -147,6 +148,16 @@ public class EditorApplication
                     NotificationManager.Instance.Complete(_exportNotification, "Export Failed.", NotificationType.Error);
                 _exportNotification = null;
             }
+
+            if (success && _exportOutputDirectory != null && Directory.Exists(_exportOutputDirectory))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = _exportOutputDirectory,
+                    UseShellExecute = true
+                });
+            }
+            _exportOutputDirectory = null;
         }
 
         if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged, out var changedPaths))
@@ -418,6 +429,7 @@ public class EditorApplication
             ProjectSettings = ProjectSettings
         };
 
+        _exportOutputDirectory = outputDirectory;
         _exportNotification = NotificationManager.Instance.PostPersistent("Exporting Game...", NotificationType.Info);
         _exportTask = Task.Run(() => GameExporter.ExportAsync(config));
     }
