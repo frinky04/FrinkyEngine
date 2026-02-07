@@ -141,6 +141,16 @@ public class SceneRenderer
         _tileHeaderTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTexSize");
         _tileIndexTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTexSize");
 
+        // Map forward+ sampler uniforms to unused material map slots so DrawMesh
+        // binds them reliably (SetShaderValueTexture uses activeTextureId which
+        // gets cleared by DrawRenderBatchActive, causing texture unit mismatches).
+        unsafe
+        {
+            _lightingShader.Locs[(int)ShaderLocationIndex.MapOcclusion] = _lightDataTexLoc;
+            _lightingShader.Locs[(int)ShaderLocationIndex.MapEmission] = _tileHeaderTexLoc;
+            _lightingShader.Locs[(int)ShaderLocationIndex.MapHeight] = _tileIndexTexLoc;
+        }
+
         float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
 
@@ -226,6 +236,9 @@ public class SceneRenderer
                 for (int i = 0; i < model.MaterialCount; i++)
                 {
                     model.Materials[i].Shader = _lightingShader;
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Occlusion].Texture = _lightDataTexture;
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Emission].Texture = _tileHeaderTexture;
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Height].Texture = _tileIndexTexture;
                 }
             }
         }
@@ -318,12 +331,9 @@ public class SceneRenderer
 
     private void BindForwardPlusShaderData(int viewportWidth, int viewportHeight)
     {
-        if (_lightDataTexLoc >= 0)
-            Raylib.SetShaderValueTexture(_lightingShader, _lightDataTexLoc, _lightDataTexture);
-        if (_tileHeaderTexLoc >= 0)
-            Raylib.SetShaderValueTexture(_lightingShader, _tileHeaderTexLoc, _tileHeaderTexture);
-        if (_tileIndexTexLoc >= 0)
-            Raylib.SetShaderValueTexture(_lightingShader, _tileIndexTexLoc, _tileIndexTexture);
+        // Forward+ sampler textures are bound via material maps in DrawModelWithShader()
+        // instead of SetShaderValueTexture (which uses activeTextureId — unreliable
+        // because DrawRenderBatchActive clears it before DrawMesh binds textures).
 
         SetShaderIVec2(_screenSizeLoc, viewportWidth, viewportHeight);
         SetShaderIVec2(_tileCountLoc, _tileCountX, _tileCountY);
