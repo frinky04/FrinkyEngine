@@ -5,6 +5,7 @@ using BepuPhysics.Constraints;
 using BepuUtilities.Memory;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Physics.Characters;
 using FrinkyEngine.Core.Rendering;
 
 namespace FrinkyEngine.Core.Physics;
@@ -68,12 +69,20 @@ internal sealed class PhysicsSystem : IDisposable
     private readonly PhysicsMaterialTable _materialTable = new();
     private readonly Dictionary<ShapeCacheKey, TypedIndex> _shapeCache = new();
     private readonly Dictionary<Guid, PhysicsBodyState> _bodyStates = new();
+    private readonly Dictionary<Guid, CharacterControllerRuntimeState> _characterStates = new();
     private readonly HashSet<Guid> _warnedNoCollider = new();
     private readonly HashSet<Guid> _warnedParented = new();
     private readonly HashSet<Guid> _warnedMultipleColliders = new();
     private readonly HashSet<Guid> _warnedMultipleRigidbodies = new();
+    private readonly HashSet<Guid> _warnedCharacterMissingRigidbody = new();
+    private readonly HashSet<Guid> _warnedCharacterMissingCapsule = new();
+    private readonly HashSet<Guid> _warnedCharacterWrongMotionType = new();
+    private readonly HashSet<Guid> _warnedCharacterParented = new();
+    private readonly HashSet<Guid> _warnedCharacterNonCapsuleBody = new();
+    private readonly CharacterControllerBridge _characterBridge = new();
 
     private Simulation? _simulation;
+    private CharacterControllers? _characterControllers;
     private float _accumulator;
 
     public PhysicsSystem(Scene.Scene scene)
@@ -91,12 +100,14 @@ internal sealed class PhysicsSystem : IDisposable
         _scene.PhysicsSettings.Normalize();
 
         var settings = _scene.PhysicsSettings;
+        _characterControllers = new CharacterControllers(_bufferPool);
         var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(
             new SpringSettings(settings.ContactSpringFrequency, settings.ContactDampingRatio),
             settings.MaximumRecoveryVelocity,
             settings.DefaultFriction,
             settings.DefaultRestitution,
-            _materialTable);
+            _materialTable,
+            _characterControllers);
         var poseCallbacks = new PhysicsPoseIntegratorCallbacks(settings.Gravity);
         var solveDescription = new SolveDescription(settings.SolverVelocityIterations, settings.SolverSubsteps);
 
@@ -123,18 +134,24 @@ internal sealed class PhysicsSystem : IDisposable
 
         _accumulator += dt;
         int steps = 0;
+        _characterBridge.CaptureFrameInput(_characterStates.Values);
 
         while (_accumulator >= fixedDt && steps < maxSubsteps)
         {
             PushSceneTransformsToPhysics(fixedDt);
             ApplyPendingForces(fixedDt);
+            ApplyCharacterGoalsForStep(fixedDt, allowJump: steps == 0);
             _simulation.Timestep(fixedDt);
             ApplyPostStepBodyModifiers(fixedDt);
             SyncDynamicTransformsFromPhysics();
+            SyncCharacterRuntimeState();
 
             _accumulator -= fixedDt;
             steps++;
         }
+
+        if (steps > 0)
+            _characterBridge.ConsumeFrameInput(_characterStates.Values);
 
         if (steps >= maxSubsteps && _accumulator >= fixedDt)
             _accumulator = 0f;
@@ -156,10 +173,17 @@ internal sealed class PhysicsSystem : IDisposable
             _bodyStates.Remove(entity.Id);
         }
 
+        RemoveCharacterStateIfPresent(entity.Id);
+
         _warnedNoCollider.Remove(entity.Id);
         _warnedParented.Remove(entity.Id);
         _warnedMultipleColliders.Remove(entity.Id);
         _warnedMultipleRigidbodies.Remove(entity.Id);
+        _warnedCharacterMissingRigidbody.Remove(entity.Id);
+        _warnedCharacterMissingCapsule.Remove(entity.Id);
+        _warnedCharacterWrongMotionType.Remove(entity.Id);
+        _warnedCharacterParented.Remove(entity.Id);
+        _warnedCharacterNonCapsuleBody.Remove(entity.Id);
     }
 
     public bool TryGetLinearVelocity(RigidbodyComponent rigidbody, out Vector3 velocity)
@@ -270,6 +294,175 @@ internal sealed class PhysicsSystem : IDisposable
                 RemoveBodyState(state);
             _bodyStates.Remove(staleId);
         }
+
+        ReconcileCharacterControllers();
+    }
+
+    private void ReconcileCharacterControllers()
+    {
+        if (_simulation == null || _characterControllers == null)
+            return;
+
+        var seenEntityIds = new HashSet<Guid>();
+        var controllers = _scene.GetComponents<CharacterControllerComponent>();
+
+        foreach (var controller in controllers)
+        {
+            if (!controller.Enabled || !controller.Entity.Active)
+                continue;
+            if (controller.Entity.Scene != _scene)
+                continue;
+
+            var entity = controller.Entity;
+            if (!seenEntityIds.Add(entity.Id))
+                continue;
+
+            if (entity.Transform.Parent != null)
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                WarnOnce(_warnedCharacterParented, entity.Id, $"Character controller on '{entity.Name}' is ignored because parented rigidbodies are not supported.");
+                continue;
+            }
+            _warnedCharacterParented.Remove(entity.Id);
+
+            var rigidbody = entity.GetComponent<RigidbodyComponent>();
+            if (rigidbody == null || !rigidbody.Enabled)
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                WarnOnce(_warnedCharacterMissingRigidbody, entity.Id, $"Character controller on '{entity.Name}' requires an enabled RigidbodyComponent.");
+                continue;
+            }
+            _warnedCharacterMissingRigidbody.Remove(entity.Id);
+
+            var capsule = entity.GetComponent<CapsuleColliderComponent>();
+            if (capsule == null || !capsule.Enabled)
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                WarnOnce(_warnedCharacterMissingCapsule, entity.Id, $"Character controller on '{entity.Name}' requires an enabled CapsuleColliderComponent.");
+                continue;
+            }
+            _warnedCharacterMissingCapsule.Remove(entity.Id);
+
+            if (rigidbody.MotionType != BodyMotionType.Dynamic)
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                WarnOnce(_warnedCharacterWrongMotionType, entity.Id, $"Character controller on '{entity.Name}' requires Rigidbody MotionType = Dynamic.");
+                continue;
+            }
+            _warnedCharacterWrongMotionType.Remove(entity.Id);
+
+            if (!_bodyStates.TryGetValue(entity.Id, out var bodyState) ||
+                bodyState.BodyHandle is not BodyHandle bodyHandle ||
+                !_simulation.Bodies.BodyExists(bodyHandle))
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                continue;
+            }
+
+            if (bodyState.Collider is not CapsuleColliderComponent primaryCapsule || !ReferenceEquals(primaryCapsule, capsule))
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+                WarnOnce(_warnedCharacterNonCapsuleBody, entity.Id, $"Character controller on '{entity.Name}' requires the primary enabled collider to be the capsule.");
+                continue;
+            }
+            _warnedCharacterNonCapsuleBody.Remove(entity.Id);
+
+            EnsureCharacterState(entity, rigidbody, primaryCapsule, controller, bodyHandle);
+        }
+
+        var staleIds = _characterStates.Keys.Where(id => !seenEntityIds.Contains(id)).ToList();
+        foreach (var staleId in staleIds)
+            RemoveCharacterStateIfPresent(staleId);
+    }
+
+    private void EnsureCharacterState(
+        Entity entity,
+        RigidbodyComponent rigidbody,
+        CapsuleColliderComponent capsule,
+        CharacterControllerComponent controller,
+        BodyHandle bodyHandle)
+    {
+        if (_characterControllers == null)
+            return;
+
+        if (_characterStates.TryGetValue(entity.Id, out var existing))
+        {
+            if (existing.BodyHandle.Value != bodyHandle.Value)
+            {
+                RemoveCharacterStateIfPresent(entity.Id);
+            }
+            else
+            {
+                existing.Entity = entity;
+                existing.Rigidbody = rigidbody;
+                existing.Capsule = capsule;
+                existing.Controller = controller;
+                return;
+            }
+        }
+
+        ref var character = ref _characterControllers.AllocateCharacter(bodyHandle);
+        character.BodyHandle = bodyHandle;
+        character.LocalUp = Vector3.UnitY;
+        character.ViewDirection = entity.Transform.Forward;
+        character.TargetVelocity = Vector2.Zero;
+
+        _characterStates[entity.Id] = new CharacterControllerRuntimeState
+        {
+            Entity = entity,
+            Rigidbody = rigidbody,
+            Capsule = capsule,
+            Controller = controller,
+            BodyHandle = bodyHandle,
+            FrameInput = default
+        };
+    }
+
+    private void RemoveCharacterStateIfPresent(Guid entityId)
+    {
+        if (!_characterStates.TryGetValue(entityId, out var state))
+            return;
+
+        if (_characterControllers != null)
+            _characterControllers.RemoveCharacterByBodyHandle(state.BodyHandle);
+
+        state.Controller.SetRuntimeState(false, Vector3.Zero);
+        _characterStates.Remove(entityId);
+    }
+
+    private void RemoveCharacterStateByBodyHandle(BodyHandle bodyHandle)
+    {
+        if (_characterStates.Count == 0)
+            return;
+
+        Guid? matchedEntityId = null;
+        foreach (var pair in _characterStates)
+        {
+            if (pair.Value.BodyHandle.Value != bodyHandle.Value)
+                continue;
+
+            matchedEntityId = pair.Key;
+            break;
+        }
+
+        if (matchedEntityId.HasValue)
+            RemoveCharacterStateIfPresent(matchedEntityId.Value);
+    }
+
+    private void ApplyCharacterGoalsForStep(float stepDt, bool allowJump)
+    {
+        if (_simulation == null || _characterControllers == null || _characterStates.Count == 0)
+            return;
+
+        _characterBridge.ApplyGoalsForStep(_simulation, _characterControllers, _characterStates.Values, stepDt, allowJump);
+    }
+
+    private void SyncCharacterRuntimeState()
+    {
+        if (_simulation == null || _characterControllers == null || _characterStates.Count == 0)
+            return;
+
+        _characterBridge.SyncRuntimeState(_simulation, _characterControllers, _characterStates.Values);
     }
 
     private PhysicsBodyState? CreateBodyState(Entity entity, RigidbodyComponent rigidbody, ColliderComponent collider, int configurationHash)
@@ -286,6 +479,7 @@ internal sealed class PhysicsSystem : IDisposable
             : ContinuousDetection.Discrete;
         var collidable = new CollidableDescription(shapeResult.ShapeIndex, 0.1f, continuity);
         var material = new PhysicsMaterial(collider.Friction, collider.Restitution);
+        var hasCharacterController = entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
 
         BodyHandle? bodyHandle = null;
         StaticHandle? staticHandle = null;
@@ -294,9 +488,13 @@ internal sealed class PhysicsSystem : IDisposable
         {
             case BodyMotionType.Dynamic:
             {
+                var dynamicInertia = shapeResult.DynamicInertia;
+                if (hasCharacterController)
+                    dynamicInertia.InverseInertiaTensor = default;
+
                 var velocity = new BodyVelocity { Linear = rigidbody.InitialLinearVelocity };
                 var activity = new BodyActivityDescription(0.01f);
-                var description = BodyDescription.CreateDynamic(pose, velocity, shapeResult.DynamicInertia, collidable, activity);
+                var description = BodyDescription.CreateDynamic(pose, velocity, dynamicInertia, collidable, activity);
                 bodyHandle = _simulation.Bodies.Add(description);
                 _materialTable.Set(bodyHandle.Value, material);
                 break;
@@ -352,6 +550,7 @@ internal sealed class PhysicsSystem : IDisposable
 
         if (state.BodyHandle is BodyHandle bodyHandle)
         {
+            RemoveCharacterStateByBodyHandle(bodyHandle);
             _materialTable.Remove(bodyHandle);
             if (_simulation.Bodies.BodyExists(bodyHandle))
                 _simulation.Bodies.Remove(bodyHandle);
@@ -606,6 +805,7 @@ internal sealed class PhysicsSystem : IDisposable
         hash.Add(entity.Transform.LocalScale.X);
         hash.Add(entity.Transform.LocalScale.Y);
         hash.Add(entity.Transform.LocalScale.Z);
+        hash.Add(entity.GetComponent<CharacterControllerComponent>() is { Enabled: true });
         return hash.ToHashCode();
     }
 
@@ -693,12 +893,21 @@ internal sealed class PhysicsSystem : IDisposable
             RemoveBodyState(state);
 
         _bodyStates.Clear();
+        _characterStates.Clear();
         _materialTable.Clear();
         _shapeCache.Clear();
         _warnedNoCollider.Clear();
         _warnedParented.Clear();
         _warnedMultipleColliders.Clear();
         _warnedMultipleRigidbodies.Clear();
+        _warnedCharacterMissingRigidbody.Clear();
+        _warnedCharacterMissingCapsule.Clear();
+        _warnedCharacterWrongMotionType.Clear();
+        _warnedCharacterParented.Clear();
+        _warnedCharacterNonCapsuleBody.Clear();
+
+        _characterControllers?.Dispose();
+        _characterControllers = null;
 
         _simulation.Dispose();
         _simulation = null;

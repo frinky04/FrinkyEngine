@@ -3,6 +3,7 @@ using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.CollisionDetection;
 using BepuPhysics.Constraints;
+using FrinkyEngine.Core.Physics.Characters;
 
 namespace FrinkyEngine.Core.Physics;
 
@@ -13,25 +14,30 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     public float DefaultFriction;
     public float DefaultRestitution;
     public PhysicsMaterialTable MaterialTable;
+    public CharacterControllers? Characters;
 
     public PhysicsNarrowPhaseCallbacks(
         SpringSettings contactSpringiness,
         float maximumRecoveryVelocity,
         float defaultFriction,
         float defaultRestitution,
-        PhysicsMaterialTable materialTable)
+        PhysicsMaterialTable materialTable,
+        CharacterControllers? characters)
     {
         ContactSpringiness = contactSpringiness;
         MaximumRecoveryVelocity = maximumRecoveryVelocity;
         DefaultFriction = defaultFriction;
         DefaultRestitution = defaultRestitution;
         MaterialTable = materialTable;
+        Characters = characters;
     }
 
     public void Initialize(Simulation simulation)
     {
         if (ContactSpringiness.AngularFrequency == 0f && ContactSpringiness.TwiceDampingRatio == 0f)
             ContactSpringiness = new SpringSettings(30f, 1f);
+
+        Characters?.Initialize(simulation);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +68,7 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         var maxRecovery = MaximumRecoveryVelocity * (1f + restitution * 2f);
 
         pairMaterial = new PairMaterialProperties(friction, maxRecovery, ContactSpringiness);
+        Characters?.TryReportContacts(pair, ref manifold, workerIndex, ref pairMaterial);
         return true;
     }
 

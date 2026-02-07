@@ -270,6 +270,23 @@ Runtime preview modes:
 - Rendering uses Raylib and bundled shader content in `Shaders/`
 - Game assemblies load through `AssemblyLoadContext` to discover custom components
 
+## Character Controller (BEPU)
+
+FrinkyEngine includes a dynamic character controller component backed by BEPU support constraints.
+
+Minimum setup on one entity:
+- `RigidbodyComponent` with `MotionType = Dynamic`
+- `CapsuleColliderComponent` (must be the first enabled collider on the entity)
+- `CharacterControllerComponent`
+
+Script-side input options:
+- Unreal-style: `AddMovementInput(...)`, `Jump()`
+- Direct planar input: `SetMoveInput(new Vector2(x, y))`
+- Godot-style convenience: `MoveAndSlide(desiredVelocity, requestJump)`
+
+See template script example:
+- `templates/FrinkyEngine.Templates/content/Assets/Scripts/CharacterControllerExample.cs`
+
 ## Repository Layout
 
 ```text
@@ -306,7 +323,7 @@ FrinkyEngine/
 
 | Project | Package references |
 |---|---|
-| `FrinkyEngine.Core` | `Raylib-cs` `7.0.2` |
+| `FrinkyEngine.Core` | `BepuPhysics` `2.4.0`, `Raylib-cs` `7.0.2` |
 | `FrinkyEngine.Editor` | `NativeFileDialogSharp` `0.5.0`, `rlImGui-cs` `3.2.0` |
 | `FrinkyEngine.Runtime` | `Raylib-cs` `7.0.2` |
 

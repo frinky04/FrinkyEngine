@@ -21,6 +21,7 @@ public static class ComponentDrawerRegistry
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
         Register<RigidbodyComponent>(DrawRigidbody);
+        Register<CharacterControllerComponent>(DrawCharacterController);
         Register<BoxColliderComponent>(DrawBoxCollider);
         Register<SphereColliderComponent>(DrawSphereCollider);
         Register<CapsuleColliderComponent>(DrawCapsuleCollider);
@@ -565,6 +566,111 @@ public static class ComponentDrawerRegistry
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
             ImGui.TextWrapped("Warning: Parented rigidbodies are not simulated.");
+            ImGui.PopStyleColor();
+        }
+    }
+
+    private static void DrawCharacterController(Component c)
+    {
+        var controller = (CharacterControllerComponent)c;
+        var app = EditorApplication.Instance;
+
+        float moveSpeed = controller.MoveSpeed;
+        if (ImGui.DragFloat("Move Speed", ref moveSpeed, 0.05f, 0f, 1000f))
+            controller.MoveSpeed = moveSpeed;
+        TrackContinuousUndo(app);
+
+        float jumpVelocity = controller.JumpVelocity;
+        if (ImGui.DragFloat("Jump Velocity", ref jumpVelocity, 0.05f, 0f, 1000f))
+            controller.JumpVelocity = jumpVelocity;
+        TrackContinuousUndo(app);
+
+        float maxSlope = controller.MaxSlopeDegrees;
+        if (ImGui.DragFloat("Max Slope (deg)", ref maxSlope, 0.25f, 0f, 89f))
+            controller.MaxSlopeDegrees = maxSlope;
+        TrackContinuousUndo(app);
+
+        float maxHorizontalForce = controller.MaximumHorizontalForce;
+        if (ImGui.DragFloat("Max Horizontal Force", ref maxHorizontalForce, 0.25f, 0f, 100000f))
+            controller.MaximumHorizontalForce = maxHorizontalForce;
+        TrackContinuousUndo(app);
+
+        float maxVerticalForce = controller.MaximumVerticalForce;
+        if (ImGui.DragFloat("Max Vertical Force", ref maxVerticalForce, 0.25f, 0f, 100000f))
+            controller.MaximumVerticalForce = maxVerticalForce;
+        TrackContinuousUndo(app);
+
+        float airControlForceScale = controller.AirControlForceScale;
+        if (ImGui.DragFloat("Air Control Force Scale", ref airControlForceScale, 0.01f, 0f, 10f))
+            controller.AirControlForceScale = airControlForceScale;
+        TrackContinuousUndo(app);
+
+        float airControlSpeedScale = controller.AirControlSpeedScale;
+        if (ImGui.DragFloat("Air Control Speed Scale", ref airControlSpeedScale, 0.01f, 0f, 10f))
+            controller.AirControlSpeedScale = airControlSpeedScale;
+        TrackContinuousUndo(app);
+
+        bool useEntityForward = controller.UseEntityForwardAsViewDirection;
+        if (ImGui.Checkbox("Use Entity Forward", ref useEntityForward))
+        {
+            app.RecordUndo();
+            controller.UseEntityForwardAsViewDirection = useEntityForward;
+            app.RefreshUndoBaseline();
+        }
+
+        if (!controller.UseEntityForwardAsViewDirection)
+        {
+            var viewDirection = controller.ViewDirectionOverride;
+            if (ImGui.DragFloat3("View Direction Override", ref viewDirection, 0.05f))
+                controller.ViewDirectionOverride = viewDirection;
+            TrackContinuousUndo(app);
+        }
+
+        ImGui.Separator();
+        ImGui.TextUnformatted($"Supported: {(controller.Supported ? "Yes" : "No")}");
+        var target = controller.LastComputedTargetVelocity;
+        ImGui.TextUnformatted($"Target Velocity: {target.X:0.00}, {target.Y:0.00}, {target.Z:0.00}");
+
+        var entity = controller.Entity;
+        var rigidbody = entity.GetComponent<RigidbodyComponent>();
+        var capsule = entity.GetComponent<CapsuleColliderComponent>();
+
+        if (rigidbody == null || !rigidbody.Enabled)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Character controller requires an enabled RigidbodyComponent.");
+            ImGui.PopStyleColor();
+        }
+        else if (rigidbody.MotionType != BodyMotionType.Dynamic)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Character controller requires Rigidbody Motion Type = Dynamic.");
+            ImGui.PopStyleColor();
+        }
+
+        if (capsule == null || !capsule.Enabled)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Character controller requires an enabled CapsuleColliderComponent.");
+            ImGui.PopStyleColor();
+        }
+        else
+        {
+            var primaryCollider = entity.Components
+                .OfType<ColliderComponent>()
+                .FirstOrDefault(col => col.Enabled);
+            if (!ReferenceEquals(primaryCollider, capsule))
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+                ImGui.TextWrapped("Warning: The capsule must be the first enabled collider on the entity.");
+                ImGui.PopStyleColor();
+            }
+        }
+
+        if (entity.Transform.Parent != null)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
+            ImGui.TextWrapped("Warning: Parented character controllers are not simulated.");
             ImGui.PopStyleColor();
         }
     }
