@@ -55,6 +55,7 @@ public class EditorApplication
     public bool IsGameViewEnabled { get; private set; }
     public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
+    public string? DraggedAssetPath { get; set; }
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
     public bool CanEditScene => Mode is EditorMode.Edit or EditorMode.Simulate;
     public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;

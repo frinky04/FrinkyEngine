@@ -12,6 +12,7 @@ namespace FrinkyEngine.Editor.Panels;
 
 public class AssetBrowserPanel
 {
+    public const string AssetDragPayload = "FRINKY_ASSET_BROWSER";
     private readonly record struct BrowserItem(
         string Id,
         string Label,
@@ -45,8 +46,13 @@ public class AssetBrowserPanel
         _app = app;
     }
 
-    public void Draw()
+    public unsafe void Draw()
     {
+        // Clear dragged asset path when no drag is active
+        var activePayload = ImGui.GetDragDropPayload();
+        if (activePayload.NativePtr == null)
+            _app.DraggedAssetPath = null;
+
         if (!ImGui.Begin("Assets"))
         {
             ImGui.End();
@@ -285,6 +291,7 @@ public class AssetBrowserPanel
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(item.Tooltip);
 
+        DrawAssetDragDropSource(item);
         DrawItemContextMenu(item);
 
         var min = ImGui.GetItemRectMin();
@@ -350,6 +357,7 @@ public class AssetBrowserPanel
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(item.Tooltip);
 
+        DrawAssetDragDropSource(item);
         DrawItemContextMenu(item);
 
         var min = ImGui.GetItemRectMin();
@@ -517,6 +525,17 @@ public class AssetBrowserPanel
 
         mr.ModelPath = asset.RelativePath;
         FrinkyLog.Info($"Assigned model '{asset.FileName}' to {entity.Name}");
+    }
+
+    private void DrawAssetDragDropSource(BrowserItem item)
+    {
+        if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID))
+            return;
+
+        _app.DraggedAssetPath = item.Asset.RelativePath;
+        ImGui.SetDragDropPayload(AssetDragPayload, nint.Zero, 0);
+        ImGui.TextUnformatted($"[{item.Asset.Type}] {item.Label}");
+        ImGui.EndDragDropSource();
     }
 
     private void DrawItemContextMenu(BrowserItem item)
