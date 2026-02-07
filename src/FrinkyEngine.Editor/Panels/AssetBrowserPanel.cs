@@ -457,8 +457,12 @@ public class AssetBrowserPanel
 
         if (icon is Texture2D tex)
         {
+            uint tint = item.IsDirectory
+                ? EditorIcons.GetFolderIconTint()
+                : EditorIcons.GetIconTint(item.Asset?.Type ?? AssetType.Unknown);
             var drawList = ImGui.GetWindowDrawList();
-            drawList.AddImage((nint)tex.Id, min, new Vector2(min.X + size, min.Y + size));
+            drawList.AddImage((nint)tex.Id, min, new Vector2(min.X + size, min.Y + size),
+                Vector2.Zero, Vector2.One, tint);
         }
     }
 }
