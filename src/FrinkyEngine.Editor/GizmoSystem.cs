@@ -46,6 +46,17 @@ public class GizmoSystem
     public bool IsDragging => _isDragging;
     public int HoveredAxis => _hoveredAxis;
 
+    public bool SnapTranslation;
+    public bool SnapRotation;
+    public bool SnapScale;
+    public float TranslationSnapValue = 1.0f;
+    public float RotationSnapValue = 15.0f;
+    public float ScaleSnapValue = 0.25f;
+
+    public static readonly float[] TranslationSnapPresets = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+    public static readonly float[] RotationSnapPresets = { 5f, 10f, 15f, 30f, 45f, 90f };
+    public static readonly float[] ScaleSnapPresets = { 0.05f, 0.1f, 0.25f, 0.5f, 1.0f };
+
     private int _hoveredAxis = -1; // -1=none, 0=X, 1=Y, 2=Z
     private bool _isDragging;
 
@@ -232,6 +243,8 @@ public class GizmoSystem
         var axis = _dragAxes[_hoveredAxis];
         var currentPoint = ClosestPointOnAxis(ray, _dragOrigin, axis);
         float signedDistance = Vector3.Dot(currentPoint - _dragStartIntersection, axis);
+        if (IsSnapActive(SnapTranslation))
+            signedDistance = SnapValue(signedDistance, TranslationSnapValue);
         var worldDelta = axis * signedDistance;
 
         if (MultiMode == MultiTransformMode.Relative)
@@ -266,8 +279,11 @@ public class GizmoSystem
         float currentAngle = AngleOnPlane(dir, axis);
         float deltaAngle = currentAngle - _dragStartAngle;
 
-        if (MathF.Abs(deltaAngle) < 1e-6f)
-            return;
+        if (IsSnapActive(SnapRotation))
+        {
+            float snapRad = RotationSnapValue * FrinkyEngine.Core.FrinkyMath.Deg2Rad;
+            deltaAngle = SnapValue(deltaAngle, snapRad);
+        }
 
         if (MultiMode == MultiTransformMode.Relative)
         {
@@ -307,7 +323,7 @@ public class GizmoSystem
         foreach (var target in _dragTargets)
         {
             target.Entity.Transform.LocalRotation = Quaternion.Normalize(
-                Quaternion.CreateFromAxisAngle(localRotateAxis, deltaAngle) * target.StartLocalRotation);
+                target.StartLocalRotation * Quaternion.CreateFromAxisAngle(localRotateAxis, deltaAngle));
         }
     }
 
@@ -316,6 +332,8 @@ public class GizmoSystem
         var axis = _dragAxes[_hoveredAxis];
         var currentPoint = ClosestPointOnAxis(ray, _dragOrigin, axis);
         float signedDistance = Vector3.Dot(currentPoint - _dragStartIntersection, axis);
+        if (IsSnapActive(SnapScale))
+            signedDistance = SnapValue(signedDistance, ScaleSnapValue);
         var scaleAxis = GetLocalScaleOrRotateAxis(_hoveredAxis);
 
         if (MultiMode == MultiTransformMode.Relative)
@@ -526,6 +544,18 @@ public class GizmoSystem
             MathF.Max(MinLocalScale, value.X),
             MathF.Max(MinLocalScale, value.Y),
             MathF.Max(MinLocalScale, value.Z));
+    }
+
+    private static float SnapValue(float value, float increment)
+    {
+        if (increment <= 0) return value;
+        return MathF.Round(value / increment) * increment;
+    }
+
+    private static bool IsSnapActive(bool snapEnabled)
+    {
+        bool ctrlHeld = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl);
+        return snapEnabled ^ ctrlHeld;
     }
 
     private void ResetInteractionState()

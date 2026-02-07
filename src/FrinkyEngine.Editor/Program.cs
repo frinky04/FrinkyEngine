@@ -157,6 +157,9 @@ public static class Program
         ImGuiDockBuilder.DockWindow("Console", bottomId);
         ImGuiDockBuilder.DockWindow("Assets", bottomId);
 
+        // Hide the tab bar on the Viewport node when it's the only window
+        ImGuiDockBuilder.SetNodeLocalFlags(topId, ImGuiDockNodeFlags.AutoHideTabBar);
+
         ImGuiDockBuilder.Finish(dockspaceId);
     }
 }

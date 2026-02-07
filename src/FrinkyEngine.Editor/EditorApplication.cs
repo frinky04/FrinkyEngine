@@ -51,6 +51,7 @@ public class EditorApplication
     public EditorProjectSettings? ProjectEditorSettings { get; private set; }
     public bool ShouldResetLayout { get; set; }
     public bool IsGameViewEnabled { get; private set; }
+    public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
 
     private string? _playModeSnapshot;
@@ -110,6 +111,7 @@ public class EditorApplication
         lightEntity.AddComponent<Core.Components.LightComponent>();
 
         EditorCamera.Reset();
+        IsSceneDirty = false;
         UpdateWindowTitle();
         ResetHierarchyStateForCurrentScene();
         UndoRedo.Clear();
@@ -301,6 +303,46 @@ public class EditorApplication
             2.0f);
     }
 
+    public void FrameSelected()
+    {
+        if (Mode != EditorMode.Edit || _selectedEntities.Count == 0) return;
+
+        var min = new System.Numerics.Vector3(float.MaxValue);
+        var max = new System.Numerics.Vector3(float.MinValue);
+        bool hasBounds = false;
+
+        foreach (var entity in _selectedEntities)
+        {
+            var renderable = entity.GetComponent<Core.Components.RenderableComponent>();
+            if (renderable != null && renderable.Enabled)
+            {
+                var bb = renderable.GetWorldBoundingBox();
+                if (bb.HasValue)
+                {
+                    min = System.Numerics.Vector3.Min(min, bb.Value.Min);
+                    max = System.Numerics.Vector3.Max(max, bb.Value.Max);
+                    hasBounds = true;
+                    continue;
+                }
+            }
+
+            // Fallback: 1-unit cube around world position
+            var pos = entity.Transform.WorldPosition;
+            min = System.Numerics.Vector3.Min(min, pos - System.Numerics.Vector3.One * 0.5f);
+            max = System.Numerics.Vector3.Max(max, pos + System.Numerics.Vector3.One * 0.5f);
+            hasBounds = true;
+        }
+
+        if (!hasBounds) return;
+
+        var center = (min + max) * 0.5f;
+        var extents = (max - min) * 0.5f;
+        float radius = extents.Length();
+        if (radius < 0.01f) radius = 1f;
+
+        EditorCamera.FocusOn(center, radius);
+    }
+  
     public void TogglePhysicsHitboxPreview()
     {
         IsPhysicsHitboxPreviewEnabled = !IsPhysicsHitboxPreviewEnabled;
@@ -379,6 +421,7 @@ public class EditorApplication
         UndoRedo.Clear();
         ClearSelection();
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
+        IsSceneDirty = false;
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
@@ -391,6 +434,8 @@ public class EditorApplication
             title += $" - {ProjectFile.ProjectName}";
         if (CurrentScene != null)
             title += $" - {CurrentScene.Name}";
+        if (IsSceneDirty)
+            title += " *";
         Raylib.SetWindowTitle(title);
     }
 
@@ -541,6 +586,7 @@ public class EditorApplication
                     ? CurrentScene.FilePath
                     : "scene.fscene";
                 SceneManager.Instance.SaveScene(path);
+                ClearSceneDirty();
                 FrinkyLog.Info($"Scene saved to: {path}");
                 NotificationManager.Instance.Post("Scene saved", NotificationType.Success);
             }
@@ -645,6 +691,7 @@ public class EditorApplication
         km.RegisterAction(EditorAction.RevertPrefab, () => RevertSelectedPrefab());
         km.RegisterAction(EditorAction.MakeUniquePrefab, () => MakeUniqueSelectedPrefab());
         km.RegisterAction(EditorAction.UnpackPrefab, () => UnpackSelectedPrefab());
+        km.RegisterAction(EditorAction.FrameSelected, () => FrameSelected());
     }
 
     public void StoreEditorCameraInScene()
@@ -672,10 +719,26 @@ public class EditorApplication
         }
     }
 
+    public void MarkSceneDirty()
+    {
+        if (!IsSceneDirty)
+        {
+            IsSceneDirty = true;
+            UpdateWindowTitle();
+        }
+    }
+
+    public void ClearSceneDirty()
+    {
+        IsSceneDirty = false;
+        UpdateWindowTitle();
+    }
+
     public void RecordUndo()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
         UndoRedo.RecordUndo(GetSelectedEntityIds(), SerializeCurrentHierarchyState());
+        MarkSceneDirty();
     }
 
     public void RefreshUndoBaseline()

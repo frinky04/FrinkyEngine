@@ -34,7 +34,8 @@ public enum EditorAction
     ApplyPrefab,
     RevertPrefab,
     MakeUniquePrefab,
-    UnpackPrefab
+    UnpackPrefab,
+    FrameSelected
 }
 
 public struct Keybind
