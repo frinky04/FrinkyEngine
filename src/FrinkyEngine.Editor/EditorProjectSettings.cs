@@ -9,6 +9,7 @@ public class EditorProjectSettings
 
     public int TargetFps { get; set; } = 120;
     public bool VSync { get; set; }
+    public bool ShowPhysicsHitboxes { get; set; }
     public HierarchyEditorSettings Hierarchy { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -72,6 +73,7 @@ public class EditorProjectSettings
         {
             TargetFps = TargetFps,
             VSync = VSync,
+            ShowPhysicsHitboxes = ShowPhysicsHitboxes,
             Hierarchy = Hierarchy.Clone()
         };
     }
@@ -86,7 +88,8 @@ public class EditorProjectSettings
         return new EditorProjectSettings
         {
             TargetFps = 120,
-            VSync = false
+            VSync = false,
+            ShowPhysicsHitboxes = false
         };
     }
 
