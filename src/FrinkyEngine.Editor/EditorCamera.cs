@@ -14,6 +14,15 @@ public class EditorCamera
     private bool _cursorDisabled;
     private Vector2 _savedCursorPos;
 
+    /// <summary>
+    /// Clears internal cursor-disabled tracking without calling Raylib.EnableCursor().
+    /// Call this before an external system takes ownership of cursor lock state.
+    /// </summary>
+    public void ForceReleaseCursorState()
+    {
+        _cursorDisabled = false;
+    }
+
     public Camera3D Camera3D { get; private set; }
 
     public Vector3 Position => _position;

@@ -23,6 +23,7 @@ public class SimplePlayerInputComponent : Component
     private bool _rotatePitch = true;
     private bool _useViewDirectionOverrideForCharacterLook = true;
     private bool _applyPitchToCharacterBody;
+    private bool _invertMouseX;
     private bool _invertMouseY;
     private float _mouseSensitivity = 0.1f;
     private float _minPitchDegrees = -85f;
@@ -144,6 +145,15 @@ public class SimplePlayerInputComponent : Component
     {
         get => _invertMouseY;
         set => _invertMouseY = value;
+    }
+
+    /// <summary>
+    /// Inverts mouse X input for yaw rotation.
+    /// </summary>
+    public bool InvertMouseX
+    {
+        get => _invertMouseX;
+        set => _invertMouseX = value;
     }
 
     /// <summary>
@@ -283,7 +293,8 @@ public class SimplePlayerInputComponent : Component
         InitializeLookState();
 
         var delta = FrinkyInput.MouseDelta;
-        _lookYawDegrees += delta.X * MouseSensitivity;
+        var yawSign = InvertMouseX ? 1f : -1f;
+        _lookYawDegrees += delta.X * MouseSensitivity * yawSign;
 
         if (RotatePitch)
         {

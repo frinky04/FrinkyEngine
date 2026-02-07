@@ -199,7 +199,8 @@ public class ViewportPanel
         ImGui.End();
         ImGui.PopStyleVar();
 
-        _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.CanUseEditorViewportTools);
+        if (_app.CanUseEditorViewportTools)
+            _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered);
     }
 
     private static bool DrawViewportToolbar(GizmoSystem gizmo)

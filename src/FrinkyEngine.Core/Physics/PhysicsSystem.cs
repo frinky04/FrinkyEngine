@@ -490,7 +490,10 @@ internal sealed class PhysicsSystem : IDisposable
             {
                 var dynamicInertia = shapeResult.DynamicInertia;
                 if (hasCharacterController)
+                {
                     dynamicInertia.InverseInertiaTensor = default;
+                    pose.Orientation = Quaternion.Identity;
+                }
 
                 var velocity = new BodyVelocity { Linear = rigidbody.InitialLinearVelocity };
                 var activity = new BodyActivityDescription(0.01f);
@@ -606,10 +609,12 @@ internal sealed class PhysicsSystem : IDisposable
                 if (characterPositionChanged)
                 {
                     var currentPose = body.Pose;
+                    currentPose.Orientation = Quaternion.Identity;
                     var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, currentPose.Orientation);
                     currentPose.Position = transform.LocalPosition + offset;
                     body.Pose = currentPose;
                     body.Velocity.Linear = Vector3.Zero;
+                    body.Velocity.Angular = Vector3.Zero;
                     body.Awake = true;
                 }
 
