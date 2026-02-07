@@ -481,7 +481,21 @@ public class HierarchyPanel
     private void DrawEntityStatusInline(Entity entity)
     {
         int componentCount = Math.Max(0, entity.Components.Count - 1);
-        string componentLabel = $"[{componentCount}]";
+        var prefabRoot = _app.Prefabs.GetPrefabRoot(entity);
+        bool isPrefab = prefabRoot?.Prefab != null;
+        bool isPrefabRoot = isPrefab && prefabRoot!.Id == entity.Id;
+        int overrideCount = isPrefabRoot
+            ? (prefabRoot!.Prefab!.Overrides?.PropertyOverrides.Count ?? 0)
+              + (prefabRoot.Prefab.Overrides?.AddedComponents.Count ?? 0)
+              + (prefabRoot.Prefab.Overrides?.RemovedComponents.Count ?? 0)
+              + (prefabRoot.Prefab.Overrides?.AddedChildren.Count ?? 0)
+              + (prefabRoot.Prefab.Overrides?.RemovedChildren.Count ?? 0)
+            : 0;
+
+        string prefabLabel = isPrefab ? (isPrefabRoot && overrideCount > 0 ? "[P*]" : "[P]") : string.Empty;
+        string componentLabel = string.IsNullOrEmpty(prefabLabel)
+            ? $"[{componentCount}]"
+            : $"{prefabLabel} [{componentCount}]";
 
         float spacing = ImGui.GetStyle().ItemSpacing.X;
         float componentWidth = ImGui.CalcTextSize(componentLabel).X;
@@ -596,6 +610,26 @@ public class HierarchyPanel
 
         if (ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
             _app.DeleteSelectedEntities();
+
+        var prefabRoot = _app.Prefabs.GetPrefabRoot(entity);
+        if (prefabRoot?.Prefab != null)
+        {
+            ImGui.Separator();
+
+            if (prefabRoot.Id != entity.Id && ImGui.MenuItem("Select Prefab Root"))
+                _app.SetSingleSelection(prefabRoot);
+
+            ImGui.BeginDisabled(prefabRoot.Id != entity.Id);
+            if (ImGui.MenuItem("Apply Prefab"))
+                _app.ApplySelectedPrefab();
+            if (ImGui.MenuItem("Revert Prefab"))
+                _app.RevertSelectedPrefab();
+            if (ImGui.MenuItem("Make Unique"))
+                _app.MakeUniqueSelectedPrefab();
+            if (ImGui.MenuItem("Unpack Prefab"))
+                _app.UnpackSelectedPrefab();
+            ImGui.EndDisabled();
+        }
 
         ImGui.Separator();
 

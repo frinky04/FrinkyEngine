@@ -8,6 +8,7 @@ using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using FrinkyEngine.Core.Serialization;
 using FrinkyEngine.Editor.Panels;
+using FrinkyEngine.Editor.Prefab;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -42,6 +43,7 @@ public class EditorApplication
     public PickingSystem PickingSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
     public UndoRedoManager UndoRedo { get; } = new();
+    public PrefabService Prefabs { get; }
 
     public string? ProjectDirectory { get; private set; }
     public ProjectFile? ProjectFile { get; private set; }
@@ -71,6 +73,7 @@ public class EditorApplication
     public EditorApplication()
     {
         Instance = this;
+        Prefabs = new PrefabService(this);
         ViewportPanel = new ViewportPanel(this);
         HierarchyPanel = new HierarchyPanel(this);
         InspectorPanel = new InspectorPanel(this);
@@ -165,6 +168,7 @@ public class EditorApplication
             AssetDatabase.Instance.Refresh();
 
             bool assetsReloaded = false;
+            var changedPrefabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (changedPaths != null && CurrentScene != null)
             {
                 var assetsPath = AssetManager.Instance.AssetsPath;
@@ -175,6 +179,8 @@ public class EditorApplication
                     {
                         var rel = Path.GetRelativePath(assetsPath, fullPath).Replace('\\', '/');
                         relativePaths.Add(rel);
+                        if (rel.EndsWith(".fprefab", StringComparison.OrdinalIgnoreCase))
+                            changedPrefabs.Add(rel);
                     }
                 }
 
@@ -218,6 +224,9 @@ public class EditorApplication
                         AssetManager.Instance.InvalidateAsset(rel);
                 }
             }
+
+            if (changedPrefabs.Count > 0)
+                Prefabs.SyncInstancesForAssets(changedPrefabs);
 
             NotificationManager.Instance.Post(
                 assetsReloaded ? "Assets reloaded" : "Assets refreshed",
@@ -309,6 +318,7 @@ public class EditorApplication
     {
         ProjectDirectory = Path.GetDirectoryName(fprojectPath);
         ProjectFile = Core.Assets.ProjectFile.Load(fprojectPath);
+        PrefabDatabase.Instance.Clear();
         _sessionHierarchyStates.Clear();
         _hierarchyStateDirty = false;
 
@@ -337,6 +347,7 @@ public class EditorApplication
             {
                 SceneManager.Instance.LoadScene(scenePath);
                 CurrentScene = SceneManager.Instance.ActiveScene;
+                Prefabs.RecalculateOverridesForScene();
                 RestoreEditorCameraFromScene();
             }
         }
@@ -609,6 +620,11 @@ public class EditorApplication
         km.RegisterAction(EditorAction.OpenProjectInVSCode, () => OpenProjectInVSCode());
 
         km.RegisterAction(EditorAction.ExportGame, () => MenuBar.TriggerExportGame());
+        km.RegisterAction(EditorAction.CreatePrefabFromSelection, () => CreatePrefabFromSelection());
+        km.RegisterAction(EditorAction.ApplyPrefab, () => ApplySelectedPrefab());
+        km.RegisterAction(EditorAction.RevertPrefab, () => RevertSelectedPrefab());
+        km.RegisterAction(EditorAction.MakeUniquePrefab, () => MakeUniqueSelectedPrefab());
+        km.RegisterAction(EditorAction.UnpackPrefab, () => UnpackSelectedPrefab());
     }
 
     public void StoreEditorCameraInScene()
@@ -645,7 +661,76 @@ public class EditorApplication
     public void RefreshUndoBaseline()
     {
         if (Mode != EditorMode.Edit || CurrentScene == null) return;
+        Prefabs.RecalculateOverridesForScene();
         UndoRedo.RefreshBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
+    }
+
+    public void CreatePrefabFromSelection()
+    {
+        if (Mode != EditorMode.Edit || SelectedEntity == null)
+            return;
+
+        RecordUndo();
+        var created = Prefabs.CreatePrefabFromEntity(SelectedEntity);
+        if (!created)
+            return;
+
+        RefreshUndoBaseline();
+        NotificationManager.Instance.Post("Created prefab from selection.", NotificationType.Success);
+    }
+
+    public void InstantiatePrefabAsset(string assetPath)
+    {
+        if (Mode != EditorMode.Edit || CurrentScene == null)
+            return;
+
+        RecordUndo();
+        var instance = Prefabs.InstantiatePrefab(assetPath);
+        if (instance == null)
+            return;
+
+        SetSingleSelection(instance);
+        RefreshUndoBaseline();
+        NotificationManager.Instance.Post("Prefab instantiated.", NotificationType.Info, 1.5f);
+    }
+
+    public void ApplySelectedPrefab()
+    {
+        if (Mode != EditorMode.Edit || SelectedEntity == null)
+            return;
+
+        RecordUndo();
+        if (!Prefabs.ApplyPrefab(SelectedEntity))
+            return;
+
+        RefreshUndoBaseline();
+        NotificationManager.Instance.Post("Prefab applied.", NotificationType.Success, 1.5f);
+    }
+
+    public void RevertSelectedPrefab()
+    {
+        if (Mode != EditorMode.Edit || SelectedEntity == null)
+            return;
+
+        if (Prefabs.RevertPrefab(SelectedEntity))
+            NotificationManager.Instance.Post("Prefab reverted.", NotificationType.Info, 1.5f);
+    }
+
+    public void MakeUniqueSelectedPrefab()
+    {
+        if (Mode != EditorMode.Edit || SelectedEntity == null)
+            return;
+
+        Prefabs.MakeUnique(SelectedEntity);
+    }
+
+    public void UnpackSelectedPrefab()
+    {
+        if (Mode != EditorMode.Edit || SelectedEntity == null)
+            return;
+
+        if (Prefabs.UnpackPrefab(SelectedEntity))
+            NotificationManager.Instance.Post("Prefab unpacked.", NotificationType.Info, 1.5f);
     }
 
     public bool IsSelected(Entity entity)
@@ -1057,6 +1142,7 @@ public class EditorApplication
         SceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
         AssetDatabase.Instance.Clear();
+        PrefabDatabase.Instance.Clear();
         AssemblyLoader.Unload();
     }
 

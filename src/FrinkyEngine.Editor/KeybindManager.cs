@@ -135,6 +135,11 @@ public class KeybindManager
         _bindings[EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.O, ctrl: true, shift: true);
         _bindings[EditorAction.OpenProjectInVSCode] = new Keybind(ImGuiKey.V, ctrl: true, shift: true);
         _bindings[EditorAction.ExportGame] = new Keybind(ImGuiKey.E, ctrl: true, shift: true);
+        _bindings[EditorAction.CreatePrefabFromSelection] = new Keybind(ImGuiKey.P, ctrl: true, shift: true);
+        _bindings[EditorAction.ApplyPrefab] = new Keybind(ImGuiKey.P, ctrl: true, alt: true);
+        _bindings[EditorAction.RevertPrefab] = new Keybind(ImGuiKey.R, ctrl: true, alt: true);
+        _bindings[EditorAction.MakeUniquePrefab] = new Keybind(ImGuiKey.U, ctrl: true, shift: true);
+        _bindings[EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true);
     }
 
     private void ApplyConfig(KeybindConfig config)

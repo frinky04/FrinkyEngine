@@ -1,17 +1,18 @@
 {
   "name": "Untitled",
   "editorCameraPosition": {
-    "x": 7.2218976,
-    "y": 10.544118,
-    "z": 8.456865
+    "x": 5,
+    "y": 5,
+    "z": 5
   },
-  "editorCameraYaw": -143.40005,
-  "editorCameraPitch": -26.54998,
+  "editorCameraYaw": -133.80002,
+  "editorCameraPitch": -34.5,
   "entities": [
     {
       "name": "Main Camera",
-      "id": "1025e1ce-bb88-4b55-af0d-99d4820084fe",
+      "id": "5632db1e-400d-4e70-822a-2aa23fe5facc",
       "active": true,
+      "prefab": null,
       "components": [
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",
@@ -21,7 +22,7 @@
             "LocalPosition": {
               "x": 0,
               "y": 5,
-              "z": 8.219601
+              "z": 10
             },
             "LocalRotation": {
               "x": -0.17364818,
@@ -59,8 +60,9 @@
     },
     {
       "name": "Directional Light",
-      "id": "ba88ad9d-0a7a-47c4-8105-1f9602c73b0c",
+      "id": "eddbac54-3c2d-4a44-8e8f-e3f2c6c89e22",
       "active": true,
+      "prefab": null,
       "components": [
         {
           "$type": "FrinkyEngine.Core.Components.TransformComponent",

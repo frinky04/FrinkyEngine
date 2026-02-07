@@ -53,6 +53,8 @@ public class InspectorPanel
 
     private void DrawSingleEntityInspector(Entity entity)
     {
+        DrawPrefabHeader(entity);
+
         if (FocusNameField)
         {
             ImGui.SetKeyboardFocusHere();
@@ -112,6 +114,76 @@ public class InspectorPanel
 
         ImGui.Separator();
         DrawAddComponentButton(new[] { entity });
+    }
+
+    private void DrawPrefabHeader(Entity entity)
+    {
+        var root = _app.Prefabs.GetPrefabRoot(entity);
+        if (root?.Prefab == null)
+            return;
+
+        var metadata = root.Prefab;
+        bool isRoot = root.Id == entity.Id;
+
+        ImGui.TextDisabled($"Prefab: {metadata.AssetPath}");
+        int overrideCount = (metadata.Overrides?.PropertyOverrides.Count ?? 0)
+                            + (metadata.Overrides?.AddedComponents.Count ?? 0)
+                            + (metadata.Overrides?.RemovedComponents.Count ?? 0)
+                            + (metadata.Overrides?.AddedChildren.Count ?? 0)
+                            + (metadata.Overrides?.RemovedChildren.Count ?? 0);
+        ImGui.TextDisabled($"Overrides: {overrideCount}");
+        DrawPrefabOverrideDetails(metadata.Overrides, overrideCount);
+
+        if (!isRoot)
+        {
+            if (ImGui.SmallButton("Select Prefab Root"))
+                _app.SetSingleSelection(root);
+            ImGui.Separator();
+            return;
+        }
+
+        if (ImGui.Button("Apply Prefab"))
+            _app.ApplySelectedPrefab();
+
+        ImGui.SameLine();
+        if (ImGui.Button("Revert Prefab"))
+            _app.RevertSelectedPrefab();
+
+        ImGui.SameLine();
+        if (ImGui.Button("Make Unique"))
+            _app.MakeUniqueSelectedPrefab();
+
+        ImGui.SameLine();
+        if (ImGui.Button("Unpack"))
+            _app.UnpackSelectedPrefab();
+
+        ImGui.Separator();
+    }
+
+    private static void DrawPrefabOverrideDetails(Core.Prefabs.PrefabOverridesData? overrides, int overrideCount)
+    {
+        if (overrideCount <= 0 || overrides == null)
+            return;
+
+        if (!ImGui.TreeNode($"Override Details ({overrideCount})"))
+            return;
+
+        foreach (var item in overrides.PropertyOverrides)
+            ImGui.TextDisabled($"Property: {item.ComponentType}.{item.PropertyName} @ {item.NodeId}");
+
+        foreach (var item in overrides.AddedComponents)
+            ImGui.TextDisabled($"Added Component: {item.Component.Type} @ {item.NodeId}");
+
+        foreach (var item in overrides.RemovedComponents)
+            ImGui.TextDisabled($"Removed Component: {item.ComponentType} @ {item.NodeId}");
+
+        foreach (var item in overrides.AddedChildren)
+            ImGui.TextDisabled($"Added Child: {item.Child.Name} @ {item.ParentNodeId}");
+
+        foreach (var item in overrides.RemovedChildren)
+            ImGui.TextDisabled($"Removed Child: {item}");
+
+        ImGui.TreePop();
     }
 
     private void DrawMultiEntityInspector(IReadOnlyList<Entity> entities)

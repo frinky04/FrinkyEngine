@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.Prefabs;
 
 namespace FrinkyEngine.Core.ECS;
 
@@ -32,6 +33,11 @@ public class Entity
     /// The transform component that is always present on every entity.
     /// </summary>
     public TransformComponent Transform { get; }
+
+    /// <summary>
+    /// Optional prefab instance metadata for this entity.
+    /// </summary>
+    public PrefabInstanceMetadata? Prefab { get; set; }
 
     private readonly List<Component> _components = new();
 

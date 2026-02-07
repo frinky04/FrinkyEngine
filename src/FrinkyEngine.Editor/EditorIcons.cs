@@ -21,6 +21,7 @@ public static class EditorIcons
         { AssetType.Scene, "EditorAssets/Icons/scene.png" },
         { AssetType.Texture, "EditorAssets/Icons/texture.png" },
         { AssetType.Script, "EditorAssets/Icons/script.png" },
+        { AssetType.Prefab, "EditorAssets/Icons/prefab.png" },
         { AssetType.Unknown, "EditorAssets/Icons/file.png" },
     };
 

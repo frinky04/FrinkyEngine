@@ -176,6 +176,7 @@ public class ViewportPanel
                 }
                 else if (!gizmo.IsDragging && _wasGizmoDragging)
                 {
+                    _app.Prefabs.RecalculateOverridesForScene();
                     _app.UndoRedo.EndBatch(_app.CurrentScene, _app.GetSelectedEntityIds());
                 }
                 _wasGizmoDragging = gizmo.IsDragging;

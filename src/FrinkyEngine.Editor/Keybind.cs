@@ -28,7 +28,12 @@ public enum EditorAction
     ToggleGameView,
     OpenAssetsFolder,
     OpenProjectInVSCode,
-    ExportGame
+    ExportGame,
+    CreatePrefabFromSelection,
+    ApplyPrefab,
+    RevertPrefab,
+    MakeUniquePrefab,
+    UnpackPrefab
 }
 
 public struct Keybind

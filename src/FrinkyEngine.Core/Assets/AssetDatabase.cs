@@ -25,6 +25,7 @@ public class AssetDatabase
         { ".bmp", AssetType.Texture },
         { ".tga", AssetType.Texture },
         { ".cs", AssetType.Script },
+        { ".fprefab", AssetType.Prefab },
     };
 
     private List<AssetEntry> _assets = new();

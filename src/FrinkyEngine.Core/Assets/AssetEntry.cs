@@ -28,7 +28,12 @@ public enum AssetType
     /// <summary>
     /// A C# script file (.cs).
     /// </summary>
-    Script
+    Script,
+
+    /// <summary>
+    /// A prefab file (.fprefab).
+    /// </summary>
+    Prefab
 }
 
 /// <summary>

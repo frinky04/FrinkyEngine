@@ -181,6 +181,29 @@ public class MenuBar
                 }
                 ImGui.EndDisabled();
 
+                ImGui.Separator();
+
+                ImGui.BeginDisabled(!hasSingleSelection);
+                if (ImGui.MenuItem("Create Prefab from Selection", KeybindManager.Instance.GetShortcutText(EditorAction.CreatePrefabFromSelection)))
+                    _app.CreatePrefabFromSelection();
+
+                var prefabRoot = _app.Prefabs.GetPrefabRoot(_app.SelectedEntity);
+                bool isPrefabRootSelection = prefabRoot != null
+                                             && _app.SelectedEntity != null
+                                             && prefabRoot.Id == _app.SelectedEntity.Id;
+
+                ImGui.BeginDisabled(!isPrefabRootSelection);
+                if (ImGui.MenuItem("Apply Prefab", KeybindManager.Instance.GetShortcutText(EditorAction.ApplyPrefab)))
+                    _app.ApplySelectedPrefab();
+                if (ImGui.MenuItem("Revert Prefab", KeybindManager.Instance.GetShortcutText(EditorAction.RevertPrefab)))
+                    _app.RevertSelectedPrefab();
+                if (ImGui.MenuItem("Make Unique Prefab", KeybindManager.Instance.GetShortcutText(EditorAction.MakeUniquePrefab)))
+                    _app.MakeUniqueSelectedPrefab();
+                if (ImGui.MenuItem("Unpack Prefab", KeybindManager.Instance.GetShortcutText(EditorAction.UnpackPrefab)))
+                    _app.UnpackSelectedPrefab();
+                ImGui.EndDisabled();
+                ImGui.EndDisabled();
+
                 ImGui.BeginDisabled(!hasSingleSelection);
                 if (ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
                 {
@@ -325,6 +348,7 @@ public class MenuBar
 
         SceneManager.Instance.LoadScene(result.Path);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
+        _app.Prefabs.RecalculateOverridesForScene();
         _app.ClearSelection();
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();

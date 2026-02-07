@@ -111,12 +111,32 @@ public class Scene
     /// <param name="entity">The entity to remove.</param>
     public void RemoveEntity(Entity entity)
     {
-        foreach (var c in entity.Components)
-            _registry.Unregister(c);
+        var subtree = new List<Entity>();
+        CollectEntitySubtree(entity, subtree);
 
-        entity.DestroyComponents();
-        entity.Scene = null;
-        _entities.Remove(entity);
+        // Remove children before parents so hierarchy links are cleaned safely.
+        for (int i = subtree.Count - 1; i >= 0; i--)
+        {
+            var current = subtree[i];
+            if (current.Scene != this)
+                continue;
+
+            current.Transform.SetParent(null);
+
+            foreach (var c in current.Components)
+                _registry.Unregister(c);
+
+            current.DestroyComponents();
+            current.Scene = null;
+            _entities.Remove(current);
+        }
+    }
+
+    private static void CollectEntitySubtree(Entity entity, List<Entity> results)
+    {
+        results.Add(entity);
+        foreach (var child in entity.Transform.Children.ToList())
+            CollectEntitySubtree(child.Entity, results);
     }
 
     internal void OnComponentAdded(Entity entity, Component component)

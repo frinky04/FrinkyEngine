@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Prefabs;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Serialization;
@@ -102,7 +103,8 @@ public static class SceneSerializer
         {
             Name = entity.Name,
             Id = entity.Id,
-            Active = entity.Active
+            Active = entity.Active,
+            Prefab = entity.Prefab?.Clone()
         };
 
         foreach (var component in entity.Components)
@@ -176,7 +178,8 @@ public static class SceneSerializer
         var entity = new Entity(data.Name)
         {
             Id = data.Id,
-            Active = data.Active
+            Active = data.Active,
+            Prefab = data.Prefab?.Clone()
         };
 
         foreach (var componentData in data.Components)
@@ -329,6 +332,11 @@ public class EntityData
     /// Whether the entity is active.
     /// </summary>
     public bool Active { get; set; } = true;
+
+    /// <summary>
+    /// Optional prefab instance metadata.
+    /// </summary>
+    public PrefabInstanceMetadata? Prefab { get; set; }
 
     /// <summary>
     /// Serialized components attached to this entity.

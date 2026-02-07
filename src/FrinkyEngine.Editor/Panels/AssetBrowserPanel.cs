@@ -23,9 +23,9 @@ public class AssetBrowserPanel
     private string _currentDir = string.Empty;
     private string _searchQuery = string.Empty;
     private bool _flatView = true;
-    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Script
-    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Scripts" };
-    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Script };
+    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Script, 5=Prefab
+    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Scripts", "Prefabs" };
+    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Script, AssetType.Prefab };
 
     public AssetBrowserPanel(EditorApplication app)
     {
@@ -311,6 +311,9 @@ public class AssetBrowserPanel
             case AssetType.Scene:
                 OpenSceneAsset(asset);
                 break;
+            case AssetType.Prefab:
+                InstantiatePrefabAsset(asset);
+                break;
             case AssetType.Script:
                 OpenScriptAsset(asset);
                 break;
@@ -408,6 +411,9 @@ public class AssetBrowserPanel
         if (asset.Type == AssetType.Scene && ImGui.MenuItem("Open Scene"))
             OpenSceneAsset(asset);
 
+        if (asset.Type == AssetType.Prefab && ImGui.MenuItem("Instantiate Prefab"))
+            InstantiatePrefabAsset(asset);
+
         if (asset.Type == AssetType.Script && ImGui.MenuItem("Open in VS Code"))
             OpenScriptAsset(asset);
 
@@ -421,11 +427,20 @@ public class AssetBrowserPanel
             ImGui.SetClipboardText(asset.RelativePath);
     }
 
+    private void InstantiatePrefabAsset(AssetEntry asset)
+    {
+        if (asset.Type != AssetType.Prefab)
+            return;
+
+        _app.InstantiatePrefabAsset(asset.RelativePath);
+    }
+
     private void OpenSceneAsset(AssetEntry asset)
     {
         var fullPath = AssetManager.Instance.ResolvePath(asset.RelativePath);
         SceneManager.Instance.LoadScene(fullPath);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
+        _app.Prefabs.RecalculateOverridesForScene();
         _app.ClearSelection();
         _app.RestoreEditorCameraFromScene();
         _app.UpdateWindowTitle();
