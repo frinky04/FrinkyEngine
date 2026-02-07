@@ -246,6 +246,17 @@ public class HierarchyPanel
                 stateChanged = true;
             }
 
+            var prefabFilter = state.PrefabFilter;
+            var prefabPreview = GetPrefabFilterLabel(prefabFilter);
+            if (ImGui.BeginCombo("Prefab", prefabPreview))
+            {
+                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.Any);
+                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabInstances);
+                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabRoots);
+                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.NonPrefabs);
+                ImGui.EndCombo();
+            }
+
             ImGui.Separator();
 
             var componentTypes = ComponentTypeResolver.GetAllComponentTypes()
@@ -1245,10 +1256,49 @@ public class HierarchyPanel
             return false;
         if (state.FilterInactiveOnly && entity.Active)
             return false;
+        if (!MatchesPrefabFilter(entity, state.PrefabFilter))
+            return false;
         if (requiredComponent != null && entity.GetComponent(requiredComponent) == null)
             return false;
 
         return true;
+    }
+
+    private static bool DrawPrefabFilterOption(HierarchySceneState state, HierarchyPrefabFilter mode)
+    {
+        bool selected = state.PrefabFilter == mode;
+        if (!ImGui.Selectable(GetPrefabFilterLabel(mode), selected))
+            return false;
+
+        state.PrefabFilter = mode;
+        return true;
+    }
+
+    private static string GetPrefabFilterLabel(HierarchyPrefabFilter mode)
+    {
+        return mode switch
+        {
+            HierarchyPrefabFilter.Any => "Any",
+            HierarchyPrefabFilter.PrefabInstances => "Prefab Instances",
+            HierarchyPrefabFilter.PrefabRoots => "Prefab Roots",
+            HierarchyPrefabFilter.NonPrefabs => "Non-Prefabs",
+            _ => "Any"
+        };
+    }
+
+    private static bool MatchesPrefabFilter(Entity entity, HierarchyPrefabFilter mode)
+    {
+        bool isPrefabInstance = entity.Prefab != null && !string.IsNullOrWhiteSpace(entity.Prefab.AssetPath);
+        bool isPrefabRoot = isPrefabInstance && entity.Prefab!.IsRoot;
+
+        return mode switch
+        {
+            HierarchyPrefabFilter.Any => true,
+            HierarchyPrefabFilter.PrefabInstances => isPrefabInstance,
+            HierarchyPrefabFilter.PrefabRoots => isPrefabRoot,
+            HierarchyPrefabFilter.NonPrefabs => !isPrefabInstance,
+            _ => true
+        };
     }
 
     private static bool EntityMatchesSearch(Entity entity, IReadOnlyList<string> tokens)

@@ -135,6 +135,7 @@ public class HierarchySceneState
     public string SearchQuery { get; set; } = string.Empty;
     public bool FilterActiveOnly { get; set; }
     public bool FilterInactiveOnly { get; set; }
+    public HierarchyPrefabFilter PrefabFilter { get; set; } = HierarchyPrefabFilter.Any;
     public string RequiredComponentType { get; set; } = string.Empty;
     public bool ShowOnlyMatches { get; set; } = true;
     public bool AutoExpandMatches { get; set; } = true;
@@ -150,6 +151,7 @@ public class HierarchySceneState
             SearchQuery = SearchQuery,
             FilterActiveOnly = FilterActiveOnly,
             FilterInactiveOnly = FilterInactiveOnly,
+            PrefabFilter = PrefabFilter,
             RequiredComponentType = RequiredComponentType,
             ShowOnlyMatches = ShowOnlyMatches,
             AutoExpandMatches = AutoExpandMatches,
@@ -170,6 +172,9 @@ public class HierarchySceneState
             FilterActiveOnly = false;
             FilterInactiveOnly = false;
         }
+
+        if (!Enum.IsDefined(PrefabFilter))
+            PrefabFilter = HierarchyPrefabFilter.Any;
 
         Folders ??= new List<HierarchyFolderState>();
         RootEntityFolders ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -239,6 +244,14 @@ public class HierarchySceneState
                 folder.Order = order++;
         }
     }
+}
+
+public enum HierarchyPrefabFilter
+{
+    Any = 0,
+    PrefabInstances = 1,
+    PrefabRoots = 2,
+    NonPrefabs = 3
 }
 
 public class HierarchyFolderState
