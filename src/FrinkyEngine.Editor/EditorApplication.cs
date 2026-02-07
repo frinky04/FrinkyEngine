@@ -61,6 +61,8 @@ public class EditorApplication
     public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;
 
     private string? _runtimeModeSnapshot;
+    private bool _cursorLockedByPlayMode;
+    private System.Numerics.Vector2 _savedPlayModeCursorPos;
     private Task<bool>? _buildTask;
     private EditorNotification? _buildNotification;
     private Task<bool>? _exportTask;
@@ -247,6 +249,12 @@ public class EditorApplication
 
         FlushHierarchyStateIfDirty();
 
+        // Re-enforce cursor lock each frame — rlImGui cursor management can undo DisableCursor()
+        if (_cursorLockedByPlayMode && !Raylib.IsCursorHidden())
+        {
+            Raylib.DisableCursor();
+        }
+
         if (IsInRuntimeMode && CurrentScene != null)
         {
             CurrentScene.Update(dt);
@@ -255,6 +263,12 @@ public class EditorApplication
 
     public void DrawUI()
     {
+        if (Mode == EditorMode.Play && Raylib.IsKeyPressed(KeyboardKey.Escape))
+        {
+            ExitRuntimeMode();
+            return;
+        }
+
         KeybindManager.Instance.ProcessKeybinds();
         MenuBar.Draw();
         ViewportPanel.Draw();
@@ -287,6 +301,14 @@ public class EditorApplication
         CurrentScene.Start();
         Mode = targetMode;
 
+        if (targetMode == EditorMode.Play)
+        {
+            _savedPlayModeCursorPos = Raylib.GetMousePosition();
+            EditorCamera.ForceReleaseCursorState();
+            Raylib.DisableCursor();
+            _cursorLockedByPlayMode = true;
+        }
+
         var label = targetMode == EditorMode.Play ? "Play" : "Simulate";
         FrinkyLog.Info($"Entered {label} mode.");
         NotificationManager.Instance.Post($"{label} mode", NotificationType.Info);
@@ -313,6 +335,13 @@ public class EditorApplication
                 SceneManager.Instance.SetActiveScene(restored);
             }
             _runtimeModeSnapshot = null;
+        }
+
+        if (_cursorLockedByPlayMode)
+        {
+            Raylib.EnableCursor();
+            Raylib.SetMousePosition((int)_savedPlayModeCursorPos.X, (int)_savedPlayModeCursorPos.Y);
+            _cursorLockedByPlayMode = false;
         }
 
         ClearSelection();

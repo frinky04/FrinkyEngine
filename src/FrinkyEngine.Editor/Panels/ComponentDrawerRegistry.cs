@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -21,6 +22,8 @@ public static class ComponentDrawerRegistry
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
         Register<RigidbodyComponent>(DrawRigidbody);
+        Register<CharacterControllerComponent>(DrawCharacterController);
+        Register<SimplePlayerInputComponent>(DrawSimplePlayerInput);
         Register<BoxColliderComponent>(DrawBoxCollider);
         Register<SphereColliderComponent>(DrawSphereCollider);
         Register<CapsuleColliderComponent>(DrawCapsuleCollider);
@@ -152,74 +155,40 @@ public static class ComponentDrawerRegistry
     private static void DrawCamera(Component c)
     {
         var cam = (CameraComponent)c;
-        var app = EditorApplication.Instance;
 
         float fov = cam.FieldOfView;
-        if (ImGui.DragFloat("Field of View", ref fov, 0.5f, 1f, 179f))
-            cam.FieldOfView = fov;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Field of View", ref fov, 0.5f, 1f, 179f);
+        cam.FieldOfView = fov;
 
         float near = cam.NearPlane;
-        if (ImGui.DragFloat("Near Plane", ref near, 0.01f, 0.001f, 100f))
-            cam.NearPlane = near;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Near Plane", ref near, 0.01f, 0.001f, 100f);
+        cam.NearPlane = near;
 
         float far = cam.FarPlane;
-        if (ImGui.DragFloat("Far Plane", ref far, 1f, 1f, 10000f))
-            cam.FarPlane = far;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Far Plane", ref far, 1f, 1f, 10000f);
+        cam.FarPlane = far;
 
-        var projType = (int)cam.Projection;
-        if (ImGui.Combo("Projection", ref projType, "Perspective\0Orthographic\0"))
-        {
-            app.RecordUndo();
-            cam.Projection = (ProjectionType)projType;
-            app.RefreshUndoBaseline();
-        }
-
-        var clearColor = ColorToVec4(cam.ClearColor);
-        if (ImGui.ColorEdit4("Clear Color", ref clearColor))
-            cam.ClearColor = Vec4ToColor(clearColor);
-        TrackContinuousUndo(app);
-
-        bool isMain = cam.IsMain;
-        if (ImGui.Checkbox("Is Main", ref isMain))
-        {
-            app.RecordUndo();
-            cam.IsMain = isMain;
-            app.RefreshUndoBaseline();
-        }
+        DrawEnumCombo("Projection", cam.Projection, v => cam.Projection = v);
+        DrawColorEdit4("Clear Color", cam.ClearColor, v => cam.ClearColor = v);
+        DrawCheckbox("Is Main", cam.IsMain, v => cam.IsMain = v);
     }
 
     private static void DrawLight(Component c)
     {
         var light = (LightComponent)c;
-        var app = EditorApplication.Instance;
 
-        var lightType = (int)light.LightType;
-        if (ImGui.Combo("Type", ref lightType, "Directional\0Point\0Skylight\0"))
-        {
-            app.RecordUndo();
-            light.LightType = (LightType)lightType;
-            app.RefreshUndoBaseline();
-        }
-
-        var color = ColorToVec4(light.LightColor);
-        if (ImGui.ColorEdit4("Color", ref color))
-            light.LightColor = Vec4ToColor(color);
-        TrackContinuousUndo(app);
+        DrawEnumCombo("Type", light.LightType, v => light.LightType = v);
+        DrawColorEdit4("Color", light.LightColor, v => light.LightColor = v);
 
         float intensity = light.Intensity;
-        if (ImGui.DragFloat("Intensity", ref intensity, 0.05f, 0f, 10f))
-            light.Intensity = intensity;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Intensity", ref intensity, 0.05f, 0f, 10f);
+        light.Intensity = intensity;
 
         if (light.LightType == LightType.Point)
         {
             float range = light.Range;
-            if (ImGui.DragFloat("Range", ref range, 0.1f, 0f, 100f))
-                light.Range = range;
-            TrackContinuousUndo(app);
+            DrawDragFloat("Range", ref range, 0.1f, 0f, 100f);
+            light.Range = range;
         }
     }
 
@@ -461,22 +430,14 @@ public static class ComponentDrawerRegistry
     private static void DrawRigidbody(Component c)
     {
         var rb = (RigidbodyComponent)c;
-        var app = EditorApplication.Instance;
 
-        int motion = (int)rb.MotionType;
-        if (ImGui.Combo("Motion Type", ref motion, "Dynamic\0Kinematic\0Static\0"))
-        {
-            app.RecordUndo();
-            rb.MotionType = (BodyMotionType)motion;
-            app.RefreshUndoBaseline();
-        }
+        DrawEnumCombo("Motion Type", rb.MotionType, v => rb.MotionType = v);
 
         if (rb.MotionType == BodyMotionType.Dynamic)
         {
             float mass = rb.Mass;
-            if (ImGui.DragFloat("Mass", ref mass, 0.05f, 0.0001f, 100000f))
-                rb.Mass = mass;
-            TrackContinuousUndo(app);
+            DrawDragFloat("Mass", ref mass, 0.05f, 0.0001f, 100000f);
+            rb.Mass = mass;
         }
         else
         {
@@ -484,88 +445,189 @@ public static class ComponentDrawerRegistry
         }
 
         float linearDamping = rb.LinearDamping;
-        if (ImGui.DragFloat("Linear Damping", ref linearDamping, 0.005f, 0f, 1f))
-            rb.LinearDamping = linearDamping;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Linear Damping", ref linearDamping, 0.005f, 0f, 1f);
+        rb.LinearDamping = linearDamping;
 
         float angularDamping = rb.AngularDamping;
-        if (ImGui.DragFloat("Angular Damping", ref angularDamping, 0.005f, 0f, 1f))
-            rb.AngularDamping = angularDamping;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Angular Damping", ref angularDamping, 0.005f, 0f, 1f);
+        rb.AngularDamping = angularDamping;
 
-        bool continuousDetection = rb.ContinuousDetection;
-        if (ImGui.Checkbox("Continuous Detection", ref continuousDetection))
-        {
-            app.RecordUndo();
-            rb.ContinuousDetection = continuousDetection;
-            app.RefreshUndoBaseline();
-        }
+        DrawCheckbox("Continuous Detection", rb.ContinuousDetection, v => rb.ContinuousDetection = v);
 
-        ImGui.Separator();
-        ImGui.Text("Axis Locks");
-
-        bool lockPositionX = rb.LockPositionX;
-        if (ImGui.Checkbox("Lock Position X", ref lockPositionX))
-        {
-            app.RecordUndo();
-            rb.LockPositionX = lockPositionX;
-            app.RefreshUndoBaseline();
-        }
-
-        bool lockPositionY = rb.LockPositionY;
-        if (ImGui.Checkbox("Lock Position Y", ref lockPositionY))
-        {
-            app.RecordUndo();
-            rb.LockPositionY = lockPositionY;
-            app.RefreshUndoBaseline();
-        }
-
-        bool lockPositionZ = rb.LockPositionZ;
-        if (ImGui.Checkbox("Lock Position Z", ref lockPositionZ))
-        {
-            app.RecordUndo();
-            rb.LockPositionZ = lockPositionZ;
-            app.RefreshUndoBaseline();
-        }
-
-        bool lockRotationX = rb.LockRotationX;
-        if (ImGui.Checkbox("Lock Rotation X", ref lockRotationX))
-        {
-            app.RecordUndo();
-            rb.LockRotationX = lockRotationX;
-            app.RefreshUndoBaseline();
-        }
-
-        bool lockRotationY = rb.LockRotationY;
-        if (ImGui.Checkbox("Lock Rotation Y", ref lockRotationY))
-        {
-            app.RecordUndo();
-            rb.LockRotationY = lockRotationY;
-            app.RefreshUndoBaseline();
-        }
-
-        bool lockRotationZ = rb.LockRotationZ;
-        if (ImGui.Checkbox("Lock Rotation Z", ref lockRotationZ))
-        {
-            app.RecordUndo();
-            rb.LockRotationZ = lockRotationZ;
-            app.RefreshUndoBaseline();
-        }
+        DrawSection("Axis Locks");
+        DrawCheckbox("Lock Position X", rb.LockPositionX, v => rb.LockPositionX = v);
+        DrawCheckbox("Lock Position Y", rb.LockPositionY, v => rb.LockPositionY = v);
+        DrawCheckbox("Lock Position Z", rb.LockPositionZ, v => rb.LockPositionZ = v);
+        DrawCheckbox("Lock Rotation X", rb.LockRotationX, v => rb.LockRotationX = v);
+        DrawCheckbox("Lock Rotation Y", rb.LockRotationY, v => rb.LockRotationY = v);
+        DrawCheckbox("Lock Rotation Z", rb.LockRotationZ, v => rb.LockRotationZ = v);
 
         bool hasCollider = rb.Entity.Components.Any(component => component is ColliderComponent collider && collider.Enabled);
         if (!hasCollider)
         {
             ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
-            ImGui.TextWrapped("Warning: Rigidbody is ignored until an enabled collider component is added.");
-            ImGui.PopStyleColor();
+            DrawWarning("Rigidbody is ignored until an enabled collider component is added.");
         }
 
         if (rb.Entity.Transform.Parent != null)
+            DrawWarning("Parented rigidbodies are not simulated.");
+    }
+
+    private static void DrawCharacterController(Component c)
+    {
+        var controller = (CharacterControllerComponent)c;
+
+        // ── Movement ──
+        DrawSection("Movement");
+        float moveSpeed = controller.MoveSpeed;
+        DrawDragFloat("Move Speed", ref moveSpeed, 0.05f, 0f, 1000f);
+        controller.MoveSpeed = moveSpeed;
+
+        float jumpVelocity = controller.JumpVelocity;
+        DrawDragFloat("Jump Velocity", ref jumpVelocity, 0.05f, 0f, 1000f);
+        controller.JumpVelocity = jumpVelocity;
+
+        float maxSlope = controller.MaxSlopeDegrees;
+        DrawDragFloat("Max Slope (deg)", ref maxSlope, 0.25f, 0f, 89f);
+        controller.MaxSlopeDegrees = maxSlope;
+
+        // ── Forces ──
+        DrawSection("Forces");
+        float maxHForce = controller.MaximumHorizontalForce;
+        DrawDragFloat("Max Horizontal Force", ref maxHForce, 0.25f, 0f, 100000f);
+        controller.MaximumHorizontalForce = maxHForce;
+
+        float maxVForce = controller.MaximumVerticalForce;
+        DrawDragFloat("Max Vertical Force", ref maxVForce, 0.25f, 0f, 100000f);
+        controller.MaximumVerticalForce = maxVForce;
+
+        // ── Air Control ──
+        DrawSection("Air Control");
+        float airForce = controller.AirControlForceScale;
+        DrawDragFloat("Force Scale##air", ref airForce, 0.01f, 0f, 10f);
+        controller.AirControlForceScale = airForce;
+
+        float airSpeed = controller.AirControlSpeedScale;
+        DrawDragFloat("Speed Scale##air", ref airSpeed, 0.01f, 0f, 10f);
+        controller.AirControlSpeedScale = airSpeed;
+
+        // ── View Direction ──
+        DrawSection("View Direction");
+        DrawCheckbox("Use Entity Forward", controller.UseEntityForwardAsViewDirection,
+            v => controller.UseEntityForwardAsViewDirection = v);
+
+        if (!controller.UseEntityForwardAsViewDirection)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
-            ImGui.TextWrapped("Warning: Parented rigidbodies are not simulated.");
-            ImGui.PopStyleColor();
+            var viewDir = controller.ViewDirectionOverride;
+            if (DrawColoredVector3("View Override", ref viewDir, 0.05f))
+                controller.ViewDirectionOverride = viewDir;
+        }
+
+        // ── Debug Info ──
+        DrawSection("Debug Info");
+        DrawReadOnlyText("Supported", controller.Supported ? "Yes" : "No");
+        var target = controller.LastComputedTargetVelocity;
+        DrawReadOnlyText("Target Velocity", $"{target.X:0.00}, {target.Y:0.00}, {target.Z:0.00}");
+
+        // ── Warnings ──
+        var entity = controller.Entity;
+        var rigidbody = entity.GetComponent<RigidbodyComponent>();
+        var capsule = entity.GetComponent<CapsuleColliderComponent>();
+
+        if (rigidbody == null || !rigidbody.Enabled)
+            DrawWarning("Character controller requires an enabled RigidbodyComponent.");
+        else if (rigidbody.MotionType != BodyMotionType.Dynamic)
+            DrawWarning("Character controller requires Rigidbody Motion Type = Dynamic.");
+
+        if (capsule == null || !capsule.Enabled)
+        {
+            DrawWarning("Character controller requires an enabled CapsuleColliderComponent.");
+        }
+        else
+        {
+            var primaryCollider = entity.Components
+                .OfType<ColliderComponent>()
+                .FirstOrDefault(col => col.Enabled);
+            if (!ReferenceEquals(primaryCollider, capsule))
+                DrawWarning("The capsule must be the first enabled collider on the entity.");
+        }
+
+        if (entity.Transform.Parent != null)
+            DrawWarning("Parented character controllers are not simulated.");
+    }
+
+    private static void DrawSimplePlayerInput(Component c)
+    {
+        var input = (SimplePlayerInputComponent)c;
+
+        // ── Key Bindings ──
+        DrawSection("Key Bindings");
+        DrawSearchableEnumCombo("Forward##key", input.MoveForwardKey, v => input.MoveForwardKey = v);
+        DrawSearchableEnumCombo("Backward##key", input.MoveBackwardKey, v => input.MoveBackwardKey = v);
+        DrawSearchableEnumCombo("Left##key", input.MoveLeftKey, v => input.MoveLeftKey = v);
+        DrawSearchableEnumCombo("Right##key", input.MoveRightKey, v => input.MoveRightKey = v);
+        DrawSearchableEnumCombo("Jump##key", input.JumpKey, v => input.JumpKey = v);
+
+        // ── Mouse Look ──
+        DrawSection("Mouse Look");
+        DrawCheckbox("Enable Mouse Look", input.EnableMouseLook, v => input.EnableMouseLook = v);
+
+        if (input.EnableMouseLook)
+        {
+            DrawCheckbox("Require Mouse Button", input.RequireLookMouseButton, v => input.RequireLookMouseButton = v);
+            if (input.RequireLookMouseButton)
+                DrawEnumCombo("Look Mouse Button", input.LookMouseButton, v => input.LookMouseButton = v);
+
+            DrawCheckbox("Rotate Pitch", input.RotatePitch, v => input.RotatePitch = v);
+            DrawCheckbox("Use View Override", input.UseViewDirectionOverrideForCharacterLook, v => input.UseViewDirectionOverrideForCharacterLook = v);
+            DrawCheckbox("Apply Pitch To Body", input.ApplyPitchToCharacterBody, v => input.ApplyPitchToCharacterBody = v);
+            DrawCheckbox("Invert X", input.InvertMouseX, v => input.InvertMouseX = v);
+            DrawCheckbox("Invert Y", input.InvertMouseY, v => input.InvertMouseY = v);
+
+            float sensitivity = input.MouseSensitivity;
+            DrawDragFloat("Sensitivity", ref sensitivity, 0.005f, 0f, 10f);
+            input.MouseSensitivity = sensitivity;
+
+            float minPitch = input.MinPitchDegrees;
+            DrawDragFloat("Min Pitch", ref minPitch, 0.5f, -89f, 89f);
+            input.MinPitchDegrees = minPitch;
+
+            float maxPitch = input.MaxPitchDegrees;
+            DrawDragFloat("Max Pitch", ref maxPitch, 0.5f, -89f, 89f);
+            input.MaxPitchDegrees = maxPitch;
+        }
+
+        // ── Character Controller ──
+        DrawSection("Character Controller");
+        DrawCheckbox("Use Character Controller", input.UseCharacterController, v => input.UseCharacterController = v);
+        DrawCheckbox("Allow Jump", input.AllowJump, v => input.AllowJump = v);
+
+        // ── Fallback Motion ──
+        if (!input.UseCharacterController)
+        {
+            DrawSection("Fallback Motion");
+            float fallbackSpeed = input.FallbackMoveSpeed;
+            DrawDragFloat("Move Speed##fallback", ref fallbackSpeed, 0.05f, 0f, 1000f);
+            input.FallbackMoveSpeed = fallbackSpeed;
+
+            float fallbackJump = input.FallbackJumpImpulse;
+            DrawDragFloat("Jump Impulse##fallback", ref fallbackJump, 0.05f, 0f, 1000f);
+            input.FallbackJumpImpulse = fallbackJump;
+        }
+
+        // ── Attached Camera ──
+        DrawSection("Attached Camera");
+        DrawCheckbox("Drive Attached Camera", input.DriveAttachedCamera, v => input.DriveAttachedCamera = v);
+
+        if (input.DriveAttachedCamera)
+        {
+            var offset = input.AttachedCameraLocalOffset;
+            if (DrawColoredVector3("Local Offset", ref offset, 0.05f))
+                input.AttachedCameraLocalOffset = offset;
+
+            float backDist = input.AttachedCameraBackDistance;
+            DrawDragFloat("Back Distance", ref backDist, 0.05f, 0f, 100f);
+            input.AttachedCameraBackDistance = backDist;
         }
     }
 
@@ -609,30 +671,21 @@ public static class ComponentDrawerRegistry
 
     private static void DrawColliderCommon(ColliderComponent collider)
     {
-        var app = EditorApplication.Instance;
-
         float friction = collider.Friction;
-        if (ImGui.DragFloat("Friction", ref friction, 0.01f, 0f, 10f))
-            collider.Friction = friction;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Friction", ref friction, 0.01f, 0f, 10f);
+        collider.Friction = friction;
 
         float restitution = collider.Restitution;
-        if (ImGui.DragFloat("Restitution", ref restitution, 0.01f, 0f, 1f))
-            collider.Restitution = restitution;
-        TrackContinuousUndo(app);
+        DrawDragFloat("Restitution", ref restitution, 0.01f, 0f, 1f);
+        collider.Restitution = restitution;
 
         var center = collider.Center;
-        if (ImGui.DragFloat3("Center", ref center, 0.05f))
+        if (DrawColoredVector3("Center", ref center, 0.05f))
             collider.Center = center;
-        TrackContinuousUndo(app);
 
         int colliderCount = collider.Entity.Components.Count(component => component is ColliderComponent enabledCollider && enabledCollider.Enabled);
         if (colliderCount > 1)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.55f, 0.25f, 1f));
-            ImGui.TextWrapped("Warning: Multiple enabled colliders are present. Only the first enabled collider is used.");
-            ImGui.PopStyleColor();
-        }
+            DrawWarning("Multiple enabled colliders are present. Only the first enabled collider is used.");
     }
 
     private static void DrawSubclassProperties(Component component)
@@ -661,7 +714,7 @@ public static class ComponentDrawerRegistry
     private static void DrawProperty(Component component, PropertyInfo prop)
     {
         var propType = prop.PropertyType;
-        var label = prop.Name;
+        var label = NiceLabel(prop.Name);
         var app = EditorApplication.Instance;
 
         if (propType == typeof(float))
@@ -680,13 +733,7 @@ public static class ComponentDrawerRegistry
         }
         else if (propType == typeof(bool))
         {
-            bool val = (bool)prop.GetValue(component)!;
-            if (ImGui.Checkbox(label, ref val))
-            {
-                app.RecordUndo();
-                prop.SetValue(component, val);
-                app.RefreshUndoBaseline();
-            }
+            DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v));
         }
         else if (propType == typeof(string))
         {
@@ -698,9 +745,8 @@ public static class ComponentDrawerRegistry
         else if (propType == typeof(Vector3))
         {
             var val = (Vector3)prop.GetValue(component)!;
-            if (ImGui.DragFloat3(label, ref val, 0.1f))
+            if (DrawColoredVector3(label, ref val, 0.1f))
                 prop.SetValue(component, val);
-            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Vector2))
         {
@@ -713,25 +759,31 @@ public static class ComponentDrawerRegistry
         {
             var q = (Quaternion)prop.GetValue(component)!;
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
-            if (ImGui.DragFloat3(label, ref euler, 0.5f))
+            if (DrawColoredVector3(label, ref euler, 0.5f))
                 prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
-            TrackContinuousUndo(app);
         }
         else if (propType == typeof(Color))
         {
-            var color = ColorToVec4((Color)prop.GetValue(component)!);
-            if (ImGui.ColorEdit4(label, ref color))
-                prop.SetValue(component, Vec4ToColor(color));
-            TrackContinuousUndo(app);
+            DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v));
         }
         else if (propType.IsEnum)
         {
-            var val = (int)prop.GetValue(component)!;
-            var names = Enum.GetNames(propType);
-            if (ImGui.Combo(label, ref val, names, names.Length))
+            var enumValues = Enum.GetValues(propType);
+            if (enumValues.Length == 0)
+                return;
+
+            var names = enumValues.Cast<object>()
+                .Select(value => value.ToString() ?? value.GetType().Name)
+                .ToArray();
+            var currentValue = prop.GetValue(component) ?? enumValues.GetValue(0)!;
+            int selectedIndex = Array.IndexOf(enumValues, currentValue);
+            if (selectedIndex < 0)
+                selectedIndex = 0;
+
+            if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
             {
                 app.RecordUndo();
-                prop.SetValue(component, Enum.ToObject(propType, val));
+                prop.SetValue(component, enumValues.GetValue(selectedIndex));
                 app.RefreshUndoBaseline();
             }
         }
@@ -769,6 +821,121 @@ public static class ComponentDrawerRegistry
         }
         return size;
     }
+
+    // ─── Reusable helpers ───────────────────────────────────────────────
+
+    private static readonly Vector4 WarningColor = new(1f, 0.55f, 0.25f, 1f);
+
+    private static readonly Regex PascalCaseRegex = new(@"(?<=[a-z0-9])([A-Z])|(?<=[A-Z])([A-Z][a-z])", RegexOptions.Compiled);
+
+    private static string NiceLabel(string propertyName)
+    {
+        return PascalCaseRegex.Replace(propertyName, " $1$2");
+    }
+
+    private static void DrawSection(string title)
+    {
+        ImGui.SeparatorText(title);
+    }
+
+    private static void DrawWarning(string message)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, WarningColor);
+        ImGui.TextWrapped(message);
+        ImGui.PopStyleColor();
+    }
+
+    private static void DrawReadOnlyText(string label, string value)
+    {
+        ImGui.TextUnformatted($"{label}: {value}");
+    }
+
+    private static bool DrawDragFloat(string label, ref float value, float speed = 0.05f, float min = 0f, float max = 0f)
+    {
+        bool changed = ImGui.DragFloat(label, ref value, speed, min, max);
+        TrackContinuousUndo(EditorApplication.Instance);
+        return changed;
+    }
+
+    private static void DrawCheckbox(string label, bool currentValue, Action<bool> setter)
+    {
+        bool val = currentValue;
+        if (ImGui.Checkbox(label, ref val))
+        {
+            var app = EditorApplication.Instance;
+            app.RecordUndo();
+            setter(val);
+            app.RefreshUndoBaseline();
+        }
+    }
+
+    private static void DrawEnumCombo<T>(string label, T currentValue, Action<T> setter) where T : struct, Enum
+    {
+        var values = Enum.GetValues<T>();
+        var names = values.Select(v => v.ToString()).ToArray();
+        int selectedIndex = Array.IndexOf(values, currentValue);
+        if (selectedIndex < 0) selectedIndex = 0;
+
+        if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
+        {
+            var app = EditorApplication.Instance;
+            app.RecordUndo();
+            setter(values[selectedIndex]);
+            app.RefreshUndoBaseline();
+        }
+    }
+
+    private static readonly Dictionary<string, string> _searchFilters = new();
+
+    private static void DrawSearchableEnumCombo<T>(string label, T currentValue, Action<T> setter) where T : struct, Enum
+    {
+        var filterId = label;
+        if (!_searchFilters.ContainsKey(filterId))
+            _searchFilters[filterId] = "";
+
+        var preview = currentValue.ToString();
+        if (ImGui.BeginCombo(label, preview))
+        {
+            var filter = _searchFilters[filterId];
+            ImGui.InputTextWithHint("##filter", "Search...", ref filter, 64);
+            _searchFilters[filterId] = filter;
+
+            var values = Enum.GetValues<T>();
+            var filterLower = filter.ToLowerInvariant();
+            foreach (var value in values)
+            {
+                var name = value.ToString();
+                if (filter.Length > 0 && !name.ToLowerInvariant().Contains(filterLower))
+                    continue;
+
+                bool isSelected = EqualityComparer<T>.Default.Equals(value, currentValue);
+                if (ImGui.Selectable(name, isSelected))
+                {
+                    var app = EditorApplication.Instance;
+                    app.RecordUndo();
+                    setter(value);
+                    app.RefreshUndoBaseline();
+                }
+                if (isSelected)
+                    ImGui.SetItemDefaultFocus();
+            }
+            ImGui.EndCombo();
+        }
+        else
+        {
+            _searchFilters[filterId] = "";
+        }
+    }
+
+    private static void DrawColorEdit4(string label, Color currentValue, Action<Color> setter)
+    {
+        var color = ColorToVec4(currentValue);
+        if (ImGui.ColorEdit4(label, ref color))
+            setter(Vec4ToColor(color));
+        TrackContinuousUndo(EditorApplication.Instance);
+    }
+
+    // ─── End reusable helpers ─────────────────────────────────────────
 
     private static void TrackContinuousUndo(EditorApplication app)
     {

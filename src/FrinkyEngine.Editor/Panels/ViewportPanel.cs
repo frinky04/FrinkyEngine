@@ -212,7 +212,8 @@ public class ViewportPanel
         ImGui.End();
         ImGui.PopStyleVar();
 
-        _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered && _app.CanUseEditorViewportTools);
+        if (_app.CanUseEditorViewportTools)
+            _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered);
     }
 
     private unsafe void HandleAssetDropTarget(Camera3D camera, Vector2 imageScreenPos, int w, int h)
