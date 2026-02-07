@@ -23,6 +23,8 @@ public class EditorCamera
         _cursorDisabled = false;
     }
 
+    public bool IsCursorDisabled => _cursorDisabled;
+
     public Camera3D Camera3D { get; private set; }
 
     public Vector3 Position => _position;
@@ -60,6 +62,14 @@ public class EditorCamera
 
     public void Update(float dt, bool isViewportHovered)
     {
+        // Release cursor if window loses focus during camera fly
+        if (_cursorDisabled && !Raylib.IsWindowFocused())
+        {
+            Raylib.EnableCursor();
+            Raylib.SetMousePosition((int)_savedCursorPos.X, (int)_savedCursorPos.Y);
+            _cursorDisabled = false;
+        }
+
         bool rightMouse = Raylib.IsMouseButtonDown(MouseButton.Right);
 
         // Start capture only when hovering viewport, but keep going until right-click is released

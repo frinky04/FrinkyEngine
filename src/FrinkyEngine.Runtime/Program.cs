@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
@@ -51,6 +52,7 @@ public static class Program
         var sceneRelativePath = settings.ResolveStartupScene(project.DefaultScene);
 
         AssetManager.Instance.AssetsPath = project.GetAbsoluteAssetsPath(projectDir);
+        PhysicsProjectSettings.ApplyFrom(settings.Runtime);
 
         var assemblyLoader = new GameAssemblyLoader();
         if (!string.IsNullOrEmpty(project.GameAssembly))
@@ -92,6 +94,7 @@ public static class Program
             var manifest = ExportManifest.FromJson(manifestJson);
 
             AssetManager.Instance.AssetsPath = Path.Combine(tempDir, "Assets");
+            PhysicsProjectSettings.ApplyFrom(manifest);
 
             var assemblyLoader = new GameAssemblyLoader();
             if (!string.IsNullOrEmpty(manifest.GameAssembly))
@@ -173,6 +176,7 @@ public static class Program
         }
 
         scene.Start();
+        Raylib.DisableCursor();
 
         while (!Raylib.WindowShouldClose())
         {

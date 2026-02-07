@@ -9,6 +9,7 @@ namespace FrinkyEngine.Editor;
 public static class Program
 {
     private static bool _layoutInitialized;
+    private static bool _cursorWasLockedLastFrame;
 
     public static void Main(string[] args)
     {
@@ -64,6 +65,12 @@ public static class Program
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(30, 30, 30, 255));
 
+            // Suppress ImGui mouse input while cursor is locked (camera fly or play mode)
+            if (_cursorWasLockedLastFrame)
+            {
+                io.ConfigFlags |= ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange;
+            }
+
             rlImGui.Begin(dt);
 
             DrawDockspace(app);
@@ -71,6 +78,10 @@ public static class Program
             app.DrawUI();
 
             rlImGui.End();
+
+            // Clear suppression flags and update tracking for next frame
+            io.ConfigFlags &= ~(ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange);
+            _cursorWasLockedLastFrame = app.IsCursorLocked;
 
             Raylib.EndDrawing();
         }

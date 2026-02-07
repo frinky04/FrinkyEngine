@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
@@ -5,6 +6,8 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// A procedural box primitive with configurable width, height, and depth.
 /// </summary>
+[ComponentCategory("Rendering/Primitives")]
+[ComponentDisplayName("Cube")]
 public class CubePrimitive : PrimitiveComponent
 {
     private float _width = 1.0f;

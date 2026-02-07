@@ -24,6 +24,7 @@ public enum ProjectionType
 /// Provides a camera viewpoint that the renderer uses to draw the scene.
 /// Attach to an entity to position the camera via the entity's <see cref="TransformComponent"/>.
 /// </summary>
+[ComponentCategory("Rendering")]
 public class CameraComponent : Component
 {
     /// <summary>

@@ -1,8 +1,11 @@
+using FrinkyEngine.Core.ECS;
+
 namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Capsule collider aligned to the entity local Y axis.
 /// </summary>
+[ComponentCategory("Physics/Colliders")]
 public class CapsuleColliderComponent : ColliderComponent
 {
     private float _radius = 0.5f;

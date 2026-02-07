@@ -685,6 +685,45 @@ public class MenuBar
             ImGui.TextDisabled("Use .fproject defaultScene or choose any scene asset.");
         }
 
+        if (ImGui.CollapsingHeader("Physics", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            float fixedTimestep = draft.Runtime.PhysicsFixedTimestep;
+            if (ImGui.InputFloat("Fixed Timestep", ref fixedTimestep, 0f, 0f, "%.6f"))
+                draft.Runtime.PhysicsFixedTimestep = fixedTimestep;
+
+            int maxSubsteps = draft.Runtime.PhysicsMaxSubstepsPerFrame;
+            if (ImGui.InputInt("Max Substeps Per Frame", ref maxSubsteps))
+                draft.Runtime.PhysicsMaxSubstepsPerFrame = maxSubsteps;
+
+            int solverVelIter = draft.Runtime.PhysicsSolverVelocityIterations;
+            if (ImGui.InputInt("Solver Velocity Iterations", ref solverVelIter))
+                draft.Runtime.PhysicsSolverVelocityIterations = solverVelIter;
+
+            int solverSubsteps = draft.Runtime.PhysicsSolverSubsteps;
+            if (ImGui.InputInt("Solver Substeps", ref solverSubsteps))
+                draft.Runtime.PhysicsSolverSubsteps = solverSubsteps;
+
+            float springFreq = draft.Runtime.PhysicsContactSpringFrequency;
+            if (ImGui.InputFloat("Contact Spring Frequency", ref springFreq))
+                draft.Runtime.PhysicsContactSpringFrequency = springFreq;
+
+            float dampingRatio = draft.Runtime.PhysicsContactDampingRatio;
+            if (ImGui.InputFloat("Contact Damping Ratio", ref dampingRatio))
+                draft.Runtime.PhysicsContactDampingRatio = dampingRatio;
+
+            float maxRecovery = draft.Runtime.PhysicsMaximumRecoveryVelocity;
+            if (ImGui.InputFloat("Max Recovery Velocity", ref maxRecovery))
+                draft.Runtime.PhysicsMaximumRecoveryVelocity = maxRecovery;
+
+            float friction = draft.Runtime.PhysicsDefaultFriction;
+            if (ImGui.InputFloat("Default Friction", ref friction))
+                draft.Runtime.PhysicsDefaultFriction = friction;
+
+            float restitution = draft.Runtime.PhysicsDefaultRestitution;
+            if (ImGui.InputFloat("Default Restitution", ref restitution))
+                draft.Runtime.PhysicsDefaultRestitution = restitution;
+        }
+
         if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))
         {
             var outputName = draft.Build.OutputName;

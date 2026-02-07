@@ -86,17 +86,18 @@ public class InspectorPanel
         foreach (var component in entity.Components)
         {
             var componentType = component.GetType();
+            var displayName = ComponentTypeResolver.GetDisplayName(componentType);
             bool isTransform = component is TransformComponent;
 
             bool opened;
             if (isTransform)
             {
-                opened = ImGui.CollapsingHeader(componentType.Name, ImGuiTreeNodeFlags.DefaultOpen);
+                opened = ImGui.CollapsingHeader(displayName, ImGuiTreeNodeFlags.DefaultOpen);
             }
             else
             {
                 bool visible = true;
-                opened = ImGui.CollapsingHeader(componentType.Name, ref visible, ImGuiTreeNodeFlags.DefaultOpen);
+                opened = ImGui.CollapsingHeader(displayName, ref visible, ImGuiTreeNodeFlags.DefaultOpen);
                 if (!visible)
                     componentToRemove = component;
             }
@@ -216,16 +217,17 @@ public class InspectorPanel
 
         foreach (var componentType in commonComponentTypes)
         {
+            var displayName = ComponentTypeResolver.GetDisplayName(componentType);
             bool isTransform = componentType == typeof(TransformComponent);
             bool opened;
             if (isTransform)
             {
-                opened = ImGui.CollapsingHeader(componentType.Name, ImGuiTreeNodeFlags.DefaultOpen);
+                opened = ImGui.CollapsingHeader(displayName, ImGuiTreeNodeFlags.DefaultOpen);
             }
             else
             {
                 bool visible = true;
-                opened = ImGui.CollapsingHeader(componentType.Name, ref visible, ImGuiTreeNodeFlags.DefaultOpen);
+                opened = ImGui.CollapsingHeader(displayName, ref visible, ImGuiTreeNodeFlags.DefaultOpen);
                 if (!visible)
                     componentTypeToRemove = componentType;
             }
@@ -528,17 +530,23 @@ public class InspectorPanel
 
             var isSearching = !string.IsNullOrWhiteSpace(_componentSearch);
 
+            // Scrollable region so expanded categories don't push content off screen
+            float maxHeight = ImGui.GetMainViewport().Size.Y * 0.5f;
+            ImGui.BeginChild("##component_list", new Vector2(0, maxHeight), ImGuiChildFlags.None, ImGuiWindowFlags.None);
+
             if (isSearching)
             {
-                // Flat filtered list with source tags
+                // Flat filtered list — search against both display name and type name
                 var search = _componentSearch.Trim();
                 foreach (var type in allTypes)
                 {
-                    if (!type.Name.Contains(search, System.StringComparison.OrdinalIgnoreCase))
+                    var displayName = ComponentTypeResolver.GetDisplayName(type);
+                    if (!displayName.Contains(search, StringComparison.OrdinalIgnoreCase) &&
+                        !type.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     var source = ComponentTypeResolver.GetAssemblySource(type);
-                    if (ImGui.Selectable($"{type.Name}  [{source}]"))
+                    if (ImGui.Selectable($"{displayName}  [{source}]"))
                     {
                         AddComponentToEntities(entities, type);
                         ImGui.CloseCurrentPopup();
@@ -549,7 +557,7 @@ public class InspectorPanel
             }
             else
             {
-                // Grouped by Engine / Game
+                // Grouped by Engine / Game, then by category
                 var engineTypes = allTypes.Where(t => ComponentTypeResolver.GetAssemblySource(t) == "Engine").ToList();
                 var gameTypes = allTypes.Where(t => ComponentTypeResolver.GetAssemblySource(t) != "Engine").ToList();
 
@@ -557,16 +565,9 @@ public class InspectorPanel
                 {
                     if (ImGui.CollapsingHeader("Engine", ImGuiTreeNodeFlags.DefaultOpen))
                     {
-                        foreach (var type in engineTypes)
-                        {
-                            if (ImGui.Selectable($"  {type.Name}"))
-                            {
-                                AddComponentToEntities(entities, type);
-                                ImGui.CloseCurrentPopup();
-                            }
-
-                            DrawBaseClassTooltip(type);
-                        }
+                        ImGui.PushID("Engine");
+                        DrawCategoryTree(entities, engineTypes);
+                        ImGui.PopID();
                     }
                 }
 
@@ -574,22 +575,75 @@ public class InspectorPanel
                 {
                     if (ImGui.CollapsingHeader("Game", ImGuiTreeNodeFlags.DefaultOpen))
                     {
-                        foreach (var type in gameTypes)
-                        {
-                            if (ImGui.Selectable($"  {type.Name}"))
-                            {
-                                AddComponentToEntities(entities, type);
-                                ImGui.CloseCurrentPopup();
-                            }
-
-                            DrawBaseClassTooltip(type);
-                        }
+                        ImGui.PushID("Game");
+                        DrawCategoryTree(entities, gameTypes);
+                        ImGui.PopID();
                     }
                 }
             }
 
+            ImGui.EndChild();
+
             ImGui.EndPopup();
         }
+    }
+
+    private void DrawCategoryTree(IReadOnlyList<Entity> entities, List<Type> types)
+    {
+        // Build a tree: category path segments -> leaf component types
+        var root = new CategoryNode();
+        foreach (var type in types)
+        {
+            var category = ComponentTypeResolver.GetCategory(type);
+            var target = root;
+            if (!string.IsNullOrEmpty(category))
+            {
+                var segments = category.Split('/');
+                foreach (var segment in segments)
+                {
+                    if (!target.Children.TryGetValue(segment, out var child))
+                    {
+                        child = new CategoryNode();
+                        target.Children[segment] = child;
+                    }
+                    target = child;
+                }
+            }
+            target.Types.Add(type);
+        }
+
+        DrawCategoryNode(entities, root);
+    }
+
+    private void DrawCategoryNode(IReadOnlyList<Entity> entities, CategoryNode node)
+    {
+        // Draw uncategorized types first (directly under this node)
+        foreach (var type in node.Types)
+        {
+            var displayName = ComponentTypeResolver.GetDisplayName(type);
+            if (ImGui.Selectable($"  {displayName}"))
+            {
+                AddComponentToEntities(entities, type);
+                ImGui.CloseCurrentPopup();
+            }
+            DrawBaseClassTooltip(type);
+        }
+
+        // Draw child categories as tree nodes
+        foreach (var (categoryName, child) in node.Children.OrderBy(kv => kv.Key))
+        {
+            if (ImGui.TreeNode(categoryName))
+            {
+                DrawCategoryNode(entities, child);
+                ImGui.TreePop();
+            }
+        }
+    }
+
+    private class CategoryNode
+    {
+        public Dictionary<string, CategoryNode> Children { get; } = new();
+        public List<Type> Types { get; } = new();
     }
 
     private void AddComponentToEntities(IReadOnlyList<Entity> entities, Type type)

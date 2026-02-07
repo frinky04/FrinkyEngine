@@ -6,6 +6,7 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// Physics body component used by the scene physics system.
 /// </summary>
+[ComponentCategory("Physics")]
 public class RigidbodyComponent : Component
 {
     private BodyMotionType _motionType = BodyMotionType.Dynamic;

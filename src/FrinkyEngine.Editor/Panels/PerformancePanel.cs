@@ -27,7 +27,7 @@ public class PerformancePanel
         ImGui.SetNextWindowPos(
             new Vector2(viewport.WorkPos.X + 10, viewport.WorkPos.Y + 10),
             ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(420, 270), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(420, 310), ImGuiCond.FirstUseEver);
 
         var flags = ImGuiWindowFlags.NoCollapse
                   | ImGuiWindowFlags.NoFocusOnAppearing
@@ -73,17 +73,28 @@ public class PerformancePanel
             int entityCount = _app.CurrentScene?.Entities.Count ?? 0;
             ImGui.Text($"Entities: {entityCount}");
 
+            // Condensed lighting stats
             var lightStats = _app.SceneRenderer.GetForwardPlusFrameStats();
             if (lightStats.Valid)
             {
                 ImGui.Separator();
-                ImGui.Text("Lighting (Forward+)");
-                ImGui.Text($"Scene: {lightStats.SceneLights}  Visible: {lightStats.VisibleLights}");
-                ImGui.Text($"Directional: {lightStats.DirectionalLights}  Point: {lightStats.PointLights}  Skylight: {lightStats.Skylights}");
-                ImGui.Text($"Assigned: {lightStats.AssignedLights}/{lightStats.MaxLights}  Clipped: {lightStats.ClippedLights}");
-                ImGui.Text($"Tiles: {lightStats.TilesX}x{lightStats.TilesY}  TileSize: {lightStats.TileSize}");
-                ImGui.Text($"Avg/Peak per tile: {lightStats.AverageLightsPerTile:F1}/{lightStats.PeakLightsPerTile}  Budget: {lightStats.MaxLightsPerTile}");
-                ImGui.Text($"Dropped tile links: {lightStats.DroppedTileLinks}");
+                ImGui.Text($"Lighting (Forward+)  Scene: {lightStats.SceneLights}  Visible: {lightStats.VisibleLights}  Dir: {lightStats.DirectionalLights}  Pt: {lightStats.PointLights}  Sky: {lightStats.Skylights}");
+                var warningParts = new List<string>();
+                if (lightStats.ClippedLights > 0)
+                    warningParts.Add($"Clipped: {lightStats.ClippedLights}");
+                if (lightStats.DroppedTileLinks > 0)
+                    warningParts.Add($"Dropped: {lightStats.DroppedTileLinks}");
+                var warningText = warningParts.Count > 0 ? $"  {string.Join("  ", warningParts)}" : "";
+                ImGui.Text($"Assigned: {lightStats.AssignedLights}/{lightStats.MaxLights}  Peak/tile: {lightStats.PeakLightsPerTile}/{lightStats.MaxLightsPerTile}{warningText}");
+            }
+
+            // Physics stats
+            var physStats = _app.CurrentScene?.GetPhysicsFrameStats() ?? default;
+            if (physStats.Valid)
+            {
+                ImGui.Separator();
+                ImGui.Text($"Physics  Dyn: {physStats.DynamicBodies}  Kin: {physStats.KinematicBodies}  Static: {physStats.StaticBodies}  CC: {physStats.ActiveCharacterControllers}");
+                ImGui.Text($"Substeps: {physStats.SubstepsThisFrame}  Step: {physStats.StepTimeMs:F2} ms");
             }
         }
         ImGui.End();

@@ -75,7 +75,16 @@ public class ProjectSettings
                 StartupSceneOverride = string.Empty,
                 ForwardPlusTileSize = 16,
                 ForwardPlusMaxLights = 256,
-                ForwardPlusMaxLightsPerTile = 64
+                ForwardPlusMaxLightsPerTile = 64,
+                PhysicsFixedTimestep = 1f / 60f,
+                PhysicsMaxSubstepsPerFrame = 4,
+                PhysicsSolverVelocityIterations = 8,
+                PhysicsSolverSubsteps = 1,
+                PhysicsContactSpringFrequency = 30f,
+                PhysicsContactDampingRatio = 1f,
+                PhysicsMaximumRecoveryVelocity = 2f,
+                PhysicsDefaultFriction = 0.8f,
+                PhysicsDefaultRestitution = 0f
             },
             Build = new BuildProjectSettings
             {
@@ -171,7 +180,16 @@ public class ProjectSettings
                 StartupSceneOverride = Runtime.StartupSceneOverride,
                 ForwardPlusTileSize = Runtime.ForwardPlusTileSize,
                 ForwardPlusMaxLights = Runtime.ForwardPlusMaxLights,
-                ForwardPlusMaxLightsPerTile = Runtime.ForwardPlusMaxLightsPerTile
+                ForwardPlusMaxLightsPerTile = Runtime.ForwardPlusMaxLightsPerTile,
+                PhysicsFixedTimestep = Runtime.PhysicsFixedTimestep,
+                PhysicsMaxSubstepsPerFrame = Runtime.PhysicsMaxSubstepsPerFrame,
+                PhysicsSolverVelocityIterations = Runtime.PhysicsSolverVelocityIterations,
+                PhysicsSolverSubsteps = Runtime.PhysicsSolverSubsteps,
+                PhysicsContactSpringFrequency = Runtime.PhysicsContactSpringFrequency,
+                PhysicsContactDampingRatio = Runtime.PhysicsContactDampingRatio,
+                PhysicsMaximumRecoveryVelocity = Runtime.PhysicsMaximumRecoveryVelocity,
+                PhysicsDefaultFriction = Runtime.PhysicsDefaultFriction,
+                PhysicsDefaultRestitution = Runtime.PhysicsDefaultRestitution
             },
             Build = new BuildProjectSettings
             {
@@ -204,6 +222,15 @@ public class ProjectSettings
         Runtime.ForwardPlusTileSize = Clamp(Runtime.ForwardPlusTileSize, 8, 64, 16);
         Runtime.ForwardPlusMaxLights = Clamp(Runtime.ForwardPlusMaxLights, 16, 2048, 256);
         Runtime.ForwardPlusMaxLightsPerTile = Clamp(Runtime.ForwardPlusMaxLightsPerTile, 8, 256, 64);
+        Runtime.PhysicsFixedTimestep = ClampFloat(Runtime.PhysicsFixedTimestep, 1f / 240f, 1f / 15f, 1f / 60f);
+        Runtime.PhysicsMaxSubstepsPerFrame = Clamp(Runtime.PhysicsMaxSubstepsPerFrame, 1, 16, 4);
+        Runtime.PhysicsSolverVelocityIterations = Clamp(Runtime.PhysicsSolverVelocityIterations, 1, 32, 8);
+        Runtime.PhysicsSolverSubsteps = Clamp(Runtime.PhysicsSolverSubsteps, 1, 8, 1);
+        Runtime.PhysicsContactSpringFrequency = ClampFloat(Runtime.PhysicsContactSpringFrequency, 1f, 300f, 30f);
+        Runtime.PhysicsContactDampingRatio = ClampFloat(Runtime.PhysicsContactDampingRatio, 0f, 10f, 1f);
+        Runtime.PhysicsMaximumRecoveryVelocity = ClampFloat(Runtime.PhysicsMaximumRecoveryVelocity, 0f, 100f, 2f);
+        Runtime.PhysicsDefaultFriction = ClampFloat(Runtime.PhysicsDefaultFriction, 0f, 10f, 0.8f);
+        Runtime.PhysicsDefaultRestitution = ClampFloat(Runtime.PhysicsDefaultRestitution, 0f, 1f, 0f);
 
         Build ??= new BuildProjectSettings();
         Build.OutputName = Coalesce(Build.OutputName, safeProjectName);
@@ -241,6 +268,13 @@ public class ProjectSettings
     private static int Clamp(int value, int min, int max, int fallback)
     {
         if (value < min || value > max)
+            return fallback;
+        return value;
+    }
+
+    private static float ClampFloat(float value, float min, float max, float fallback)
+    {
+        if (!float.IsFinite(value) || value < min || value > max)
             return fallback;
         return value;
     }
@@ -359,6 +393,35 @@ public class RuntimeProjectSettings
     /// Maximum lights assigned to a single tile (clamped to 8–256, defaults to 64).
     /// </summary>
     public int ForwardPlusMaxLightsPerTile { get; set; } = 64;
+
+    // --- Physics ---
+
+    /// <summary>Fixed simulation step duration in seconds (clamped to 1/240–1/15, defaults to 1/60).</summary>
+    public float PhysicsFixedTimestep { get; set; } = 1f / 60f;
+
+    /// <summary>Maximum simulation steps per frame (clamped to 1–16, defaults to 4).</summary>
+    public int PhysicsMaxSubstepsPerFrame { get; set; } = 4;
+
+    /// <summary>Solver velocity iterations per substep (clamped to 1–32, defaults to 8).</summary>
+    public int PhysicsSolverVelocityIterations { get; set; } = 8;
+
+    /// <summary>Solver substep count (clamped to 1–8, defaults to 1).</summary>
+    public int PhysicsSolverSubsteps { get; set; } = 1;
+
+    /// <summary>Contact spring angular frequency (clamped to 1–300, defaults to 30).</summary>
+    public float PhysicsContactSpringFrequency { get; set; } = 30f;
+
+    /// <summary>Contact spring damping ratio (clamped to 0–10, defaults to 1).</summary>
+    public float PhysicsContactDampingRatio { get; set; } = 1f;
+
+    /// <summary>Recovery velocity cap before restitution scaling (clamped to 0–100, defaults to 2).</summary>
+    public float PhysicsMaximumRecoveryVelocity { get; set; } = 2f;
+
+    /// <summary>Default friction for colliders without overrides (clamped to 0–10, defaults to 0.8).</summary>
+    public float PhysicsDefaultFriction { get; set; } = 0.8f;
+
+    /// <summary>Default restitution for colliders without overrides (clamped to 0–1, defaults to 0).</summary>
+    public float PhysicsDefaultRestitution { get; set; } = 0f;
 }
 
 /// <summary>

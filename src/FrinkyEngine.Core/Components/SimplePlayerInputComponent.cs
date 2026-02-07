@@ -9,6 +9,7 @@ namespace FrinkyEngine.Core.Components;
 /// Simple configurable player input component for movement and mouse look.
 /// Uses <see cref="CharacterControllerComponent"/> when present; otherwise falls back to transform or rigidbody motion.
 /// </summary>
+[ComponentCategory("Input")]
 public class SimplePlayerInputComponent : Component
 {
     private KeyboardKey _moveForwardKey = KeyboardKey.W;

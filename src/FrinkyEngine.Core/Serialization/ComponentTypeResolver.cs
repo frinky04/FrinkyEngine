@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Serialization;
@@ -98,5 +99,35 @@ public static class ComponentTypeResolver
     public static string GetAssemblySource(Type type)
     {
         return type.Assembly == _engineAssembly ? "Engine" : type.Assembly.GetName().Name ?? "Game";
+    }
+
+    /// <summary>
+    /// Gets the category declared via <see cref="ComponentCategoryAttribute"/>, or <c>null</c> if none.
+    /// Categories support slash-separated nesting (e.g. "Physics/Colliders").
+    /// </summary>
+    public static string? GetCategory(Type type)
+    {
+        return type.GetCustomAttribute<ComponentCategoryAttribute>()?.Category;
+    }
+
+    private static readonly Regex PascalCaseRegex =
+        new(@"(?<=[a-z0-9])([A-Z])|(?<=[A-Z])([A-Z][a-z])", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Gets a human-readable display name for a component type.
+    /// Returns the <see cref="ComponentDisplayNameAttribute"/> value if present,
+    /// otherwise strips "Component" suffix and inserts spaces between PascalCase words.
+    /// </summary>
+    public static string GetDisplayName(Type type)
+    {
+        var attr = type.GetCustomAttribute<ComponentDisplayNameAttribute>();
+        if (attr != null)
+            return attr.DisplayName;
+
+        var name = type.Name;
+        if (name.EndsWith("Component"))
+            name = name[..^"Component".Length];
+
+        return PascalCaseRegex.Replace(name, " $1$2");
     }
 }

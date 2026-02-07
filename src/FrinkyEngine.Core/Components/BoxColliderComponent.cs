@@ -1,10 +1,12 @@
 using System.Numerics;
+using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Axis-aligned box collider shape in local space.
 /// </summary>
+[ComponentCategory("Physics/Colliders")]
 public class BoxColliderComponent : ColliderComponent
 {
     private Vector3 _size = Vector3.One;

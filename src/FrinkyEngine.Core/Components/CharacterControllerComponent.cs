@@ -7,6 +7,7 @@ namespace FrinkyEngine.Core.Components;
 /// High-level dynamic character locomotion component backed by BEPU's character support constraints.
 /// Requires an enabled <see cref="RigidbodyComponent"/> and <see cref="CapsuleColliderComponent"/> on the same entity.
 /// </summary>
+[ComponentCategory("Physics")]
 public class CharacterControllerComponent : Component
 {
     private float _moveSpeed = 4f;

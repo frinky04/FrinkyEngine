@@ -216,6 +216,14 @@ public class Scene : IDisposable
     }
 
     /// <summary>
+    /// Returns a snapshot of physics diagnostics for the current frame.
+    /// </summary>
+    public PhysicsFrameStats GetPhysicsFrameStats()
+    {
+        return PhysicsSystem?.GetFrameStats() ?? default;
+    }
+
+    /// <summary>
     /// Releases runtime resources associated with this scene (for example physics simulation state).
     /// </summary>
     public void Dispose()

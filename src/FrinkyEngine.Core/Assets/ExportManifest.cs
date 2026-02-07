@@ -87,6 +87,27 @@ public class ExportManifest
     /// </summary>
     public int? ForwardPlusMaxLightsPerTile { get; set; }
 
+    // --- Physics ---
+
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.FixedTimestep"/>
+    public float? PhysicsFixedTimestep { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.MaxSubstepsPerFrame"/>
+    public int? PhysicsMaxSubstepsPerFrame { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.SolverVelocityIterations"/>
+    public int? PhysicsSolverVelocityIterations { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.SolverSubsteps"/>
+    public int? PhysicsSolverSubsteps { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.ContactSpringFrequency"/>
+    public float? PhysicsContactSpringFrequency { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.ContactDampingRatio"/>
+    public float? PhysicsContactDampingRatio { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.MaximumRecoveryVelocity"/>
+    public float? PhysicsMaximumRecoveryVelocity { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.DefaultFriction"/>
+    public float? PhysicsDefaultFriction { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.DefaultRestitution"/>
+    public float? PhysicsDefaultRestitution { get; set; }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,

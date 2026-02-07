@@ -138,7 +138,16 @@ public static class GameExporter
                 StartMaximized = projectSettings.Runtime.StartMaximized,
                 ForwardPlusTileSize = projectSettings.Runtime.ForwardPlusTileSize,
                 ForwardPlusMaxLights = projectSettings.Runtime.ForwardPlusMaxLights,
-                ForwardPlusMaxLightsPerTile = projectSettings.Runtime.ForwardPlusMaxLightsPerTile
+                ForwardPlusMaxLightsPerTile = projectSettings.Runtime.ForwardPlusMaxLightsPerTile,
+                PhysicsFixedTimestep = projectSettings.Runtime.PhysicsFixedTimestep,
+                PhysicsMaxSubstepsPerFrame = projectSettings.Runtime.PhysicsMaxSubstepsPerFrame,
+                PhysicsSolverVelocityIterations = projectSettings.Runtime.PhysicsSolverVelocityIterations,
+                PhysicsSolverSubsteps = projectSettings.Runtime.PhysicsSolverSubsteps,
+                PhysicsContactSpringFrequency = projectSettings.Runtime.PhysicsContactSpringFrequency,
+                PhysicsContactDampingRatio = projectSettings.Runtime.PhysicsContactDampingRatio,
+                PhysicsMaximumRecoveryVelocity = projectSettings.Runtime.PhysicsMaximumRecoveryVelocity,
+                PhysicsDefaultFriction = projectSettings.Runtime.PhysicsDefaultFriction,
+                PhysicsDefaultRestitution = projectSettings.Runtime.PhysicsDefaultRestitution
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");

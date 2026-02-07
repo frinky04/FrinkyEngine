@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
@@ -5,6 +6,8 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// A procedural sphere primitive with configurable radius and tessellation.
 /// </summary>
+[ComponentCategory("Rendering/Primitives")]
+[ComponentDisplayName("Sphere")]
 public class SpherePrimitive : PrimitiveComponent
 {
     private float _radius = 0.5f;

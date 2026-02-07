@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
@@ -5,6 +6,8 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// A procedural flat plane primitive with configurable size and subdivision.
 /// </summary>
+[ComponentCategory("Rendering/Primitives")]
+[ComponentDisplayName("Plane")]
 public class PlanePrimitive : PrimitiveComponent
 {
     private float _width = 10.0f;

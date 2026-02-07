@@ -1,8 +1,11 @@
+using FrinkyEngine.Core.ECS;
+
 namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Sphere collider shape in local space.
 /// </summary>
+[ComponentCategory("Physics/Colliders")]
 public class SphereColliderComponent : ColliderComponent
 {
     private float _radius = 0.5f;

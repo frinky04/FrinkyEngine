@@ -59,6 +59,7 @@ public class EditorApplication
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
     public bool CanEditScene => Mode is EditorMode.Edit or EditorMode.Simulate;
     public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;
+    public bool IsCursorLocked => _cursorLockedByPlayMode || EditorCamera.IsCursorDisabled;
 
     private string? _runtimeModeSnapshot;
     private bool _cursorLockedByPlayMode;
@@ -71,6 +72,7 @@ public class EditorApplication
     private AssetFileWatcher? _assetFileWatcher;
     private readonly Dictionary<string, HierarchySceneState> _sessionHierarchyStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _hierarchyStateDirty;
+    private bool _wasFocused = true;
 
     public ViewportPanel ViewportPanel { get; }
     public HierarchyPanel HierarchyPanel { get; }
@@ -249,11 +251,16 @@ public class EditorApplication
 
         FlushHierarchyStateIfDirty();
 
-        // Re-enforce cursor lock each frame — rlImGui cursor management can undo DisableCursor()
-        if (_cursorLockedByPlayMode && !Raylib.IsCursorHidden())
+        // Handle focus transitions for play-mode cursor lock
+        bool isFocused = Raylib.IsWindowFocused();
+        if (_cursorLockedByPlayMode)
         {
-            Raylib.DisableCursor();
+            if (isFocused && !_wasFocused)
+                Raylib.DisableCursor();
+            else if (!isFocused && _wasFocused)
+                Raylib.EnableCursor();
         }
+        _wasFocused = isFocused;
 
         if (IsInRuntimeMode && CurrentScene != null)
         {
@@ -443,6 +450,7 @@ public class EditorApplication
         if (ProjectDirectory != null)
         {
             ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
+            Core.Physics.PhysicsProjectSettings.ApplyFrom(ProjectSettings.Runtime);
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
             TagDatabase = AssetTagDatabase.LoadOrCreate(ProjectDirectory);
             IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
@@ -1308,6 +1316,7 @@ public class EditorApplication
         settings.Normalize(ProjectFile.ProjectName);
         settings.Save(path);
         ProjectSettings = settings;
+        Core.Physics.PhysicsProjectSettings.ApplyFrom(settings.Runtime);
         ApplyRuntimeRenderSettingsImmediate();
     }
 

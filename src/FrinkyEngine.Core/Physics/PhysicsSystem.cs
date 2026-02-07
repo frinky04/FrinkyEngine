@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using BepuPhysics;
 using BepuPhysics.Collidables;
@@ -84,6 +85,8 @@ internal sealed class PhysicsSystem : IDisposable
     private Simulation? _simulation;
     private CharacterControllers? _characterControllers;
     private float _accumulator;
+    private int _lastSubstepCount;
+    private double _lastStepTimeMs;
 
     public PhysicsSystem(Scene.Scene scene)
     {
@@ -98,18 +101,19 @@ internal sealed class PhysicsSystem : IDisposable
             return;
 
         _scene.PhysicsSettings.Normalize();
+        var projSettings = PhysicsProjectSettings.Current;
+        projSettings.Normalize();
 
-        var settings = _scene.PhysicsSettings;
         _characterControllers = new CharacterControllers(_bufferPool);
         var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(
-            new SpringSettings(settings.ContactSpringFrequency, settings.ContactDampingRatio),
-            settings.MaximumRecoveryVelocity,
-            settings.DefaultFriction,
-            settings.DefaultRestitution,
+            new SpringSettings(projSettings.ContactSpringFrequency, projSettings.ContactDampingRatio),
+            projSettings.MaximumRecoveryVelocity,
+            projSettings.DefaultFriction,
+            projSettings.DefaultRestitution,
             _materialTable,
             _characterControllers);
-        var poseCallbacks = new PhysicsPoseIntegratorCallbacks(settings.Gravity);
-        var solveDescription = new SolveDescription(settings.SolverVelocityIterations, settings.SolverSubsteps);
+        var poseCallbacks = new PhysicsPoseIntegratorCallbacks(_scene.PhysicsSettings.Gravity);
+        var solveDescription = new SolveDescription(projSettings.SolverVelocityIterations, projSettings.SolverSubsteps);
 
         _simulation = Simulation.Create(_bufferPool, narrowPhaseCallbacks, poseCallbacks, solveDescription);
         _accumulator = 0f;
@@ -125,12 +129,14 @@ internal sealed class PhysicsSystem : IDisposable
         if (!float.IsFinite(dt) || dt <= 0f)
             return;
 
+        var sw = Stopwatch.StartNew();
+
         ReconcileParticipants();
 
-        var settings = _scene.PhysicsSettings;
-        settings.Normalize();
-        var fixedDt = settings.FixedTimestep;
-        var maxSubsteps = settings.MaxSubstepsPerFrame;
+        var projSettings = PhysicsProjectSettings.Current;
+        projSettings.Normalize();
+        var fixedDt = projSettings.FixedTimestep;
+        var maxSubsteps = projSettings.MaxSubstepsPerFrame;
 
         _accumulator += dt;
         int steps = 0;
@@ -155,6 +161,36 @@ internal sealed class PhysicsSystem : IDisposable
 
         if (steps >= maxSubsteps && _accumulator >= fixedDt)
             _accumulator = 0f;
+
+        sw.Stop();
+        _lastSubstepCount = steps;
+        _lastStepTimeMs = sw.Elapsed.TotalMilliseconds;
+    }
+
+    public PhysicsFrameStats GetFrameStats()
+    {
+        if (_simulation == null)
+            return default;
+
+        int dynamic = 0, kinematic = 0, staticCount = 0;
+        foreach (var state in _bodyStates.Values)
+        {
+            switch (state.Rigidbody.MotionType)
+            {
+                case BodyMotionType.Dynamic: dynamic++; break;
+                case BodyMotionType.Kinematic: kinematic++; break;
+                case BodyMotionType.Static: staticCount++; break;
+            }
+        }
+
+        return new PhysicsFrameStats(
+            Valid: true,
+            DynamicBodies: dynamic,
+            KinematicBodies: kinematic,
+            StaticBodies: staticCount,
+            SubstepsThisFrame: _lastSubstepCount,
+            StepTimeMs: _lastStepTimeMs,
+            ActiveCharacterControllers: _characterStates.Count);
     }
 
     public void OnComponentStateChanged()

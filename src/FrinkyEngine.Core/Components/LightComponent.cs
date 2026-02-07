@@ -3,6 +3,7 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
+
 /// <summary>
 /// Determines the behavior of a light source in the scene.
 /// </summary>
@@ -27,6 +28,7 @@ public enum LightType
 /// <summary>
 /// Adds a light source to the scene. The light's position and direction come from the entity's <see cref="TransformComponent"/>.
 /// </summary>
+[ComponentCategory("Rendering")]
 public class LightComponent : Component
 {
     /// <summary>

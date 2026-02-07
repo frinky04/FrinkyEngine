@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 
 namespace FrinkyEngine.Core.Components;
@@ -7,6 +8,7 @@ namespace FrinkyEngine.Core.Components;
 /// Renders a 3D model loaded from a file (e.g. .obj, .gltf, .glb).
 /// Supports multiple material slots for per-material mapping and texture assignment.
 /// </summary>
+[ComponentCategory("Rendering")]
 public class MeshRendererComponent : RenderableComponent
 {
     private string _modelPath = string.Empty;

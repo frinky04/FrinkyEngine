@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
@@ -5,6 +6,8 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// A procedural cylinder primitive with configurable radius, height, and tessellation.
 /// </summary>
+[ComponentCategory("Rendering/Primitives")]
+[ComponentDisplayName("Cylinder")]
 public class CylinderPrimitive : PrimitiveComponent
 {
     private float _radius = 0.5f;
