@@ -1,0 +1,115 @@
+name: Smoke
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  runtime-smoke-win:
+    name: runtime-smoke-win
+    runs-on: windows-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore runtime project
+        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+
+      - name: Publish runtime (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:FrinkyExport=true
+          --no-restore
+          -o artifacts/smoke/runtime/win-x64
+
+      - name: Verify runtime files
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/smoke/runtime/win-x64/FrinkyEngine.Runtime.exe",
+            "artifacts/smoke/runtime/win-x64/Shaders/lighting.vs",
+            "artifacts/smoke/runtime/win-x64/FrinkyEngine.Runtime.dll"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing runtime smoke file: $path"
+            }
+          }
+
+      - name: Runtime launch path sanity check
+        shell: pwsh
+        run: |
+          $exePath = Resolve-Path "artifacts/smoke/runtime/win-x64/FrinkyEngine.Runtime.exe"
+          $process = Start-Process -FilePath $exePath -PassThru
+          $process.WaitForExit(15000) | Out-Null
+          if (-not $process.HasExited) {
+            try { Stop-Process -Id $process.Id -Force } catch {}
+            throw "Runtime did not exit within timeout for no-arg invocation."
+          }
+          if ($process.ExitCode -ne 0) {
+            throw "Runtime exited with code $($process.ExitCode)."
+          }
+
+  editor-smoke-win:
+    name: editor-smoke-win
+    runs-on: windows-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore editor project
+        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+
+      - name: Publish editor (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          --no-restore
+          -o artifacts/smoke/editor/win-x64
+
+      - name: Verify editor files
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/smoke/editor/win-x64/FrinkyEngine.Editor.exe",
+            "artifacts/smoke/editor/win-x64/Shaders/lighting.vs",
+            "artifacts/smoke/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing editor smoke file: $path"
+            }
+          }

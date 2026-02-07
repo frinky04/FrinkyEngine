@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-release-win:
+    name: build-release-win
+    runs-on: windows-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Validate tag and capture version
+        id: meta
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch "^v(\d+)\.(\d+)\.(\d+)$") {
+            throw "Tag '$tag' does not match required format vMAJOR.MINOR.PATCH."
+          }
+
+          $version = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore solution
+        run: dotnet restore FrinkyEngine.sln
+
+      - name: Publish editor (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          --no-restore
+          -o artifacts/release/editor/win-x64
+
+      - name: Publish runtime (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:FrinkyExport=true
+          --no-restore
+          -o artifacts/release/runtime/win-x64
+
+      - name: Verify release publish outputs
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/release/editor/win-x64/FrinkyEngine.Editor.exe",
+            "artifacts/release/editor/win-x64/Shaders/lighting.vs",
+            "artifacts/release/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf",
+            "artifacts/release/runtime/win-x64/FrinkyEngine.Runtime.exe",
+            "artifacts/release/runtime/win-x64/Shaders/lighting.vs"
+          )
+
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing required release file: $path"
+            }
+          }
+
+      - name: Create release archives
+        shell: pwsh
+        run: |
+          $version = "${{ steps.meta.outputs.version }}"
+          $editorDir = "artifacts/release/editor/win-x64"
+          $runtimeDir = "artifacts/release/runtime/win-x64"
+
+          $editorStage = "artifacts/release/FrinkyEngine-Editor-win-x64-v$version"
+          $runtimeStage = "artifacts/release/FrinkyEngine-Runtime-win-x64-v$version"
+
+          New-Item -ItemType Directory -Force -Path $editorStage | Out-Null
+          New-Item -ItemType Directory -Force -Path $runtimeStage | Out-Null
+
+          Copy-Item -Path "$editorDir/*" -Destination $editorStage -Recurse -Force
+          Copy-Item -Path "$runtimeDir/*" -Destination $runtimeStage -Recurse -Force
+
+          $editorZip = "artifacts/release/FrinkyEngine-Editor-win-x64-v$version.zip"
+          $runtimeZip = "artifacts/release/FrinkyEngine-Runtime-win-x64-v$version.zip"
+
+          if (Test-Path $editorZip) { Remove-Item $editorZip -Force }
+          if (Test-Path $runtimeZip) { Remove-Item $runtimeZip -Force }
+
+          Compress-Archive -Path "$editorStage/*" -DestinationPath $editorZip -CompressionLevel Optimal
+          Compress-Archive -Path "$runtimeStage/*" -DestinationPath $runtimeZip -CompressionLevel Optimal
+
+      - name: Upload release archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zips
+          path: |
+            artifacts/release/FrinkyEngine-Editor-win-x64-v${{ steps.meta.outputs.version }}.zip
+            artifacts/release/FrinkyEngine-Runtime-win-x64-v${{ steps.meta.outputs.version }}.zip
+          if-no-files-found: error
+
+  create-github-release:
+    name: create-github-release
+    runs-on: ubuntu-latest
+    needs:
+      - build-release-win
+
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          name: release-zips
+          path: artifacts/release
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-release-win.outputs.tag }}
+          name: FrinkyEngine ${{ needs.build-release-win.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            artifacts/release/FrinkyEngine-Editor-win-x64-v${{ needs.build-release-win.outputs.version }}.zip
+            artifacts/release/FrinkyEngine-Runtime-win-x64-v${{ needs.build-release-win.outputs.version }}.zip

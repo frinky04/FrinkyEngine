@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "templates/**"
+      - "Shaders/**"
+      - "EditorAssets/**"
+      - "Directory.Build.props"
+      - "FrinkyEngine.sln"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "templates/**"
+      - "Shaders/**"
+      - "EditorAssets/**"
+      - "Directory.Build.props"
+      - "FrinkyEngine.sln"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+jobs:
+  build-sln:
+    name: build-sln (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore solution
+        run: dotnet restore FrinkyEngine.sln
+
+      - name: Build solution (warnings as errors)
+        run: dotnet build FrinkyEngine.sln -c Release -warnaserror --no-restore
+
+  publish-editor-win:
+    name: publish-editor-win
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore editor project
+        run: dotnet restore src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+
+      - name: Publish editor (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Editor/FrinkyEngine.Editor.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          --no-restore
+          -o artifacts/editor/win-x64
+
+      - name: Verify editor publish output
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/editor/win-x64/FrinkyEngine.Editor.exe",
+            "artifacts/editor/win-x64/Shaders/lighting.vs",
+            "artifacts/editor/win-x64/EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing required file: $path"
+            }
+          }
+
+  publish-runtime-win:
+    name: publish-runtime-win
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore runtime project
+        run: dotnet restore src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+
+      - name: Publish runtime (win-x64)
+        run: >
+          dotnet publish src/FrinkyEngine.Runtime/FrinkyEngine.Runtime.csproj
+          -c Release
+          -r win-x64
+          --self-contained false
+          -p:FrinkyExport=true
+          --no-restore
+          -o artifacts/runtime/win-x64
+
+      - name: Verify runtime publish output
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/runtime/win-x64/FrinkyEngine.Runtime.exe",
+            "artifacts/runtime/win-x64/Shaders/lighting.vs"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Missing required file: $path"
+            }
+          }
+
+  validate-template-pack:
+    name: validate-template-pack
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore template project
+        run: dotnet restore templates/FrinkyEngine.Templates/FrinkyEngine.Templates.csproj
+
+      - name: Pack template
+        run: >
+          dotnet pack templates/FrinkyEngine.Templates/FrinkyEngine.Templates.csproj
+          -c Release
+          --no-restore
+          -o artifacts/templates
+
+      - name: Verify template package output
+        shell: pwsh
+        run: |
+          $nupkgs = Get-ChildItem -Path "artifacts/templates" -Filter "*.nupkg" -File -ErrorAction Stop
+          if ($nupkgs.Count -lt 1) {
+            throw "No template package (.nupkg) was produced."
+          }
