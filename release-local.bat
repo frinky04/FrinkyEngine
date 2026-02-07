@@ -8,16 +8,46 @@ echo.
 
 :: Usage: release-local.bat vX.Y.Z
 if "%~1"=="" (
-    echo Usage: release-local.bat vX.Y.Z
+    echo Usage: release-local.bat vX.Y.Z ^| --patch
     echo.
     echo Example:
     echo   release-local.bat v0.1.0
+    echo   release-local.bat --patch
     echo.
     if not defined FRINKY_NO_PAUSE pause
     exit /b 1
 )
 
-set TAG=%~1
+if /i "%~1"=="--patch" (
+    echo Resolving next patch version from git tags...
+    git fetch --tags --quiet >nul 2>&1
+
+    for /f %%i in ('powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$tags = git tag --list 'v*';" ^
+      "$versions = @();" ^
+      "foreach ($t in $tags) {" ^
+      "  if ($t -match '^v(?<maj>\d+)\.(?<min>\d+)\.(?<pat>\d+)$') {" ^
+      "    $versions += [pscustomobject]@{ Maj = [int]$Matches['maj']; Min = [int]$Matches['min']; Pat = [int]$Matches['pat'] };" ^
+      "  }" ^
+      "}" ^
+      "if ($versions.Count -eq 0) { Write-Output 'v0.1.0'; exit 0 }" ^
+      "$latest = $versions | Sort-Object Maj, Min, Pat | Select-Object -Last 1;" ^
+      "Write-Output ('v{0}.{1}.{2}' -f $latest.Maj, $latest.Min, ($latest.Pat + 1));"') do (
+        set TAG=%%i
+    )
+
+    if not defined TAG (
+        echo.
+        echo [ERROR] Could not resolve next patch version from tags.
+        if not defined FRINKY_NO_PAUSE pause
+        exit /b 1
+    )
+
+    call echo Resolved tag: %%TAG%%
+) else (
+    set TAG=%~1
+)
+
 set VERSION=%TAG:v=%
 set RID=win-x64
 set FRINKY_NO_PAUSE_PREV=%FRINKY_NO_PAUSE%
