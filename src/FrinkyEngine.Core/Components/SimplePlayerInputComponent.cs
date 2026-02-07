@@ -33,6 +33,11 @@ public class SimplePlayerInputComponent : Component
     private bool _allowJump = true;
     private float _fallbackMoveSpeed = 4f;
     private float _fallbackJumpImpulse = 3f;
+    private bool _driveAttachedCamera = true;
+    private Vector3 _attachedCameraLocalOffset = new(0f, 1.6f, 0f);
+    private float _attachedCameraBackDistance = 0f;
+
+    private TransformComponent? _attachedCameraTransform;
     private float _lookYawDegrees;
     private float _lookPitchDegrees;
     private bool _lookInitialized;
@@ -227,10 +232,38 @@ public class SimplePlayerInputComponent : Component
         set => _fallbackJumpImpulse = float.IsFinite(value) ? MathF.Max(0f, value) : 3f;
     }
 
+    /// <summary>
+    /// If true, a child camera entity is driven using janky follow/pitch behavior.
+    /// </summary>
+    public bool DriveAttachedCamera
+    {
+        get => _driveAttachedCamera;
+        set => _driveAttachedCamera = value;
+    }
+
+    /// <summary>
+    /// Local offset applied to the attached camera entity relative to the controller entity.
+    /// </summary>
+    public Vector3 AttachedCameraLocalOffset
+    {
+        get => _attachedCameraLocalOffset;
+        set => _attachedCameraLocalOffset = value;
+    }
+
+    /// <summary>
+    /// Additional camera distance along local +Z (behind the entity when forward is -Z).
+    /// </summary>
+    public float AttachedCameraBackDistance
+    {
+        get => _attachedCameraBackDistance;
+        set => _attachedCameraBackDistance = float.IsFinite(value) ? value : 0f;
+    }
+
     /// <inheritdoc />
     public override void Start()
     {
         InitializeLookState();
+        ResolveAttachedCamera();
     }
 
     /// <inheritdoc />
@@ -248,6 +281,7 @@ public class SimplePlayerInputComponent : Component
         }
 
         ApplyMouseLook(controller);
+        UpdateAttachedCamera(controller);
 
         var moveInput = ReadMoveInput();
 
@@ -295,6 +329,7 @@ public class SimplePlayerInputComponent : Component
         var delta = FrinkyInput.MouseDelta;
         var yawSign = InvertMouseX ? 1f : -1f;
         _lookYawDegrees += delta.X * MouseSensitivity * yawSign;
+        _lookYawDegrees = WrapDegrees(_lookYawDegrees);
 
         if (RotatePitch)
         {
@@ -305,11 +340,8 @@ public class SimplePlayerInputComponent : Component
 
         if (controller != null && UseViewDirectionOverrideForCharacterLook)
         {
-            var euler = Entity.Transform.EulerAngles;
-            euler.Y = _lookYawDegrees;
-            if (ApplyPitchToCharacterBody && RotatePitch)
-                euler.X = _lookPitchDegrees;
-            Entity.Transform.EulerAngles = euler;
+            var bodyPitch = ApplyPitchToCharacterBody && RotatePitch ? _lookPitchDegrees : 0f;
+            Entity.Transform.LocalRotation = BuildYawPitchRotation(_lookYawDegrees, bodyPitch);
 
             if (controller.UseEntityForwardAsViewDirection)
                 controller.UseEntityForwardAsViewDirection = false;
@@ -318,11 +350,8 @@ public class SimplePlayerInputComponent : Component
             return;
         }
 
-        var fallbackEuler = Entity.Transform.EulerAngles;
-        fallbackEuler.Y = _lookYawDegrees;
-        if (RotatePitch)
-            fallbackEuler.X = _lookPitchDegrees;
-        Entity.Transform.EulerAngles = fallbackEuler;
+        var fallbackPitch = RotatePitch ? _lookPitchDegrees : 0f;
+        Entity.Transform.LocalRotation = BuildYawPitchRotation(_lookYawDegrees, fallbackPitch);
     }
 
     private void InitializeLookState()
@@ -330,19 +359,79 @@ public class SimplePlayerInputComponent : Component
         if (_lookInitialized)
             return;
 
+        ResolveAttachedCamera();
+
         var euler = Entity.Transform.EulerAngles;
         _lookYawDegrees = euler.Y;
-        _lookPitchDegrees = Math.Clamp(euler.X, MinPitchDegrees, MaxPitchDegrees);
+        var initialPitch = euler.X;
+        if (_attachedCameraTransform != null)
+            initialPitch = _attachedCameraTransform.EulerAngles.X;
+        _lookPitchDegrees = Math.Clamp(initialPitch, MinPitchDegrees, MaxPitchDegrees);
         _lookInitialized = true;
     }
 
     private static Vector3 BuildViewDirection(float yawDegrees, float pitchDegrees)
     {
-        var yawRadians = yawDegrees * (MathF.PI / 180f);
-        var pitchRadians = pitchDegrees * (MathF.PI / 180f);
-        var rotation = Quaternion.CreateFromYawPitchRoll(yawRadians, pitchRadians, 0f);
+        var rotation = BuildYawPitchRotation(yawDegrees, pitchDegrees);
         var forward = Vector3.Transform(-Vector3.UnitZ, rotation);
         return SafeNormalize(forward, -Vector3.UnitZ);
+    }
+
+    private static Quaternion BuildYawPitchRotation(float yawDegrees, float pitchDegrees)
+    {
+        var yawRadians = DegreesToRadians(yawDegrees);
+        var pitchRadians = DegreesToRadians(pitchDegrees);
+        return Quaternion.Normalize(Quaternion.CreateFromYawPitchRoll(yawRadians, pitchRadians, 0f));
+    }
+
+    private void ResolveAttachedCamera()
+    {
+        if (_attachedCameraTransform != null &&
+            _attachedCameraTransform.Entity.Scene == Entity.Scene)
+        {
+            return;
+        }
+
+        _attachedCameraTransform = FindAttachedCameraTransform(Entity.Transform);
+    }
+
+    private void UpdateAttachedCamera(CharacterControllerComponent? controller)
+    {
+        if (!DriveAttachedCamera)
+            return;
+
+        ResolveAttachedCamera();
+        if (_attachedCameraTransform == null)
+            return;
+
+        var localPosition = AttachedCameraLocalOffset + new Vector3(0f, 0f, AttachedCameraBackDistance);
+        _attachedCameraTransform.LocalPosition = localPosition;
+
+        float appliedPitch = 0f;
+        if (RotatePitch && (!ApplyPitchToCharacterBody || controller == null))
+            appliedPitch = _lookPitchDegrees;
+
+        var desiredWorldRotation = BuildYawPitchRotation(_lookYawDegrees, appliedPitch);
+        var parentWorldRotation = _attachedCameraTransform.Parent?.WorldRotation ?? Quaternion.Identity;
+        var parentInverse = Quaternion.Normalize(Quaternion.Conjugate(parentWorldRotation));
+
+        // TransformComponent composes as local * parentWorldRotation; solve local from desired world.
+        _attachedCameraTransform.LocalRotation = Quaternion.Normalize(desiredWorldRotation * parentInverse);
+    }
+
+    private static TransformComponent? FindAttachedCameraTransform(TransformComponent root)
+    {
+        foreach (var child in root.Children)
+        {
+            if (child.Entity.GetComponent<CameraComponent>() is { Enabled: true })
+                return child;
+
+            var nested = FindAttachedCameraTransform(child);
+            if (nested != null)
+                return nested;
+        }
+
+        return null;
     }
 
     private void ApplyFallbackMovement(Vector2 moveInput, float dt)
@@ -382,5 +471,20 @@ public class SimplePlayerInputComponent : Component
             return fallback;
 
         return value / MathF.Sqrt(lengthSquared);
+    }
+
+    private static float DegreesToRadians(float degrees)
+    {
+        return degrees * (MathF.PI / 180f);
+    }
+
+    private static float WrapDegrees(float degrees)
+    {
+        var wrapped = degrees % 360f;
+        if (wrapped > 180f)
+            wrapped -= 360f;
+        if (wrapped < -180f)
+            wrapped += 360f;
+        return wrapped;
     }
 }

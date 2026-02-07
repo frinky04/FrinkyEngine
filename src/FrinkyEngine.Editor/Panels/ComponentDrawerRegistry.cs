@@ -832,12 +832,22 @@ public static class ComponentDrawerRegistry
         }
         else if (propType.IsEnum)
         {
-            var val = (int)prop.GetValue(component)!;
-            var names = Enum.GetNames(propType);
-            if (ImGui.Combo(label, ref val, names, names.Length))
+            var enumValues = Enum.GetValues(propType);
+            if (enumValues.Length == 0)
+                return;
+
+            var names = enumValues.Cast<object>()
+                .Select(value => value.ToString() ?? value.GetType().Name)
+                .ToArray();
+            var currentValue = prop.GetValue(component) ?? enumValues.GetValue(0)!;
+            int selectedIndex = Array.IndexOf(enumValues, currentValue);
+            if (selectedIndex < 0)
+                selectedIndex = 0;
+
+            if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
             {
                 app.RecordUndo();
-                prop.SetValue(component, Enum.ToObject(propType, val));
+                prop.SetValue(component, enumValues.GetValue(selectedIndex));
                 app.RefreshUndoBaseline();
             }
         }

@@ -413,12 +413,22 @@ public class InspectorPanel
         }
         else if (propType.IsEnum)
         {
-            var names = Enum.GetNames(propType);
-            int val = firstValue != null ? (int)Convert.ChangeType(firstValue, typeof(int)) : 0;
-            if (ImGui.Combo(GetMixedLabel(label, mixed), ref val, names, names.Length))
+            var enumValues = Enum.GetValues(propType);
+            if (enumValues.Length == 0)
+                return;
+
+            var names = enumValues.Cast<object>()
+                .Select(value => value.ToString() ?? value.GetType().Name)
+                .ToArray();
+            var currentValue = firstValue ?? enumValues.GetValue(0)!;
+            int selectedIndex = Array.IndexOf(enumValues, currentValue);
+            if (selectedIndex < 0)
+                selectedIndex = 0;
+
+            if (ImGui.Combo(GetMixedLabel(label, mixed), ref selectedIndex, names, names.Length))
             {
                 _app.RecordUndo();
-                var enumValue = Enum.ToObject(propType, val);
+                var enumValue = enumValues.GetValue(selectedIndex);
                 foreach (var component in components)
                     prop.SetValue(component, enumValue);
                 _app.RefreshUndoBaseline();
