@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Serialization;
@@ -626,20 +628,7 @@ public class HierarchyPanel
         if (prefabRoot?.Prefab != null)
         {
             ImGui.Separator();
-
-            if (prefabRoot.Id != entity.Id && ImGui.MenuItem("Select Prefab Root"))
-                _app.SetSingleSelection(prefabRoot);
-
-            ImGui.BeginDisabled(prefabRoot.Id != entity.Id);
-            if (ImGui.MenuItem("Apply Prefab"))
-                _app.ApplySelectedPrefab();
-            if (ImGui.MenuItem("Revert Prefab"))
-                _app.RevertSelectedPrefab();
-            if (ImGui.MenuItem("Make Unique"))
-                _app.MakeUniqueSelectedPrefab();
-            if (ImGui.MenuItem("Unpack Prefab"))
-                _app.UnpackSelectedPrefab();
-            ImGui.EndDisabled();
+            DrawPrefabContextMenu(entity, prefabRoot);
         }
 
         ImGui.Separator();
@@ -693,6 +682,103 @@ public class HierarchyPanel
         }
 
         ImGui.EndPopup();
+    }
+
+    private void DrawPrefabContextMenu(Entity clickedEntity, Entity prefabRoot)
+    {
+        if (!ImGui.BeginMenu("Prefab"))
+            return;
+
+        if (clickedEntity.Id != prefabRoot.Id && ImGui.MenuItem("Select Prefab Root"))
+            _app.SetSingleSelection(prefabRoot);
+
+        if (ImGui.MenuItem("Apply"))
+            ApplyPrefabFromContext(prefabRoot);
+
+        if (ImGui.MenuItem("Revert"))
+            RevertPrefabFromContext(clickedEntity);
+
+        if (ImGui.MenuItem("Make Unique"))
+            MakeUniquePrefabFromContext(clickedEntity);
+
+        if (ImGui.MenuItem("Unpack"))
+            UnpackPrefabFromContext(clickedEntity);
+
+        ImGui.Separator();
+
+        if (ImGui.MenuItem("Open Prefab in VS Code"))
+            OpenPrefabInVSCode(prefabRoot);
+
+        if (ImGui.MenuItem("Show Prefab in Explorer"))
+            RevealPrefabInExplorer(prefabRoot);
+
+        ImGui.EndMenu();
+    }
+
+    private void ApplyPrefabFromContext(Entity prefabRoot)
+    {
+        _app.RecordUndo();
+        if (!_app.Prefabs.ApplyPrefab(prefabRoot))
+            return;
+
+        _app.RefreshUndoBaseline();
+        NotificationManager.Instance.Post("Prefab applied.", NotificationType.Success, 1.5f);
+    }
+
+    private void RevertPrefabFromContext(Entity contextEntity)
+    {
+        if (_app.Prefabs.RevertPrefab(contextEntity))
+            NotificationManager.Instance.Post("Prefab reverted.", NotificationType.Info, 1.5f);
+    }
+
+    private void MakeUniquePrefabFromContext(Entity contextEntity)
+    {
+        _app.Prefabs.MakeUnique(contextEntity);
+    }
+
+    private void UnpackPrefabFromContext(Entity contextEntity)
+    {
+        if (_app.Prefabs.UnpackPrefab(contextEntity))
+            NotificationManager.Instance.Post("Prefab unpacked.", NotificationType.Info, 1.5f);
+    }
+
+    private static string? GetPrefabAbsolutePath(Entity prefabRoot)
+    {
+        var assetPath = prefabRoot.Prefab?.AssetPath;
+        if (string.IsNullOrWhiteSpace(assetPath))
+            return null;
+
+        var absolutePath = Path.Combine(AssetManager.Instance.AssetsPath, assetPath.Replace('/', Path.DirectorySeparatorChar));
+        return File.Exists(absolutePath) ? absolutePath : null;
+    }
+
+    private void OpenPrefabInVSCode(Entity prefabRoot)
+    {
+        var absolutePath = GetPrefabAbsolutePath(prefabRoot);
+        if (absolutePath == null)
+        {
+            NotificationManager.Instance.Post("Prefab asset not found.", NotificationType.Warning);
+            return;
+        }
+
+        _app.OpenFileInVSCode(absolutePath);
+    }
+
+    private static void RevealPrefabInExplorer(Entity prefabRoot)
+    {
+        var absolutePath = GetPrefabAbsolutePath(prefabRoot);
+        if (absolutePath == null)
+        {
+            NotificationManager.Instance.Post("Prefab asset not found.", NotificationType.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = $"/select,\"{absolutePath}\"",
+            UseShellExecute = true
+        });
     }
 
     private void DrawFolderContextMenu(HierarchyFolderState folder, HierarchySceneState state)
