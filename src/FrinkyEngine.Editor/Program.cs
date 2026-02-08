@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
@@ -25,6 +26,7 @@ public static class Program
         Raylib.SetExitKey(0);
 
         RlImGui.Setup(true, true);
+        UI.Initialize();
 
         // Load JetBrains Mono font
         var io = ImGui.GetIO();
@@ -88,6 +90,7 @@ public static class Program
         }
 
         app.Shutdown();
+        UI.Shutdown();
         RlImGui.Shutdown();
         Raylib.CloseWindow();
     }

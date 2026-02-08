@@ -6,6 +6,7 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
+using FrinkyEngine.Core.UI;
 using Raylib_cs;
 
 namespace FrinkyEngine.Runtime;
@@ -164,6 +165,7 @@ public static class Program
         Raylib.SetConfigFlags(flags);
         Raylib.InitWindow(launchSettings.WindowWidth, launchSettings.WindowHeight, runtimeWindowTitle);
         Raylib.SetTargetFPS(launchSettings.TargetFps);
+        UI.Initialize();
 
         var sceneRenderer = new SceneRenderer();
         sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
@@ -177,6 +179,7 @@ public static class Program
         if (scene == null)
         {
             Console.WriteLine($"Failed to load scene: {scenePath}");
+            UI.Shutdown();
             AudioDeviceService.ShutdownIfUnused();
             Raylib.CloseWindow();
             return;
@@ -204,6 +207,12 @@ public static class Program
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Color.Black);
                 Raylib.DrawText("No MainCamera found in scene.", 10, 10, 20, Color.Red);
+                UI.BeginFrame(dt, new UiFrameDesc(
+                    Raylib.GetScreenWidth(),
+                    Raylib.GetScreenHeight(),
+                    IsFocused: Raylib.IsWindowFocused(),
+                    IsHovered: true));
+                UI.EndFrame();
                 Raylib.EndDrawing();
                 continue;
             }
@@ -243,16 +252,25 @@ public static class Program
                 var src = new Rectangle(0, 0, finalTex.Width, -finalTex.Height);
                 var dst = new Rectangle(0, 0, screenW, screenH);
                 Raylib.DrawTexturePro(finalTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
+                UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true));
+                UI.EndFrame();
                 Raylib.EndDrawing();
             }
             else
             {
                 Raylib.BeginDrawing();
                 sceneRenderer.Render(scene, camera3D, isEditorMode: false);
+                UI.BeginFrame(dt, new UiFrameDesc(
+                    Raylib.GetScreenWidth(),
+                    Raylib.GetScreenHeight(),
+                    IsFocused: Raylib.IsWindowFocused(),
+                    IsHovered: true));
+                UI.EndFrame();
                 Raylib.EndDrawing();
             }
         }
 
+        UI.Shutdown();
         postProcessPipeline.Shutdown();
         if (lastRTWidth > 0)
             Raylib.UnloadRenderTexture(sceneRT);

@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.4.0" />
+    <PackageReference Include="Hexa.NET.ImGui" Version="2.2.9" />
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
   </ItemGroup>
 

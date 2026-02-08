@@ -8,6 +8,7 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using FrinkyEngine.Core.Serialization;
+using FrinkyEngine.Core.UI;
 using FrinkyEngine.Editor.Panels;
 using FrinkyEngine.Editor.Prefab;
 using Raylib_cs;
@@ -307,6 +308,7 @@ public class EditorApplication
         if (Mode != EditorMode.Edit || CurrentScene == null)
             return;
 
+        UI.ClearFrame();
         _runtimeModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
         CurrentScene.Start();
         Mode = targetMode;
@@ -334,6 +336,7 @@ public class EditorApplication
         if (!IsInRuntimeMode)
             return;
 
+        UI.ClearFrame();
         var exitingMode = Mode;
         if (_runtimeModeSnapshot != null)
         {
@@ -1286,6 +1289,7 @@ public class EditorApplication
 
     public void Shutdown()
     {
+        UI.ClearFrame();
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;
         EditorIcons.Unload();

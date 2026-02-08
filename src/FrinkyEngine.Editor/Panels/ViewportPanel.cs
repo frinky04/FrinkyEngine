@@ -4,6 +4,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
+using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Raylib_cs;
 
@@ -151,6 +152,7 @@ public class ViewportPanel
                     }
 
                     var imageScreenPos = ImGui.GetCursorScreenPos();
+                    RenderGameUiOverlay(textureToDisplay, imageScreenPos, w, h);
                     RlImGui.ImageRenderTexture(textureToDisplay);
                     if (isEditorMode)
                         HandleAssetDropTarget(camera, imageScreenPos, w, h);
@@ -196,6 +198,7 @@ public class ViewportPanel
                 {
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
                     var imageScreenPos = ImGui.GetCursorScreenPos();
+                    RenderGameUiOverlay(_renderTexture, imageScreenPos, w, h);
                     RlImGui.ImageRenderTexture(_renderTexture);
                     if (isEditorMode)
                         HandleAssetDropTarget(camera, imageScreenPos, w, h);
@@ -242,6 +245,35 @@ public class ViewportPanel
 
         if (_app.CanUseEditorViewportTools)
             _app.EditorCamera.Update(Raylib.GetFrameTime(), _isHovered);
+    }
+
+    private void RenderGameUiOverlay(RenderTexture2D targetTexture, Vector2 imageScreenPos, int width, int height)
+    {
+        if (!_app.IsInRuntimeMode)
+        {
+            UI.ClearFrame();
+            return;
+        }
+
+        var mousePos = ImGui.GetMousePos();
+        var localMouse = mousePos - imageScreenPos;
+        bool hovered = ImGui.IsWindowHovered();
+
+        var frameDesc = new UiFrameDesc(
+            width,
+            height,
+            IsFocused: ImGui.IsWindowFocused(),
+            IsHovered: hovered,
+            UseMousePositionOverride: true,
+            MousePosition: localMouse,
+            AllowCursorChanges: false,
+            AllowSetMousePos: false,
+            AllowKeyboardInput: hovered);
+
+        UI.BeginFrame(Raylib.GetFrameTime(), frameDesc);
+        Raylib.BeginTextureMode(targetTexture);
+        UI.EndFrame();
+        Raylib.EndTextureMode();
     }
 
     private unsafe void HandleAssetDropTarget(Camera3D camera, Vector2 imageScreenPos, int w, int h)

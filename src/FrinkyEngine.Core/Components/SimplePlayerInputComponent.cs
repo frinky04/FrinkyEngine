@@ -1,6 +1,7 @@
 using System.Numerics;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Scene;
+using FrinkyUi = FrinkyEngine.Core.UI.UI;
 using FrinkyInput = FrinkyEngine.Core.Input.Input;
 using Raylib_cs;
 
@@ -284,6 +285,10 @@ public class SimplePlayerInputComponent : Component
         if (!float.IsFinite(dt) || dt <= 0f)
             return;
 
+        var uiCapture = FrinkyUi.InputCapture;
+        bool blockMouseLook = uiCapture.WantsMouse;
+        bool blockKeyboardInput = uiCapture.WantsKeyboard || uiCapture.WantsTextInput;
+
         CharacterControllerComponent? controller = null;
         if (UseCharacterController)
         {
@@ -292,20 +297,20 @@ public class SimplePlayerInputComponent : Component
                 controller = candidate;
         }
 
-        ApplyMouseLook(controller);
+        ApplyMouseLook(controller, blockMouseLook);
         UpdateAttachedCamera(controller);
 
-        var moveInput = ReadMoveInput();
+        var moveInput = blockKeyboardInput ? Vector2.Zero : ReadMoveInput();
 
         if (controller != null)
         {
             controller.SetMoveInput(moveInput);
-            if (AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
+            if (!blockKeyboardInput && AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
                 controller.Jump();
             return;
         }
 
-        ApplyFallbackMovement(moveInput, dt);
+        ApplyFallbackMovement(moveInput, dt, !blockKeyboardInput);
     }
 
     private Vector2 ReadMoveInput()
@@ -328,9 +333,11 @@ public class SimplePlayerInputComponent : Component
         return input;
     }
 
-    private void ApplyMouseLook(CharacterControllerComponent? controller)
+    private void ApplyMouseLook(CharacterControllerComponent? controller, bool blockMouseLook)
     {
         if (!EnableMouseLook)
+            return;
+        if (blockMouseLook)
             return;
 
         if (RequireLookMouseButton && !FrinkyInput.IsMouseButtonDown(LookMouseButton))
@@ -457,7 +464,7 @@ public class SimplePlayerInputComponent : Component
         return null;
     }
 
-    private void ApplyFallbackMovement(Vector2 moveInput, float dt)
+    private void ApplyFallbackMovement(Vector2 moveInput, float dt, bool allowJumpInput)
     {
         var transform = Entity.Transform;
         var forward = transform.Forward;
@@ -478,7 +485,7 @@ public class SimplePlayerInputComponent : Component
             currentVelocity.Z = desiredVelocity.Z;
             rigidbody.SetLinearVelocity(currentVelocity);
 
-            if (AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
+            if (allowJumpInput && AllowJump && FrinkyInput.IsKeyPressed(JumpKey))
                 rigidbody.ApplyImpulse(Vector3.UnitY * FallbackJumpImpulse);
 
             return;

@@ -11,6 +11,7 @@ A C#/.NET 8 3D game engine with a Dear ImGui editor, standalone runtime, forward
 - **Post-Processing** pipeline with bloom, fog, and SSAO
 - **BEPU Physics** with rigidbodies, colliders, and a character controller
 - **Audio System** with 2D/3D playback, listener/source components, attenuation, and mixer buses
+- **Game UI Wrapper API** (`FrinkyEngine.Core.UI`) for immediate-mode HUD/menu UI without raw ImGui calls
 - **Prefab System** with `.fprefab` files, override tracking, and drag-and-drop instantiation
 - **Entity References** for cross-entity linking that survive serialization and prefab instantiation
 - **Scene Serialization** to human-readable `.fscene` JSON
@@ -305,6 +306,53 @@ Audio supports UE-style static gameplay helpers plus ECS components.
 - `AudioSourceComponent` can auto-play in `Start` (`PlayOnStart = true`).
 - `AudioListenerComponent` marks the active listener (fallback is main camera when no listener exists).
 - Missing audio assets fail safe with warnings and do not crash runtime.
+
+## Game UI (ImGui Wrapper)
+
+Game scripts can build runtime UI through `FrinkyEngine.Core.UI` without directly using ImGui APIs.
+
+### Core Usage
+
+```csharp
+using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.UI;
+
+public class HudComponent : Component
+{
+    private float _health01 = 0.75f;
+    private bool _showDebug;
+
+    public override void Update(float dt)
+    {
+        UI.Draw(ctx =>
+        {
+            using var panel = ctx.Panel("HUD", new UiPanelOptions
+            {
+                Position = new System.Numerics.Vector2(16, 16),
+                Size = new System.Numerics.Vector2(320, 120),
+                HasTitleBar = false,
+                Movable = false,
+                Resizable = false
+            });
+
+            if (!panel.IsVisible)
+                return;
+
+            ctx.Text("Player HUD", 24f);
+            ctx.ProgressBar("health", _health01, overlayText: "Health");
+            ctx.Checkbox("debug_toggle", "Show Debug", ref _showDebug);
+        });
+    }
+}
+```
+
+### Notes
+
+- The API is still immediate mode; call `UI.Draw(...)` every frame you want UI visible.
+- Dynamic font sizes are available per widget (pixel values such as `24f`).
+- `UI.InputCapture` exposes whether UI currently wants mouse/keyboard/text input.
+- Runtime and editor Play/Simulate use the same game UI path.
+- Roadmap: `docs/UI_ROADMAP.md`.
 
 ## Prefabs
 
