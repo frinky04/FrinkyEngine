@@ -1,9 +1,9 @@
 {
-  "name": "Cube (3)",
+  "name": "Cube",
   "sourcePrefab": "",
   "root": {
     "stableId": "9e504672a3be442682cfaf8a305bddf8",
-    "name": "Cube (3)",
+    "name": "Cube",
     "active": true,
     "components": [
       {
@@ -26,9 +26,9 @@
           "TriplanarBlendSharpness": 4,
           "TriplanarUseWorldSpace": true,
           "Tint": {
-            "r": 104,
-            "g": 200,
-            "b": 240,
+            "r": 255,
+            "g": 255,
+            "b": 255,
             "a": 255
           }
         }
@@ -67,7 +67,8 @@
           "LockPositionZ": false,
           "LockRotationX": false,
           "LockRotationY": false,
-          "LockRotationZ": false
+          "LockRotationZ": false,
+          "InterpolationMode": "Inherit"
         }
       }
     ],
