@@ -1,0 +1,84 @@
+{
+  "name": "Domino (5)",
+  "sourcePrefab": "",
+  "root": {
+    "stableId": "1616efa979984dd983446dbcfd57810f",
+    "name": "Domino (5)",
+    "active": true,
+    "components": [
+      {
+        "type": "FrinkyEngine.Core.Components.TransformComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {}
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.CubePrimitive",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "Width": 3,
+          "Height": 0.2,
+          "Depth": 1,
+          "MaterialType": "TriplanarTexture",
+          "TexturePath": "Textures/grid_lightchecker.PNG",
+          "TriplanarScale": 0.25,
+          "TriplanarBlendSharpness": 4,
+          "TriplanarUseWorldSpace": false,
+          "Tint": {
+            "r": 255,
+            "g": 173,
+            "b": 173,
+            "a": 255
+          }
+        }
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "MotionType": "Dynamic",
+          "Mass": 1,
+          "LinearDamping": 0.03,
+          "AngularDamping": 0.03,
+          "ContinuousDetection": false,
+          "LockPositionX": false,
+          "LockPositionY": false,
+          "LockPositionZ": false,
+          "LockRotationX": false,
+          "LockRotationY": false,
+          "LockRotationZ": false,
+          "InterpolationMode": "Inherit"
+        }
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "Size": {
+            "x": 3,
+            "y": 0.2,
+            "z": 1
+          },
+          "Friction": 2,
+          "Restitution": 0,
+          "Center": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      }
+    ],
+    "children": []
+  },
+  "variantOverrides": {
+    "propertyOverrides": [],
+    "addedComponents": [],
+    "removedComponents": [],
+    "addedChildren": [],
+    "removedChildren": []
+  }
+}
