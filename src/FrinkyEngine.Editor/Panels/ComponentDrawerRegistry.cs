@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -22,6 +23,8 @@ public static class ComponentDrawerRegistry
         Register<TransformComponent>(DrawTransform);
         Register<CameraComponent>(DrawCamera);
         Register<LightComponent>(DrawLight);
+        Register<AudioListenerComponent>(DrawAudioListener);
+        Register<AudioSourceComponent>(DrawAudioSource);
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
         Register<RigidbodyComponent>(DrawRigidbody);
@@ -193,6 +196,141 @@ public static class ComponentDrawerRegistry
             float range = light.Range;
             DrawDragFloat("Range", ref range, 0.1f, 0f, 100f);
             light.Range = range;
+        }
+    }
+
+    private static void DrawAudioListener(Component c)
+    {
+        var listener = (AudioListenerComponent)c;
+
+        DrawCheckbox("Is Primary", listener.IsPrimary, v => listener.IsPrimary = v);
+
+        float masterScale = listener.MasterVolumeScale;
+        DrawDragFloat("Master Volume Scale", ref masterScale, 0.01f, 0f, 2f);
+        listener.MasterVolumeScale = masterScale;
+    }
+
+    private static void DrawAudioSource(Component c)
+    {
+        var source = (AudioSourceComponent)c;
+        var app = EditorApplication.Instance;
+
+        ImGui.Text("Sound");
+        ImGui.SetNextItemWidth(-30);
+        string soundPath = source.SoundPath;
+        if (ImGui.InputText("##SoundPathAudio", ref soundPath, 256))
+            source.SoundPath = soundPath;
+        TrackContinuousUndo(app);
+        ImGui.SameLine();
+        if (ImGui.Button("...##BrowseAudio"))
+            ImGui.OpenPopup("AudioBrowser");
+
+        if (ImGui.BeginPopup("AudioBrowser"))
+        {
+            var audioAssets = AssetDatabase.Instance.GetAssets(AssetType.Audio);
+            if (audioAssets.Count == 0)
+            {
+                ImGui.TextDisabled("No audio assets found");
+            }
+            else
+            {
+                foreach (var asset in audioAssets)
+                {
+                    ImGui.PushID(asset.RelativePath);
+                    if (AssetSelectable(AssetType.Audio, asset.RelativePath))
+                    {
+                        app.RecordUndo();
+                        source.SoundPath = asset.RelativePath;
+                        app.RefreshUndoBaseline();
+                    }
+                    ImGui.PopID();
+                }
+            }
+
+            ImGui.EndPopup();
+        }
+
+        DrawCheckbox("Play On Start", source.PlayOnStart, v => source.PlayOnStart = v);
+        DrawCheckbox("Spatialized", source.Spatialized, v => source.Spatialized = v);
+        DrawCheckbox("Looping", source.Looping, v => source.Looping = v);
+        DrawCheckbox("Auto Destroy On Finish", source.AutoDestroyOnFinish, v => source.AutoDestroyOnFinish = v);
+        DrawCheckbox("Auto Resume On Enable", source.AutoResumeOnEnable, v => source.AutoResumeOnEnable = v);
+        DrawEnumCombo("Bus", source.Bus, v => source.Bus = v);
+
+        float volume = source.Volume;
+        DrawDragFloat("Volume", ref volume, 0.01f, 0f, 2f);
+        source.Volume = volume;
+
+        float pitch = source.Pitch;
+        DrawDragFloat("Pitch", ref pitch, 0.01f, 0.01f, 3f);
+        source.Pitch = pitch;
+
+        float startTime = source.StartTimeSeconds;
+        DrawDragFloat("Start Time (s)", ref startTime, 0.01f, 0f, 3600f);
+        source.StartTimeSeconds = startTime;
+
+        int priority = source.Priority;
+        if (ImGui.DragInt("Priority", ref priority, 1f, 0, 1000))
+            source.Priority = priority;
+        TrackContinuousUndo(app);
+
+        DrawCheckbox("Mute", source.Mute, v => source.Mute = v);
+        DrawCheckbox("Paused", source.Paused, v => source.Paused = v);
+
+        if (source.Spatialized)
+        {
+            DrawSection("Attenuation");
+            var attenuation = source.Attenuation;
+
+            float minDistance = attenuation.MinDistance;
+            DrawDragFloat("Min Distance", ref minDistance, 0.1f, 0f, 10000f);
+            attenuation.MinDistance = minDistance;
+
+            float maxDistance = attenuation.MaxDistance;
+            DrawDragFloat("Max Distance", ref maxDistance, 0.1f, 0f, 10000f);
+            attenuation.MaxDistance = maxDistance;
+
+            var rolloff = attenuation.Rolloff;
+            DrawEnumCombo("Rolloff", rolloff, v => rolloff = v);
+            attenuation.Rolloff = rolloff;
+
+            float spatialBlend = attenuation.SpatialBlend;
+            DrawDragFloat("Spatial Blend", ref spatialBlend, 0.01f, 0f, 1f);
+            attenuation.SpatialBlend = spatialBlend;
+
+            source.Attenuation = attenuation;
+        }
+        else
+        {
+            var attenuation = source.Attenuation;
+            float pan = attenuation.PanStereo;
+            DrawDragFloat("Stereo Pan", ref pan, 0.01f, -1f, 1f);
+            attenuation.PanStereo = pan;
+            source.Attenuation = attenuation;
+        }
+
+        if (app.IsInRuntimeMode)
+        {
+            ImGui.Separator();
+
+            if (ImGui.Button("Play##AudioSource"))
+                source.Play();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Pause##AudioSource"))
+                source.Pause();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Resume##AudioSource"))
+                source.Resume();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Stop##AudioSource"))
+                source.Stop();
+        }
+        else
+        {
+            ImGui.TextDisabled("Runtime controls available in Play/Simulate.");
         }
     }
 

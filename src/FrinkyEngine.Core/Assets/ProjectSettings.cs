@@ -85,7 +85,16 @@ public class ProjectSettings
                 PhysicsMaximumRecoveryVelocity = 2f,
                 PhysicsDefaultFriction = 0.8f,
                 PhysicsDefaultRestitution = 0f,
-                PhysicsInterpolationEnabled = true
+                PhysicsInterpolationEnabled = true,
+                AudioMasterVolume = 1f,
+                AudioMusicVolume = 1f,
+                AudioSfxVolume = 1f,
+                AudioUiVolume = 1f,
+                AudioVoiceVolume = 1f,
+                AudioAmbientVolume = 1f,
+                AudioMaxVoices = 128,
+                AudioDopplerScale = 1f,
+                AudioEnableVoiceStealing = true
             },
             Build = new BuildProjectSettings
             {
@@ -191,7 +200,16 @@ public class ProjectSettings
                 PhysicsMaximumRecoveryVelocity = Runtime.PhysicsMaximumRecoveryVelocity,
                 PhysicsDefaultFriction = Runtime.PhysicsDefaultFriction,
                 PhysicsDefaultRestitution = Runtime.PhysicsDefaultRestitution,
-                PhysicsInterpolationEnabled = Runtime.PhysicsInterpolationEnabled
+                PhysicsInterpolationEnabled = Runtime.PhysicsInterpolationEnabled,
+                AudioMasterVolume = Runtime.AudioMasterVolume,
+                AudioMusicVolume = Runtime.AudioMusicVolume,
+                AudioSfxVolume = Runtime.AudioSfxVolume,
+                AudioUiVolume = Runtime.AudioUiVolume,
+                AudioVoiceVolume = Runtime.AudioVoiceVolume,
+                AudioAmbientVolume = Runtime.AudioAmbientVolume,
+                AudioMaxVoices = Runtime.AudioMaxVoices,
+                AudioDopplerScale = Runtime.AudioDopplerScale,
+                AudioEnableVoiceStealing = Runtime.AudioEnableVoiceStealing
             },
             Build = new BuildProjectSettings
             {
@@ -233,6 +251,14 @@ public class ProjectSettings
         Runtime.PhysicsMaximumRecoveryVelocity = ClampFloat(Runtime.PhysicsMaximumRecoveryVelocity, 0f, 100f, 2f);
         Runtime.PhysicsDefaultFriction = ClampFloat(Runtime.PhysicsDefaultFriction, 0f, 10f, 0.8f);
         Runtime.PhysicsDefaultRestitution = ClampFloat(Runtime.PhysicsDefaultRestitution, 0f, 1f, 0f);
+        Runtime.AudioMasterVolume = ClampFloat(Runtime.AudioMasterVolume, 0f, 2f, 1f);
+        Runtime.AudioMusicVolume = ClampFloat(Runtime.AudioMusicVolume, 0f, 2f, 1f);
+        Runtime.AudioSfxVolume = ClampFloat(Runtime.AudioSfxVolume, 0f, 2f, 1f);
+        Runtime.AudioUiVolume = ClampFloat(Runtime.AudioUiVolume, 0f, 2f, 1f);
+        Runtime.AudioVoiceVolume = ClampFloat(Runtime.AudioVoiceVolume, 0f, 2f, 1f);
+        Runtime.AudioAmbientVolume = ClampFloat(Runtime.AudioAmbientVolume, 0f, 2f, 1f);
+        Runtime.AudioMaxVoices = Clamp(Runtime.AudioMaxVoices, 16, 512, 128);
+        Runtime.AudioDopplerScale = ClampFloat(Runtime.AudioDopplerScale, 0f, 10f, 1f);
 
         Build ??= new BuildProjectSettings();
         Build.OutputName = Coalesce(Build.OutputName, safeProjectName);
@@ -427,6 +453,35 @@ public class RuntimeProjectSettings
 
     /// <summary>Enables visual interpolation for eligible dynamic rigidbodies.</summary>
     public bool PhysicsInterpolationEnabled { get; set; } = true;
+
+    // --- Audio ---
+
+    /// <summary>Master bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioMasterVolume { get; set; } = 1f;
+
+    /// <summary>Music bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioMusicVolume { get; set; } = 1f;
+
+    /// <summary>SFX bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioSfxVolume { get; set; } = 1f;
+
+    /// <summary>UI bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioUiVolume { get; set; } = 1f;
+
+    /// <summary>Voice bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioVoiceVolume { get; set; } = 1f;
+
+    /// <summary>Ambient bus volume (clamped to 0–2, defaults to 1).</summary>
+    public float AudioAmbientVolume { get; set; } = 1f;
+
+    /// <summary>Maximum active voices (clamped to 16–512, defaults to 128).</summary>
+    public int AudioMaxVoices { get; set; } = 128;
+
+    /// <summary>Doppler scalar reserved for advanced spatialization (clamped to 0–10, defaults to 1).</summary>
+    public float AudioDopplerScale { get; set; } = 1f;
+
+    /// <summary>Allows low-priority voice stealing when the voice budget is full.</summary>
+    public bool AudioEnableVoiceStealing { get; set; } = true;
 }
 
 /// <summary>

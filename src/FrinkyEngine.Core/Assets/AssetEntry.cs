@@ -26,6 +26,11 @@ public enum AssetType
     Texture,
 
     /// <summary>
+    /// An audio file (.wav, .ogg, .mp3).
+    /// </summary>
+    Audio,
+
+    /// <summary>
     /// A C# script file (.cs).
     /// </summary>
     Script,

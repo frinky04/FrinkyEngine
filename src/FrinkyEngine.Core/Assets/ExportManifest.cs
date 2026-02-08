@@ -110,6 +110,35 @@ public class ExportManifest
     /// <inheritdoc cref="Physics.PhysicsProjectSettings.InterpolationEnabled"/>
     public bool? PhysicsInterpolationEnabled { get; set; }
 
+    // --- Audio ---
+
+    /// <summary>Master bus volume.</summary>
+    public float? AudioMasterVolume { get; set; }
+
+    /// <summary>Music bus volume.</summary>
+    public float? AudioMusicVolume { get; set; }
+
+    /// <summary>SFX bus volume.</summary>
+    public float? AudioSfxVolume { get; set; }
+
+    /// <summary>UI bus volume.</summary>
+    public float? AudioUiVolume { get; set; }
+
+    /// <summary>Voice bus volume.</summary>
+    public float? AudioVoiceVolume { get; set; }
+
+    /// <summary>Ambient bus volume.</summary>
+    public float? AudioAmbientVolume { get; set; }
+
+    /// <summary>Maximum active voices.</summary>
+    public int? AudioMaxVoices { get; set; }
+
+    /// <summary>Doppler scalar.</summary>
+    public float? AudioDopplerScale { get; set; }
+
+    /// <summary>Whether voice stealing is enabled.</summary>
+    public bool? AudioEnableVoiceStealing { get; set; }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,

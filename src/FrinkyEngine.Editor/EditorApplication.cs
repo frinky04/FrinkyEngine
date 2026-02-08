@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -99,6 +100,7 @@ public class EditorApplication
 
     public void Initialize()
     {
+        AudioDeviceService.EnsureInitialized();
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EditorIcons.Load();
@@ -452,6 +454,7 @@ public class EditorApplication
         {
             ProjectSettings = Core.Assets.ProjectSettings.LoadOrCreate(ProjectDirectory, ProjectFile.ProjectName);
             Core.Physics.PhysicsProjectSettings.ApplyFrom(ProjectSettings.Runtime);
+            AudioProjectSettings.ApplyFrom(ProjectSettings.Runtime);
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
             TagDatabase = AssetTagDatabase.LoadOrCreate(ProjectDirectory);
             IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
@@ -1292,6 +1295,7 @@ public class EditorApplication
         AssetDatabase.Instance.Clear();
         PrefabDatabase.Instance.Clear();
         AssemblyLoader.Unload();
+        AudioDeviceService.ShutdownIfUnused();
     }
 
     public void SaveProjectSettings(ProjectSettings settings)
@@ -1304,6 +1308,13 @@ public class EditorApplication
         settings.Save(path);
         ProjectSettings = settings;
         Core.Physics.PhysicsProjectSettings.ApplyFrom(settings.Runtime);
+        AudioProjectSettings.ApplyFrom(settings.Runtime);
+        Audio.SetBusVolume(AudioBusId.Master, settings.Runtime.AudioMasterVolume);
+        Audio.SetBusVolume(AudioBusId.Music, settings.Runtime.AudioMusicVolume);
+        Audio.SetBusVolume(AudioBusId.Sfx, settings.Runtime.AudioSfxVolume);
+        Audio.SetBusVolume(AudioBusId.Ui, settings.Runtime.AudioUiVolume);
+        Audio.SetBusVolume(AudioBusId.Voice, settings.Runtime.AudioVoiceVolume);
+        Audio.SetBusVolume(AudioBusId.Ambient, settings.Runtime.AudioAmbientVolume);
         ApplyRuntimeRenderSettingsImmediate();
     }
 

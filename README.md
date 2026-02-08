@@ -10,6 +10,7 @@ A C#/.NET 8 3D game engine with a Dear ImGui editor, standalone runtime, forward
 - **Forward+ Tiled Lighting** supporting hundreds of lights with directional, point, and skylight types
 - **Post-Processing** pipeline with bloom, fog, and SSAO
 - **BEPU Physics** with rigidbodies, colliders, and a character controller
+- **Audio System** with 2D/3D playback, listener/source components, attenuation, and mixer buses
 - **Prefab System** with `.fprefab` files, override tracking, and drag-and-drop instantiation
 - **Entity References** for cross-entity linking that survive serialization and prefab instantiation
 - **Scene Serialization** to human-readable `.fscene` JSON
@@ -176,6 +177,13 @@ Awake → Start → Update / LateUpdate → OnDestroy
 |---|---|
 | `SimplePlayerInputComponent` | Movement keys, mouse look, `CameraEntity` (EntityReference), `UseCharacterController` |
 
+#### Audio
+
+| Component | Key Properties |
+|---|---|
+| `AudioSourceComponent` | `SoundPath`, `PlayOnStart`, `Spatialized`, `Looping`, `Bus`, `Volume`, `Pitch`, `Attenuation` |
+| `AudioListenerComponent` | `IsPrimary`, `MasterVolumeScale` |
+
 ### Materials
 
 Each `MeshRendererComponent` has a list of `MaterialSlot` entries with three material types:
@@ -270,6 +278,33 @@ Script-side input methods:
 - `MoveAndSlide(desiredVelocity, requestJump)` — Godot-style convenience
 
 Or use `SimplePlayerInputComponent` for built-in WASD + mouse look with configurable keys.
+
+## Audio
+
+Audio supports UE-style static gameplay helpers plus ECS components.
+
+### Static API
+
+- `Audio.PlaySound2D(path, params)`
+- `Audio.PlaySoundAtLocation(path, worldPosition, params)`
+- `Audio.SpawnSoundAttached(path, entity, params)`
+- `Audio.Stop(handle, fadeOutSeconds)`
+- `Audio.SetBusVolume(bus, volume)` / `Audio.SetBusMuted(bus, muted)`
+
+### Mixer Buses
+
+- `Master`
+- `Music`
+- `Sfx`
+- `Ui`
+- `Voice`
+- `Ambient`
+
+### Runtime Notes
+
+- `AudioSourceComponent` can auto-play in `Start` (`PlayOnStart = true`).
+- `AudioListenerComponent` marks the active listener (fallback is main camera when no listener exists).
+- Missing audio assets fail safe with warnings and do not crash runtime.
 
 ## Prefabs
 
@@ -431,7 +466,16 @@ Validates the version tag, builds the solution with warnings-as-errors, publishe
     "startupSceneOverride": "",
     "forwardPlusTileSize": 16,
     "forwardPlusMaxLights": 256,
-    "forwardPlusMaxLightsPerTile": 64
+    "forwardPlusMaxLightsPerTile": 64,
+    "audioMasterVolume": 1.0,
+    "audioMusicVolume": 1.0,
+    "audioSfxVolume": 1.0,
+    "audioUiVolume": 1.0,
+    "audioVoiceVolume": 1.0,
+    "audioAmbientVolume": 1.0,
+    "audioMaxVoices": 128,
+    "audioDopplerScale": 1.0,
+    "audioEnableVoiceStealing": true
   },
   "build": {
     "outputName": "MyGame",
