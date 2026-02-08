@@ -36,6 +36,7 @@ Scene files use `.fscene` and project files use `.fproject` (JSON).
 - Use PascalCase for types/methods/properties; camelCase for locals/fields.
 - Place components in `Components/`, editor panels in `Panels/`, and serialization helpers in `Serialization/`.
 - No formatter/linter is configured; match the existing style and keep changes minimal and consistent.
+- Public methods and types in Core should have `<summary>` XML doc comments. These are the primary API documentation for users building games with the standalone editor. Editor/Runtime internals do not need XML docs.
 
 ## Testing Guidelines
 There are currently no automated tests or test projects. Validate changes by running:

@@ -4,7 +4,6 @@ using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.Prefabs;
 
-#pragma warning disable CS1591
 public static class PrefabOverrideUtility
 {
     public const string EntityPseudoComponent = "__entity";
@@ -506,4 +505,3 @@ public static class PrefabOverrideUtility
                || string.Equals(propertyName, "LocalScale", StringComparison.Ordinal);
     }
 }
-#pragma warning restore CS1591

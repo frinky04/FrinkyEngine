@@ -4,6 +4,7 @@ using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Serialization;
 
+
 /// <summary>
 /// JSON converter that serializes <see cref="EntityReference"/> as a GUID string.
 /// </summary>

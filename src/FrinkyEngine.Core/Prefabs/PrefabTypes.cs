@@ -2,7 +2,6 @@ using System.Text.Json;
 
 namespace FrinkyEngine.Core.Prefabs;
 
-#pragma warning disable CS1591
 public class PrefabInstanceMetadata
 {
     public bool IsRoot { get; set; }
@@ -178,4 +177,3 @@ public static class PrefabJson
         return document.RootElement.Clone();
     }
 }
-#pragma warning restore CS1591

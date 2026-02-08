@@ -2,7 +2,6 @@
 // https://github.com/bepu/bepuphysics2/blob/v2.4.0/Demos/Demos/Characters/CharacterMotionConstraint.cs
 // Licensed under Apache-2.0.
 
-#pragma warning disable CS1591
 
 using BepuUtilities;
 using BepuPhysics;
@@ -595,5 +594,4 @@ namespace FrinkyEngine.Core.Physics.Characters
     }
 }
 
-#pragma warning restore CS1591
 

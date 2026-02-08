@@ -68,6 +68,10 @@ Minimal standalone player. Loads `.fproject`, initializes AssetManager, loads ga
 - **Raylib cursor**: `DisableCursor()`/`EnableCursor()` re-centers the mouse each call. Only call on state transitions.
 - **Template .csproj**: needs `<EnableDefaultCompileItems>false</EnableDefaultCompileItems>` to avoid compiling content/ .cs files.
 
+## Code Style
+
+- **XML documentation**: Public methods and types in Core should have `<summary>` XML doc comments. These serve as the primary API documentation for users building games with the standalone editor. Editor/Runtime internals do not need XML docs.
+
 ## File Conventions
 
 - Scenes: `.fscene` (JSON), Projects: `.fproject` (JSON)

@@ -4,7 +4,6 @@ using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.Assets;
 
-#pragma warning disable CS1591
 public class PrefabDatabase
 {
     public static PrefabDatabase Instance { get; } = new();
@@ -98,4 +97,3 @@ public class PrefabDatabase
         return path.Trim().Replace('\\', '/');
     }
 }
-#pragma warning restore CS1591

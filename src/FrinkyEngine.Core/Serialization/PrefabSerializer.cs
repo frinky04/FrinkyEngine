@@ -6,7 +6,6 @@ using FrinkyEngine.Core.Prefabs;
 
 namespace FrinkyEngine.Core.Serialization;
 
-#pragma warning disable CS1591
 public static class PrefabSerializer
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -282,4 +281,3 @@ public static class PrefabSerializer
             EnsureStableIds(child, usedStableIds);
     }
 }
-#pragma warning restore CS1591

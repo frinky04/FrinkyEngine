@@ -2,6 +2,7 @@ using FrinkyEngine.Core.Scene;
 
 namespace FrinkyEngine.Core.ECS;
 
+
 /// <summary>
 /// A stable reference to an <see cref="Entity"/> by its <see cref="Guid"/>.
 /// Survives renames, serialization round-trips, and play-mode snapshots.
