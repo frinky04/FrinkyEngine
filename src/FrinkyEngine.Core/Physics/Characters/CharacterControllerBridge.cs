@@ -1,5 +1,6 @@
 using System.Numerics;
 using BepuPhysics;
+using BepuPhysics.Collidables;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 
@@ -61,6 +62,14 @@ internal sealed class CharacterControllerBridge
                  (targetVelocity != Vector2.Zero && !ApproximatelyEqual(viewDirection, character.ViewDirection))))
             {
                 simulation.Awakener.AwakenBody(character.BodyHandle);
+            }
+
+            if (shouldJump &&
+                character.Supported &&
+                character.Support.Mobility != CollidableMobility.Static &&
+                simulation.Bodies.BodyExists(character.Support.BodyHandle))
+            {
+                simulation.Awakener.AwakenBody(character.Support.BodyHandle);
             }
 
             character.TargetVelocity = targetVelocity;

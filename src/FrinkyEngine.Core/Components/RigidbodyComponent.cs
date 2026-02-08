@@ -250,7 +250,8 @@ public class RigidbodyComponent : Component
     /// <param name="resetVelocity">If true, clears linear and angular velocity.</param>
     public void Teleport(Vector3 position, Quaternion rotation, bool resetVelocity = true)
     {
-        Entity.Transform.SetAuthoritativeLocalPose(position, rotation);
+        Entity.Transform.LocalPosition = position;
+        Entity.Transform.LocalRotation = rotation;
         var physicsSystem = Entity.Scene?.PhysicsSystem;
         if (physicsSystem == null)
         {
