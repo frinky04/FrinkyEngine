@@ -33,6 +33,8 @@ internal sealed class PhysicsSystem : IDisposable
         public RigidPose CurrentSimulationPose;
         public bool HasSimulationPoseHistory;
         public bool SuppressInterpolationForFrame;
+        public RigidPose PreviousKinematicTargetPose;
+        public bool HasPreviousKinematicTargetPose;
     }
 
     private readonly struct ShapeCacheKey : IEquatable<ShapeCacheKey>
@@ -88,6 +90,7 @@ internal sealed class PhysicsSystem : IDisposable
     private readonly HashSet<Guid> _warnedCharacterWrongMotionType = new();
     private readonly HashSet<Guid> _warnedCharacterParented = new();
     private readonly HashSet<Guid> _warnedCharacterNonCapsuleBody = new();
+    private readonly HashSet<Guid> _warnedKinematicDiscontinuity = new();
     private readonly CharacterControllerBridge _characterBridge = new();
 
     private Simulation? _simulation;
@@ -98,6 +101,10 @@ internal sealed class PhysicsSystem : IDisposable
     private const byte RotationLockXMask = 1 << 0;
     private const byte RotationLockYMask = 1 << 1;
     private const byte RotationLockZMask = 1 << 2;
+    private const float MaxKinematicLinearSpeed = 50f;
+    private const float MaxKinematicAngularSpeed = 20f;
+    private const float MaxKinematicAngularStepDegrees = 120f;
+    private const float KinematicDiscontinuityLinearSpeedMultiplier = 2f;
 
     public PhysicsSystem(Scene.Scene scene)
     {
@@ -231,6 +238,7 @@ internal sealed class PhysicsSystem : IDisposable
         _warnedCharacterWrongMotionType.Remove(entity.Id);
         _warnedCharacterParented.Remove(entity.Id);
         _warnedCharacterNonCapsuleBody.Remove(entity.Id);
+        _warnedKinematicDiscontinuity.Remove(entity.Id);
     }
 
     public bool TryGetLinearVelocity(RigidbodyComponent rigidbody, out Vector3 velocity)
@@ -321,7 +329,17 @@ internal sealed class PhysicsSystem : IDisposable
 
         var body = _simulation.Bodies.GetBodyReference(bodyHandle);
         body.Pose = targetPose;
-        if (resetVelocity)
+        if (state.Rigidbody.MotionType == BodyMotionType.Kinematic)
+        {
+            // Teleports should not inject one-frame kinematic velocities into contacts.
+            body.Velocity.Linear = Vector3.Zero;
+            body.Velocity.Angular = Vector3.Zero;
+            if (resetVelocity)
+                rigidbody.InitialLinearVelocity = Vector3.Zero;
+            state.PreviousKinematicTargetPose = targetPose;
+            state.HasPreviousKinematicTargetPose = true;
+        }
+        else if (resetVelocity)
         {
             body.Velocity.Linear = Vector3.Zero;
             body.Velocity.Angular = Vector3.Zero;
@@ -731,7 +749,9 @@ internal sealed class PhysicsSystem : IDisposable
             HasPublishedVisualPose = true,
             PreviousSimulationPose = pose,
             CurrentSimulationPose = pose,
-            HasSimulationPoseHistory = true
+            HasSimulationPoseHistory = true,
+            PreviousKinematicTargetPose = pose,
+            HasPreviousKinematicTargetPose = rigidbody.MotionType == BodyMotionType.Kinematic
         };
     }
 
@@ -800,11 +820,43 @@ internal sealed class PhysicsSystem : IDisposable
                 state.AuthoritativeLocalPosition = currentTransformPosition;
                 state.AuthoritativeLocalRotation = currentTransformRotation;
                 var targetPose = BuildBodyPose(state.AuthoritativeLocalPosition, state.AuthoritativeLocalRotation, transform.LocalScale, state.Collider);
-                var currentPose = body.Pose;
-                body.Velocity.Linear = (targetPose.Position - currentPose.Position) / stepDt;
-                body.Velocity.Angular = ComputeAngularVelocity(currentPose.Orientation, targetPose.Orientation, stepDt);
+                var previousTargetPose = state.HasPreviousKinematicTargetPose
+                    ? state.PreviousKinematicTargetPose
+                    : body.Pose;
+
+                var previousOrientation = NormalizeOrIdentity(previousTargetPose.Orientation);
+                var targetOrientation = EnsureSameHemisphere(previousOrientation, targetPose.Orientation);
+                targetPose = new RigidPose(targetPose.Position, targetOrientation);
+
+                var linearVelocity = (targetPose.Position - previousTargetPose.Position) / stepDt;
+                var angularVelocity = ComputeAngularVelocity(previousOrientation, targetOrientation, stepDt);
+                var linearSpeed = linearVelocity.Length();
+                var angularStep = ComputeAngularStepRadians(previousOrientation, targetOrientation);
+
+                var maxAngularStepRadians = MaxKinematicAngularStepDegrees * (MathF.PI / 180f);
+                var maxDiscontinuityLinearSpeed = MaxKinematicLinearSpeed * KinematicDiscontinuityLinearSpeedMultiplier;
+                var hasDiscontinuity = linearSpeed > maxDiscontinuityLinearSpeed ||
+                                       angularStep > maxAngularStepRadians;
+
+                if (hasDiscontinuity)
+                {
+                    body.Velocity.Linear = Vector3.Zero;
+                    body.Velocity.Angular = Vector3.Zero;
+                    WarnOnce(
+                        _warnedKinematicDiscontinuity,
+                        state.Entity.Id,
+                        $"Kinematic body '{state.Entity.Name}' had a discontinuous target step. Velocities were suppressed for stability.");
+                }
+                else
+                {
+                    body.Velocity.Linear = ClampMagnitude(linearVelocity, MaxKinematicLinearSpeed);
+                    body.Velocity.Angular = ClampMagnitude(angularVelocity, MaxKinematicAngularSpeed);
+                }
+
                 body.Pose = targetPose;
                 body.Awake = true;
+                state.PreviousKinematicTargetPose = targetPose;
+                state.HasPreviousKinematicTargetPose = true;
                 continue;
             }
 
@@ -1214,7 +1266,9 @@ internal sealed class PhysicsSystem : IDisposable
         if (dt <= 0f)
             return Vector3.Zero;
 
-        var delta = Quaternion.Normalize(to * Quaternion.Conjugate(from));
+        var normalizedFrom = NormalizeOrIdentity(from);
+        var normalizedTo = EnsureSameHemisphere(normalizedFrom, to);
+        var delta = NormalizeOrIdentity(normalizedTo * Quaternion.Conjugate(normalizedFrom));
         if (delta.W < 0f)
             delta = new Quaternion(-delta.X, -delta.Y, -delta.Z, -delta.W);
 
@@ -1229,6 +1283,47 @@ internal sealed class PhysicsSystem : IDisposable
 
         var axis = new Vector3(delta.X, delta.Y, delta.Z) / sinHalf;
         return axis * (angle / dt);
+    }
+
+    private static float ComputeAngularStepRadians(Quaternion from, Quaternion to)
+    {
+        var normalizedFrom = NormalizeOrIdentity(from);
+        var normalizedTo = EnsureSameHemisphere(normalizedFrom, to);
+        var dot = Math.Clamp(Quaternion.Dot(normalizedFrom, normalizedTo), -1f, 1f);
+        var angle = 2f * MathF.Acos(dot);
+        if (!float.IsFinite(angle))
+            return 0f;
+        return angle;
+    }
+
+    private static Quaternion EnsureSameHemisphere(Quaternion reference, Quaternion candidate)
+    {
+        var normalizedReference = NormalizeOrIdentity(reference);
+        var normalizedCandidate = NormalizeOrIdentity(candidate);
+        if (Quaternion.Dot(normalizedReference, normalizedCandidate) < 0f)
+        {
+            normalizedCandidate = new Quaternion(
+                -normalizedCandidate.X,
+                -normalizedCandidate.Y,
+                -normalizedCandidate.Z,
+                -normalizedCandidate.W);
+        }
+
+        return normalizedCandidate;
+    }
+
+    private static Vector3 ClampMagnitude(Vector3 vector, float maxLength)
+    {
+        if (maxLength <= 0f)
+            return Vector3.Zero;
+
+        var length = vector.Length();
+        if (!float.IsFinite(length) || length <= 1e-6f)
+            return Vector3.Zero;
+        if (length <= maxLength)
+            return vector;
+
+        return vector * (maxLength / length);
     }
 
     private static bool ShouldInterpolateBody(PhysicsBodyState state, PhysicsProjectSettings settings)
@@ -1310,6 +1405,7 @@ internal sealed class PhysicsSystem : IDisposable
         _warnedCharacterWrongMotionType.Clear();
         _warnedCharacterParented.Clear();
         _warnedCharacterNonCapsuleBody.Clear();
+        _warnedKinematicDiscontinuity.Clear();
 
         _characterControllers?.Dispose();
         _characterControllers = null;

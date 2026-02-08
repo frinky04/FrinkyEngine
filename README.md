@@ -242,6 +242,11 @@ Add a `RigidbodyComponent` to give an entity physics behavior:
 - **Kinematic** — moves via transform, pushes dynamic bodies but is not affected by forces
 - **Static** — immovable, used for terrain and walls
 
+Kinematic stability notes:
+- Contact-driving velocity is derived from consecutive kinematic target poses (continuity-aware), not from arbitrary pose snaps.
+- Kinematic linear and angular contact velocities are safety-clamped to avoid extreme one-frame impulses.
+- Large discontinuities (for example sudden large rotation jumps) are treated as teleport-style corrections for that step, with kinematic velocity suppressed.
+
 ### Colliders
 
 - `BoxColliderComponent` — axis-aligned box
