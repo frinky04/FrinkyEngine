@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.UI.Internal;
+using HexaGen.Runtime;
 
 namespace FrinkyEngine.Core.UI;
 
@@ -27,6 +28,7 @@ public static class UI
     /// </summary>
     public static void Initialize()
     {
+        RegisterNativeLibrarySearchPaths();
         _backend ??= new ImGuiUiBackend();
     }
 
@@ -95,6 +97,22 @@ public static class UI
         DrawCommands.Clear();
         _framePrepared = false;
         _backend?.ClearFrame();
+    }
+
+    private static void RegisterNativeLibrarySearchPaths()
+    {
+        // For single-file published apps, .NET extracts native libraries to a temp
+        // directory. HexaGen.Runtime.LibraryLoader doesn't check there by default,
+        // so we register those directories so it can find cimgui.dll etc.
+        if (AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") is not string searchDirs)
+            return;
+
+        foreach (var dir in searchDirs.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (Directory.Exists(trimmed) && !LibraryLoader.CustomLoadFolders.Contains(trimmed))
+                LibraryLoader.CustomLoadFolders.Add(trimmed);
+        }
     }
 }
 

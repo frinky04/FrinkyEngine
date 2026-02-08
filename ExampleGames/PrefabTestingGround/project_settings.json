@@ -6,8 +6,8 @@
     "description": ""
   },
   "runtime": {
-    "targetFps": 120,
-    "vSync": true,
+    "targetFps": 500,
+    "vSync": false,
     "windowTitle": "Prefab Testing Ground",
     "windowWidth": 1280,
     "windowHeight": 720,

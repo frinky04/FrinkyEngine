@@ -200,6 +200,7 @@ public static class Program
         {
             float dt = Raylib.GetFrameTime();
             scene.Update(dt);
+            EngineOverlays.Update(dt);
 
             var mainCamera = scene.MainCamera;
             if (mainCamera == null)
@@ -211,7 +212,8 @@ public static class Program
                     Raylib.GetScreenWidth(),
                     Raylib.GetScreenHeight(),
                     IsFocused: Raylib.IsWindowFocused(),
-                    IsHovered: true));
+                    IsHovered: true,
+                    AllowCursorChanges: false));
                 UI.EndFrame();
                 Raylib.EndDrawing();
                 continue;
@@ -252,7 +254,7 @@ public static class Program
                 var src = new Rectangle(0, 0, finalTex.Width, -finalTex.Height);
                 var dst = new Rectangle(0, 0, screenW, screenH);
                 Raylib.DrawTexturePro(finalTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
-                UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true));
+                UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
                 UI.EndFrame();
                 Raylib.EndDrawing();
             }
@@ -264,7 +266,8 @@ public static class Program
                     Raylib.GetScreenWidth(),
                     Raylib.GetScreenHeight(),
                     IsFocused: Raylib.IsWindowFocused(),
-                    IsHovered: true));
+                    IsHovered: true,
+                    AllowCursorChanges: false));
                 UI.EndFrame();
                 Raylib.EndDrawing();
             }

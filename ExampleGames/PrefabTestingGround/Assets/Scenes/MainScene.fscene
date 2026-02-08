@@ -1,9 +1,9 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -23.534393,
-    "y": 9.491953,
-    "z": -7.8014765
+    "x": -18.06647,
+    "y": 7.918848,
+    "z": -5.89697
   },
   "editorCameraYaw": -1420.7965,
   "editorCameraPitch": -15.1997,
@@ -2455,6 +2455,12 @@
         "overrides": {
           "propertyOverrides": [
             {
+              "nodeId": "e60ad0cd235647038e35138a360c057e",
+              "componentType": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
+              "propertyName": "MouseSensitivity",
+              "value": 0.05
+            },
+            {
               "nodeId": "7e2ac95631cc425f88fc6345525f8089",
               "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
               "propertyName": "Effects",
@@ -2612,7 +2618,7 @@
             "ApplyPitchToCharacterBody": false,
             "InvertMouseY": false,
             "InvertMouseX": false,
-            "MouseSensitivity": 0.1,
+            "MouseSensitivity": 0.05,
             "MinPitchDegrees": -85,
             "MaxPitchDegrees": 85,
             "UseCharacterController": true,

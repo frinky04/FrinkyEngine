@@ -269,6 +269,7 @@ public class EditorApplication
         if (IsInRuntimeMode && CurrentScene != null)
         {
             CurrentScene.Update(dt);
+            EngineOverlays.Update(dt);
         }
     }
 
@@ -337,6 +338,7 @@ public class EditorApplication
             return;
 
         UI.ClearFrame();
+        EngineOverlays.Reset();
         var exitingMode = Mode;
         if (_runtimeModeSnapshot != null)
         {
