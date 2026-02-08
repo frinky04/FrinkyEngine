@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Scene;
 using ImGuiNET;
 using Raylib_cs;
 using Texture2D = Raylib_cs.Texture2D;
@@ -621,6 +622,9 @@ public static class ComponentDrawerRegistry
 
         if (input.DriveAttachedCamera)
         {
+            var cameraProp = typeof(SimplePlayerInputComponent).GetProperty(nameof(SimplePlayerInputComponent.CameraEntity))!;
+            DrawEntityReference("Camera Entity", input, cameraProp);
+
             var offset = input.AttachedCameraLocalOffset;
             if (DrawColoredVector3("Local Offset", ref offset, 0.05f))
                 input.AttachedCameraLocalOffset = offset;
@@ -787,10 +791,98 @@ public static class ComponentDrawerRegistry
                 app.RefreshUndoBaseline();
             }
         }
+        else if (propType == typeof(EntityReference))
+        {
+            DrawEntityReference(label, component, prop);
+        }
         else
         {
             ImGui.LabelText(label, propType.Name);
         }
+    }
+
+    private static unsafe void DrawEntityReference(string label, Component component, PropertyInfo prop)
+    {
+        var app = EditorApplication.Instance;
+        var scene = app.CurrentScene;
+        var entityRef = (EntityReference)(prop.GetValue(component) ?? EntityReference.None);
+
+        Entity? resolved = null;
+        string preview;
+        if (!entityRef.IsValid)
+        {
+            preview = "(None)";
+        }
+        else
+        {
+            resolved = scene?.FindEntityById(entityRef.Id);
+            preview = resolved != null ? resolved.Name : "(Missing)";
+        }
+
+        ImGui.PushID(label);
+        ImGui.Columns(2, null, false);
+        ImGui.SetColumnWidth(0, 80);
+        ImGui.Text(label);
+        ImGui.NextColumn();
+
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float clearButtonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+        float comboWidth = availWidth - clearButtonWidth - ImGui.GetStyle().ItemSpacing.X;
+
+        ImGui.SetNextItemWidth(comboWidth);
+        if (ImGui.BeginCombo("##ref", preview))
+        {
+            if (ImGui.Selectable("(None)", !entityRef.IsValid))
+            {
+                app.RecordUndo();
+                prop.SetValue(component, EntityReference.None);
+                app.RefreshUndoBaseline();
+            }
+
+            if (scene != null)
+            {
+                foreach (var entity in scene.Entities)
+                {
+                    bool isSelected = entityRef.IsValid && entity.Id == entityRef.Id;
+                    if (ImGui.Selectable(entity.Name + "##" + entity.Id.ToString("N"), isSelected))
+                    {
+                        app.RecordUndo();
+                        prop.SetValue(component, new EntityReference(entity));
+                        app.RefreshUndoBaseline();
+                    }
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+
+        // Drag-and-drop target on the combo
+        if (ImGui.BeginDragDropTarget())
+        {
+            var payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
+            if (payload.NativePtr != null && payload.Delivery && app.DraggedEntityId.HasValue)
+            {
+                var draggedEntity = app.FindEntityById(app.DraggedEntityId.Value);
+                if (draggedEntity != null)
+                {
+                    app.RecordUndo();
+                    prop.SetValue(component, new EntityReference(draggedEntity));
+                    app.RefreshUndoBaseline();
+                }
+            }
+            ImGui.EndDragDropTarget();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("X") && entityRef.IsValid)
+        {
+            app.RecordUndo();
+            prop.SetValue(component, EntityReference.None);
+            app.RefreshUndoBaseline();
+        }
+
+        ImGui.Columns(1);
+        ImGui.PopID();
     }
 
     private static bool AssetSelectable(AssetType type, string label)

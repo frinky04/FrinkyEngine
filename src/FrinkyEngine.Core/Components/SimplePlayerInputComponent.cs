@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Scene;
 using FrinkyInput = FrinkyEngine.Core.Input.Input;
 using Raylib_cs;
 
@@ -37,6 +38,7 @@ public class SimplePlayerInputComponent : Component
     private bool _driveAttachedCamera = true;
     private Vector3 _attachedCameraLocalOffset = new(0f, 1.6f, 0f);
     private float _attachedCameraBackDistance = 0f;
+    private EntityReference _cameraEntity;
 
     private TransformComponent? _attachedCameraTransform;
     private float _lookYawDegrees;
@@ -260,6 +262,15 @@ public class SimplePlayerInputComponent : Component
         set => _attachedCameraBackDistance = float.IsFinite(value) ? value : 0f;
     }
 
+    /// <summary>
+    /// Optional explicit reference to the camera entity. When set, takes priority over child entity search.
+    /// </summary>
+    public EntityReference CameraEntity
+    {
+        get => _cameraEntity;
+        set => _cameraEntity = value;
+    }
+
     /// <inheritdoc />
     public override void Start()
     {
@@ -393,6 +404,22 @@ public class SimplePlayerInputComponent : Component
             return;
         }
 
+        // Try explicit EntityReference first
+        if (_cameraEntity.IsValid)
+        {
+            var referenced = _cameraEntity.Resolve(Entity);
+            if (referenced != null)
+            {
+                var cam = referenced.GetComponent<CameraComponent>();
+                if (cam is { Enabled: true })
+                {
+                    _attachedCameraTransform = referenced.Transform;
+                    return;
+                }
+            }
+        }
+
+        // Fall back to child entity search
         _attachedCameraTransform = FindAttachedCameraTransform(Entity.Transform);
     }
 

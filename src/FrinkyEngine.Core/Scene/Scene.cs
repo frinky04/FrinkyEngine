@@ -224,6 +224,21 @@ public class Scene : IDisposable
     }
 
     /// <summary>
+    /// Finds an entity in this scene by its <see cref="Entity.Id"/>.
+    /// </summary>
+    /// <param name="id">The GUID to search for.</param>
+    /// <returns>The matching entity, or <c>null</c> if not found.</returns>
+    public Entity? FindEntityById(Guid id)
+    {
+        foreach (var entity in _entities)
+        {
+            if (entity.Id == id)
+                return entity;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Releases runtime resources associated with this scene (for example physics simulation state).
     /// </summary>
     public void Dispose()

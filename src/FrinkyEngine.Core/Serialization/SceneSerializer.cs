@@ -25,6 +25,7 @@ public static class SceneSerializer
             new Vector3Converter(),
             new QuaternionConverter(),
             new ColorConverter(),
+            new EntityReferenceConverter(),
             new JsonStringEnumConverter()
         }
     };
@@ -212,7 +213,8 @@ public static class SceneSerializer
     public static Entity? DuplicateEntity(Entity source, Scene.Scene scene)
     {
         var data = SerializeEntity(source);
-        AssignNewIds(data);
+        var oldToNew = AssignNewIds(data);
+        RemapEntityReferences(data, oldToNew);
         data.Name = GenerateDuplicateName(data.Name);
 
         // Find the parent of the source entity
@@ -221,11 +223,48 @@ public static class SceneSerializer
         return DeserializeEntityTree(data, scene, parent);
     }
 
-    private static void AssignNewIds(EntityData data)
+    private static Dictionary<Guid, Guid> AssignNewIds(EntityData data)
     {
-        data.Id = Guid.NewGuid();
+        var mapping = new Dictionary<Guid, Guid>();
+        AssignNewIdsRecursive(data, mapping);
+        return mapping;
+    }
+
+    private static void AssignNewIdsRecursive(EntityData data, Dictionary<Guid, Guid> mapping)
+    {
+        var oldId = data.Id;
+        var newId = Guid.NewGuid();
+        mapping[oldId] = newId;
+        data.Id = newId;
         foreach (var child in data.Children)
-            AssignNewIds(child);
+            AssignNewIdsRecursive(child, mapping);
+    }
+
+    private static void RemapEntityReferences(EntityData data, Dictionary<Guid, Guid> oldToNew)
+    {
+        foreach (var component in data.Components)
+        {
+            var keysToRemap = new List<string>();
+            foreach (var (propName, jsonElement) in component.Properties)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                {
+                    var str = jsonElement.GetString();
+                    if (str != null && Guid.TryParse(str, out var guid) && oldToNew.ContainsKey(guid))
+                        keysToRemap.Add(propName);
+                }
+            }
+
+            foreach (var key in keysToRemap)
+            {
+                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
+                var newGuid = oldToNew[oldGuid];
+                component.Properties[key] = JsonSerializer.SerializeToElement(newGuid.ToString(), JsonOptions);
+            }
+        }
+
+        foreach (var child in data.Children)
+            RemapEntityReferences(child, oldToNew);
     }
 
     /// <summary>

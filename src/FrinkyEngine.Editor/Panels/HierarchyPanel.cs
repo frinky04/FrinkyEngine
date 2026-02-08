@@ -179,6 +179,7 @@ public class HierarchyPanel
         {
             _draggedEntityId = null;
             _draggedFolderId = null;
+            _app.DraggedEntityId = null;
         }
 
         HandleKeyboardNavigation(visibleEntities);
@@ -917,6 +918,7 @@ public class HierarchyPanel
             return;
 
         _draggedEntityId = entity.Id;
+        _app.DraggedEntityId = entity.Id;
         SetDummyPayload(EntityDragPayload);
         ImGui.TextUnformatted(entity.Name);
         ImGui.EndDragDropSource();

@@ -56,6 +56,7 @@ public class EditorApplication
     public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
     public string? DraggedAssetPath { get; set; }
+    public Guid? DraggedEntityId { get; set; }
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
     public bool CanEditScene => Mode is EditorMode.Edit or EditorMode.Simulate;
     public bool CanUseEditorViewportTools => Mode is EditorMode.Edit or EditorMode.Simulate;
@@ -1020,10 +1021,7 @@ public class EditorApplication
 
     public Entity? FindEntityById(Guid entityId)
     {
-        if (CurrentScene == null)
-            return null;
-
-        return FindEntityById(CurrentScene, entityId);
+        return CurrentScene?.FindEntityById(entityId);
     }
 
     public HierarchySceneState GetOrCreateHierarchySceneState()
@@ -1281,17 +1279,6 @@ public class EditorApplication
     private static bool IsPersistedHierarchyKey(string key)
     {
         return key.StartsWith("scene:", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
-    {
-        foreach (var entity in scene.Entities)
-        {
-            if (entity.Id == id)
-                return entity;
-        }
-
-        return null;
     }
 
     public void Shutdown()

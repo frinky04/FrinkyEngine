@@ -5,6 +5,7 @@ using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Serialization;
 using ImGuiNET;
 using Raylib_cs;
+using FrinkyEngine.Core.Scene;
 
 namespace FrinkyEngine.Editor.Panels;
 
@@ -435,6 +436,14 @@ public class InspectorPanel
                     prop.SetValue(component, enumValue);
                 _app.RefreshUndoBaseline();
             }
+        }
+        else if (propType == typeof(EntityReference))
+        {
+            var entityRef = firstValue is EntityReference er ? er : EntityReference.None;
+            var scene = _app.CurrentScene;
+            var resolved = entityRef.IsValid ? scene?.FindEntityById(entityRef.Id) : null;
+            string preview = mixed ? "(Mixed)" : (!entityRef.IsValid ? "(None)" : (resolved?.Name ?? "(Missing)"));
+            ImGui.LabelText(label, preview);
         }
         else
         {

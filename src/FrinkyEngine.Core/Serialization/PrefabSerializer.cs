@@ -18,6 +18,7 @@ public static class PrefabSerializer
             new Vector3Converter(),
             new QuaternionConverter(),
             new ColorConverter(),
+            new EntityReferenceConverter(),
             new JsonStringEnumConverter()
         }
     };
