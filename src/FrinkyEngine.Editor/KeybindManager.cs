@@ -142,6 +142,7 @@ public class KeybindManager
         _bindings[EditorAction.RevertPrefab] = new Keybind(ImGuiKey.R, ctrl: true, alt: true);
         _bindings[EditorAction.MakeUniquePrefab] = new Keybind(ImGuiKey.U, ctrl: true, shift: true);
         _bindings[EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true);
+        _bindings[EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true);
         _bindings[EditorAction.FrameSelected] = new Keybind(ImGuiKey.F);
     }
 

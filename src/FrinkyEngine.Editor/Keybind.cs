@@ -36,6 +36,7 @@ public enum EditorAction
     RevertPrefab,
     MakeUniquePrefab,
     UnpackPrefab,
+    TogglePlayModeCursorLock,
     FrameSelected
 }
 

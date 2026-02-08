@@ -9,7 +9,7 @@ namespace PrefabTestingGround.Scripts;
 public class HudSampleComponent : Component
 {
     public bool Visible { get; set; } = true;
-    public float BaseFontPixels { get; set; } = 24f;
+    public float BaseFontPixels { get; set; } = 18f;
     public float Health01 { get; set; } = 1f;
     public bool AutoDrainHealth { get; set; } = true;
     public float DrainPerSecond { get; set; } = 0.15f;
@@ -45,11 +45,11 @@ public class HudSampleComponent : Component
         {
             Position = new Vector2(16f, 16f),
             HasTitleBar = false,
-            NoBackground= true,
+            NoBackground = false,
             Movable = true,
             AutoResize = true,
             Resizable = false,
-            Scrollbar = true
+            Scrollbar = false
         });
 
         if (!panel.IsVisible)
@@ -72,11 +72,11 @@ public class HudSampleComponent : Component
             if (actionRow.IsVisible)
             {
                 ctx.NextCell();
-                if (ctx.Button("damage_btn", "Take 10 Damage", BaseFontPixels - 2f))
+                if (ctx.Button("damage_btn", "Take 10 Damage", BaseFontPixels - 4f))
                     Health01 = MathF.Max(0f, Health01 - 0.1f);
 
                 ctx.NextCell();
-                if (ctx.Button("heal_btn", "Heal 10", BaseFontPixels - 2f))
+                if (ctx.Button("heal_btn", "Heal 10", BaseFontPixels - 4f))
                     Health01 = MathF.Min(1f, Health01 + 0.1f);
             }
         }
@@ -109,6 +109,7 @@ public class HudSampleComponent : Component
         ctx.Text(
             $"Input Capture  Mouse:{capture.WantsMouse}  Keyboard:{capture.WantsKeyboard}  Text:{capture.WantsTextInput}",
             BaseFontPixels - 6f,
+           
             new UiStyle { TextColor = new Vector4(0.70f, 0.76f, 0.86f, 1f) });
     }
 

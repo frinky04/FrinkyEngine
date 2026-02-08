@@ -365,6 +365,25 @@ public class EditorApplication
         NotificationManager.Instance.Post("Edit mode", NotificationType.Info);
     }
 
+    public void TogglePlayModeCursorLock()
+    {
+        if (Mode != EditorMode.Play)
+            return;
+
+        if (_cursorLockedByPlayMode)
+        {
+            Raylib.EnableCursor();
+            _cursorLockedByPlayMode = false;
+            NotificationManager.Instance.Post("Cursor unlocked (Shift+F1 to re-lock)", NotificationType.Info, 2.0f);
+        }
+        else
+        {
+            Raylib.DisableCursor();
+            _cursorLockedByPlayMode = true;
+            NotificationManager.Instance.Post("Cursor locked", NotificationType.Info, 2.0f);
+        }
+    }
+
     public void ToggleGameView()
     {
         IsGameViewEnabled = !IsGameViewEnabled;
@@ -776,6 +795,7 @@ public class EditorApplication
         km.RegisterAction(EditorAction.RevertPrefab, () => RevertSelectedPrefab());
         km.RegisterAction(EditorAction.MakeUniquePrefab, () => MakeUniqueSelectedPrefab());
         km.RegisterAction(EditorAction.UnpackPrefab, () => UnpackSelectedPrefab());
+        km.RegisterAction(EditorAction.TogglePlayModeCursorLock, () => TogglePlayModeCursorLock());
         km.RegisterAction(EditorAction.FrameSelected, () => FrameSelected());
     }
 

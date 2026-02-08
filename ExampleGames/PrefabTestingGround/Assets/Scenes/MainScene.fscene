@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -14.193929,
-    "y": 7.7451463,
-    "z": -4.473895
+    "x": -23.534393,
+    "y": 9.491953,
+    "z": -7.8014765
   },
-  "editorCameraYaw": -1418.546,
-  "editorCameraPitch": -21.799692,
+  "editorCameraYaw": -1420.7965,
+  "editorCameraPitch": -15.1997,
   "physics": {
     "gravity": {
       "x": 0,
@@ -28,7 +28,7 @@
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": -0.0043513775,
+              "y": 0,
               "z": 0
             },
             "LocalRotation": {
@@ -2501,19 +2501,12 @@
           ],
           "addedComponents": [
             {
-              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
+              "nodeId": "e60ad0cd235647038e35138a360c057e",
               "component": {
-                "type": "PrefabTestingGround.Scripts.HudSampleComponent",
+                "type": "PrefabTestingGround.Scripts.MoveSpeedHud",
                 "enabled": true,
                 "editorOnly": false,
-                "properties": {
-                  "Visible": true,
-                  "BaseFontPixels": 18,
-                  "Health01": 1,
-                  "AutoDrainHealth": true,
-                  "DrainPerSecond": 0.15,
-                  "ImageTexturePath": "Textures/grid_lightchecker.PNG"
-                }
+                "properties": {}
               }
             }
           ],
@@ -2635,6 +2628,12 @@
             "AttachedCameraBackDistance": 0,
             "CameraEntity": "05db33ae-c5d8-4ee4-a2fd-c4b7b27984d1"
           }
+        },
+        {
+          "$type": "PrefabTestingGround.Scripts.MoveSpeedHud",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {}
         }
       ],
       "children": [
@@ -2735,19 +2734,6 @@
                     }
                   }
                 ]
-              }
-            },
-            {
-              "$type": "PrefabTestingGround.Scripts.HudSampleComponent",
-              "enabled": true,
-              "editorOnly": false,
-              "properties": {
-                "Visible": true,
-                "BaseFontPixels": 18,
-                "Health01": 1,
-                "AutoDrainHealth": true,
-                "DrainPerSecond": 0.15,
-                "ImageTexturePath": "Textures/grid_lightchecker.PNG"
               }
             }
           ],
@@ -3668,7 +3654,7 @@
             "LocalPosition": {
               "x": 0,
               "y": 2.1707263,
-              "z": 0
+              "z": -20.81831
             },
             "LocalRotation": {
               "x": 0,
@@ -3709,15 +3695,15 @@
           "enabled": true,
           "editorOnly": false,
           "properties": {
-            "SoundPath": "voice-message.mp3",
+            "SoundPath": "Music.wav",
             "PlayOnStart": true,
             "Looping": true,
             "Spatialized": true,
             "AutoDestroyOnFinish": true,
             "AutoResumeOnEnable": true,
             "Bus": "Sfx",
-            "Volume": 0.15,
-            "Pitch": 2,
+            "Volume": 0.06,
+            "Pitch": 1,
             "StartTimeSeconds": 0,
             "Mute": false,
             "Paused": false,
@@ -3738,7 +3724,7 @@
           "properties": {
             "Radius": 0.5,
             "Friction": 0.8,
-            "Restitution": 0,
+            "Restitution": 0.3,
             "Center": {
               "x": 0,
               "y": 0,
@@ -3754,7 +3740,7 @@
             "MotionType": "Dynamic",
             "Mass": 1,
             "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
+            "AngularDamping": 0.56,
             "ContinuousDetection": false,
             "LockPositionX": false,
             "LockPositionY": false,
