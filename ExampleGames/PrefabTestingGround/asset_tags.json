@@ -1,0 +1,35 @@
+{
+  "tags": [
+    {
+      "name": "Test",
+      "color": "#FF0C0C"
+    },
+    {
+      "name": "Test 2",
+      "color": "#4C99FF"
+    }
+  ],
+  "assetTags": {
+    "Meshes/Monkey.glb": [
+      "Test"
+    ],
+    "Meshes/Monkey.obj": [
+      "Test"
+    ],
+    "Prefabs/Cylinder (1).fprefab": [
+      "Test"
+    ],
+    "Prefabs/Suzan.fprefab": [
+      "Test"
+    ],
+    "Scenes/MainScene.fscene": [
+      "Test 2"
+    ],
+    "Scripts/RotatorComponent.cs": [
+      "Test 2"
+    ],
+    "Textures/grid_lightchecker.PNG": [
+      "Test 2"
+    ]
+  }
+}

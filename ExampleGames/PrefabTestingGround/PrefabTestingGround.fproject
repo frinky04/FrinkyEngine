@@ -1,0 +1,7 @@
+{
+  "projectName": "PrefabTestingGround",
+  "defaultScene": "Scenes/MainScene.fscene",
+  "assetsPath": "Assets",
+  "gameAssembly": "bin/Debug/net8.0/PrefabTestingGround.dll",
+  "gameProject": "PrefabTestingGround.csproj"
+}
