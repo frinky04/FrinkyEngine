@@ -1,6 +1,8 @@
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using Raylib_cs;
@@ -178,6 +180,14 @@ public static class Program
         scene.Start();
         Raylib.DisableCursor();
 
+        var postProcessPipeline = new PostProcessPipeline();
+        var shaderDir = Path.GetDirectoryName(shaderVsPath) ?? "Shaders";
+        postProcessPipeline.Initialize(shaderDir);
+
+        RenderTexture2D sceneRT = default;
+        int lastRTWidth = 0;
+        int lastRTHeight = 0;
+
         while (!Raylib.WindowShouldClose())
         {
             float dt = Raylib.GetFrameTime();
@@ -194,12 +204,53 @@ public static class Program
             }
 
             var camera3D = mainCamera.BuildCamera3D();
+            var ppStack = mainCamera.Entity.GetComponent<PostProcessStackComponent>();
+            bool hasPostProcess = ppStack != null && ppStack.PostProcessingEnabled && ppStack.Effects.Count > 0;
 
-            Raylib.BeginDrawing();
-            sceneRenderer.Render(scene, camera3D, isEditorMode: false);
-            Raylib.EndDrawing();
+            if (hasPostProcess)
+            {
+                int screenW = Raylib.GetScreenWidth();
+                int screenH = Raylib.GetScreenHeight();
+
+                if (screenW != lastRTWidth || screenH != lastRTHeight)
+                {
+                    if (lastRTWidth > 0)
+                        Raylib.UnloadRenderTexture(sceneRT);
+                    sceneRT = Raylib.LoadRenderTexture(screenW, screenH);
+                    lastRTWidth = screenW;
+                    lastRTHeight = screenH;
+                }
+
+                sceneRenderer.Render(scene, camera3D, sceneRT, isEditorMode: false);
+
+                var finalTex = postProcessPipeline.Execute(
+                    ppStack!,
+                    sceneRT.Texture,
+                    camera3D,
+                    mainCamera,
+                    sceneRenderer,
+                    scene,
+                    screenW, screenH,
+                    isEditorMode: false);
+
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.Black);
+                var src = new Rectangle(0, 0, finalTex.Width, -finalTex.Height);
+                var dst = new Rectangle(0, 0, screenW, screenH);
+                Raylib.DrawTexturePro(finalTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
+                Raylib.EndDrawing();
+            }
+            else
+            {
+                Raylib.BeginDrawing();
+                sceneRenderer.Render(scene, camera3D, isEditorMode: false);
+                Raylib.EndDrawing();
+            }
         }
 
+        postProcessPipeline.Shutdown();
+        if (lastRTWidth > 0)
+            Raylib.UnloadRenderTexture(sceneRT);
         sceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
         assemblyLoader.Unload();

@@ -26,6 +26,7 @@ public static class SceneSerializer
             new QuaternionConverter(),
             new ColorConverter(),
             new EntityReferenceConverter(),
+            new PostProcessEffectListConverter(),
             new JsonStringEnumConverter()
         }
     };

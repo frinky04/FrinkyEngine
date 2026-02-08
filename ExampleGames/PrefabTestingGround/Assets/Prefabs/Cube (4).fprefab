@@ -1,9 +1,9 @@
 {
-  "name": "Cube (4)",
+  "name": "Cube (3)",
   "sourcePrefab": "",
   "root": {
     "stableId": "9e504672a3be442682cfaf8a305bddf8",
-    "name": "Cube (4)",
+    "name": "Cube (3)",
     "active": true,
     "components": [
       {
@@ -26,9 +26,9 @@
           "TriplanarBlendSharpness": 4,
           "TriplanarUseWorldSpace": true,
           "Tint": {
-            "r": 255,
-            "g": 255,
-            "b": 255,
+            "r": 104,
+            "g": 200,
+            "b": 240,
             "a": 255
           }
         }

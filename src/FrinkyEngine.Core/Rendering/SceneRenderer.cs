@@ -260,6 +260,53 @@ public class SceneRenderer
             Raylib.EndTextureMode();
     }
 
+    /// <summary>
+    /// Renders scene geometry into a depth-only render texture using the provided depth shader.
+    /// The output stores normalized linear depth in the R channel.
+    /// Shader uniforms (nearPlane, farPlane) must be set by the caller before invoking this method.
+    /// </summary>
+    /// <param name="scene">The scene to render.</param>
+    /// <param name="camera">The camera viewpoint.</param>
+    /// <param name="depthTarget">The render texture to write depth into.</param>
+    /// <param name="depthShader">The depth pre-pass shader (uniforms already configured).</param>
+    /// <param name="isEditorMode">When <c>true</c>, editor-only objects participate.</param>
+    public void RenderDepthPrePass(
+        Scene.Scene scene,
+        Camera3D camera,
+        RenderTexture2D depthTarget,
+        Shader depthShader,
+        bool isEditorMode = true)
+    {
+        Raylib.BeginTextureMode(depthTarget);
+        Raylib.ClearBackground(Color.White);
+        Raylib.BeginMode3D(camera);
+
+        foreach (var renderable in scene.Renderables)
+        {
+            if (!renderable.Entity.Active) continue;
+            if (!renderable.Enabled) continue;
+            if (renderable.EditorOnly && !isEditorMode) continue;
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue) continue;
+            DrawModelWithCustomShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, depthShader);
+        }
+
+        Raylib.EndMode3D();
+        Raylib.EndTextureMode();
+    }
+
+    private void DrawModelWithCustomShader(Model model, Matrix4x4 worldMatrix, Shader shader)
+    {
+        unsafe
+        {
+            for (int i = 0; i < model.MaterialCount; i++)
+                model.Materials[i].Shader = shader;
+        }
+
+        model.Transform = Matrix4x4.Transpose(worldMatrix);
+        Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, Color.White);
+    }
+
     private void DrawModelWithShader(Model model, Matrix4x4 worldMatrix, Color tint)
     {
         if (_shaderLoaded)

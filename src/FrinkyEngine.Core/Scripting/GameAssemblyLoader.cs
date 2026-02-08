@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.Scripting;
@@ -70,6 +71,7 @@ public class GameAssemblyLoader
             var bytes = File.ReadAllBytes(fullPath);
             _gameAssembly = _loadContext.LoadFromStream(new MemoryStream(bytes));
             ComponentTypeResolver.RegisterAssembly(_gameAssembly);
+            PostProcessEffectResolver.RegisterAssembly(_gameAssembly);
             return true;
         }
         catch (ReflectionTypeLoadException ex)
@@ -98,7 +100,10 @@ public class GameAssemblyLoader
     public void Unload()
     {
         if (_gameAssembly != null)
+        {
+            PostProcessEffectResolver.UnregisterAssembly(_gameAssembly);
             ComponentTypeResolver.UnregisterAssembly(_gameAssembly);
+        }
 
         _gameAssembly = null;
         _loadContext?.Unload();

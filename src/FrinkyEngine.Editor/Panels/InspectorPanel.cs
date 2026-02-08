@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Reflection;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 using ImGuiNET;
 using Raylib_cs;
@@ -444,6 +445,10 @@ public class InspectorPanel
             var resolved = entityRef.IsValid ? scene?.FindEntityById(entityRef.Id) : null;
             string preview = mixed ? "(Mixed)" : (!entityRef.IsValid ? "(None)" : (resolved?.Name ?? "(Missing)"));
             ImGui.LabelText(label, preview);
+        }
+        else if (propType == typeof(List<PostProcessEffect>))
+        {
+            ImGui.LabelText(label, "(edit individually)");
         }
         else
         {

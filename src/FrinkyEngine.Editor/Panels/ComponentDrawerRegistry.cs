@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
 using ImGuiNET;
 using Raylib_cs;
@@ -28,6 +29,7 @@ public static class ComponentDrawerRegistry
         Register<BoxColliderComponent>(DrawBoxCollider);
         Register<SphereColliderComponent>(DrawSphereCollider);
         Register<CapsuleColliderComponent>(DrawCapsuleCollider);
+        Register<PostProcessStackComponent>(DrawPostProcessStack);
     }
 
     public static void Register<T>(Action<Component> drawer) where T : Component
@@ -929,6 +931,239 @@ public static class ComponentDrawerRegistry
             ImGui.SameLine(0, 4);
         }
         return size;
+    }
+
+    private static readonly HashSet<string> EffectExcludedProperties = new()
+    {
+        nameof(PostProcessEffect.DisplayName),
+        nameof(PostProcessEffect.Enabled),
+        nameof(PostProcessEffect.IsInitialized),
+        nameof(PostProcessEffect.NeedsDepth)
+    };
+
+    private static void DrawPostProcessStack(Component c)
+    {
+        var stack = (PostProcessStackComponent)c;
+        var app = EditorApplication.Instance;
+
+        DrawCheckbox("Post Processing Enabled", stack.PostProcessingEnabled, v => stack.PostProcessingEnabled = v);
+        ImGui.Spacing();
+
+        int? removeIndex = null;
+        int? moveUpIndex = null;
+        int? moveDownIndex = null;
+
+        for (int i = 0; i < stack.Effects.Count; i++)
+        {
+            var effect = stack.Effects[i];
+            ImGui.PushID(i);
+
+            bool enabled = effect.Enabled;
+            if (ImGui.Checkbox("##enabled", ref enabled))
+            {
+                app.RecordUndo();
+                effect.Enabled = enabled;
+                app.RefreshUndoBaseline();
+            }
+            ImGui.SameLine();
+
+            bool open = ImGui.CollapsingHeader(effect.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+
+            // Reorder/remove buttons on the same line as the header
+            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+            if (i > 0)
+            {
+                if (ImGui.SmallButton("^")) moveUpIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("^");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (i < stack.Effects.Count - 1)
+            {
+                if (ImGui.SmallButton("v")) moveDownIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("v");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (ImGui.SmallButton("X")) removeIndex = i;
+
+            if (open)
+            {
+                ImGui.Indent();
+                DrawEffectProperties(effect);
+                ImGui.Unindent();
+            }
+
+            ImGui.PopID();
+            ImGui.Spacing();
+        }
+
+        // Apply modifications
+        if (removeIndex.HasValue)
+        {
+            app.RecordUndo();
+            var removed = stack.Effects[removeIndex.Value];
+            removed.Dispose();
+            stack.Effects.RemoveAt(removeIndex.Value);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveUpIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveUpIndex.Value;
+            (stack.Effects[idx], stack.Effects[idx - 1]) = (stack.Effects[idx - 1], stack.Effects[idx]);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveDownIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveDownIndex.Value;
+            (stack.Effects[idx], stack.Effects[idx + 1]) = (stack.Effects[idx + 1], stack.Effects[idx]);
+            app.RefreshUndoBaseline();
+        }
+
+        // Add Effect button
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float buttonWidthAdd = MathF.Min(200f, availWidth);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
+        if (ImGui.Button("Add Effect", new Vector2(buttonWidthAdd, 0)))
+            ImGui.OpenPopup("AddEffectPopup");
+
+        if (ImGui.BeginPopup("AddEffectPopup"))
+        {
+            var effectTypes = PostProcessEffectResolver.GetAllEffectTypes().ToList();
+            if (effectTypes.Count == 0)
+            {
+                ImGui.TextDisabled("No effects available");
+            }
+            else
+            {
+                foreach (var effectType in effectTypes)
+                {
+                    var displayName = PostProcessEffectResolver.GetDisplayName(effectType);
+                    var source = PostProcessEffectResolver.GetAssemblySource(effectType);
+                    var label = source == "Engine" ? displayName : $"{displayName} ({source})";
+
+                    if (ImGui.Selectable(label))
+                    {
+                        try
+                        {
+                            var newEffect = (PostProcessEffect)Activator.CreateInstance(effectType)!;
+                            app.RecordUndo();
+                            stack.Effects.Add(newEffect);
+                            app.RefreshUndoBaseline();
+                        }
+                        catch
+                        {
+                            // Failed to create effect instance
+                        }
+                    }
+                }
+            }
+            ImGui.EndPopup();
+        }
+    }
+
+    private static void DrawEffectProperties(PostProcessEffect effect)
+    {
+        var type = effect.GetType();
+        var app = EditorApplication.Instance;
+
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (!prop.CanRead || !prop.CanWrite) continue;
+            if (EffectExcludedProperties.Contains(prop.Name)) continue;
+
+            var propType = prop.PropertyType;
+            var label = NiceLabel(prop.Name);
+
+            if (propType == typeof(float))
+            {
+                float val = (float)prop.GetValue(effect)!;
+                if (ImGui.DragFloat(label, ref val, 0.05f))
+                    prop.SetValue(effect, val);
+                TrackContinuousUndo(app);
+            }
+            else if (propType == typeof(int))
+            {
+                int val = (int)prop.GetValue(effect)!;
+                if (ImGui.DragInt(label, ref val))
+                    prop.SetValue(effect, val);
+                TrackContinuousUndo(app);
+            }
+            else if (propType == typeof(bool))
+            {
+                bool val = (bool)prop.GetValue(effect)!;
+                if (ImGui.Checkbox(label, ref val))
+                {
+                    app.RecordUndo();
+                    prop.SetValue(effect, val);
+                    app.RefreshUndoBaseline();
+                }
+            }
+            else if (propType == typeof(string))
+            {
+                string val = (string)(prop.GetValue(effect) ?? "");
+                if (ImGui.InputText(label, ref val, 256))
+                    prop.SetValue(effect, val);
+                TrackContinuousUndo(app);
+            }
+            else if (propType == typeof(Vector3))
+            {
+                var val = (Vector3)prop.GetValue(effect)!;
+                if (DrawColoredVector3(label, ref val, 0.1f))
+                    prop.SetValue(effect, val);
+            }
+            else if (propType == typeof(Vector2))
+            {
+                var val = (Vector2)prop.GetValue(effect)!;
+                if (ImGui.DragFloat2(label, ref val, 0.1f))
+                    prop.SetValue(effect, val);
+                TrackContinuousUndo(app);
+            }
+            else if (propType == typeof(Color))
+            {
+                DrawColorEdit4(label, (Color)prop.GetValue(effect)!, v => prop.SetValue(effect, v));
+            }
+            else if (propType.IsEnum)
+            {
+                var enumValues = Enum.GetValues(propType);
+                if (enumValues.Length == 0) continue;
+
+                var names = enumValues.Cast<object>().Select(v => v.ToString() ?? v.GetType().Name).ToArray();
+                var currentValue = prop.GetValue(effect) ?? enumValues.GetValue(0)!;
+                int selectedIndex = Array.IndexOf(enumValues, currentValue);
+                if (selectedIndex < 0) selectedIndex = 0;
+
+                if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
+                {
+                    app.RecordUndo();
+                    prop.SetValue(effect, enumValues.GetValue(selectedIndex));
+                    app.RefreshUndoBaseline();
+                }
+            }
+            else
+            {
+                ImGui.LabelText(label, propType.Name);
+            }
+        }
     }
 
     // ─── Reusable helpers ───────────────────────────────────────────────

@@ -2,6 +2,7 @@ using System.Numerics;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 using ImGuiNET;
 using Raylib_cs;
@@ -28,6 +29,7 @@ public class ViewportPanel
     private bool _isHovered;
     private bool _wasGizmoDragging;
     private System.Numerics.Vector3? _dragPreviewPosition;
+    private readonly PostProcessPipeline _postProcessPipeline = new();
 
     public ViewportPanel(EditorApplication app)
     {
@@ -105,6 +107,33 @@ public class ViewportPanel
                                 DrawDropPreview(_dragPreviewPosition.Value);
                         },
                         isEditorMode: isEditorMode);
+
+                    // Post-processing
+                    var mainCamEntity = _app.CurrentScene.MainCamera?.Entity;
+                    var ppStack = mainCamEntity?.GetComponent<PostProcessStackComponent>();
+                    if (ppStack != null && ppStack.PostProcessingEnabled && ppStack.Effects.Count > 0)
+                    {
+                        _postProcessPipeline.Initialize("Shaders");
+                        var postProcessedTex = _postProcessPipeline.Execute(
+                            ppStack,
+                            _renderTexture.Texture,
+                            camera,
+                            _app.CurrentScene.MainCamera,
+                            _app.SceneRenderer,
+                            _app.CurrentScene,
+                            w, h,
+                            isEditorMode);
+
+                        // If post-processing produced a different texture, blit it back to _renderTexture
+                        if (postProcessedTex.Id != _renderTexture.Texture.Id)
+                        {
+                            Raylib.BeginTextureMode(_renderTexture);
+                            var src = new Rectangle(0, 0, postProcessedTex.Width, -postProcessedTex.Height);
+                            var dst = new Rectangle(0, 0, w, h);
+                            Raylib.DrawTexturePro(postProcessedTex, src, dst, Vector2.Zero, 0f, Color.White);
+                            Raylib.EndTextureMode();
+                        }
+                    }
 
                     if (isEditorMode && selectedEntities.Count > 0)
                     {
@@ -596,5 +625,7 @@ public class ViewportPanel
             Raylib.UnloadShader(_selectionOutlinePostShader);
             _selectionOutlinePostShaderLoaded = false;
         }
+
+        _postProcessPipeline.Shutdown();
     }
 }
