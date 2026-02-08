@@ -454,6 +454,7 @@ public static class ComponentDrawerRegistry
         rb.AngularDamping = angularDamping;
 
         DrawCheckbox("Continuous Detection", rb.ContinuousDetection, v => rb.ContinuousDetection = v);
+        DrawEnumCombo("Interpolation", rb.InterpolationMode, v => rb.InterpolationMode = v);
 
         DrawSection("Axis Locks");
         DrawCheckbox("Lock Position X", rb.LockPositionX, v => rb.LockPositionX = v);

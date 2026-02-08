@@ -13,8 +13,11 @@ namespace FrinkyEngine.Core.Components;
 /// </remarks>
 public class TransformComponent : Component
 {
-    private Vector3 _localPosition = Vector3.Zero;
-    private Quaternion _localRotation = Quaternion.Identity;
+    private Vector3 _authoritativeLocalPosition = Vector3.Zero;
+    private Quaternion _authoritativeLocalRotation = Quaternion.Identity;
+    private Vector3 _visualLocalPosition = Vector3.Zero;
+    private Quaternion _visualLocalRotation = Quaternion.Identity;
+    private bool _hasVisualPoseOverride;
     private Vector3 _localScale = Vector3.One;
     private TransformComponent? _parent;
     private readonly List<TransformComponent> _children = new();
@@ -26,8 +29,13 @@ public class TransformComponent : Component
     /// </summary>
     public Vector3 LocalPosition
     {
-        get => _localPosition;
-        set => _localPosition = value;
+        get => _hasVisualPoseOverride ? _visualLocalPosition : _authoritativeLocalPosition;
+        set
+        {
+            _authoritativeLocalPosition = value;
+            if (_hasVisualPoseOverride)
+                _visualLocalPosition = value;
+        }
     }
 
     /// <summary>
@@ -35,10 +43,12 @@ public class TransformComponent : Component
     /// </summary>
     public Quaternion LocalRotation
     {
-        get => _localRotation;
+        get => _hasVisualPoseOverride ? _visualLocalRotation : _authoritativeLocalRotation;
         set
         {
-            _localRotation = value;
+            _authoritativeLocalRotation = value;
+            if (_hasVisualPoseOverride)
+                _visualLocalRotation = value;
             _eulerDirty = true;
         }
     }
@@ -61,7 +71,7 @@ public class TransformComponent : Component
         {
             if (_eulerDirty)
             {
-                _cachedEuler = QuaternionToEuler(_localRotation);
+                _cachedEuler = QuaternionToEuler(LocalRotation);
                 _eulerDirty = false;
             }
             return _cachedEuler;
@@ -70,7 +80,10 @@ public class TransformComponent : Component
         {
             _cachedEuler = value;
             _eulerDirty = false;
-            _localRotation = EulerToQuaternion(value);
+            var rotation = EulerToQuaternion(value);
+            _authoritativeLocalRotation = rotation;
+            if (_hasVisualPoseOverride)
+                _visualLocalRotation = rotation;
         }
     }
 
@@ -91,22 +104,29 @@ public class TransformComponent : Component
     {
         get
         {
-            var world = WorldMatrix;
+            var world = GetWorldMatrix(useVisualPose: true);
             return new Vector3(world.M41, world.M42, world.M43);
         }
         set
         {
             if (_parent != null)
             {
-                if (Matrix4x4.Invert(_parent.WorldMatrix, out var parentInverse))
-                    _localPosition = Vector3.Transform(value, parentInverse);
+                if (Matrix4x4.Invert(_parent.GetWorldMatrix(useVisualPose: false), out var parentInverse))
+                {
+                    _authoritativeLocalPosition = Vector3.Transform(value, parentInverse);
+                }
                 else
-                    _localPosition = value;
+                {
+                    _authoritativeLocalPosition = value;
+                }
             }
             else
             {
-                _localPosition = value;
+                _authoritativeLocalPosition = value;
             }
+
+            if (_hasVisualPoseOverride)
+                _visualLocalPosition = _authoritativeLocalPosition;
         }
     }
 
@@ -115,12 +135,7 @@ public class TransformComponent : Component
     /// </summary>
     public Matrix4x4 LocalMatrix
     {
-        get
-        {
-            return Matrix4x4.CreateScale(_localScale) *
-                   Matrix4x4.CreateFromQuaternion(_localRotation) *
-                   Matrix4x4.CreateTranslation(_localPosition);
-        }
+        get => GetLocalMatrix(useVisualPose: true);
     }
 
     /// <summary>
@@ -128,12 +143,7 @@ public class TransformComponent : Component
     /// </summary>
     public Matrix4x4 WorldMatrix
     {
-        get
-        {
-            if (_parent != null)
-                return LocalMatrix * _parent.WorldMatrix;
-            return LocalMatrix;
-        }
+        get => GetWorldMatrix(useVisualPose: true);
     }
 
     /// <summary>
@@ -143,9 +153,7 @@ public class TransformComponent : Component
     {
         get
         {
-            var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
-                : _localRotation;
+            var rot = GetWorldRotation(useVisualPose: true);
             return Vector3.Transform(-Vector3.UnitZ, rot);
         }
     }
@@ -157,9 +165,7 @@ public class TransformComponent : Component
     {
         get
         {
-            var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
-                : _localRotation;
+            var rot = GetWorldRotation(useVisualPose: true);
             return Vector3.Transform(Vector3.UnitX, rot);
         }
     }
@@ -171,9 +177,7 @@ public class TransformComponent : Component
     {
         get
         {
-            var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
-                : _localRotation;
+            var rot = GetWorldRotation(useVisualPose: true);
             return Vector3.Transform(Vector3.UnitY, rot);
         }
     }
@@ -183,25 +187,69 @@ public class TransformComponent : Component
     /// </summary>
     public Quaternion WorldRotation
     {
-        get
-        {
-            if (_parent != null)
-                return _localRotation * _parent.WorldRotation;
-            return _localRotation;
-        }
+        get => GetWorldRotation(useVisualPose: true);
         set
         {
             if (_parent != null)
             {
-                var parentInverse = Quaternion.Inverse(_parent.WorldRotation);
-                _localRotation = Quaternion.Normalize(value * parentInverse);
+                var parentInverse = Quaternion.Inverse(_parent.GetWorldRotation(useVisualPose: false));
+                _authoritativeLocalRotation = NormalizeOrIdentity(value * parentInverse);
             }
             else
             {
-                _localRotation = Quaternion.Normalize(value);
+                _authoritativeLocalRotation = NormalizeOrIdentity(value);
             }
+
+            if (_hasVisualPoseOverride)
+                _visualLocalRotation = _authoritativeLocalRotation;
             _eulerDirty = true;
         }
+    }
+
+    internal bool HasVisualPoseOverride => _hasVisualPoseOverride;
+
+    internal (Vector3 Position, Quaternion Rotation) GetAuthoritativeLocalPose()
+    {
+        return (_authoritativeLocalPosition, _authoritativeLocalRotation);
+    }
+
+    internal void SetAuthoritativeLocalPose(Vector3 position, Quaternion rotation)
+    {
+        _authoritativeLocalPosition = position;
+        _authoritativeLocalRotation = rotation;
+        if (_hasVisualPoseOverride)
+        {
+            _visualLocalPosition = position;
+            _visualLocalRotation = rotation;
+        }
+        _eulerDirty = true;
+    }
+
+    internal void SetVisualLocalPoseOverride(Vector3 position, Quaternion rotation)
+    {
+        _visualLocalPosition = position;
+        _visualLocalRotation = rotation;
+        _hasVisualPoseOverride = true;
+        _eulerDirty = true;
+    }
+
+    internal void ClearVisualPoseOverride()
+    {
+        if (!_hasVisualPoseOverride)
+            return;
+
+        _hasVisualPoseOverride = false;
+        _eulerDirty = true;
+    }
+
+    internal Matrix4x4 GetAuthoritativeWorldMatrix()
+    {
+        return GetWorldMatrix(useVisualPose: false);
+    }
+
+    internal Quaternion GetAuthoritativeWorldRotation()
+    {
+        return GetWorldRotation(useVisualPose: false);
     }
 
     /// <summary>
@@ -273,6 +321,38 @@ public class TransformComponent : Component
         if (Matrix4x4.Invert(WorldMatrix, out var inverse))
             return Vector3.TransformNormal(vector, inverse);
         return vector;
+    }
+
+    private Matrix4x4 GetLocalMatrix(bool useVisualPose)
+    {
+        var position = useVisualPose && _hasVisualPoseOverride ? _visualLocalPosition : _authoritativeLocalPosition;
+        var rotation = useVisualPose && _hasVisualPoseOverride ? _visualLocalRotation : _authoritativeLocalRotation;
+        return Matrix4x4.CreateScale(_localScale) *
+               Matrix4x4.CreateFromQuaternion(rotation) *
+               Matrix4x4.CreateTranslation(position);
+    }
+
+    private Matrix4x4 GetWorldMatrix(bool useVisualPose)
+    {
+        if (_parent != null)
+            return GetLocalMatrix(useVisualPose) * _parent.GetWorldMatrix(useVisualPose);
+        return GetLocalMatrix(useVisualPose);
+    }
+
+    private Quaternion GetWorldRotation(bool useVisualPose)
+    {
+        var local = useVisualPose && _hasVisualPoseOverride ? _visualLocalRotation : _authoritativeLocalRotation;
+        if (_parent != null)
+            return local * _parent.GetWorldRotation(useVisualPose);
+        return local;
+    }
+
+    private static Quaternion NormalizeOrIdentity(Quaternion rotation)
+    {
+        var lengthSquared = rotation.LengthSquared();
+        if (!float.IsFinite(lengthSquared) || lengthSquared <= 1e-12f)
+            return Quaternion.Identity;
+        return Quaternion.Normalize(rotation);
     }
 
     private static Vector3 QuaternionToEuler(Quaternion q)

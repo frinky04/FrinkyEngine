@@ -147,7 +147,8 @@ public static class GameExporter
                 PhysicsContactDampingRatio = projectSettings.Runtime.PhysicsContactDampingRatio,
                 PhysicsMaximumRecoveryVelocity = projectSettings.Runtime.PhysicsMaximumRecoveryVelocity,
                 PhysicsDefaultFriction = projectSettings.Runtime.PhysicsDefaultFriction,
-                PhysicsDefaultRestitution = projectSettings.Runtime.PhysicsDefaultRestitution
+                PhysicsDefaultRestitution = projectSettings.Runtime.PhysicsDefaultRestitution,
+                PhysicsInterpolationEnabled = projectSettings.Runtime.PhysicsInterpolationEnabled
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");

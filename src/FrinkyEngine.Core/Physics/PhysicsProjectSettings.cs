@@ -29,6 +29,8 @@ public class PhysicsProjectSettings
     public float DefaultFriction { get; set; } = 0.8f;
     /// <summary>Default restitution for colliders without overrides.</summary>
     public float DefaultRestitution { get; set; } = 0f;
+    /// <summary>Enables visual interpolation for eligible rigidbodies.</summary>
+    public bool InterpolationEnabled { get; set; } = true;
 
     /// <summary>
     /// Populates <see cref="Current"/> from the given runtime project settings.
@@ -45,7 +47,8 @@ public class PhysicsProjectSettings
             ContactDampingRatio = runtime.PhysicsContactDampingRatio,
             MaximumRecoveryVelocity = runtime.PhysicsMaximumRecoveryVelocity,
             DefaultFriction = runtime.PhysicsDefaultFriction,
-            DefaultRestitution = runtime.PhysicsDefaultRestitution
+            DefaultRestitution = runtime.PhysicsDefaultRestitution,
+            InterpolationEnabled = runtime.PhysicsInterpolationEnabled
         };
         Current.Normalize();
     }
@@ -65,7 +68,8 @@ public class PhysicsProjectSettings
             ContactDampingRatio = manifest.PhysicsContactDampingRatio ?? 1f,
             MaximumRecoveryVelocity = manifest.PhysicsMaximumRecoveryVelocity ?? 2f,
             DefaultFriction = manifest.PhysicsDefaultFriction ?? 0.8f,
-            DefaultRestitution = manifest.PhysicsDefaultRestitution ?? 0f
+            DefaultRestitution = manifest.PhysicsDefaultRestitution ?? 0f,
+            InterpolationEnabled = manifest.PhysicsInterpolationEnabled ?? true
         };
         Current.Normalize();
     }

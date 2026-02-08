@@ -213,6 +213,8 @@ public class Scene : IDisposable
             if (entity.Active)
                 entity.LateUpdateComponents(dt);
         }
+
+        PhysicsSystem?.PublishInterpolatedVisualPoses();
     }
 
     /// <summary>

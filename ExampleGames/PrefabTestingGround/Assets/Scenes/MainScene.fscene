@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -0.5506758,
-    "y": 4.30277,
-    "z": 9.68153
+    "x": 0.35704583,
+    "y": 6.450142,
+    "z": 11.799243
   },
-  "editorCameraYaw": -1173.1532,
-  "editorCameraPitch": -12.649941,
+  "editorCameraYaw": -1162.8031,
+  "editorCameraPitch": -9.949941,
   "physics": {
     "gravity": {
       "x": 0,
@@ -81,7 +81,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -194,7 +195,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -356,7 +358,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -518,7 +521,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -680,7 +684,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -849,7 +854,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1011,7 +1017,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1189,7 +1196,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1279,7 +1287,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1369,7 +1378,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1459,7 +1469,99 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 20,
+              "y": 1,
+              "z": 3
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 20,
+            "Height": 1,
+            "Depth": 3,
+            "MaterialType": "TriplanarTexture",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 0.2,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": false,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Plane (5)",
+      "id": "80b86a15-5030-4eef-ba97-c30c481468db",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -10.599999,
+              "y": 0,
+              "z": -3.5000002
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": -0.46174866,
+              "w": 0.8870109
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Static",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": false,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1594,13 +1696,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -1615,7 +1718,25 @@
         "assetPath": "Prefabs/Cube (4).fprefab",
         "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
         "overrides": {
-          "propertyOverrides": [],
+          "propertyOverrides": [
+            {
+              "nodeId": "9e504672a3be442682cfaf8a305bddf8",
+              "componentType": "FrinkyEngine.Core.Components.CubePrimitive",
+              "propertyName": "Tint",
+              "value": {
+                "r": 255,
+                "g": 0,
+                "b": 0,
+                "a": 255
+              }
+            },
+            {
+              "nodeId": "9e504672a3be442682cfaf8a305bddf8",
+              "componentType": "FrinkyEngine.Core.Components.RigidbodyComponent",
+              "propertyName": "InterpolationMode",
+              "value": "None"
+            }
+          ],
           "addedComponents": [],
           "removedComponents": [],
           "addedChildren": [],
@@ -1661,8 +1782,8 @@
             "TriplanarUseWorldSpace": true,
             "Tint": {
               "r": 255,
-              "g": 255,
-              "b": 255,
+              "g": 0,
+              "b": 0,
               "a": 255
             }
           }
@@ -1695,13 +1816,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "None"
           }
         }
       ],
@@ -1796,13 +1918,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -1897,13 +2020,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -1998,13 +2122,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -2099,13 +2224,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -2200,103 +2326,14 @@
             "Mass": 3,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Plane (5)",
-      "id": "80b86a15-5030-4eef-ba97-c30c481468db",
-      "active": true,
-      "prefab": null,
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -10.599999,
-              "y": 0,
-              "z": -3.5000002
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": -0.46174866,
-              "w": 0.8870109
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Static",
-            "Mass": 1,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 20,
-              "y": 1,
-              "z": 3
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 20,
-            "Height": 1,
-            "Depth": 3,
-            "MaterialType": "TriplanarTexture",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 0.2,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": false,
-            "Tint": {
-              "r": 255,
-              "g": 255,
-              "b": 255,
-              "a": 255
-            }
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         }
       ],
@@ -2387,13 +2424,14 @@
             "Mass": 1,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -2428,14 +2466,14 @@
               "z": 0
             },
             "AttachedCameraBackDistance": 0,
-            "CameraEntity": "915e3350-10ff-44e0-bf35-41fd60496d10"
+            "CameraEntity": "e5c4a972-93c9-4f95-8ae2-84f704cd4f57"
           }
         }
       ],
       "children": [
         {
           "name": "Camera A",
-          "id": "915e3350-10ff-44e0-bf35-41fd60496d10",
+          "id": "e5c4a972-93c9-4f95-8ae2-84f704cd4f57",
           "active": true,
           "prefab": {
             "isRoot": false,
