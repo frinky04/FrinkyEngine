@@ -245,8 +245,8 @@ public sealed class UiContext
         if (!image.IsValid || size.X <= 0f || size.Y <= 0f)
             return;
 
-        var uv0 = Vector2.Zero;
-        var uv1 = flipY ? new Vector2(1f, -1f) : Vector2.One;
+        var uv0 = flipY ? new Vector2(0f, 1f) : Vector2.Zero;
+        var uv1 = flipY ? new Vector2(1f, 0f) : Vector2.One;
         ImGui.Image(new ImTextureRef(null, new ImTextureID(image.TextureId)), size, uv0, uv1);
     }
 

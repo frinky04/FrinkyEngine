@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -10.511986,
-    "y": 5.9608073,
-    "z": -2.90898
+    "x": -14.193929,
+    "y": 7.7451463,
+    "z": -4.473895
   },
-  "editorCameraYaw": -1416.1455,
-  "editorCameraPitch": -13.999704,
+  "editorCameraYaw": -1418.546,
+  "editorCameraPitch": -21.799692,
   "physics": {
     "gravity": {
       "x": 0,
@@ -2475,9 +2475,9 @@
                   "enabled": true,
                   "properties": {
                     "FogColor": {
-                      "r": 0,
-                      "g": 0,
-                      "b": 0,
+                      "r": 48,
+                      "g": 48,
+                      "b": 48,
                       "a": 255
                     },
                     "FogStart": 100,
@@ -2508,7 +2508,7 @@
                 "editorOnly": false,
                 "properties": {
                   "Visible": true,
-                  "BaseFontPixels": 24,
+                  "BaseFontPixels": 18,
                   "Health01": 1,
                   "AutoDrainHealth": true,
                   "DrainPerSecond": 0.15,
@@ -2713,9 +2713,9 @@
                     "enabled": true,
                     "properties": {
                       "FogColor": {
-                        "r": 0,
-                        "g": 0,
-                        "b": 0,
+                        "r": 48,
+                        "g": 48,
+                        "b": 48,
                         "a": 255
                       },
                       "FogStart": 100,
@@ -2743,7 +2743,7 @@
               "editorOnly": false,
               "properties": {
                 "Visible": true,
-                "BaseFontPixels": 24,
+                "BaseFontPixels": 18,
                 "Health01": 1,
                 "AutoDrainHealth": true,
                 "DrainPerSecond": 0.15,

@@ -272,7 +272,15 @@ public class ViewportPanel
 
         UI.BeginFrame(Raylib.GetFrameTime(), frameDesc);
         Raylib.BeginTextureMode(targetTexture);
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.SetBlendMode(BlendMode.Alpha);
+        Rlgl.DisableDepthTest();
+        // Keep the scene RT alpha opaque so UI text edges do not pick up
+        // editor-window background color when this texture is presented in ImGui.
+        Rlgl.ColorMask(true, true, true, false);
         UI.EndFrame();
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.ColorMask(true, true, true, true);
         Raylib.EndTextureMode();
     }
 

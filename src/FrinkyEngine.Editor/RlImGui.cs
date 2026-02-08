@@ -237,9 +237,9 @@ public static unsafe class RlImGui
 
     public static void ImageRenderTexture(RenderTexture2D rt)
     {
-        // Y-flip for OpenGL render textures
-        var uv0 = new Vector2(0, 0);
-        var uv1 = new Vector2(1, -1);
+        // Y-flip for OpenGL render textures using normalized UV range.
+        var uv0 = new Vector2(0, 1);
+        var uv1 = new Vector2(1, 0);
 
         ImGui.Image(
             new ImTextureRef(null, new ImTextureID((ulong)rt.Texture.Id)),

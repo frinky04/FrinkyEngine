@@ -240,6 +240,8 @@ internal sealed unsafe class ImGuiUiBackend : IUiBackend
     {
         Rlgl.DrawRenderBatchActive();
         Rlgl.DisableBackfaceCulling();
+        Rlgl.SetBlendMode(BlendMode.Alpha);
+        Rlgl.DisableDepthTest();
 
         for (int l = 0; l < drawData.CmdListsCount; l++)
         {
