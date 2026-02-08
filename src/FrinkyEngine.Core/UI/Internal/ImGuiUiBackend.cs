@@ -322,17 +322,34 @@ internal sealed unsafe class ImGuiUiBackend : IUiBackend
         byte* uploadPixels = pixels;
         bool needsFree = false;
 
-        // Convert Alpha8 textures to RGBA32 for Raylib.
-        if (bytesPerPixel == 1)
+        // ImGui may provide monochrome alpha-mask textures either as Alpha8
+        // or as RGBA32 with UseColors=false. Convert both forms to white RGB
+        // + mask alpha to avoid dark fringes on glyph edges.
+        bool useAlphaMask = bytesPerPixel == 1
+                            || texData.Format == ImTextureFormat.Alpha8
+                            || !texData.UseColors;
+        if (useAlphaMask)
         {
             int pixelCount = width * height;
             byte* rgba = (byte*)NativeMemory.Alloc((nuint)(pixelCount * 4));
+            int maskChannel = DetermineMaskChannel(pixels, pixelCount, bytesPerPixel);
             for (int j = 0; j < pixelCount; j++)
             {
+                byte alpha;
+                if (bytesPerPixel <= 1)
+                {
+                    alpha = pixels[j];
+                }
+                else
+                {
+                    int baseIndex = j * bytesPerPixel;
+                    alpha = pixels[baseIndex + maskChannel];
+                }
+
                 rgba[j * 4 + 0] = 255;
                 rgba[j * 4 + 1] = 255;
                 rgba[j * 4 + 2] = 255;
-                rgba[j * 4 + 3] = pixels[j];
+                rgba[j * 4 + 3] = alpha;
             }
 
             uploadPixels = rgba;
@@ -357,6 +374,51 @@ internal sealed unsafe class ImGuiUiBackend : IUiBackend
         _managedTextures[texData.UniqueID] = texture;
         texData.SetTexID(new ImTextureID((ulong)texture.Id));
         texData.SetStatus(ImTextureStatus.Ok);
+    }
+
+    private static int DetermineMaskChannel(byte* pixels, int pixelCount, int bytesPerPixel)
+    {
+        if (bytesPerPixel <= 1)
+            return 0;
+
+        int channelCount = Math.Min(bytesPerPixel, 4);
+        int sampleCount = Math.Min(pixelCount, 4096);
+        int stride = Math.Max(1, pixelCount / sampleCount);
+
+        int bestChannel = Math.Min(channelCount - 1, 3);
+        float bestScore = float.NegativeInfinity;
+
+        for (int ch = 0; ch < channelCount; ch++)
+        {
+            byte min = 255;
+            byte max = 0;
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                int px = i * stride;
+                int idx = px * bytesPerPixel + ch;
+                byte v = pixels[idx];
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+
+            if (min == max)
+                continue;
+
+            float score = max - min;
+            if (ch == 3)
+                score += 24f;
+            if (min == 0 && max == 255)
+                score += 8f;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestChannel = ch;
+            }
+        }
+
+        return bestChannel;
     }
 
     private void UpdateTexture(ImTextureDataPtr texData)
