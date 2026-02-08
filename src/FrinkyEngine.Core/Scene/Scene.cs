@@ -195,7 +195,7 @@ public class Scene : IDisposable
     }
 
     /// <summary>
-    /// Runs one frame of the game loop — calls <see cref="Component.Update"/> then <see cref="Component.LateUpdate"/> on all active entities.
+    /// Runs one frame of the game loop by calling <see cref="Component.Update"/>, stepping physics, publishing physics visual poses, then calling <see cref="Component.LateUpdate"/> on all active entities.
     /// </summary>
     /// <param name="dt">Time elapsed since the previous frame, in seconds.</param>
     public void Update(float dt)
@@ -208,13 +208,14 @@ public class Scene : IDisposable
 
         PhysicsSystem?.Step(dt);
 
+        // Publish physics-driven transforms before LateUpdate so scripts observe current-frame body poses.
+        PhysicsSystem?.PublishInterpolatedVisualPoses();
+
         foreach (var entity in _entities)
         {
             if (entity.Active)
                 entity.LateUpdateComponents(dt);
         }
-
-        PhysicsSystem?.PublishInterpolatedVisualPoses();
     }
 
     /// <summary>
