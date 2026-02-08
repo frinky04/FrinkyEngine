@@ -165,6 +165,8 @@ public class PostProcessPipeline
         _context.NearPlane = nearPlane;
         _context.FarPlane = farPlane;
         _context.CameraPosition = camera.Position;
+        _context.FieldOfViewDegrees = camera.FovY;
+        _context.AspectRatio = (float)width / height;
 
         // Ping-pong execution
         Texture2D currentSource = sceneColor;

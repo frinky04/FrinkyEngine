@@ -5,7 +5,8 @@ namespace FrinkyEngine.Core.Rendering.PostProcessing.Effects;
 
 /// <summary>
 /// Screen-space ambient occlusion (SSAO) effect that darkens creases and corners.
-/// Uses hemisphere sampling with a noise texture and bilateral blur for smooth results.
+/// Uses view-space hemisphere sampling with perspective-correct reprojection and
+/// separable bilateral blur weighted by depth for smooth, edge-preserving results.
 /// </summary>
 public class AmbientOcclusionEffect : PostProcessEffect
 {
@@ -16,7 +17,7 @@ public class AmbientOcclusionEffect : PostProcessEffect
     public override bool NeedsDepth => true;
 
     /// <summary>
-    /// Radius of the occlusion hemisphere in world units.
+    /// Sampling radius in world-space units. Higher values detect occlusion over a wider area.
     /// </summary>
     public float Radius { get; set; } = 0.5f;
 
@@ -26,9 +27,9 @@ public class AmbientOcclusionEffect : PostProcessEffect
     public float Intensity { get; set; } = 1.0f;
 
     /// <summary>
-    /// Depth bias to prevent self-occlusion artifacts.
+    /// Depth bias in world-space units to prevent self-occlusion artifacts.
     /// </summary>
-    public float Bias { get; set; } = 0.025f;
+    public float Bias { get; set; } = 0.01f;
 
     /// <summary>
     /// Number of hemisphere samples per pixel (max 64).
@@ -45,9 +46,11 @@ public class AmbientOcclusionEffect : PostProcessEffect
     private Shader _compositeShader;
     private Texture2D _noiseTexture;
 
+    // SSAO shader uniforms
     private int _ssaoDepthTexLoc = -1;
     private int _ssaoNoiseTexLoc = -1;
-    private int _ssaoScreenSizeLoc = -1;
+    private int _ssaoTanHalfFovLoc = -1;
+    private int _ssaoAspectRatioLoc = -1;
     private int _ssaoRadiusLoc = -1;
     private int _ssaoBiasLoc = -1;
     private int _ssaoIntensityLoc = -1;
@@ -56,9 +59,15 @@ public class AmbientOcclusionEffect : PostProcessEffect
     private int _ssaoFarPlaneLoc = -1;
     private int _ssaoSamplesLoc = -1;
 
+    // Blur shader uniforms
     private int _blurTexelSizeLoc = -1;
     private int _blurSizeLoc = -1;
+    private int _blurDepthTexLoc = -1;
+    private int _blurDirectionLoc = -1;
+    private int _blurNearPlaneLoc = -1;
+    private int _blurFarPlaneLoc = -1;
 
+    // Composite shader uniforms
     private int _compositeAoTexLoc = -1;
 
     private float[] _sampleKernel = Array.Empty<float>();
@@ -75,9 +84,11 @@ public class AmbientOcclusionEffect : PostProcessEffect
         if (_ssaoShader.Id == 0 || _blurShader.Id == 0 || _compositeShader.Id == 0)
             return;
 
+        // SSAO uniforms
         _ssaoDepthTexLoc = Raylib.GetShaderLocation(_ssaoShader, "depthTex");
         _ssaoNoiseTexLoc = Raylib.GetShaderLocation(_ssaoShader, "noiseTex");
-        _ssaoScreenSizeLoc = Raylib.GetShaderLocation(_ssaoShader, "screenSize");
+        _ssaoTanHalfFovLoc = Raylib.GetShaderLocation(_ssaoShader, "tanHalfFov");
+        _ssaoAspectRatioLoc = Raylib.GetShaderLocation(_ssaoShader, "aspectRatio");
         _ssaoRadiusLoc = Raylib.GetShaderLocation(_ssaoShader, "radius");
         _ssaoBiasLoc = Raylib.GetShaderLocation(_ssaoShader, "bias");
         _ssaoIntensityLoc = Raylib.GetShaderLocation(_ssaoShader, "intensity");
@@ -86,9 +97,15 @@ public class AmbientOcclusionEffect : PostProcessEffect
         _ssaoFarPlaneLoc = Raylib.GetShaderLocation(_ssaoShader, "farPlane");
         _ssaoSamplesLoc = Raylib.GetShaderLocation(_ssaoShader, "samples");
 
+        // Blur uniforms
         _blurTexelSizeLoc = Raylib.GetShaderLocation(_blurShader, "texelSize");
         _blurSizeLoc = Raylib.GetShaderLocation(_blurShader, "blurSize");
+        _blurDepthTexLoc = Raylib.GetShaderLocation(_blurShader, "depthTex");
+        _blurDirectionLoc = Raylib.GetShaderLocation(_blurShader, "direction");
+        _blurNearPlaneLoc = Raylib.GetShaderLocation(_blurShader, "nearPlane");
+        _blurFarPlaneLoc = Raylib.GetShaderLocation(_blurShader, "farPlane");
 
+        // Composite uniforms
         _compositeAoTexLoc = Raylib.GetShaderLocation(_compositeShader, "aoTex");
 
         GenerateSampleKernel(64);
@@ -131,9 +148,11 @@ public class AmbientOcclusionEffect : PostProcessEffect
 
         for (int i = 0; i < 16; i++)
         {
-            noiseData[i * 4 + 0] = (byte)(rng.NextDouble() * 255); // Random rotation vector
-            noiseData[i * 4 + 1] = (byte)(rng.NextDouble() * 255);
-            noiseData[i * 4 + 2] = 128; // Z always pointing up-ish
+            // Unit-length rotation vectors in tangent plane (Z=0)
+            float angle = (float)(rng.NextDouble() * Math.PI * 2.0);
+            noiseData[i * 4 + 0] = (byte)((Math.Cos(angle) * 0.5 + 0.5) * 255);
+            noiseData[i * 4 + 1] = (byte)((Math.Sin(angle) * 0.5 + 0.5) * 255);
+            noiseData[i * 4 + 2] = 128; // Z = 0 (tangent plane)
             noiseData[i * 4 + 3] = 255;
         }
 
@@ -157,11 +176,13 @@ public class AmbientOcclusionEffect : PostProcessEffect
         if (!IsInitialized) return;
 
         int sampleCount = Math.Clamp(SampleCount, 4, 64);
+        float tanHalfFov = MathF.Tan(context.FieldOfViewDegrees * 0.5f * (MathF.PI / 180f));
 
         // Pass 1: SSAO
-        float[] screenSize = { context.Width, context.Height };
-        if (_ssaoScreenSizeLoc >= 0)
-            Raylib.SetShaderValue(_ssaoShader, _ssaoScreenSizeLoc, screenSize, ShaderUniformDataType.Vec2);
+        if (_ssaoTanHalfFovLoc >= 0)
+            Raylib.SetShaderValue(_ssaoShader, _ssaoTanHalfFovLoc, tanHalfFov, ShaderUniformDataType.Float);
+        if (_ssaoAspectRatioLoc >= 0)
+            Raylib.SetShaderValue(_ssaoShader, _ssaoAspectRatioLoc, context.AspectRatio, ShaderUniformDataType.Float);
         if (_ssaoRadiusLoc >= 0)
             Raylib.SetShaderValue(_ssaoShader, _ssaoRadiusLoc, Radius, ShaderUniformDataType.Float);
         if (_ssaoBiasLoc >= 0)
@@ -175,9 +196,9 @@ public class AmbientOcclusionEffect : PostProcessEffect
         if (_ssaoFarPlaneLoc >= 0)
             Raylib.SetShaderValue(_ssaoShader, _ssaoFarPlaneLoc, context.FarPlane, ShaderUniformDataType.Float);
 
-        // Upload sample kernel
+        // Upload sample kernel (all samples as vec3 array)
         if (_ssaoSamplesLoc >= 0)
-            Raylib.SetShaderValue(_ssaoShader, _ssaoSamplesLoc, _sampleKernel, ShaderUniformDataType.Vec3);
+            Raylib.SetShaderValueV(_ssaoShader, _ssaoSamplesLoc, _sampleKernel, ShaderUniformDataType.Vec3, sampleCount);
 
         // Bind depth texture to slot 1
         if (_ssaoDepthTexLoc >= 0)
@@ -198,29 +219,60 @@ public class AmbientOcclusionEffect : PostProcessEffect
         var ssaoRT = context.GetTemporaryRT();
         PostProcessContext.Blit(source, ssaoRT, _ssaoShader);
 
-        // Unbind extra textures
+        // Unbind extra textures from SSAO pass
         Rlgl.ActiveTextureSlot(2);
         Rlgl.DisableTexture();
         Rlgl.ActiveTextureSlot(1);
         Rlgl.DisableTexture();
         Rlgl.ActiveTextureSlot(0);
 
-        // Pass 2: Bilateral blur
+        // Pass 2: Separable bilateral blur
         float[] texelSize = { 1.0f / context.Width, 1.0f / context.Height };
         if (_blurTexelSizeLoc >= 0)
             Raylib.SetShaderValue(_blurShader, _blurTexelSizeLoc, texelSize, ShaderUniformDataType.Vec2);
         if (_blurSizeLoc >= 0)
             Raylib.SetShaderValue(_blurShader, _blurSizeLoc, BlurSize, ShaderUniformDataType.Int);
+        if (_blurNearPlaneLoc >= 0)
+            Raylib.SetShaderValue(_blurShader, _blurNearPlaneLoc, context.NearPlane, ShaderUniformDataType.Float);
+        if (_blurFarPlaneLoc >= 0)
+            Raylib.SetShaderValue(_blurShader, _blurFarPlaneLoc, context.FarPlane, ShaderUniformDataType.Float);
 
-        var blurredRT = context.GetTemporaryRT();
-        PostProcessContext.Blit(ssaoRT.Texture, blurredRT, _blurShader);
+        // Pass 2a: Horizontal blur
+        float[] dirH = { 1.0f, 0.0f };
+        if (_blurDirectionLoc >= 0)
+            Raylib.SetShaderValue(_blurShader, _blurDirectionLoc, dirH, ShaderUniformDataType.Vec2);
+
+        // Bind depth texture to slot 1 for blur
+        if (_blurDepthTexLoc >= 0)
+        {
+            Raylib.SetShaderValue(_blurShader, _blurDepthTexLoc, 1, ShaderUniformDataType.Int);
+            Rlgl.ActiveTextureSlot(1);
+            Rlgl.EnableTexture(context.DepthTexture.Id);
+        }
+
+        var blurHRT = context.GetTemporaryRT();
+        PostProcessContext.Blit(ssaoRT.Texture, blurHRT, _blurShader);
+
+        // Pass 2b: Vertical blur
+        float[] dirV = { 0.0f, 1.0f };
+        if (_blurDirectionLoc >= 0)
+            Raylib.SetShaderValue(_blurShader, _blurDirectionLoc, dirV, ShaderUniformDataType.Vec2);
+
+        // Depth texture still bound to slot 1
+        var blurVRT = context.GetTemporaryRT();
+        PostProcessContext.Blit(blurHRT.Texture, blurVRT, _blurShader);
+
+        // Unbind depth texture from blur
+        Rlgl.ActiveTextureSlot(1);
+        Rlgl.DisableTexture();
+        Rlgl.ActiveTextureSlot(0);
 
         // Pass 3: Multiply composite
         if (_compositeAoTexLoc >= 0)
         {
             Raylib.SetShaderValue(_compositeShader, _compositeAoTexLoc, 1, ShaderUniformDataType.Int);
             Rlgl.ActiveTextureSlot(1);
-            Rlgl.EnableTexture(blurredRT.Texture.Id);
+            Rlgl.EnableTexture(blurVRT.Texture.Id);
         }
 
         PostProcessContext.Blit(source, destination, _compositeShader);

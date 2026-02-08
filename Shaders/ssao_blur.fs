@@ -3,33 +3,51 @@
 in vec2 fragTexCoord;
 
 uniform sampler2D texture0;    // SSAO result
+uniform sampler2D depthTex;    // linear depth (normalized 0..1)
 uniform vec2 texelSize;
+uniform vec2 direction;        // (1,0) for horizontal, (0,1) for vertical
 uniform int blurSize;
+uniform float nearPlane;
+uniform float farPlane;
 
 out vec4 finalColor;
 
+float linearizeDepth(float normDepth)
+{
+    return normDepth * (farPlane - nearPlane) + nearPlane;
+}
+
 void main()
 {
+    float centerAo = texture(texture0, fragTexCoord).r;
+    float centerDepth = linearizeDepth(texture(depthTex, fragTexCoord).r);
+
     float result = 0.0;
+    float totalWeight = 0.0;
+
     int halfSize = blurSize;
-    float total = 0.0;
+    float sigma = float(halfSize) + 1.0;
 
-    float centerDepth = texture(texture0, fragTexCoord).r;
-
-    for (int x = -halfSize; x <= halfSize; x++)
+    for (int i = -halfSize; i <= halfSize; i++)
     {
-        for (int y = -halfSize; y <= halfSize; y++)
-        {
-            vec2 offset = vec2(float(x), float(y)) * texelSize;
-            float sampleVal = texture(texture0, fragTexCoord + offset).r;
+        vec2 offset = direction * float(i) * texelSize;
+        vec2 sampleUV = fragTexCoord + offset;
 
-            // Edge-preserving: weight by depth similarity
-            float weight = 1.0 - smoothstep(0.0, 0.05, abs(sampleVal - centerDepth));
-            result += sampleVal * weight;
-            total += weight;
-        }
+        float sampleAo = texture(texture0, sampleUV).r;
+        float sampleDepth = linearizeDepth(texture(depthTex, sampleUV).r);
+
+        // Spatial weight: Gaussian falloff
+        float spatialWeight = exp(-0.5 * float(i * i) / (sigma * sigma));
+
+        // Edge weight: depth similarity (adaptive threshold based on distance)
+        float depthDiff = abs(sampleDepth - centerDepth);
+        float depthWeight = 1.0 - smoothstep(0.0, 0.1 * centerDepth, depthDiff);
+
+        float weight = spatialWeight * depthWeight;
+        result += sampleAo * weight;
+        totalWeight += weight;
     }
 
-    result /= max(total, 0.001);
+    result /= max(totalWeight, 0.001);
     finalColor = vec4(result, result, result, 1.0);
 }

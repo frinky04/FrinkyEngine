@@ -39,6 +39,16 @@ public class PostProcessContext
     /// </summary>
     public Vector3 CameraPosition { get; set; }
 
+    /// <summary>
+    /// Camera vertical field of view in degrees.
+    /// </summary>
+    public float FieldOfViewDegrees { get; set; }
+
+    /// <summary>
+    /// Viewport aspect ratio (width / height).
+    /// </summary>
+    public float AspectRatio { get; set; }
+
     private readonly List<RenderTexture2D> _tempRTs = new();
     private readonly Dictionary<(int w, int h), Queue<RenderTexture2D>> _pool = new();
 
