@@ -61,7 +61,7 @@
           "Mass": 3,
           "LinearDamping": 0.03,
           "AngularDamping": 0.03,
-          "ContinuousDetection": false,
+          "ContinuousDetection": true,
           "LockPositionX": false,
           "LockPositionY": false,
           "LockPositionZ": false,

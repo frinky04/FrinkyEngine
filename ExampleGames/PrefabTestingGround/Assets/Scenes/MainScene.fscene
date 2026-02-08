@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": 2.9158065,
-    "y": 3.825431,
-    "z": 1.8789098
+    "x": 0.35704583,
+    "y": 6.450142,
+    "z": 11.799243
   },
-  "editorCameraYaw": -1172.2482,
-  "editorCameraPitch": -8.1499,
+  "editorCameraYaw": -1162.8031,
+  "editorCameraPitch": -9.949941,
   "physics": {
     "gravity": {
       "x": 0,
@@ -81,7 +81,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -194,7 +195,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -356,7 +358,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -518,7 +521,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -680,7 +684,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -849,7 +854,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -959,7 +965,7 @@
           "properties": {
             "LocalPosition": {
               "x": 3.3390162,
-              "y": -0.2779745,
+              "y": 0.04111421,
               "z": 4.32798
             },
             "LocalRotation": {
@@ -1011,7 +1017,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1189,7 +1196,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1279,7 +1287,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1369,7 +1378,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1459,7 +1469,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1549,7 +1560,8 @@
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1596,6 +1608,738 @@
       "children": []
     },
     {
+      "name": "Cube (1)",
+      "id": "6a44706a-7dbc-429c-8233-5cda7fe0c9b8",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -1.3714974,
+              "y": 11.625217,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0.03450524,
+              "y": 0.03524728,
+              "z": -0.01184253,
+              "w": 0.9987126
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube (3)",
+      "id": "6039f8ac-70d9-4b08-ae60-d00a26528ecb",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [
+            {
+              "nodeId": "9e504672a3be442682cfaf8a305bddf8",
+              "componentType": "FrinkyEngine.Core.Components.CubePrimitive",
+              "propertyName": "Tint",
+              "value": {
+                "r": 255,
+                "g": 0,
+                "b": 0,
+                "a": 255
+              }
+            },
+            {
+              "nodeId": "9e504672a3be442682cfaf8a305bddf8",
+              "componentType": "FrinkyEngine.Core.Components.RigidbodyComponent",
+              "propertyName": "InterpolationMode",
+              "value": "None"
+            }
+          ],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0.34251237,
+              "y": 6.9611816,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0.073920354,
+              "w": 0.99726415
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 0,
+              "b": 0,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "None"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube (4)",
+      "id": "48fb6d50-04a7-4a45-8d01-d343994307da",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -4.5343466,
+              "y": 6.9611816,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0.073920354,
+              "w": 0.99726415
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube",
+      "id": "9e504672-a3be-4426-82cf-af8a305bddf8",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 1.9249673,
+              "y": 9.053244,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0.15907855,
+              "w": 0.98726594
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube (5)",
+      "id": "54ec9072-3280-49ea-9301-b681bc81e181",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -4.5343466,
+              "y": 6.9611816,
+              "z": 2.2877057
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0.073920354,
+              "w": 0.99726415
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube (2)",
+      "id": "b0202a8e-8bd7-46cb-a9fc-ff6ab3eb60ec",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0.34251237,
+              "y": 13.753974,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0.03450524,
+              "y": 0.03524728,
+              "z": -0.01184253,
+              "w": 0.9987126
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Cube (5)",
+      "id": "6617359c-0f44-468a-a70d-2584195037f9",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Cube (4).fprefab",
+        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -15.534347,
+              "y": 9.361181,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0.073920354,
+              "w": 0.99726415
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1.058322,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 1.5,
+            "Height": 1.5,
+            "Depth": 1.5,
+            "MaterialType": "Textured",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 1.5,
+              "y": 1.5,
+              "z": 1.5
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 3,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
       "name": "Player",
       "id": "4c83cb43-4a8c-4e39-b8e1-3465e98a40ae",
       "active": true,
@@ -1605,31 +2349,7 @@
         "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
         "overrides": {
           "propertyOverrides": [],
-          "addedComponents": [
-            {
-              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
-              "component": {
-                "type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
-                "enabled": true,
-                "editorOnly": false,
-                "properties": {
-                  "PostProcessingEnabled": true,
-                  "Effects": [
-                    {
-                      "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
-                      "enabled": true,
-                      "properties": {
-                        "Threshold": 0.9,
-                        "SoftKnee": 0.25,
-                        "Intensity": 0.15,
-                        "Iterations": 4
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ],
+          "addedComponents": [],
           "removedComponents": [],
           "addedChildren": [],
           "removedChildren": []
@@ -1704,13 +2424,14 @@
             "Mass": 1,
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
-            "ContinuousDetection": false,
+            "ContinuousDetection": true,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
             "LockRotationX": false,
             "LockRotationY": false,
-            "LockRotationZ": false
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
           }
         },
         {
@@ -1745,14 +2466,14 @@
               "z": 0
             },
             "AttachedCameraBackDistance": 0,
-            "CameraEntity": "915e3350-10ff-44e0-bf35-41fd60496d10"
+            "CameraEntity": "e5c4a972-93c9-4f95-8ae2-84f704cd4f57"
           }
         }
       ],
       "children": [
         {
           "name": "Camera A",
-          "id": "915e3350-10ff-44e0-bf35-41fd60496d10",
+          "id": "e5c4a972-93c9-4f95-8ae2-84f704cd4f57",
           "active": true,
           "prefab": {
             "isRoot": false,
@@ -1801,738 +2522,11 @@
                 },
                 "IsMain": true
               }
-            },
-            {
-              "$type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
-              "enabled": true,
-              "editorOnly": false,
-              "properties": {
-                "PostProcessingEnabled": true,
-                "Effects": [
-                  {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
-                    "enabled": true,
-                    "properties": {
-                      "Threshold": 0.9,
-                      "SoftKnee": 0.25,
-                      "Intensity": 0.15,
-                      "Iterations": 4
-                    }
-                  }
-                ]
-              }
             }
           ],
           "children": []
         }
       ]
-    },
-    {
-      "name": "Cube (1)",
-      "id": "6a44706a-7dbc-429c-8233-5cda7fe0c9b8",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -1.3714974,
-              "y": 11.625217,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0.03450524,
-              "y": 0.03524728,
-              "z": -0.01184253,
-              "w": 0.9987126
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube (3)",
-      "id": "6039f8ac-70d9-4b08-ae60-d00a26528ecb",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0.34251237,
-              "y": 6.9611816,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0.073920354,
-              "w": 0.99726415
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube (4)",
-      "id": "48fb6d50-04a7-4a45-8d01-d343994307da",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -4.5343466,
-              "y": 6.9611816,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0.073920354,
-              "w": 0.99726415
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube",
-      "id": "9e504672-a3be-4426-82cf-af8a305bddf8",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 1.9249673,
-              "y": 9.053244,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0.15907855,
-              "w": 0.98726594
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube (5)",
-      "id": "54ec9072-3280-49ea-9301-b681bc81e181",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -4.5343466,
-              "y": 6.9611816,
-              "z": 2.2877057
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0.073920354,
-              "w": 0.99726415
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube (2)",
-      "id": "b0202a8e-8bd7-46cb-a9fc-ff6ab3eb60ec",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": 0.34251237,
-              "y": 13.753974,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0.03450524,
-              "y": 0.03524728,
-              "z": -0.01184253,
-              "w": 0.9987126
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
-    },
-    {
-      "name": "Cube (5)",
-      "id": "6617359c-0f44-468a-a70d-2584195037f9",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Cube (4).fprefab",
-        "sourceNodeId": "9e504672a3be442682cfaf8a305bddf8",
-        "overrides": {
-          "propertyOverrides": [],
-          "addedComponents": [],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -15.534347,
-              "y": 9.361181,
-              "z": 0
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0.073920354,
-              "w": 0.99726415
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1.058322,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CubePrimitive",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Width": 1.5,
-            "Height": 1.5,
-            "Depth": 1.5,
-            "MaterialType": "Textured",
-            "TexturePath": "Textures/grid_lightchecker.PNG",
-            "TriplanarScale": 1,
-            "TriplanarBlendSharpness": 4,
-            "TriplanarUseWorldSpace": true,
-            "Tint": {
-              "r": 104,
-              "g": 200,
-              "b": 240,
-              "a": 255
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Size": {
-              "x": 1.5,
-              "y": 1.5,
-              "z": 1.5
-            },
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 3,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": false,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false
-          }
-        }
-      ],
-      "children": []
     }
   ]
 }

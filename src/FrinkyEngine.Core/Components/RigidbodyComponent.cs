@@ -20,6 +20,7 @@ public class RigidbodyComponent : Component
     private bool _lockRotationX;
     private bool _lockRotationY;
     private bool _lockRotationZ;
+    private RigidbodyInterpolationMode _interpolationMode = RigidbodyInterpolationMode.Inherit;
     private int _settingsVersion;
     private Vector3 _pendingForce;
     private Vector3 _pendingImpulse;
@@ -198,6 +199,15 @@ public class RigidbodyComponent : Component
         }
     }
 
+    /// <summary>
+    /// Controls render interpolation behavior for this body.
+    /// </summary>
+    public RigidbodyInterpolationMode InterpolationMode
+    {
+        get => _interpolationMode;
+        set => _interpolationMode = value;
+    }
+
     internal int SettingsVersion => _settingsVersion;
 
     internal Vector3 InitialLinearVelocity
@@ -230,6 +240,27 @@ public class RigidbodyComponent : Component
         _initialLinearVelocity = velocity;
         var physicsSystem = Entity.Scene?.PhysicsSystem;
         physicsSystem?.SetLinearVelocity(this, velocity);
+    }
+
+    /// <summary>
+    /// Teleports the rigidbody to a new pose without interpolating across the movement.
+    /// </summary>
+    /// <param name="position">Target local position.</param>
+    /// <param name="rotation">Target local rotation.</param>
+    /// <param name="resetVelocity">If true, clears linear and angular velocity.</param>
+    public void Teleport(Vector3 position, Quaternion rotation, bool resetVelocity = true)
+    {
+        Entity.Transform.LocalPosition = position;
+        Entity.Transform.LocalRotation = rotation;
+        var physicsSystem = Entity.Scene?.PhysicsSystem;
+        if (physicsSystem == null)
+        {
+            if (resetVelocity)
+                _initialLinearVelocity = Vector3.Zero;
+            return;
+        }
+
+        physicsSystem.TeleportBody(this, position, rotation, resetVelocity);
     }
 
     /// <summary>

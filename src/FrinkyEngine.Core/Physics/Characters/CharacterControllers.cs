@@ -609,11 +609,23 @@ namespace FrinkyEngine.Core.Physics.Characters
                         if (character.Support.Mobility != CollidableMobility.Static)
                         {
                             ref var supportingBodyLocation = ref Simulation.Bodies.HandleToLocation[character.Support.BodyHandle.Value];
-                            Debug.Assert(supportingBodyLocation.SetIndex == 0, "If the character is active, any support should be too.");
-                            ref var supportVelocity = ref Simulation.Bodies.ActiveSet.SolverStates[supportingBodyLocation.Index].Motion.Velocity;
-                            var wxr = Vector3.Cross(supportVelocity.Angular, supportCandidate.OffsetFromSupport);
-                            var supportContactVelocity = supportVelocity.Linear + wxr;
-                            var supportUpVelocity = Vector3.Dot(supportContactVelocity, characterUp);
+                            var supportUpVelocity = 0f;
+                            var supportBodyIndex = -1;
+                            var supportImpulseOffset = default(Vector3);
+
+                            if (supportingBodyLocation.SetIndex == 0)
+                            {
+                                ref var supportVelocity = ref Simulation.Bodies.ActiveSet.SolverStates[supportingBodyLocation.Index].Motion.Velocity;
+                                var wxr = Vector3.Cross(supportVelocity.Angular, supportCandidate.OffsetFromSupport);
+                                var supportContactVelocity = supportVelocity.Linear + wxr;
+                                supportUpVelocity = Vector3.Dot(supportContactVelocity, characterUp);
+
+                                if (character.Support.Mobility == CollidableMobility.Dynamic)
+                                {
+                                    supportBodyIndex = supportingBodyLocation.Index;
+                                    supportImpulseOffset = supportCandidate.OffsetFromSupport;
+                                }
+                            }
 
                             //If the support is dynamic, apply an opposing impulse. Note that velocity changes cannot safely be applied during multithreaded execution;
                             //characters could share support bodies, and a character might be a support of another character.
@@ -621,16 +633,8 @@ namespace FrinkyEngine.Core.Physics.Characters
                             ref var jump = ref analyzeContactsWorkerCache.Jumps.AllocateUnsafely();
                             jump.CharacterBodyIndex = bodyLocation.Index;
                             jump.CharacterVelocityChange = characterUp * MathF.Max(0, character.JumpVelocity - (characterUpVelocity - supportUpVelocity));
-                            if (character.Support.Mobility == CollidableMobility.Dynamic)
-                            {
-                                jump.SupportBodyIndex = supportingBodyLocation.Index;
-                                jump.SupportImpulseOffset = supportCandidate.OffsetFromSupport;
-                            }
-                            else
-                            {
-                                //No point in applying impulses to kinematics.
-                                jump.SupportBodyIndex = -1;
-                            }
+                            jump.SupportBodyIndex = supportBodyIndex;
+                            jump.SupportImpulseOffset = supportImpulseOffset;
                         }
                         else
                         {

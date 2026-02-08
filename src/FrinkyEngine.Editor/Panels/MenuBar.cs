@@ -722,6 +722,10 @@ public class MenuBar
             float restitution = draft.Runtime.PhysicsDefaultRestitution;
             if (ImGui.InputFloat("Default Restitution", ref restitution))
                 draft.Runtime.PhysicsDefaultRestitution = restitution;
+
+            bool interpolationEnabled = draft.Runtime.PhysicsInterpolationEnabled;
+            if (ImGui.Checkbox("Interpolation Enabled", ref interpolationEnabled))
+                draft.Runtime.PhysicsInterpolationEnabled = interpolationEnabled;
         }
 
         if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))

@@ -18,7 +18,7 @@
     "forwardPlusTileSize": 16,
     "forwardPlusMaxLights": 256,
     "forwardPlusMaxLightsPerTile": 64,
-    "physicsFixedTimestep": 0.016666668,
+    "physicsFixedTimestep": 0.033333335,
     "physicsMaxSubstepsPerFrame": 4,
     "physicsSolverVelocityIterations": 8,
     "physicsSolverSubsteps": 2,
@@ -26,7 +26,8 @@
     "physicsContactDampingRatio": 1,
     "physicsMaximumRecoveryVelocity": 1,
     "physicsDefaultFriction": 0.6,
-    "physicsDefaultRestitution": 0
+    "physicsDefaultRestitution": 0,
+    "physicsInterpolationEnabled": true
   },
   "build": {
     "outputName": "PrefabTestingGround",
