@@ -5,7 +5,8 @@ using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
-using ImGuiNET;
+using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -36,7 +37,6 @@ public class AssetBrowserPanel
     private string _newTagName = string.Empty;
     private Vector3 _newTagColor = new(0.3f, 0.6f, 1.0f);
     private bool _openTagManager;
-    private string? _confirmDeleteTag;
 
     // Cached item list for range selection
     private List<BrowserItem> _lastItems = new();
@@ -49,8 +49,8 @@ public class AssetBrowserPanel
     public unsafe void Draw()
     {
         // Clear dragged asset path when no drag is active
-        var activePayload = ImGui.GetDragDropPayload();
-        if (activePayload.NativePtr == null)
+        ImGuiPayload* activePayload = ImGui.GetDragDropPayload();
+        if (activePayload == null)
             _app.DraggedAssetPath = null;
 
         if (!ImGui.Begin("Assets"))
@@ -527,13 +527,13 @@ public class AssetBrowserPanel
         FrinkyLog.Info($"Assigned model '{asset.FileName}' to {entity.Name}");
     }
 
-    private void DrawAssetDragDropSource(BrowserItem item)
+    private unsafe void DrawAssetDragDropSource(BrowserItem item)
     {
-        if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID))
+        if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullId))
             return;
 
         _app.DraggedAssetPath = item.Asset.RelativePath;
-        ImGui.SetDragDropPayload(AssetDragPayload, nint.Zero, 0);
+        ImGui.SetDragDropPayload(AssetDragPayload, (void*)null, 0);
         ImGui.TextUnformatted($"[{item.Asset.Type}] {item.Label}");
         ImGui.EndDragDropSource();
     }
@@ -595,7 +595,7 @@ public class AssetBrowserPanel
                 ImGui.Dummy(new Vector2(12, 12));
                 ImGui.SameLine();
 
-                if (ImGui.MenuItem(tag.Name, null, allHave))
+                if (ImGui.MenuItem(tag.Name, (string?)null, allHave))
                 {
                     if (allHave)
                         tagDb.RemoveTagFromAssets(targetPaths, tag.Name);
@@ -623,7 +623,8 @@ public class AssetBrowserPanel
             _openTagManager = false;
         }
 
-        var center = ImGui.GetMainViewport().GetCenter();
+        var viewport = ImGui.GetMainViewport();
+        var center = new Vector2(viewport.Pos.X + viewport.Size.X * 0.5f, viewport.Pos.Y + viewport.Size.Y * 0.5f);
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(420, 400), ImGuiCond.Appearing);
 
@@ -690,7 +691,23 @@ public class AssetBrowserPanel
                     if (ImGui.Button("Delete"))
                     {
                         if (assetsWithTag.Count > 0)
-                            _confirmDeleteTag = tag.Name;
+                        {
+                            var tagName = tag.Name;
+                            MessageBoxes.Show(new MessageBox(
+                                "Confirm Delete",
+                                $"Tag '{tagName}' is used by assets. Delete anyway?",
+                                MessageBoxType.YesNo,
+                                tagName,
+                                (mb, data) =>
+                                {
+                                    if (mb.Result == MessageBoxResult.Yes && data is string name)
+                                    {
+                                        tagDb.DeleteTag(name);
+                                        _app.SaveTagDatabase();
+                                    }
+                                },
+                                null!));
+                        }
                         else
                         {
                             tagDb.DeleteTag(tag.Name);
@@ -705,34 +722,6 @@ public class AssetBrowserPanel
             }
         }
         ImGui.EndChild();
-
-        // Delete confirmation
-        if (_confirmDeleteTag != null)
-        {
-            ImGui.OpenPopup("ConfirmDeleteTag");
-            ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        }
-
-        if (ImGui.BeginPopupModal("ConfirmDeleteTag", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove))
-        {
-            ImGui.Text($"Tag '{_confirmDeleteTag}' is used by assets. Delete anyway?");
-            if (ImGui.Button("Delete", new Vector2(120, 0)))
-            {
-                tagDb.DeleteTag(_confirmDeleteTag!);
-                changed = true;
-                _confirmDeleteTag = null;
-                ImGui.CloseCurrentPopup();
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel", new Vector2(120, 0)))
-            {
-                _confirmDeleteTag = null;
-                ImGui.CloseCurrentPopup();
-            }
-
-            ImGui.EndPopup();
-        }
 
         // New tag row + Close
         ImGui.ColorEdit3("##newcolor", ref _newTagColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
@@ -779,7 +768,7 @@ public class AssetBrowserPanel
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
-    private static void DrawItemIcon(BrowserItem item, Vector2 min, float size)
+    private static unsafe void DrawItemIcon(BrowserItem item, Vector2 min, float size)
     {
         Texture2D? icon = EditorIcons.GetIcon(item.Asset.Type);
 
@@ -787,7 +776,7 @@ public class AssetBrowserPanel
         {
             uint tint = EditorIcons.GetIconTint(item.Asset.Type);
             var drawList = ImGui.GetWindowDrawList();
-            drawList.AddImage((nint)tex.Id, min, new Vector2(min.X + size, min.Y + size),
+            drawList.AddImage(new ImTextureRef(null, new ImTextureID((ulong)tex.Id)), min, new Vector2(min.X + size, min.Y + size),
                 Vector2.Zero, Vector2.One, tint);
         }
     }

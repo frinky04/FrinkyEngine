@@ -4,7 +4,7 @@ using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Serialization;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using NativeFileDialogSharp;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -270,12 +270,12 @@ public class MenuBar
 
             if (ImGui.BeginMenu("Window"))
             {
-                ImGui.MenuItem("Viewport", null, true);
-                ImGui.MenuItem("Hierarchy", null, true);
-                ImGui.MenuItem("Inspector", null, true);
-                ImGui.MenuItem("Console", null, true);
-                ImGui.MenuItem("Assets", null, true);
-                if (ImGui.MenuItem("Performance", null, _app.PerformancePanel.IsVisible))
+                ImGui.MenuItem("Viewport", (string?)null, true);
+                ImGui.MenuItem("Hierarchy", (string?)null, true);
+                ImGui.MenuItem("Inspector", (string?)null, true);
+                ImGui.MenuItem("Console", (string?)null, true);
+                ImGui.MenuItem("Assets", (string?)null, true);
+                if (ImGui.MenuItem("Performance", (string?)null, _app.PerformancePanel.IsVisible))
                     _app.PerformancePanel.IsVisible = !_app.PerformancePanel.IsVisible;
                 ImGui.Separator();
                 if (ImGui.MenuItem("Reset Layout"))

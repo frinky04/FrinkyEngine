@@ -1,6 +1,6 @@
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;

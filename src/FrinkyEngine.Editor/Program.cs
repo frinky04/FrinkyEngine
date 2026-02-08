@@ -1,8 +1,8 @@
 using System.Numerics;
 using FrinkyEngine.Core.Rendering;
-using ImGuiNET;
+using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
-using rlImGui_cs;
 
 namespace FrinkyEngine.Editor;
 
@@ -24,7 +24,7 @@ public static class Program
         Raylib.SetTargetFPS(startupEditorSettings?.TargetFps ?? 120);
         Raylib.SetExitKey(0);
 
-        rlImGui.Setup(true, true);
+        RlImGui.Setup(true, true);
 
         // Load JetBrains Mono font
         var io = ImGui.GetIO();
@@ -34,7 +34,7 @@ public static class Program
             if (File.Exists(fontPath))
             {
                 io.Fonts.AddFontFromFileTTF(fontPath, 16.0f);
-                rlImGui.ReloadFonts();
+                RlImGui.ReloadFonts();
             }
         }
 
@@ -71,13 +71,14 @@ public static class Program
                 io.ConfigFlags |= ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange;
             }
 
-            rlImGui.Begin(dt);
+            RlImGui.Begin(dt);
 
             DrawDockspace(app);
 
             app.DrawUI();
+            MessageBoxes.Draw();
 
-            rlImGui.End();
+            RlImGui.End();
 
             // Clear suppression flags and update tracking for next frame
             io.ConfigFlags &= ~(ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange);
@@ -87,7 +88,7 @@ public static class Program
         }
 
         app.Shutdown();
-        rlImGui.Shutdown();
+        RlImGui.Shutdown();
         Raylib.CloseWindow();
     }
 
@@ -144,33 +145,34 @@ public static class Program
         ImGui.End();
     }
 
-    private static void BuildDefaultLayout(uint dockspaceId, Vector2 size)
+    private static unsafe void BuildDefaultLayout(uint dockspaceId, Vector2 size)
     {
-        ImGuiDockBuilder.RemoveNode(dockspaceId);
-        ImGuiDockBuilder.AddNode(dockspaceId);
-        ImGuiDockBuilder.SetNodeSize(dockspaceId, size);
+        ImGuiP.DockBuilderRemoveNode(dockspaceId);
+        ImGuiP.DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags.None);
+        ImGuiP.DockBuilderSetNodeSize(dockspaceId, size);
 
         // Split: left (Hierarchy) | rest
-        ImGuiDockBuilder.SplitNode(dockspaceId, ImGuiDir.Left, 0.18f,
-            out uint leftId, out uint centerId);
+        uint leftId, centerId;
+        ImGuiP.DockBuilderSplitNode(dockspaceId, ImGuiDir.Left, 0.18f, &leftId, &centerId);
 
         // Split rest: center | right (Inspector)
-        ImGuiDockBuilder.SplitNode(centerId, ImGuiDir.Right, 0.25f,
-            out uint rightId, out uint centerMainId);
+        uint rightId, centerMainId;
+        ImGuiP.DockBuilderSplitNode(centerId, ImGuiDir.Right, 0.25f, &rightId, &centerMainId);
 
         // Split center: top (Viewport) | bottom (Console)
-        ImGuiDockBuilder.SplitNode(centerMainId, ImGuiDir.Down, 0.25f,
-            out uint bottomId, out uint topId);
+        uint bottomId, topId;
+        ImGuiP.DockBuilderSplitNode(centerMainId, ImGuiDir.Down, 0.25f, &bottomId, &topId);
 
-        ImGuiDockBuilder.DockWindow("Hierarchy", leftId);
-        ImGuiDockBuilder.DockWindow("Viewport", topId);
-        ImGuiDockBuilder.DockWindow("Inspector", rightId);
-        ImGuiDockBuilder.DockWindow("Console", bottomId);
-        ImGuiDockBuilder.DockWindow("Assets", bottomId);
+        ImGuiP.DockBuilderDockWindow("Hierarchy", leftId);
+        ImGuiP.DockBuilderDockWindow("Viewport", topId);
+        ImGuiP.DockBuilderDockWindow("Inspector", rightId);
+        ImGuiP.DockBuilderDockWindow("Console", bottomId);
+        ImGuiP.DockBuilderDockWindow("Assets", bottomId);
 
         // Hide the tab bar on the Viewport node when it's the only window
-        ImGuiDockBuilder.SetNodeLocalFlags(topId, ImGuiDockNodeFlags.AutoHideTabBar);
+        var node = ImGuiP.DockBuilderGetNode(topId);
+        node.LocalFlags |= ImGuiDockNodeFlags.AutoHideTabBar;
 
-        ImGuiDockBuilder.Finish(dockspaceId);
+        ImGuiP.DockBuilderFinish(dockspaceId);
     }
 }

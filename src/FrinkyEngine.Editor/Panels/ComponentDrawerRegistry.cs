@@ -6,7 +6,8 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
-using ImGuiNET;
+using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
 using Texture2D = Raylib_cs.Texture2D;
 
@@ -81,7 +82,7 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
         ImGui.PushID(label);
 
-        ImGui.Columns(2, null, false);
+        ImGui.Columns(2, (string?)null, false);
         ImGui.SetColumnWidth(0, 80);
         ImGui.Text(label);
         ImGui.NextColumn();
@@ -258,11 +259,11 @@ public static class ComponentDrawerRegistry
 
                 if (ImGui.TreeNode($"Slot {i}"))
                 {
-                    var matType = (int)slot.MaterialType;
-                    if (ImGui.Combo("Type", ref matType, "SolidColor\0Textured\0TriplanarTexture\0"))
+                    var matType = slot.MaterialType;
+                    if (ComboEnumHelper<Core.Rendering.MaterialType>.Combo("Type", ref matType))
                     {
                         app.RecordUndo();
-                        slot.MaterialType = (Core.Rendering.MaterialType)matType;
+                        slot.MaterialType = matType;
                         slotsChanged = true;
                         app.RefreshUndoBaseline();
                     }
@@ -352,11 +353,11 @@ public static class ComponentDrawerRegistry
         var prim = (PrimitiveComponent)c;
         var app = EditorApplication.Instance;
 
-        var matType = (int)prim.MaterialType;
-        if (ImGui.Combo("Material Type", ref matType, "SolidColor\0Textured\0TriplanarTexture\0"))
+        var matType = prim.MaterialType;
+        if (ComboEnumHelper<Core.Rendering.MaterialType>.Combo("Material Type", ref matType))
         {
             app.RecordUndo();
-            prim.MaterialType = (FrinkyEngine.Core.Rendering.MaterialType)matType;
+            prim.MaterialType = matType;
             app.RefreshUndoBaseline();
         }
 
@@ -775,22 +776,11 @@ public static class ComponentDrawerRegistry
         }
         else if (propType.IsEnum)
         {
-            var enumValues = Enum.GetValues(propType);
-            if (enumValues.Length == 0)
-                return;
-
-            var names = enumValues.Cast<object>()
-                .Select(value => value.ToString() ?? value.GetType().Name)
-                .ToArray();
-            var currentValue = prop.GetValue(component) ?? enumValues.GetValue(0)!;
-            int selectedIndex = Array.IndexOf(enumValues, currentValue);
-            if (selectedIndex < 0)
-                selectedIndex = 0;
-
-            if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
+            object currentValue = prop.GetValue(component) ?? Enum.GetValues(propType).GetValue(0)!;
+            if (ComboEnumHelper.Combo(label, propType, ref currentValue))
             {
                 app.RecordUndo();
-                prop.SetValue(component, enumValues.GetValue(selectedIndex));
+                prop.SetValue(component, currentValue);
                 app.RefreshUndoBaseline();
             }
         }
@@ -827,7 +817,7 @@ public static class ComponentDrawerRegistry
         var filterId = label;
 
         ImGui.PushID(label);
-        ImGui.Columns(2, null, false);
+        ImGui.Columns(2, (string?)null, false);
         ImGui.SetColumnWidth(0, 80);
         ImGui.Text(label);
         ImGui.NextColumn();
@@ -879,8 +869,8 @@ public static class ComponentDrawerRegistry
         // Drag-and-drop target on the combo
         if (ImGui.BeginDragDropTarget())
         {
-            var payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
-            if (payload.NativePtr != null && payload.Delivery && app.DraggedEntityId.HasValue)
+            ImGuiPayload* payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
+            if (payload != null && payload->Delivery != 0 && app.DraggedEntityId.HasValue)
             {
                 var draggedEntity = app.FindEntityById(app.DraggedEntityId.Value);
                 if (draggedEntity != null)
@@ -922,13 +912,13 @@ public static class ComponentDrawerRegistry
         return clicked;
     }
 
-    private static float DrawAssetIcon(AssetType type)
+    private static unsafe float DrawAssetIcon(AssetType type)
     {
         float size = EditorIcons.GetIconSize();
         var icon = EditorIcons.GetIcon(type);
         if (icon is Texture2D tex)
         {
-            ImGui.Image((nint)tex.Id, new Vector2(size, size));
+            ImGui.Image(new ImTextureRef(null, new ImTextureID((ulong)tex.Id)), new Vector2(size, size));
             ImGui.SameLine(0, 4);
         }
         return size;
@@ -1145,18 +1135,11 @@ public static class ComponentDrawerRegistry
             }
             else if (propType.IsEnum)
             {
-                var enumValues = Enum.GetValues(propType);
-                if (enumValues.Length == 0) continue;
-
-                var names = enumValues.Cast<object>().Select(v => v.ToString() ?? v.GetType().Name).ToArray();
-                var currentValue = prop.GetValue(effect) ?? enumValues.GetValue(0)!;
-                int selectedIndex = Array.IndexOf(enumValues, currentValue);
-                if (selectedIndex < 0) selectedIndex = 0;
-
-                if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
+                object currentValue = prop.GetValue(effect) ?? Enum.GetValues(propType).GetValue(0)!;
+                if (ComboEnumHelper.Combo(label, propType, ref currentValue))
                 {
                     app.RecordUndo();
-                    prop.SetValue(effect, enumValues.GetValue(selectedIndex));
+                    prop.SetValue(effect, currentValue);
                     app.RefreshUndoBaseline();
                 }
             }
@@ -1216,16 +1199,12 @@ public static class ComponentDrawerRegistry
 
     private static void DrawEnumCombo<T>(string label, T currentValue, Action<T> setter) where T : struct, Enum
     {
-        var values = Enum.GetValues<T>();
-        var names = values.Select(v => v.ToString()).ToArray();
-        int selectedIndex = Array.IndexOf(values, currentValue);
-        if (selectedIndex < 0) selectedIndex = 0;
-
-        if (ImGui.Combo(label, ref selectedIndex, names, names.Length))
+        var value = currentValue;
+        if (ComboEnumHelper<T>.Combo(label, ref value))
         {
             var app = EditorApplication.Instance;
             app.RecordUndo();
-            setter(values[selectedIndex]);
+            setter(value);
             app.RefreshUndoBaseline();
         }
     }

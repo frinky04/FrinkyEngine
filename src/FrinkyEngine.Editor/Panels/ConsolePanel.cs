@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text;
 using FrinkyEngine.Core.Rendering;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 
 namespace FrinkyEngine.Editor.Panels;
 

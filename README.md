@@ -499,7 +499,8 @@ dotnet run --project src/FrinkyEngine.Editor -- ExampleGames/PrefabTestingGround
 | Core | `BepuPhysics` | 2.4.0 |
 | Core | `Raylib-cs` | 7.0.2 |
 | Editor | `NativeFileDialogSharp` | 0.5.0 |
-| Editor | `rlImGui-cs` | 3.2.0 |
+| Editor | `Hexa.NET.ImGui` | 2.2.9 |
+| Editor | `Hexa.NET.ImGui.Widgets` | 1.2.15 |
 | Runtime | `Raylib-cs` | 7.0.2 |
 
 Global: .NET 8, C# 12, nullable enabled, `AllowUnsafeBlocks=true`.

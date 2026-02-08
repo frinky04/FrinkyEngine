@@ -4,7 +4,8 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
-using ImGuiNET;
+using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
 using FrinkyEngine.Core.Scene;
 
@@ -417,24 +418,12 @@ public class InspectorPanel
         }
         else if (propType.IsEnum)
         {
-            var enumValues = Enum.GetValues(propType);
-            if (enumValues.Length == 0)
-                return;
-
-            var names = enumValues.Cast<object>()
-                .Select(value => value.ToString() ?? value.GetType().Name)
-                .ToArray();
-            var currentValue = firstValue ?? enumValues.GetValue(0)!;
-            int selectedIndex = Array.IndexOf(enumValues, currentValue);
-            if (selectedIndex < 0)
-                selectedIndex = 0;
-
-            if (ImGui.Combo(GetMixedLabel(label, mixed), ref selectedIndex, names, names.Length))
+            object currentValue = firstValue ?? Enum.GetValues(propType).GetValue(0)!;
+            if (ComboEnumHelper.Combo(GetMixedLabel(label, mixed), propType, ref currentValue))
             {
                 _app.RecordUndo();
-                var enumValue = enumValues.GetValue(selectedIndex);
                 foreach (var component in components)
-                    prop.SetValue(component, enumValue);
+                    prop.SetValue(component, currentValue);
                 _app.RefreshUndoBaseline();
             }
         }

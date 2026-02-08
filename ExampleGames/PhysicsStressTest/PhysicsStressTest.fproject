@@ -1,0 +1,7 @@
+{
+  "projectName": "PhysicsStressTest",
+  "defaultScene": "Scenes/MainScene.fscene",
+  "assetsPath": "Assets",
+  "gameAssembly": "bin/Debug/net8.0/PhysicsStressTest.dll",
+  "gameProject": "PhysicsStressTest.csproj"
+}
