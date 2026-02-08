@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -110,7 +111,7 @@ public class PrefabService
             else
             {
                 // Fallback for legacy/missing metadata.
-                var instanceNode = PrefabSerializer.SerializeNode(instanceRoot, preserveStableIds: true);
+                var instanceNode = PrefabSerializer.SerializeNodeNormalized(instanceRoot, preserveStableIds: true);
                 localOverrides = PrefabOverrideUtility.ComputeOverrides(preApplySource.Root, instanceNode);
             }
 
@@ -212,7 +213,7 @@ public class PrefabService
         if (sourcePrefab == null)
             return;
 
-        var instanceNode = PrefabSerializer.SerializeNode(root, preserveStableIds: true);
+        var instanceNode = PrefabSerializer.SerializeNodeNormalized(root, preserveStableIds: true);
         var overrides = PrefabOverrideUtility.ComputeOverrides(sourcePrefab.Root, instanceNode);
         root.Prefab.Overrides = overrides;
     }
@@ -269,7 +270,7 @@ public class PrefabService
             }
             else if (recomputeFromSourceRoot != null)
             {
-                var instanceNode = PrefabSerializer.SerializeNode(root, preserveStableIds: true);
+                var instanceNode = PrefabSerializer.SerializeNodeNormalized(root, preserveStableIds: true);
                 replacementOverrides = PrefabOverrideUtility.ComputeOverrides(recomputeFromSourceRoot, instanceNode);
             }
             else
@@ -329,6 +330,9 @@ public class PrefabService
         var rootNode = prefab.Root.Clone();
         PrefabOverrideUtility.ApplyOverrides(rootNode, overrides);
 
+        var stableIdMapping = BuildStableIdMapping(rootNode, forcedRootId);
+        RemapPrefabEntityReferences(rootNode, stableIdMapping);
+
         return InstantiateNodeRecursive(
             rootNode,
             scene,
@@ -336,7 +340,7 @@ public class PrefabService
             assetPath,
             isRoot: true,
             rootOverrides: overrides?.Clone() ?? new PrefabOverridesData(),
-            forcedRootId);
+            stableIdMapping);
     }
 
     private Entity InstantiateNodeRecursive(
@@ -346,7 +350,7 @@ public class PrefabService
         string assetPath,
         bool isRoot,
         PrefabOverridesData? rootOverrides,
-        Guid? forcedRootId)
+        Dictionary<string, Guid>? stableIdMapping)
     {
         var entity = new Entity(node.Name)
         {
@@ -360,8 +364,8 @@ public class PrefabService
             }
         };
 
-        if (isRoot && forcedRootId.HasValue)
-            entity.Id = forcedRootId.Value;
+        if (stableIdMapping != null && stableIdMapping.TryGetValue(node.StableId, out var mappedId))
+            entity.Id = mappedId;
 
         foreach (var component in node.Components)
             PrefabSerializer.ApplyComponentData(entity, component);
@@ -371,9 +375,55 @@ public class PrefabService
             entity.Transform.SetParent(parent);
 
         foreach (var child in node.Children)
-            InstantiateNodeRecursive(child, scene, entity.Transform, assetPath, false, null, null);
+            InstantiateNodeRecursive(child, scene, entity.Transform, assetPath, false, null, stableIdMapping);
 
         return entity;
+    }
+
+    private static Dictionary<string, Guid> BuildStableIdMapping(PrefabNodeData root, Guid? forcedRootId)
+    {
+        var mapping = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        BuildStableIdMappingRecursive(root, mapping, forcedRootId);
+        return mapping;
+    }
+
+    private static void BuildStableIdMappingRecursive(PrefabNodeData node, Dictionary<string, Guid> mapping, Guid? forcedId)
+    {
+        mapping[node.StableId] = forcedId ?? Guid.NewGuid();
+        foreach (var child in node.Children)
+            BuildStableIdMappingRecursive(child, mapping, null);
+    }
+
+    private static void RemapPrefabEntityReferences(PrefabNodeData node, Dictionary<string, Guid> mapping)
+    {
+        foreach (var component in node.Components)
+        {
+            var keysToRemap = new List<string>();
+            foreach (var (propName, jsonElement) in component.Properties)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                {
+                    var str = jsonElement.GetString();
+                    if (str != null && Guid.TryParse(str, out var guid))
+                    {
+                        var normalizedKey = guid.ToString("N");
+                        if (mapping.ContainsKey(normalizedKey))
+                            keysToRemap.Add(propName);
+                    }
+                }
+            }
+
+            foreach (var key in keysToRemap)
+            {
+                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
+                var normalizedKey = oldGuid.ToString("N");
+                var newGuid = mapping[normalizedKey];
+                component.Properties[key] = JsonSerializer.SerializeToElement(newGuid.ToString());
+            }
+        }
+
+        foreach (var child in node.Children)
+            RemapPrefabEntityReferences(child, mapping);
     }
 
     private Entity? ReplacePrefabRoot(Entity root, PrefabOverridesData? overrides)

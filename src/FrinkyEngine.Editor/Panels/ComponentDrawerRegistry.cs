@@ -801,6 +801,8 @@ public static class ComponentDrawerRegistry
         }
     }
 
+    private static readonly Dictionary<string, string> _entityRefFilters = new();
+
     private static unsafe void DrawEntityReference(string label, Component component, PropertyInfo prop)
     {
         var app = EditorApplication.Instance;
@@ -819,6 +821,8 @@ public static class ComponentDrawerRegistry
             preview = resolved != null ? resolved.Name : "(Missing)";
         }
 
+        var filterId = label;
+
         ImGui.PushID(label);
         ImGui.Columns(2, null, false);
         ImGui.SetColumnWidth(0, 80);
@@ -832,6 +836,12 @@ public static class ComponentDrawerRegistry
         ImGui.SetNextItemWidth(comboWidth);
         if (ImGui.BeginCombo("##ref", preview))
         {
+            if (!_entityRefFilters.ContainsKey(filterId))
+                _entityRefFilters[filterId] = "";
+            var filter = _entityRefFilters[filterId];
+            ImGui.InputTextWithHint("##entityFilter", "Search...", ref filter, 64);
+            _entityRefFilters[filterId] = filter;
+
             if (ImGui.Selectable("(None)", !entityRef.IsValid))
             {
                 app.RecordUndo();
@@ -843,6 +853,9 @@ public static class ComponentDrawerRegistry
             {
                 foreach (var entity in scene.Entities)
                 {
+                    if (filter.Length > 0 && !entity.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     bool isSelected = entityRef.IsValid && entity.Id == entityRef.Id;
                     if (ImGui.Selectable(entity.Name + "##" + entity.Id.ToString("N"), isSelected))
                     {
@@ -854,6 +867,10 @@ public static class ComponentDrawerRegistry
             }
 
             ImGui.EndCombo();
+        }
+        else
+        {
+            _entityRefFilters[filterId] = "";
         }
 
         // Drag-and-drop target on the combo

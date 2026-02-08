@@ -50,11 +50,13 @@ public static class PrefabSerializer
     public static PrefabAssetData CreateFromEntity(Entity root, bool preserveStableIds = true)
     {
         var usedStableIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entityIdToStableId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var data = new PrefabAssetData
         {
             Name = root.Name,
-            Root = SerializeNode(root, preserveStableIds, isSerializationRoot: true, usedStableIds)
+            Root = SerializeNode(root, preserveStableIds, isSerializationRoot: true, usedStableIds, entityIdToStableId)
         };
+        NormalizeInternalEntityReferences(data.Root, entityIdToStableId);
         return data;
     }
 
@@ -64,16 +66,28 @@ public static class PrefabSerializer
         return SerializeNode(entity, preserveStableIds, isSerializationRoot: true, usedStableIds);
     }
 
+    public static PrefabNodeData SerializeNodeNormalized(Entity entity, bool preserveStableIds = true)
+    {
+        var usedStableIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entityIdToStableId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var node = SerializeNode(entity, preserveStableIds, isSerializationRoot: true, usedStableIds, entityIdToStableId);
+        NormalizeInternalEntityReferences(node, entityIdToStableId);
+        return node;
+    }
+
     private static PrefabNodeData SerializeNode(
         Entity entity,
         bool preserveStableIds,
         bool isSerializationRoot,
-        HashSet<string> usedStableIds)
+        HashSet<string> usedStableIds,
+        Dictionary<string, string>? entityIdToStableId = null)
     {
         var stableId = ResolveStableId(entity, preserveStableIds);
         if (string.IsNullOrWhiteSpace(stableId) || usedStableIds.Contains(stableId))
             stableId = Guid.NewGuid().ToString("N");
         usedStableIds.Add(stableId);
+
+        entityIdToStableId?.TryAdd(entity.Id.ToString("N"), stableId);
 
         var node = new PrefabNodeData
         {
@@ -86,13 +100,48 @@ public static class PrefabSerializer
             node.Components.Add(SerializeComponent(component));
 
         foreach (var child in entity.Transform.Children)
-            node.Children.Add(SerializeNode(child.Entity, preserveStableIds, isSerializationRoot: false, usedStableIds));
+            node.Children.Add(SerializeNode(child.Entity, preserveStableIds, isSerializationRoot: false, usedStableIds, entityIdToStableId));
 
         // The root transform is scene placement, not prefab content.
         if (isSerializationRoot)
             SanitizeRootNode(node);
 
         return node;
+    }
+
+    private static void NormalizeInternalEntityReferences(PrefabNodeData node, Dictionary<string, string> entityIdToStableId)
+    {
+        foreach (var component in node.Components)
+        {
+            var keysToRemap = new List<string>();
+            foreach (var (propName, jsonElement) in component.Properties)
+            {
+                if (jsonElement.ValueKind == JsonValueKind.String)
+                {
+                    var str = jsonElement.GetString();
+                    if (str != null && Guid.TryParse(str, out var guid))
+                    {
+                        var key = guid.ToString("N");
+                        if (entityIdToStableId.TryGetValue(key, out var stableId) &&
+                            !string.Equals(key, stableId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            keysToRemap.Add(propName);
+                        }
+                    }
+                }
+            }
+
+            foreach (var key in keysToRemap)
+            {
+                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
+                var stableId = entityIdToStableId[oldGuid.ToString("N")];
+                var stableGuid = Guid.Parse(stableId);
+                component.Properties[key] = JsonSerializer.SerializeToElement(stableGuid.ToString(), JsonOptions);
+            }
+        }
+
+        foreach (var child in node.Children)
+            NormalizeInternalEntityReferences(child, entityIdToStableId);
     }
 
     public static PrefabComponentData SerializeComponent(Component component)
