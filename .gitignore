@@ -23,10 +23,8 @@ Thumbs.db
 .DS_Store
 
 ## Project specific
-/Games
 *.fproject.user
 imgui.ini
 /.claude
 /artifacts
 **/artifacts
-imgui.ini
