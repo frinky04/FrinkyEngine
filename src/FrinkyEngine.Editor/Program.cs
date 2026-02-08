@@ -1,6 +1,7 @@
 using System.Numerics;
 using FrinkyEngine.Core.Rendering;
 using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -75,6 +76,7 @@ public static class Program
             DrawDockspace(app);
 
             app.DrawUI();
+            MessageBoxes.Draw();
 
             RlImGui.End();
 

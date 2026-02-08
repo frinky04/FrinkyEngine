@@ -6,6 +6,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using Hexa.NET.ImGui;
+using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -36,7 +37,6 @@ public class AssetBrowserPanel
     private string _newTagName = string.Empty;
     private Vector3 _newTagColor = new(0.3f, 0.6f, 1.0f);
     private bool _openTagManager;
-    private string? _confirmDeleteTag;
 
     // Cached item list for range selection
     private List<BrowserItem> _lastItems = new();
@@ -691,7 +691,23 @@ public class AssetBrowserPanel
                     if (ImGui.Button("Delete"))
                     {
                         if (assetsWithTag.Count > 0)
-                            _confirmDeleteTag = tag.Name;
+                        {
+                            var tagName = tag.Name;
+                            MessageBoxes.Show(new MessageBox(
+                                "Confirm Delete",
+                                $"Tag '{tagName}' is used by assets. Delete anyway?",
+                                MessageBoxType.YesNo,
+                                tagName,
+                                (mb, data) =>
+                                {
+                                    if (mb.Result == MessageBoxResult.Yes && data is string name)
+                                    {
+                                        tagDb.DeleteTag(name);
+                                        _app.SaveTagDatabase();
+                                    }
+                                },
+                                null!));
+                        }
                         else
                         {
                             tagDb.DeleteTag(tag.Name);
@@ -706,34 +722,6 @@ public class AssetBrowserPanel
             }
         }
         ImGui.EndChild();
-
-        // Delete confirmation
-        if (_confirmDeleteTag != null)
-        {
-            ImGui.OpenPopup("ConfirmDeleteTag");
-            ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        }
-
-        if (ImGui.BeginPopupModal("ConfirmDeleteTag", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove))
-        {
-            ImGui.Text($"Tag '{_confirmDeleteTag}' is used by assets. Delete anyway?");
-            if (ImGui.Button("Delete", new Vector2(120, 0)))
-            {
-                tagDb.DeleteTag(_confirmDeleteTag!);
-                changed = true;
-                _confirmDeleteTag = null;
-                ImGui.CloseCurrentPopup();
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel", new Vector2(120, 0)))
-            {
-                _confirmDeleteTag = null;
-                ImGui.CloseCurrentPopup();
-            }
-
-            ImGui.EndPopup();
-        }
 
         // New tag row + Close
         ImGui.ColorEdit3("##newcolor", ref _newTagColor, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel);
