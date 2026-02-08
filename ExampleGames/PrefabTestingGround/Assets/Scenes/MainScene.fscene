@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -0.09029919,
-    "y": 10.772703,
-    "z": -4.664133
+    "x": -3.1397984,
+    "y": 3.4224105,
+    "z": -1.1180589
   },
-  "editorCameraYaw": -1332.4475,
-  "editorCameraPitch": -35.74975,
+  "editorCameraYaw": -1426.3457,
+  "editorCameraPitch": -18.4997,
   "physics": {
     "gravity": {
       "x": 0,
@@ -28,7 +28,7 @@
           "properties": {
             "LocalPosition": {
               "x": 0,
-              "y": 0,
+              "y": -0.0043513775,
               "z": 0
             },
             "LocalRotation": {
@@ -143,8 +143,8 @@
           "properties": {
             "LocalPosition": {
               "x": 3.336219,
-              "y": 1.2765068,
-              "z": -1.8425238
+              "y": 1.2746991,
+              "z": -1.7978543
             },
             "LocalRotation": {
               "x": 0,
@@ -3567,6 +3567,120 @@
             "LinearDamping": 0.03,
             "AngularDamping": 0.03,
             "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Sound",
+      "id": "9c2b919b-5ad7-434d-be55-44cf9562ff01",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 2.1707263,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.SpherePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Radius": 0.5,
+            "Rings": 16,
+            "Slices": 16,
+            "MaterialType": "SolidColor",
+            "TexturePath": "",
+            "TriplanarScale": 1,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 0,
+              "b": 0,
+              "a": 110
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.AudioSourceComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "SoundPath": "voice-message.mp3",
+            "PlayOnStart": true,
+            "Looping": true,
+            "Spatialized": true,
+            "AutoDestroyOnFinish": true,
+            "AutoResumeOnEnable": true,
+            "Bus": "Sfx",
+            "Volume": 0.15,
+            "Pitch": 2,
+            "StartTimeSeconds": 0,
+            "Mute": false,
+            "Paused": false,
+            "Priority": 100,
+            "Attenuation": {
+              "minDistance": 1,
+              "maxDistance": 50,
+              "rolloff": "Logarithmic",
+              "spatialBlend": 1,
+              "panStereo": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.SphereColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Radius": 0.5,
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": false,
             "LockPositionX": false,
             "LockPositionY": false,
             "LockPositionZ": false,
