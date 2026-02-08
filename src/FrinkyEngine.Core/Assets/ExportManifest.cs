@@ -107,6 +107,8 @@ public class ExportManifest
     public float? PhysicsDefaultFriction { get; set; }
     /// <inheritdoc cref="Physics.PhysicsProjectSettings.DefaultRestitution"/>
     public float? PhysicsDefaultRestitution { get; set; }
+    /// <inheritdoc cref="Physics.PhysicsProjectSettings.InterpolationEnabled"/>
+    public bool? PhysicsInterpolationEnabled { get; set; }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

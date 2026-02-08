@@ -84,7 +84,8 @@ public class ProjectSettings
                 PhysicsContactDampingRatio = 1f,
                 PhysicsMaximumRecoveryVelocity = 2f,
                 PhysicsDefaultFriction = 0.8f,
-                PhysicsDefaultRestitution = 0f
+                PhysicsDefaultRestitution = 0f,
+                PhysicsInterpolationEnabled = true
             },
             Build = new BuildProjectSettings
             {
@@ -189,7 +190,8 @@ public class ProjectSettings
                 PhysicsContactDampingRatio = Runtime.PhysicsContactDampingRatio,
                 PhysicsMaximumRecoveryVelocity = Runtime.PhysicsMaximumRecoveryVelocity,
                 PhysicsDefaultFriction = Runtime.PhysicsDefaultFriction,
-                PhysicsDefaultRestitution = Runtime.PhysicsDefaultRestitution
+                PhysicsDefaultRestitution = Runtime.PhysicsDefaultRestitution,
+                PhysicsInterpolationEnabled = Runtime.PhysicsInterpolationEnabled
             },
             Build = new BuildProjectSettings
             {
@@ -422,6 +424,9 @@ public class RuntimeProjectSettings
 
     /// <summary>Default restitution for colliders without overrides (clamped to 0–1, defaults to 0).</summary>
     public float PhysicsDefaultRestitution { get; set; } = 0f;
+
+    /// <summary>Enables visual interpolation for eligible dynamic rigidbodies.</summary>
+    public bool PhysicsInterpolationEnabled { get; set; } = true;
 }
 
 /// <summary>

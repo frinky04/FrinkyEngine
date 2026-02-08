@@ -24,8 +24,15 @@ internal sealed class PhysicsSystem : IDisposable
         public Vector3 LockedPosition;
         public Quaternion LockReferenceOrientation;
         public byte RotationLockMask;
-        public Vector3 LastTransformPosition;
-        public Quaternion LastTransformRotation;
+        public Vector3 AuthoritativeLocalPosition;
+        public Quaternion AuthoritativeLocalRotation;
+        public Vector3 LastPublishedVisualLocalPosition;
+        public Quaternion LastPublishedVisualLocalRotation;
+        public bool HasPublishedVisualPose;
+        public RigidPose PreviousSimulationPose;
+        public RigidPose CurrentSimulationPose;
+        public bool HasSimulationPoseHistory;
+        public bool SuppressInterpolationForFrame;
     }
 
     private readonly struct ShapeCacheKey : IEquatable<ShapeCacheKey>
@@ -259,6 +266,148 @@ internal sealed class PhysicsSystem : IDisposable
         var body = _simulation.Bodies.GetBodyReference(handle);
         body.Velocity.Linear = velocity;
         body.Awake = true;
+    }
+
+    public void TeleportBody(RigidbodyComponent rigidbody, Vector3 position, Quaternion rotation, bool resetVelocity)
+    {
+        var transform = rigidbody.Entity.Transform;
+        var normalizedRotation = NormalizeOrIdentity(rotation);
+        transform.LocalPosition = position;
+        transform.LocalRotation = normalizedRotation;
+
+        if (_simulation == null)
+        {
+            if (resetVelocity)
+                rigidbody.InitialLinearVelocity = Vector3.Zero;
+            return;
+        }
+
+        if (!_bodyStates.TryGetValue(rigidbody.Entity.Id, out var state))
+        {
+            if (resetVelocity)
+                rigidbody.InitialLinearVelocity = Vector3.Zero;
+            return;
+        }
+
+        state.AuthoritativeLocalPosition = position;
+        state.AuthoritativeLocalRotation = normalizedRotation;
+        state.LastPublishedVisualLocalPosition = position;
+        state.LastPublishedVisualLocalRotation = normalizedRotation;
+        state.HasPublishedVisualPose = true;
+
+        if (state.Rigidbody.MotionType == BodyMotionType.Static)
+        {
+            if (state.StaticHandle is StaticHandle staticHandle && _simulation.Statics.StaticExists(staticHandle))
+            {
+                var staticRef = _simulation.Statics.GetStaticReference(staticHandle);
+                staticRef.Pose = BuildBodyPose(position, normalizedRotation, transform.LocalScale, state.Collider);
+                staticRef.UpdateBounds();
+            }
+
+            return;
+        }
+
+        if (state.BodyHandle is not BodyHandle bodyHandle || !_simulation.Bodies.BodyExists(bodyHandle))
+            return;
+
+        var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
+        var targetPose = BuildBodyPose(position, normalizedRotation, transform.LocalScale, state.Collider);
+        if (hasCharacterController)
+        {
+            targetPose.Orientation = Quaternion.Identity;
+            var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, targetPose.Orientation);
+            targetPose.Position = position + offset;
+        }
+
+        var body = _simulation.Bodies.GetBodyReference(bodyHandle);
+        body.Pose = targetPose;
+        if (resetVelocity)
+        {
+            body.Velocity.Linear = Vector3.Zero;
+            body.Velocity.Angular = Vector3.Zero;
+            rigidbody.InitialLinearVelocity = Vector3.Zero;
+        }
+
+        body.Awake = true;
+        SnapSimulationPoseHistory(state, targetPose, suppressInterpolation: true);
+    }
+
+    public void PublishInterpolatedVisualPoses()
+    {
+        if (_simulation == null)
+            return;
+
+        var projSettings = PhysicsProjectSettings.Current;
+        projSettings.Normalize();
+
+        var fixedDt = projSettings.FixedTimestep;
+        if (!float.IsFinite(fixedDt) || fixedDt <= 0f)
+            return;
+
+        var alpha = Math.Clamp(_accumulator / fixedDt, 0f, 1f);
+
+        foreach (var state in _bodyStates.Values)
+        {
+            if (state.Rigidbody.MotionType != BodyMotionType.Dynamic)
+            {
+                state.HasPublishedVisualPose = false;
+                state.SuppressInterpolationForFrame = false;
+                continue;
+            }
+
+            var transform = state.Entity.Transform;
+            var currentTransformPosition = transform.LocalPosition;
+            var currentTransformRotation = NormalizeOrIdentity(transform.LocalRotation);
+            var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
+
+            if (hasCharacterController)
+                state.AuthoritativeLocalRotation = currentTransformRotation;
+
+            var positionExternallyEdited = state.HasPublishedVisualPose
+                ? !ApproximatelyEqual(currentTransformPosition, state.LastPublishedVisualLocalPosition)
+                : !ApproximatelyEqual(currentTransformPosition, state.AuthoritativeLocalPosition);
+            var rotationExternallyEdited = !hasCharacterController && (state.HasPublishedVisualPose
+                ? !ApproximatelyEqual(currentTransformRotation, state.LastPublishedVisualLocalRotation)
+                : !ApproximatelyEqual(currentTransformRotation, state.AuthoritativeLocalRotation));
+            if (positionExternallyEdited || rotationExternallyEdited)
+            {
+                state.SuppressInterpolationForFrame = true;
+                continue;
+            }
+
+            var authoritativePosition = state.AuthoritativeLocalPosition;
+            var authoritativeRotation = state.AuthoritativeLocalRotation;
+
+            if (!ShouldInterpolateBody(state, projSettings) || !state.HasSimulationPoseHistory)
+            {
+                transform.LocalPosition = authoritativePosition;
+                transform.LocalRotation = authoritativeRotation;
+                state.LastPublishedVisualLocalPosition = authoritativePosition;
+                state.LastPublishedVisualLocalRotation = authoritativeRotation;
+                state.HasPublishedVisualPose = true;
+                state.SuppressInterpolationForFrame = false;
+                continue;
+            }
+
+            var previousPose = state.PreviousSimulationPose;
+            var currentPose = state.CurrentSimulationPose;
+            var useCurrentPose = state.SuppressInterpolationForFrame;
+            var visualPose = useCurrentPose
+                ? currentPose
+                : InterpolatePose(previousPose, currentPose, alpha);
+
+            var visualPosition = visualPose.Position - ComputeWorldCenterOffset(state.Collider, transform.LocalScale, visualPose.Orientation);
+            var visualRotation = hasCharacterController
+                ? authoritativeRotation
+                : NormalizeOrIdentity(visualPose.Orientation);
+
+            transform.LocalPosition = visualPosition;
+            transform.LocalRotation = visualRotation;
+            state.LastPublishedVisualLocalPosition = visualPosition;
+            state.LastPublishedVisualLocalRotation = visualRotation;
+            state.HasPublishedVisualPose = true;
+            state.SuppressInterpolationForFrame = false;
+        }
     }
 
     private void ReconcileParticipants()
@@ -511,9 +660,11 @@ internal sealed class PhysicsSystem : IDisposable
             return null;
 
         var transform = entity.Transform;
+        var authoritativePosition = transform.LocalPosition;
+        var authoritativeRotation = NormalizeOrIdentity(transform.LocalRotation);
         var mass = MathF.Max(0.0001f, rigidbody.Mass);
         var shapeResult = CreateShape(collider, transform.LocalScale, mass);
-        var pose = BuildBodyPose(transform, collider);
+        var pose = BuildBodyPose(authoritativePosition, authoritativeRotation, transform.LocalScale, collider);
         var continuity = rigidbody.ContinuousDetection
             ? ContinuousDetection.Continuous()
             : ContinuousDetection.Discrete;
@@ -570,11 +721,17 @@ internal sealed class PhysicsSystem : IDisposable
             BodyHandle = bodyHandle,
             StaticHandle = staticHandle,
             ConfigurationHash = configurationHash,
-            LockedPosition = transform.LocalPosition,
+            LockedPosition = authoritativePosition,
             LockReferenceOrientation = NormalizeOrIdentity(pose.Orientation),
             RotationLockMask = GetRotationLockMask(rigidbody),
-            LastTransformPosition = transform.LocalPosition,
-            LastTransformRotation = transform.LocalRotation
+            AuthoritativeLocalPosition = authoritativePosition,
+            AuthoritativeLocalRotation = authoritativeRotation,
+            LastPublishedVisualLocalPosition = authoritativePosition,
+            LastPublishedVisualLocalRotation = authoritativeRotation,
+            HasPublishedVisualPose = true,
+            PreviousSimulationPose = pose,
+            CurrentSimulationPose = pose,
+            HasSimulationPoseHistory = true
         };
     }
 
@@ -616,7 +773,8 @@ internal sealed class PhysicsSystem : IDisposable
         foreach (var state in _bodyStates.Values)
         {
             var transform = state.Entity.Transform;
-            var targetPose = BuildBodyPose(transform, state.Collider);
+            var currentTransformPosition = transform.LocalPosition;
+            var currentTransformRotation = NormalizeOrIdentity(transform.LocalRotation);
             var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
 
             if (state.Rigidbody.MotionType == BodyMotionType.Static)
@@ -624,6 +782,9 @@ internal sealed class PhysicsSystem : IDisposable
                 if (state.StaticHandle is not StaticHandle staticHandle || !_simulation.Statics.StaticExists(staticHandle))
                     continue;
 
+                state.AuthoritativeLocalPosition = currentTransformPosition;
+                state.AuthoritativeLocalRotation = currentTransformRotation;
+                var targetPose = BuildBodyPose(state.AuthoritativeLocalPosition, state.AuthoritativeLocalRotation, transform.LocalScale, state.Collider);
                 var staticRef = _simulation.Statics.GetStaticReference(staticHandle);
                 staticRef.Pose = targetPose;
                 staticRef.UpdateBounds();
@@ -636,6 +797,9 @@ internal sealed class PhysicsSystem : IDisposable
             var body = _simulation.Bodies.GetBodyReference(bodyHandle);
             if (state.Rigidbody.MotionType == BodyMotionType.Kinematic)
             {
+                state.AuthoritativeLocalPosition = currentTransformPosition;
+                state.AuthoritativeLocalRotation = currentTransformRotation;
+                var targetPose = BuildBodyPose(state.AuthoritativeLocalPosition, state.AuthoritativeLocalRotation, transform.LocalScale, state.Collider);
                 var currentPose = body.Pose;
                 body.Velocity.Linear = (targetPose.Position - currentPose.Position) / stepDt;
                 body.Velocity.Angular = ComputeAngularVelocity(currentPose.Orientation, targetPose.Orientation, stepDt);
@@ -644,37 +808,47 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             }
 
+            var positionExternallyEdited = state.HasPublishedVisualPose
+                ? !ApproximatelyEqual(currentTransformPosition, state.LastPublishedVisualLocalPosition)
+                : !ApproximatelyEqual(currentTransformPosition, state.AuthoritativeLocalPosition);
+            var rotationExternallyEdited = !hasCharacterController && (state.HasPublishedVisualPose
+                ? !ApproximatelyEqual(currentTransformRotation, state.LastPublishedVisualLocalRotation)
+                : !ApproximatelyEqual(currentTransformRotation, state.AuthoritativeLocalRotation));
+
             if (hasCharacterController)
             {
-                var characterPositionChanged = !ApproximatelyEqual(transform.LocalPosition, state.LastTransformPosition);
-                if (characterPositionChanged)
+                state.AuthoritativeLocalRotation = currentTransformRotation;
+
+                if (positionExternallyEdited)
                 {
                     var currentPose = body.Pose;
                     currentPose.Orientation = Quaternion.Identity;
                     var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, currentPose.Orientation);
-                    currentPose.Position = transform.LocalPosition + offset;
+                    currentPose.Position = currentTransformPosition + offset;
                     body.Pose = currentPose;
-                    body.Velocity.Linear = Vector3.Zero;
-                    body.Velocity.Angular = Vector3.Zero;
                     body.Awake = true;
+
+                    state.AuthoritativeLocalPosition = currentTransformPosition;
+                    state.LastPublishedVisualLocalPosition = currentTransformPosition;
+                    state.LastPublishedVisualLocalRotation = currentTransformRotation;
+                    state.HasPublishedVisualPose = true;
+                    SnapSimulationPoseHistory(state, currentPose, suppressInterpolation: true);
                 }
 
-                state.LastTransformPosition = transform.LocalPosition;
-                state.LastTransformRotation = transform.LocalRotation;
                 continue;
             }
 
-            // Allow explicit transform edits to teleport dynamics before stepping.
-            var positionChanged = !ApproximatelyEqual(transform.LocalPosition, state.LastTransformPosition);
-            var rotationChanged = !ApproximatelyEqual(transform.LocalRotation, state.LastTransformRotation);
-            if (positionChanged || rotationChanged)
+            if (positionExternallyEdited || rotationExternallyEdited)
             {
+                state.AuthoritativeLocalPosition = currentTransformPosition;
+                state.AuthoritativeLocalRotation = currentTransformRotation;
+                var targetPose = BuildBodyPose(state.AuthoritativeLocalPosition, state.AuthoritativeLocalRotation, transform.LocalScale, state.Collider);
                 body.Pose = targetPose;
-
-                body.Velocity.Linear = Vector3.Zero;
-                body.Velocity.Angular = Vector3.Zero;
-
                 body.Awake = true;
+                state.LastPublishedVisualLocalPosition = currentTransformPosition;
+                state.LastPublishedVisualLocalRotation = currentTransformRotation;
+                state.HasPublishedVisualPose = true;
+                SnapSimulationPoseHistory(state, targetPose, suppressInterpolation: true);
             }
         }
     }
@@ -776,12 +950,14 @@ internal sealed class PhysicsSystem : IDisposable
             var hasCharacterController = state.Entity.GetComponent<CharacterControllerComponent>() is { Enabled: true };
 
             var offset = ComputeWorldCenterOffset(state.Collider, transform.LocalScale, pose.Orientation);
-            transform.LocalPosition = pose.Position - offset;
+            var authoritativePosition = pose.Position - offset;
+            var authoritativeRotation = state.AuthoritativeLocalRotation;
             if (!hasCharacterController)
-                transform.LocalRotation = Quaternion.Normalize(pose.Orientation);
+                authoritativeRotation = NormalizeOrIdentity(pose.Orientation);
 
-            state.LastTransformPosition = transform.LocalPosition;
-            state.LastTransformRotation = transform.LocalRotation;
+            state.AuthoritativeLocalPosition = authoritativePosition;
+            state.AuthoritativeLocalRotation = authoritativeRotation;
+            CaptureSimulationPoseAfterStep(state, pose);
         }
     }
 
@@ -858,9 +1034,14 @@ internal sealed class PhysicsSystem : IDisposable
 
     private static RigidPose BuildBodyPose(TransformComponent transform, ColliderComponent collider)
     {
-        var orientation = Quaternion.Normalize(transform.LocalRotation);
-        var offset = ComputeWorldCenterOffset(collider, transform.LocalScale, orientation);
-        return new RigidPose(transform.LocalPosition + offset, orientation);
+        return BuildBodyPose(transform.LocalPosition, transform.LocalRotation, transform.LocalScale, collider);
+    }
+
+    private static RigidPose BuildBodyPose(Vector3 position, Quaternion rotation, Vector3 localScale, ColliderComponent collider)
+    {
+        var orientation = NormalizeOrIdentity(rotation);
+        var offset = ComputeWorldCenterOffset(collider, localScale, orientation);
+        return new RigidPose(position + offset, orientation);
     }
 
     private static Vector3 ComputeWorldCenterOffset(ColliderComponent collider, Vector3 localScale, Quaternion orientation)
@@ -1048,6 +1229,58 @@ internal sealed class PhysicsSystem : IDisposable
 
         var axis = new Vector3(delta.X, delta.Y, delta.Z) / sinHalf;
         return axis * (angle / dt);
+    }
+
+    private static bool ShouldInterpolateBody(PhysicsBodyState state, PhysicsProjectSettings settings)
+    {
+        return state.Rigidbody.InterpolationMode switch
+        {
+            RigidbodyInterpolationMode.None => false,
+            RigidbodyInterpolationMode.Interpolate => true,
+            _ => settings.InterpolationEnabled
+        };
+    }
+
+    private static RigidPose InterpolatePose(RigidPose previous, RigidPose current, float alpha)
+    {
+        var clampedAlpha = Math.Clamp(alpha, 0f, 1f);
+        var previousOrientation = NormalizeOrIdentity(previous.Orientation);
+        var currentOrientation = NormalizeOrIdentity(current.Orientation);
+        if (Quaternion.Dot(previousOrientation, currentOrientation) < 0f)
+        {
+            currentOrientation = new Quaternion(
+                -currentOrientation.X,
+                -currentOrientation.Y,
+                -currentOrientation.Z,
+                -currentOrientation.W);
+        }
+
+        return new RigidPose(
+            Vector3.Lerp(previous.Position, current.Position, clampedAlpha),
+            NormalizeOrIdentity(Quaternion.Slerp(previousOrientation, currentOrientation, clampedAlpha)));
+    }
+
+    private static void CaptureSimulationPoseAfterStep(PhysicsBodyState state, RigidPose pose)
+    {
+        if (!state.HasSimulationPoseHistory)
+        {
+            state.PreviousSimulationPose = pose;
+            state.CurrentSimulationPose = pose;
+            state.HasSimulationPoseHistory = true;
+            return;
+        }
+
+        state.PreviousSimulationPose = state.CurrentSimulationPose;
+        state.CurrentSimulationPose = pose;
+    }
+
+    private static void SnapSimulationPoseHistory(PhysicsBodyState state, RigidPose pose, bool suppressInterpolation)
+    {
+        state.PreviousSimulationPose = pose;
+        state.CurrentSimulationPose = pose;
+        state.HasSimulationPoseHistory = true;
+        if (suppressInterpolation)
+            state.SuppressInterpolationForFrame = true;
     }
 
     private readonly struct ShapeCreationResult

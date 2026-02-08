@@ -61,7 +61,7 @@ public class TransformComponent : Component
         {
             if (_eulerDirty)
             {
-                _cachedEuler = QuaternionToEuler(_localRotation);
+                _cachedEuler = QuaternionToEuler(LocalRotation);
                 _eulerDirty = false;
             }
             return _cachedEuler;
