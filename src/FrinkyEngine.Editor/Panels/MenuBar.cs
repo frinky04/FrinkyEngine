@@ -728,6 +728,45 @@ public class MenuBar
                 draft.Runtime.PhysicsInterpolationEnabled = interpolationEnabled;
         }
 
+        if (ImGui.CollapsingHeader("Audio", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            float master = draft.Runtime.AudioMasterVolume;
+            if (ImGui.InputFloat("Master Volume", ref master))
+                draft.Runtime.AudioMasterVolume = master;
+
+            float music = draft.Runtime.AudioMusicVolume;
+            if (ImGui.InputFloat("Music Volume", ref music))
+                draft.Runtime.AudioMusicVolume = music;
+
+            float sfx = draft.Runtime.AudioSfxVolume;
+            if (ImGui.InputFloat("SFX Volume", ref sfx))
+                draft.Runtime.AudioSfxVolume = sfx;
+
+            float ui = draft.Runtime.AudioUiVolume;
+            if (ImGui.InputFloat("UI Volume", ref ui))
+                draft.Runtime.AudioUiVolume = ui;
+
+            float voice = draft.Runtime.AudioVoiceVolume;
+            if (ImGui.InputFloat("Voice Volume", ref voice))
+                draft.Runtime.AudioVoiceVolume = voice;
+
+            float ambient = draft.Runtime.AudioAmbientVolume;
+            if (ImGui.InputFloat("Ambient Volume", ref ambient))
+                draft.Runtime.AudioAmbientVolume = ambient;
+
+            int maxVoices = draft.Runtime.AudioMaxVoices;
+            if (ImGui.InputInt("Max Voices", ref maxVoices))
+                draft.Runtime.AudioMaxVoices = maxVoices;
+
+            float doppler = draft.Runtime.AudioDopplerScale;
+            if (ImGui.InputFloat("Doppler Scale", ref doppler))
+                draft.Runtime.AudioDopplerScale = doppler;
+
+            bool voiceStealing = draft.Runtime.AudioEnableVoiceStealing;
+            if (ImGui.Checkbox("Enable Voice Stealing", ref voiceStealing))
+                draft.Runtime.AudioEnableVoiceStealing = voiceStealing;
+        }
+
         if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))
         {
             var outputName = draft.Build.OutputName;

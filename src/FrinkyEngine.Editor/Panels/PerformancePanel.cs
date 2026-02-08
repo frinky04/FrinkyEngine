@@ -96,6 +96,14 @@ public class PerformancePanel
                 ImGui.Text($"Physics  Dyn: {physStats.DynamicBodies}  Kin: {physStats.KinematicBodies}  Static: {physStats.StaticBodies}  CC: {physStats.ActiveCharacterControllers}");
                 ImGui.Text($"Substeps: {physStats.SubstepsThisFrame}  Step: {physStats.StepTimeMs:F2} ms");
             }
+
+            var audioStats = _app.CurrentScene?.GetAudioFrameStats() ?? default;
+            if (audioStats.Valid)
+            {
+                ImGui.Separator();
+                ImGui.Text($"Audio  Voices: {audioStats.ActiveVoices}  Streaming: {audioStats.StreamingVoices}");
+                ImGui.Text($"Stolen: {audioStats.StolenVoicesThisFrame}  Virtual: {audioStats.VirtualizedVoices}  Update: {audioStats.UpdateTimeMs:F2} ms");
+            }
         }
         ImGui.End();
 

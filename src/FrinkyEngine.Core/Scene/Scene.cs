@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Physics;
@@ -67,6 +68,7 @@ public class Scene : IDisposable
     public IReadOnlyList<RenderableComponent> Renderables => _registry.GetComponents<RenderableComponent>();
 
     internal PhysicsSystem? PhysicsSystem { get; private set; }
+    internal AudioSystem? AudioSystem { get; private set; }
     private bool _started;
 
     /// <summary>
@@ -184,6 +186,7 @@ public class Scene : IDisposable
         PhysicsSettings.Normalize();
         PhysicsSystem ??= new PhysicsSystem(this);
         PhysicsSystem.Initialize();
+        AudioSystem ??= new AudioSystem(this);
 
         foreach (var entity in _entities)
         {
@@ -216,6 +219,8 @@ public class Scene : IDisposable
             if (entity.Active)
                 entity.LateUpdateComponents(dt);
         }
+
+        AudioSystem?.Update(dt);
     }
 
     /// <summary>
@@ -224,6 +229,14 @@ public class Scene : IDisposable
     public PhysicsFrameStats GetPhysicsFrameStats()
     {
         return PhysicsSystem?.GetFrameStats() ?? default;
+    }
+
+    /// <summary>
+    /// Returns a snapshot of audio diagnostics for the current frame.
+    /// </summary>
+    public AudioFrameStats GetAudioFrameStats()
+    {
+        return AudioSystem?.GetFrameStats() ?? default;
     }
 
     /// <summary>
@@ -248,6 +261,8 @@ public class Scene : IDisposable
     {
         PhysicsSystem?.Dispose();
         PhysicsSystem = null;
+        AudioSystem?.Dispose();
+        AudioSystem = null;
         _started = false;
     }
 }

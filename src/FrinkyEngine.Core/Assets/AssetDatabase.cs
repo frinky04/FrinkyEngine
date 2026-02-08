@@ -24,6 +24,9 @@ public class AssetDatabase
         { ".jpeg", AssetType.Texture },
         { ".bmp", AssetType.Texture },
         { ".tga", AssetType.Texture },
+        { ".wav", AssetType.Audio },
+        { ".ogg", AssetType.Audio },
+        { ".mp3", AssetType.Audio },
         { ".cs", AssetType.Script },
         { ".fprefab", AssetType.Prefab },
     };

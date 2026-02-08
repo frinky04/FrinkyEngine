@@ -148,7 +148,16 @@ public static class GameExporter
                 PhysicsMaximumRecoveryVelocity = projectSettings.Runtime.PhysicsMaximumRecoveryVelocity,
                 PhysicsDefaultFriction = projectSettings.Runtime.PhysicsDefaultFriction,
                 PhysicsDefaultRestitution = projectSettings.Runtime.PhysicsDefaultRestitution,
-                PhysicsInterpolationEnabled = projectSettings.Runtime.PhysicsInterpolationEnabled
+                PhysicsInterpolationEnabled = projectSettings.Runtime.PhysicsInterpolationEnabled,
+                AudioMasterVolume = projectSettings.Runtime.AudioMasterVolume,
+                AudioMusicVolume = projectSettings.Runtime.AudioMusicVolume,
+                AudioSfxVolume = projectSettings.Runtime.AudioSfxVolume,
+                AudioUiVolume = projectSettings.Runtime.AudioUiVolume,
+                AudioVoiceVolume = projectSettings.Runtime.AudioVoiceVolume,
+                AudioAmbientVolume = projectSettings.Runtime.AudioAmbientVolume,
+                AudioMaxVoices = projectSettings.Runtime.AudioMaxVoices,
+                AudioDopplerScale = projectSettings.Runtime.AudioDopplerScale,
+                AudioEnableVoiceStealing = projectSettings.Runtime.AudioEnableVoiceStealing
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");

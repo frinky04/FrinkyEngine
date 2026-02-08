@@ -14,6 +14,8 @@ public class AssetManager
 
     private readonly Dictionary<string, Model> _models = new();
     private readonly Dictionary<string, Texture2D> _textures = new();
+    private readonly Dictionary<string, Sound> _audioClips = new();
+    private readonly Dictionary<string, Music> _audioStreams = new();
     private readonly Dictionary<TriplanarParamKey, Texture2D> _triplanarParamsTextures = new();
 
     /// <summary>
@@ -64,6 +66,38 @@ public class AssetManager
     }
 
     /// <summary>
+    /// Loads a short-form audio clip from the assets directory, returning a cached copy if already loaded.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <returns>The loaded <see cref="Sound"/>.</returns>
+    public Sound LoadAudioClip(string relativePath)
+    {
+        if (_audioClips.TryGetValue(relativePath, out var cached))
+            return cached;
+
+        var fullPath = ResolvePath(relativePath);
+        var sound = Raylib.LoadSound(fullPath);
+        _audioClips[relativePath] = sound;
+        return sound;
+    }
+
+    /// <summary>
+    /// Loads a streamed audio asset from the assets directory, returning a cached stream if already loaded.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <returns>The loaded <see cref="Music"/> stream.</returns>
+    public Music LoadAudioStream(string relativePath)
+    {
+        if (_audioStreams.TryGetValue(relativePath, out var cached))
+            return cached;
+
+        var fullPath = ResolvePath(relativePath);
+        var music = Raylib.LoadMusicStream(fullPath);
+        _audioStreams[relativePath] = music;
+        return music;
+    }
+
+    /// <summary>
     /// Gets or creates a 1x1 float texture used to pass triplanar material parameters to shaders.
     /// </summary>
     /// <param name="enabled">Whether triplanar mode is enabled for this material.</param>
@@ -102,6 +136,10 @@ public class AssetManager
             Raylib.UnloadModel(model);
         if (_textures.Remove(normalized, out var texture))
             Raylib.UnloadTexture(texture);
+        if (_audioClips.Remove(normalized, out var clip))
+            Raylib.UnloadSound(clip);
+        if (_audioStreams.Remove(normalized, out var music))
+            Raylib.UnloadMusicStream(music);
     }
 
     /// <summary>
@@ -116,6 +154,14 @@ public class AssetManager
         foreach (var texture in _textures.Values)
             Raylib.UnloadTexture(texture);
         _textures.Clear();
+
+        foreach (var clip in _audioClips.Values)
+            Raylib.UnloadSound(clip);
+        _audioClips.Clear();
+
+        foreach (var stream in _audioStreams.Values)
+            Raylib.UnloadMusicStream(stream);
+        _audioStreams.Clear();
 
         foreach (var texture in _triplanarParamsTextures.Values)
             Raylib.UnloadTexture(texture);

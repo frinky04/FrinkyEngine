@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Rendering;
@@ -55,6 +56,7 @@ public static class Program
 
         AssetManager.Instance.AssetsPath = project.GetAbsoluteAssetsPath(projectDir);
         PhysicsProjectSettings.ApplyFrom(settings.Runtime);
+        AudioProjectSettings.ApplyFrom(settings.Runtime);
 
         var assemblyLoader = new GameAssemblyLoader();
         if (!string.IsNullOrEmpty(project.GameAssembly))
@@ -97,6 +99,7 @@ public static class Program
 
             AssetManager.Instance.AssetsPath = Path.Combine(tempDir, "Assets");
             PhysicsProjectSettings.ApplyFrom(manifest);
+            AudioProjectSettings.ApplyFrom(manifest);
 
             var assemblyLoader = new GameAssemblyLoader();
             if (!string.IsNullOrEmpty(manifest.GameAssembly))
@@ -146,6 +149,7 @@ public static class Program
         string scenePath, GameAssemblyLoader assemblyLoader, string runtimeWindowTitle, RuntimeLaunchSettings launchSettings)
     {
         RaylibLogger.Install();
+        AudioDeviceService.EnsureInitialized();
         launchSettings = SanitizeLaunchSettings(launchSettings);
         var flags = ConfigFlags.Msaa4xHint;
         if (launchSettings.Resizable)
@@ -173,6 +177,7 @@ public static class Program
         if (scene == null)
         {
             Console.WriteLine($"Failed to load scene: {scenePath}");
+            AudioDeviceService.ShutdownIfUnused();
             Raylib.CloseWindow();
             return;
         }
@@ -254,6 +259,7 @@ public static class Program
         sceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
         assemblyLoader.Unload();
+        AudioDeviceService.ShutdownIfUnused();
         Raylib.CloseWindow();
     }
 
