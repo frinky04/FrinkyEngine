@@ -19,7 +19,7 @@ public class AmbientOcclusionEffect : PostProcessEffect
     /// <summary>
     /// Sampling radius in world-space units. Higher values detect occlusion over a wider area.
     /// </summary>
-    public float Radius { get; set; } = 0.5f;
+    public float Radius { get; set; } = 20.0f;
 
     /// <summary>
     /// Strength of the occlusion darkening.
@@ -29,17 +29,17 @@ public class AmbientOcclusionEffect : PostProcessEffect
     /// <summary>
     /// Depth bias in world-space units to prevent self-occlusion artifacts.
     /// </summary>
-    public float Bias { get; set; } = 0.01f;
+    public float Bias { get; set; } = 1.0f;
 
     /// <summary>
     /// Number of hemisphere samples per pixel (max 64).
     /// </summary>
-    public int SampleCount { get; set; } = 16;
+    public int SampleCount { get; set; } = 64;
 
     /// <summary>
     /// Size of the bilateral blur kernel (half-extent in pixels).
     /// </summary>
-    public int BlurSize { get; set; } = 2;
+    public int BlurSize { get; set; } = 16;
 
     private Shader _ssaoShader;
     private Shader _blurShader;

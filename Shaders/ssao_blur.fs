@@ -26,7 +26,7 @@ void main()
     float totalWeight = 0.0;
 
     int halfSize = blurSize;
-    float sigma = float(halfSize) + 1.0;
+    float sigma = max(float(halfSize) * 0.5, 1.0);
 
     for (int i = -halfSize; i <= halfSize; i++)
     {
@@ -43,11 +43,13 @@ void main()
         float depthDiff = abs(sampleDepth - centerDepth);
         float depthWeight = 1.0 - smoothstep(0.0, 0.1 * centerDepth, depthDiff);
 
-        float weight = spatialWeight * depthWeight;
-        result += sampleAo * weight;
-        totalWeight += weight;
+        // Cross-edge samples fall back to center AO instead of being dropped,
+        // preventing bright halos from asymmetric weight reduction at depth edges
+        float ao = mix(centerAo, sampleAo, depthWeight);
+        result += ao * spatialWeight;
+        totalWeight += spatialWeight;
     }
 
-    result /= max(totalWeight, 0.001);
+    result /= totalWeight;
     finalColor = vec4(result, result, result, 1.0);
 }

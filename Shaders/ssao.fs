@@ -44,8 +44,29 @@ void main()
 
     vec3 viewPos = viewPosFromUV(fragTexCoord, normDepth);
 
-    // Reconstruct normal from view-space position using screen-space derivatives
-    vec3 normal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
+    // Per-pixel normal reconstruction from depth taps (avoids dFdx/dFdy 2x2 quad banding)
+    vec2 texelSize = 1.0 / vec2(textureSize(depthTex, 0));
+
+    vec3 posL = viewPosFromUV(fragTexCoord - vec2(texelSize.x, 0.0),
+                              texture(depthTex, fragTexCoord - vec2(texelSize.x, 0.0)).r);
+    vec3 posR = viewPosFromUV(fragTexCoord + vec2(texelSize.x, 0.0),
+                              texture(depthTex, fragTexCoord + vec2(texelSize.x, 0.0)).r);
+    vec3 posU = viewPosFromUV(fragTexCoord + vec2(0.0, texelSize.y),
+                              texture(depthTex, fragTexCoord + vec2(0.0, texelSize.y)).r);
+    vec3 posD = viewPosFromUV(fragTexCoord - vec2(0.0, texelSize.y),
+                              texture(depthTex, fragTexCoord - vec2(0.0, texelSize.y)).r);
+
+    // Best-pair selection: pick forward or backward difference per axis
+    // based on which has a smaller depth delta (less likely to cross an edge)
+    vec3 dxLeft  = viewPos - posL;
+    vec3 dxRight = posR - viewPos;
+    vec3 dyDown  = viewPos - posD;
+    vec3 dyUp    = posU - viewPos;
+
+    vec3 dx = (abs(dxLeft.z) < abs(dxRight.z)) ? dxLeft : dxRight;
+    vec3 dy = (abs(dyDown.z) < abs(dyUp.z)) ? dyDown : dyUp;
+
+    vec3 normal = normalize(cross(dx, dy));
 
     // Noise for random rotation in tangent plane
     vec2 noiseScale = vec2(textureSize(depthTex, 0)) / 4.0;
