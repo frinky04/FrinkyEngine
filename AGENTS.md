@@ -53,4 +53,7 @@ For PRs, include:
 - Screenshots or short clips for editor UI changes.
 
 ## Configuration & Assets
-Keep shader changes in `Shaders/` and ensure they’re copied to output. Editor fonts/assets should live under `EditorAssets/` so content globbing picks them up.
+Keep shader changes in `Shaders/` and ensure they're copied to output. Editor fonts/assets should live under `EditorAssets/` so content globbing picks them up.
+
+## Documentation
+When adding new features, components, systems, or changing existing behavior, update `README.md` to reflect those changes. The README is the primary user-facing documentation for the engine.

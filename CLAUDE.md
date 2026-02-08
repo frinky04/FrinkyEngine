@@ -78,3 +78,7 @@ Minimal standalone player. Loads `.fproject`, initializes AssetManager, loads ga
 - Shaders in `Shaders/` are copied to output via Content build items
 - Editor font lives in `EditorAssets/Fonts/JetBrains_Mono/` (copied to output via the `EditorAssets` Content glob)
 - Components go in `Components/`, panels in `Panels/`, serialization converters in `Serialization/`
+
+## Documentation
+
+When adding new features, components, systems, or changing existing behavior, update `README.md` to reflect those changes. The README is the primary user-facing documentation for the engine.
