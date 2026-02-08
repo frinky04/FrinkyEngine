@@ -22,7 +22,8 @@ internal sealed class PhysicsSystem : IDisposable
         public StaticHandle? StaticHandle;
         public int ConfigurationHash;
         public Vector3 LockedPosition;
-        public Vector3 LockedEuler;
+        public Quaternion LockReferenceOrientation;
+        public byte RotationLockMask;
         public Vector3 LastTransformPosition;
         public Quaternion LastTransformRotation;
     }
@@ -87,6 +88,9 @@ internal sealed class PhysicsSystem : IDisposable
     private float _accumulator;
     private int _lastSubstepCount;
     private double _lastStepTimeMs;
+    private const byte RotationLockXMask = 1 << 0;
+    private const byte RotationLockYMask = 1 << 1;
+    private const byte RotationLockZMask = 1 << 2;
 
     public PhysicsSystem(Scene.Scene scene)
     {
@@ -567,7 +571,8 @@ internal sealed class PhysicsSystem : IDisposable
             StaticHandle = staticHandle,
             ConfigurationHash = configurationHash,
             LockedPosition = transform.LocalPosition,
-            LockedEuler = FrinkyMath.QuaternionToEuler(transform.LocalRotation),
+            LockReferenceOrientation = NormalizeOrIdentity(pose.Orientation),
+            RotationLockMask = GetRotationLockMask(rigidbody),
             LastTransformPosition = transform.LocalPosition,
             LastTransformRotation = transform.LocalRotation
         };
@@ -730,16 +735,23 @@ internal sealed class PhysicsSystem : IDisposable
             if (state.Rigidbody.LockPositionZ) { position.Z = lockedPosition.Z; linear.Z = 0f; } else { lockedPosition.Z = position.Z; }
             state.LockedPosition = lockedPosition;
 
-            var euler = FrinkyMath.QuaternionToEuler(pose.Orientation);
-            var lockedEuler = state.LockedEuler;
+            var rotationLockMask = GetRotationLockMask(state.Rigidbody);
+            if (rotationLockMask == 0)
+            {
+                state.LockReferenceOrientation = NormalizeOrIdentity(pose.Orientation);
+                state.RotationLockMask = 0;
+            }
+            else
+            {
+                if (state.RotationLockMask != rotationLockMask)
+                    state.LockReferenceOrientation = NormalizeOrIdentity(pose.Orientation);
 
-            if (state.Rigidbody.LockRotationX) { euler.X = lockedEuler.X; angular.X = 0f; } else { lockedEuler.X = euler.X; }
-            if (state.Rigidbody.LockRotationY) { euler.Y = lockedEuler.Y; angular.Y = 0f; } else { lockedEuler.Y = euler.Y; }
-            if (state.Rigidbody.LockRotationZ) { euler.Z = lockedEuler.Z; angular.Z = 0f; } else { lockedEuler.Z = euler.Z; }
-            state.LockedEuler = lockedEuler;
+                ApplyWorldRotationLocksStrict(ref pose, ref angular, state, rotationLockMask);
+                state.RotationLockMask = rotationLockMask;
+            }
 
             pose.Position = position;
-            pose.Orientation = Quaternion.Normalize(FrinkyMath.EulerToQuaternion(euler));
+            pose.Orientation = NormalizeOrIdentity(pose.Orientation);
             body.Pose = pose;
             body.Velocity.Linear = linear;
             body.Velocity.Angular = angular;
@@ -872,6 +884,101 @@ internal sealed class PhysicsSystem : IDisposable
         hash.Add(entity.Transform.LocalScale.Z);
         hash.Add(entity.GetComponent<CharacterControllerComponent>() is { Enabled: true });
         return hash.ToHashCode();
+    }
+
+    private static byte GetRotationLockMask(RigidbodyComponent rigidbody)
+    {
+        byte mask = 0;
+        if (rigidbody.LockRotationX)
+            mask |= RotationLockXMask;
+        if (rigidbody.LockRotationY)
+            mask |= RotationLockYMask;
+        if (rigidbody.LockRotationZ)
+            mask |= RotationLockZMask;
+        return mask;
+    }
+
+    private static void ApplyWorldRotationLocksStrict(ref RigidPose pose, ref Vector3 angularVelocity, PhysicsBodyState state, byte lockMask)
+    {
+        if ((lockMask & RotationLockXMask) != 0)
+            angularVelocity.X = 0f;
+        if ((lockMask & RotationLockYMask) != 0)
+            angularVelocity.Y = 0f;
+        if ((lockMask & RotationLockZMask) != 0)
+            angularVelocity.Z = 0f;
+
+        pose.Orientation = FilterRotationDeltaByMask(state.LockReferenceOrientation, pose.Orientation, lockMask);
+    }
+
+    private static Quaternion FilterRotationDeltaByMask(Quaternion reference, Quaternion current, byte lockMask)
+    {
+        var normalizedReference = NormalizeOrIdentity(reference);
+        var normalizedCurrent = NormalizeOrIdentity(current);
+
+        var delta = NormalizeOrIdentity(normalizedCurrent * Quaternion.Conjugate(normalizedReference));
+        var rotationVector = QuaternionToRotationVector(delta);
+        if ((lockMask & RotationLockXMask) != 0)
+            rotationVector.X = 0f;
+        if ((lockMask & RotationLockYMask) != 0)
+            rotationVector.Y = 0f;
+        if ((lockMask & RotationLockZMask) != 0)
+            rotationVector.Z = 0f;
+
+        var filteredDelta = RotationVectorToQuaternion(rotationVector);
+        return NormalizeOrIdentity(filteredDelta * normalizedReference);
+    }
+
+    private static Vector3 QuaternionToRotationVector(Quaternion rotation)
+    {
+        var normalized = NormalizeOrIdentity(rotation);
+        if (normalized.W < 0f)
+            normalized = new Quaternion(-normalized.X, -normalized.Y, -normalized.Z, -normalized.W);
+
+        var w = Math.Clamp(normalized.W, -1f, 1f);
+        var angle = 2f * MathF.Acos(w);
+        if (angle < 1e-6f)
+            return Vector3.Zero;
+
+        var sinHalf = MathF.Sqrt(MathF.Max(0f, 1f - w * w));
+        if (sinHalf < 1e-6f)
+            return Vector3.Zero;
+
+        var axis = new Vector3(normalized.X, normalized.Y, normalized.Z) / sinHalf;
+        return axis * angle;
+    }
+
+    private static Quaternion RotationVectorToQuaternion(Vector3 rotationVector)
+    {
+        var angle = rotationVector.Length();
+        if (angle < 1e-6f)
+            return Quaternion.Identity;
+
+        var axis = rotationVector / angle;
+        var halfAngle = angle * 0.5f;
+        var sinHalf = MathF.Sin(halfAngle);
+        var cosHalf = MathF.Cos(halfAngle);
+        var rotation = new Quaternion(axis.X * sinHalf, axis.Y * sinHalf, axis.Z * sinHalf, cosHalf);
+        return NormalizeOrIdentity(rotation);
+    }
+
+    private static bool IsFinite(Quaternion rotation)
+    {
+        return float.IsFinite(rotation.X) &&
+               float.IsFinite(rotation.Y) &&
+               float.IsFinite(rotation.Z) &&
+               float.IsFinite(rotation.W);
+    }
+
+    private static Quaternion NormalizeOrIdentity(Quaternion rotation)
+    {
+        if (!IsFinite(rotation))
+            return Quaternion.Identity;
+
+        var lengthSquared = rotation.LengthSquared();
+        if (!float.IsFinite(lengthSquared) || lengthSquared <= 1e-12f)
+            return Quaternion.Identity;
+
+        return Quaternion.Normalize(rotation);
     }
 
     private static bool TryGetPrimaryCollider(Entity entity, out ColliderComponent collider, out bool hasMultiple)
