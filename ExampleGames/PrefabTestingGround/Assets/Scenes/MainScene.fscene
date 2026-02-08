@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -0.14471993,
-    "y": 6.897513,
-    "z": 12.240149
+    "x": 2.9158065,
+    "y": 3.825431,
+    "z": 1.8789098
   },
-  "editorCameraYaw": -1176.1531,
-  "editorCameraPitch": -2.5999393,
+  "editorCameraYaw": -1172.2482,
+  "editorCameraPitch": -8.1499,
   "physics": {
     "gravity": {
       "x": 0,
@@ -959,7 +959,7 @@
           "properties": {
             "LocalPosition": {
               "x": 3.3390162,
-              "y": 0.04111421,
+              "y": -0.2779745,
               "z": 4.32798
             },
             "LocalRotation": {
@@ -1605,7 +1605,31 @@
         "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
         "overrides": {
           "propertyOverrides": [],
-          "addedComponents": [],
+          "addedComponents": [
+            {
+              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
+              "component": {
+                "type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+                "enabled": true,
+                "editorOnly": false,
+                "properties": {
+                  "PostProcessingEnabled": true,
+                  "Effects": [
+                    {
+                      "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
+                      "enabled": true,
+                      "properties": {
+                        "Threshold": 0.9,
+                        "SoftKnee": 0.25,
+                        "Intensity": 0.15,
+                        "Iterations": 4
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
           "removedComponents": [],
           "addedChildren": [],
           "removedChildren": []
@@ -1776,6 +1800,26 @@
                   "a": 255
                 },
                 "IsMain": true
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "PostProcessingEnabled": true,
+                "Effects": [
+                  {
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
+                    "enabled": true,
+                    "properties": {
+                      "Threshold": 0.9,
+                      "SoftKnee": 0.25,
+                      "Intensity": 0.15,
+                      "Iterations": 4
+                    }
+                  }
+                ]
               }
             }
           ],

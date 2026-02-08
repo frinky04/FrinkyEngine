@@ -57,9 +57,14 @@ public class PostProcessContext
         var key = (width, height);
         RenderTexture2D rt;
         if (_pool.TryGetValue(key, out var queue) && queue.Count > 0)
+        {
             rt = queue.Dequeue();
+        }
         else
+        {
             rt = Raylib.LoadRenderTexture(width, height);
+            Raylib.SetTextureWrap(rt.Texture, TextureWrap.Clamp);
+        }
 
         _tempRTs.Add(rt);
         return rt;

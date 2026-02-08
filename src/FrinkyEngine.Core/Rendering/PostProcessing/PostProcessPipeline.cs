@@ -71,7 +71,11 @@ public class PostProcessPipeline
         _context.DisposePool();
         _pingRT = Raylib.LoadRenderTexture(width, height);
         _pongRT = Raylib.LoadRenderTexture(width, height);
-        _depthRT = Raylib.LoadRenderTexture(width, height);
+        _depthRT = LoadFloatRenderTexture(width, height);
+
+        Raylib.SetTextureWrap(_pingRT.Texture, TextureWrap.Clamp);
+        Raylib.SetTextureWrap(_pongRT.Texture, TextureWrap.Clamp);
+
         _width = width;
         _height = height;
     }
@@ -215,5 +219,74 @@ public class PostProcessPipeline
             Raylib.UnloadShader(_depthShader);
             _depthShaderLoaded = false;
         }
+    }
+
+    /// <summary>
+    /// Creates a render texture with 16-bit float (half) precision per channel.
+    /// Falls back to standard 8-bit RT if float format is not supported.
+    /// </summary>
+    private static RenderTexture2D LoadFloatRenderTexture(int width, int height)
+    {
+        uint fboId = Rlgl.LoadFramebuffer();
+        if (fboId == 0)
+            return Raylib.LoadRenderTexture(width, height);
+
+        Rlgl.EnableFramebuffer(fboId);
+
+        uint texId;
+        unsafe
+        {
+            texId = Rlgl.LoadTexture(null, width, height, PixelFormat.UncompressedR16G16B16A16, 1);
+        }
+
+        if (texId == 0)
+        {
+            Rlgl.UnloadFramebuffer(fboId);
+            return Raylib.LoadRenderTexture(width, height);
+        }
+
+        Rlgl.FramebufferAttach(fboId, texId,
+            FramebufferAttachType.ColorChannel0,
+            FramebufferAttachTextureType.Texture2D, 0);
+
+        uint depthId = Rlgl.LoadTextureDepth(width, height, true);
+        Rlgl.FramebufferAttach(fboId, depthId,
+            FramebufferAttachType.Depth,
+            FramebufferAttachTextureType.Renderbuffer, 0);
+
+        if (!Rlgl.FramebufferComplete(fboId))
+        {
+            Rlgl.UnloadTexture(texId);
+            Rlgl.UnloadFramebuffer(fboId);
+            return Raylib.LoadRenderTexture(width, height);
+        }
+
+        Rlgl.DisableFramebuffer();
+
+        var rt = new RenderTexture2D
+        {
+            Id = fboId,
+            Texture = new Texture2D
+            {
+                Id = texId,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedR16G16B16A16
+            },
+            Depth = new Texture2D
+            {
+                Id = depthId,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedGrayscale
+            }
+        };
+
+        Raylib.SetTextureFilter(rt.Texture, TextureFilter.Bilinear);
+        Raylib.SetTextureWrap(rt.Texture, TextureWrap.Clamp);
+
+        return rt;
     }
 }
