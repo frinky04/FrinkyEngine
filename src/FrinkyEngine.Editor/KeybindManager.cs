@@ -1,6 +1,6 @@
 using System.Text.Json;
 using FrinkyEngine.Core.Rendering;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 
 namespace FrinkyEngine.Editor;
 
@@ -123,9 +123,9 @@ public class KeybindManager
         _bindings[EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true);
         _bindings[EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2);
         _bindings[EditorAction.NewProject] = new Keybind(ImGuiKey.N, ctrl: true, shift: true);
-        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey._1);
-        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey._2);
-        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey._3);
+        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey.Key1);
+        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey.Key2);
+        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey.Key3);
         _bindings[EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X);
         _bindings[EditorAction.DeselectEntity] = new Keybind(ImGuiKey.Escape);
         _bindings[EditorAction.SelectAllEntities] = new Keybind(ImGuiKey.A, ctrl: true);

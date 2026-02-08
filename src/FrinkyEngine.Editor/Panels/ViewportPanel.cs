@@ -4,9 +4,8 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
-using rlImGui_cs;
 
 namespace FrinkyEngine.Editor.Panels;
 
@@ -152,7 +151,7 @@ public class ViewportPanel
                     }
 
                     var imageScreenPos = ImGui.GetCursorScreenPos();
-                    rlImGui.ImageRenderTexture(textureToDisplay);
+                    RlImGui.ImageRenderTexture(textureToDisplay);
                     if (isEditorMode)
                         HandleAssetDropTarget(camera, imageScreenPos, w, h);
                     bool toolbarHovered = false;
@@ -197,7 +196,7 @@ public class ViewportPanel
                 {
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
                     var imageScreenPos = ImGui.GetCursorScreenPos();
-                    rlImGui.ImageRenderTexture(_renderTexture);
+                    RlImGui.ImageRenderTexture(_renderTexture);
                     if (isEditorMode)
                         HandleAssetDropTarget(camera, imageScreenPos, w, h);
                     bool toolbarHovered = false;
@@ -251,8 +250,8 @@ public class ViewportPanel
             return;
 
         // Peek to update live preview each frame while hovering
-        var peekPayload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload, ImGuiDragDropFlags.AcceptPeekOnly);
-        if (peekPayload.NativePtr != null)
+        ImGuiPayload* peekPayload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload, ImGuiDragDropFlags.AcceptPeekOnly);
+        if (peekPayload != null)
         {
             var assetPath = _app.DraggedAssetPath;
             if (!string.IsNullOrEmpty(assetPath))
@@ -270,8 +269,8 @@ public class ViewportPanel
         }
 
         // Accept delivery for the actual drop
-        var payload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload);
-        if (payload.NativePtr != null && payload.Delivery)
+        ImGuiPayload* payload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload);
+        if (payload != null && payload->Delivery != 0)
         {
             var assetPath = _app.DraggedAssetPath;
             if (!string.IsNullOrEmpty(assetPath))

@@ -44,17 +44,17 @@ The engine uses **composition-based entities**, not strict ECS. An `Entity` hold
 
 ### Editor (FrinkyEngine.Editor)
 
-Entry point in `Program.cs` sets up Raylib (1600x900, MSAA4x) and rlImGui with docking.
+Entry point in `Program.cs` sets up Raylib (1600x900, MSAA4x) and a custom Raylib-ImGui integration layer (`RlImGui.cs`) with docking.
 
 **EditorApplication** is the central singleton managing scene state, editor camera, panels, and play mode. Play mode snapshots the scene to JSON and restores on stop.
 
 **EditorCamera** is a free-fly camera (right-click + WASD/QE). Important: `DisableCursor()`/`EnableCursor()` must only be called on state transitions, not every frame.
 
-**Panels**: ViewportPanel (renders to RenderTexture2D, displays via `rlImGui.ImageRenderTexture()`), HierarchyPanel (entity tree), InspectorPanel (component editing), ConsolePanel (log viewer), MenuBar (file ops, play/stop).
+**Panels**: ViewportPanel (renders to RenderTexture2D, displays via `RlImGui.ImageRenderTexture()`), HierarchyPanel (entity tree), InspectorPanel (component editing), ConsolePanel (log viewer), MenuBar (file ops, play/stop).
 
 **ComponentDrawerRegistry** maps component types to custom ImGui drawing functions. Fallback is `DrawReflection()` which handles common types (float, int, bool, string, Vector2/3, Quaternion as Euler, Color, enums) via reflection.
 
-**ImGuiDockBuilder** contains custom P/Invoke bindings to `cimgui.dll` for dock layout functions not exposed by ImGui.NET. Use `"cimgui"` as the DllImport library name with `CallingConvention.Cdecl`.
+**RlImGui** (`RlImGui.cs`) is a custom Raylib-ImGui integration layer that bridges Hexa.NET.ImGui with Raylib-cs. It handles input translation, font atlas texture management (using the ImGui 1.92 status-based texture lifecycle), and draw list rendering via `Rlgl`. Public API: `Setup(darkTheme, docking)`, `Begin(dt)`, `End()`, `Shutdown()`, `ReloadFonts()`, `ImageRenderTexture(rt)`. Docking layout uses built-in `ImGuiP.DockBuilder*` APIs.
 
 ### Runtime (FrinkyEngine.Runtime)
 
@@ -63,8 +63,8 @@ Minimal standalone player. Loads `.fproject`, initializes AssetManager, loads ga
 ## Key API Pitfalls
 
 - **Raylib-cs 7.0.2**: `Shader.Locs` is a pointer — must use `unsafe` context. Prefer storing locations in int fields.
-- **rlImGui-cs 3.2.0**: namespace is `rlImGui_cs`, static class is `rlImGui`. Methods: `Setup(darkTheme, docking)`, `Begin(dt)`, `End()`, `Shutdown()`, `ImageRenderTexture()`, `ImageRenderTextureFit()`.
-- **ImGui.NET 1.91.6.1**: `DockSpaceOverViewport` takes `(uint id, ImGuiViewportPtr, ...)` — pass `0` for default ID.
+- **Hexa.NET.ImGui 2.2.9**: wraps Dear ImGui 1.92.2+ with built-in docking. Namespace is `Hexa.NET.ImGui`. Uses `ImGuiP` for internal/docking APIs. Pointer-based payload returns (`ImGuiPayload*`), `Delivery` is `byte` (compare with `!= 0`). Many overloads require explicit `(string?)null` casts to disambiguate. Image functions take `ImTextureRef` (construct via `new ImTextureRef(null, new ImTextureID((ulong)textureId))`).
+- **RlImGui** (custom, in `RlImGui.cs`): static class replacing rlImGui-cs. Methods: `Setup(darkTheme, docking)`, `Begin(dt)`, `End()`, `Shutdown()`, `ReloadFonts()`, `ImageRenderTexture(rt)`. Must call `Rlgl.DrawRenderBatchActive()` after each ImGui draw command in `End()` — without this, rlgl batches all geometry and applies only the last scissor rect.
 - **Raylib cursor**: `DisableCursor()`/`EnableCursor()` re-centers the mouse each call. Only call on state transitions.
 - **Template .csproj**: needs `<EnableDefaultCompileItems>false</EnableDefaultCompileItems>` to avoid compiling content/ .cs files.
 

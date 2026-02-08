@@ -6,7 +6,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
 using Texture2D = Raylib_cs.Texture2D;
 
@@ -81,7 +81,7 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
         ImGui.PushID(label);
 
-        ImGui.Columns(2, null, false);
+        ImGui.Columns(2, (string?)null, false);
         ImGui.SetColumnWidth(0, 80);
         ImGui.Text(label);
         ImGui.NextColumn();
@@ -827,7 +827,7 @@ public static class ComponentDrawerRegistry
         var filterId = label;
 
         ImGui.PushID(label);
-        ImGui.Columns(2, null, false);
+        ImGui.Columns(2, (string?)null, false);
         ImGui.SetColumnWidth(0, 80);
         ImGui.Text(label);
         ImGui.NextColumn();
@@ -879,8 +879,8 @@ public static class ComponentDrawerRegistry
         // Drag-and-drop target on the combo
         if (ImGui.BeginDragDropTarget())
         {
-            var payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
-            if (payload.NativePtr != null && payload.Delivery && app.DraggedEntityId.HasValue)
+            ImGuiPayload* payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
+            if (payload != null && payload->Delivery != 0 && app.DraggedEntityId.HasValue)
             {
                 var draggedEntity = app.FindEntityById(app.DraggedEntityId.Value);
                 if (draggedEntity != null)
@@ -922,13 +922,13 @@ public static class ComponentDrawerRegistry
         return clicked;
     }
 
-    private static float DrawAssetIcon(AssetType type)
+    private static unsafe float DrawAssetIcon(AssetType type)
     {
         float size = EditorIcons.GetIconSize();
         var icon = EditorIcons.GetIcon(type);
         if (icon is Texture2D tex)
         {
-            ImGui.Image((nint)tex.Id, new Vector2(size, size));
+            ImGui.Image(new ImTextureRef(null, new ImTextureID((ulong)tex.Id)), new Vector2(size, size));
             ImGui.SameLine(0, 4);
         }
         return size;

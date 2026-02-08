@@ -1,5 +1,5 @@
 using System.Numerics;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -68,7 +68,7 @@ public class PerformancePanel
             if (graphMax < 1f) graphMax = 33.3f;
 
             ImGui.PlotLines("##frameTimes", ref ordered[0], BufferSize,
-                0, null, 0f, graphMax, new Vector2(ImGui.GetContentRegionAvail().X, 50));
+                0, (string?)null, 0f, graphMax, new Vector2(ImGui.GetContentRegionAvail().X, 50));
 
             int entityCount = _app.CurrentScene?.Entities.Count ?? 0;
             ImGui.Text($"Entities: {entityCount}");

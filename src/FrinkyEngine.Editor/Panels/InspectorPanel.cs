@@ -4,7 +4,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
-using ImGuiNET;
+using Hexa.NET.ImGui;
 using Raylib_cs;
 using FrinkyEngine.Core.Scene;
 
