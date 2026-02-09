@@ -601,6 +601,7 @@ public class MenuBar
                                  viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(620, 0), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSizeConstraints(new Vector2(520, 0), new Vector2(float.MaxValue, float.MaxValue));
 
         if (!ImGui.BeginPopupModal("ProjectSettings", ImGuiWindowFlags.AlwaysAutoResize))
             return;
@@ -639,7 +640,7 @@ public class MenuBar
             draft.Project.Description = description;
         }
 
-        if (ImGui.CollapsingHeader("Editor", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Editor"))
         {
             int editorFps = editorDraft.TargetFps;
             if (ImGui.InputInt("Editor Target FPS", ref editorFps))
@@ -650,7 +651,7 @@ public class MenuBar
                 editorDraft.VSync = editorVSync;
         }
 
-        if (ImGui.CollapsingHeader("Runtime", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Runtime"))
         {
             int runtimeFps = draft.Runtime.TargetFps;
             if (ImGui.InputInt("Runtime Target FPS", ref runtimeFps))
@@ -684,6 +685,18 @@ public class MenuBar
             if (ImGui.Checkbox("Start Maximized", ref startMaximized))
                 draft.Runtime.StartMaximized = startMaximized;
 
+            DrawStartupSceneSelector(draft);
+            ImGui.TextDisabled("Use .fproject defaultScene or choose any scene asset.");
+        }
+
+        if (ImGui.CollapsingHeader("Rendering"))
+        {
+            int screenPercentage = draft.Runtime.ScreenPercentage;
+            if (ImGui.SliderInt("Screen Percentage", ref screenPercentage, 10, 200))
+                draft.Runtime.ScreenPercentage = screenPercentage;
+
+            ImGui.Separator();
+
             int forwardPlusTileSize = draft.Runtime.ForwardPlusTileSize;
             if (ImGui.InputInt("Forward+ Tile Size", ref forwardPlusTileSize))
                 draft.Runtime.ForwardPlusTileSize = forwardPlusTileSize;
@@ -695,12 +708,9 @@ public class MenuBar
             int forwardPlusMaxLightsPerTile = draft.Runtime.ForwardPlusMaxLightsPerTile;
             if (ImGui.InputInt("Forward+ Max Lights Per Tile", ref forwardPlusMaxLightsPerTile))
                 draft.Runtime.ForwardPlusMaxLightsPerTile = forwardPlusMaxLightsPerTile;
-
-            DrawStartupSceneSelector(draft);
-            ImGui.TextDisabled("Use .fproject defaultScene or choose any scene asset.");
         }
 
-        if (ImGui.CollapsingHeader("Physics", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Physics"))
         {
             float fixedTimestep = draft.Runtime.PhysicsFixedTimestep;
             if (ImGui.InputFloat("Fixed Timestep", ref fixedTimestep, 0f, 0f, "%.6f"))
@@ -743,7 +753,7 @@ public class MenuBar
                 draft.Runtime.PhysicsInterpolationEnabled = interpolationEnabled;
         }
 
-        if (ImGui.CollapsingHeader("Audio", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Audio"))
         {
             float master = draft.Runtime.AudioMasterVolume;
             if (ImGui.InputFloat("Master Volume", ref master))
@@ -782,7 +792,7 @@ public class MenuBar
                 draft.Runtime.AudioEnableVoiceStealing = voiceStealing;
         }
 
-        if (ImGui.CollapsingHeader("Build", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Build"))
         {
             var outputName = draft.Build.OutputName;
             EditText("Output Name", ref outputName, 128);

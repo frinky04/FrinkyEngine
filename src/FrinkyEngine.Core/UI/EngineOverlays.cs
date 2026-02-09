@@ -894,6 +894,13 @@ public static unsafe class EngineOverlays
             }));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_screenpercentage",
+            "r_screenpercentage [10-200]",
+            "Screen percentage for resolution scaling (100=native, 50=half res pixelated, 200=supersampled).",
+            RenderRuntimeCvars.GetScreenPercentageValue,
+            RenderRuntimeCvars.TrySetScreenPercentage));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_vsync",
             "r_vsync [0|1]",
             "Toggle VSync (1=on, 0=off).",
