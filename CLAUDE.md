@@ -30,9 +30,22 @@ Co-Authored-By: (the agent model's name and attribution byline)
 - .NET 8, C# 12, nullable enabled, `AllowUnsafeBlocks=true`
 - File-scoped namespaces
 - Components in `Components/`, panels in `Panels/`, serialization in `Serialization/`
-- Scenes: `.fscene`, Projects: `.fproject` (both JSON)
+- Scenes: `.fscene`, Prefabs: `.fprefab`, Projects: `.fproject` (all JSON)
 - Public Core API types/methods get `<summary>` XML docs; Editor/Runtime internals do not
 - Update `README.md` when adding features or changing behavior
+
+## Console Commands
+
+When adding a new system or feature, evaluate whether it benefits from console commands or CVars.
+
+- Registration: `ConsoleBackend.RegisterCommand()` / `ConsoleBackend.RegisterCVar(new ConsoleCVar(...))`
+- All registration happens in `EngineOverlays.EnsureConsoleBackendInitialized()` (`src/FrinkyEngine.Core/UI/EngineOverlays.cs`)
+- Runtime cvar state in dedicated static classes (e.g. `RenderRuntimeCvars`)
+- Naming: `prefix_name` — `r_` rendering, `snd_` audio, `physics_` physics
+
+## Serialization Pitfalls
+
+- `SceneSerializer` and `PrefabSerializer` each have independent `JsonOptions` with converters — register new type converters in BOTH
 
 ## API Pitfalls
 
@@ -41,3 +54,7 @@ Co-Authored-By: (the agent model's name and attribution byline)
 - **Hexa.NET.ImGui.Widgets** — `ComboEnumHelper<T>.Combo()` / `ComboEnumHelper.Combo()` for enum combos, `MessageBoxes.Show()` / `MessageBoxes.Draw()` for modal dialogs
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
 - **Raylib cursor** — `DisableCursor()`/`EnableCursor()` re-center mouse; only call on state transitions
+
+## Releases
+
+Use `make-release` skill. See `.claude/skills/make-release/SKILL.md`

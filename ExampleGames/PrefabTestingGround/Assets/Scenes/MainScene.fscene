@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -6.6633396,
-    "y": 4.0617113,
-    "z": 0.9436951
+    "x": 23.855658,
+    "y": 15.285269,
+    "z": 9.165788
   },
-  "editorCameraYaw": -1451.0951,
-  "editorCameraPitch": -7.699708,
+  "editorCameraYaw": -1230.8959,
+  "editorCameraPitch": -26.599712,
   "physics": {
     "gravity": {
       "x": 0,
@@ -3468,6 +3468,12 @@
         "overrides": {
           "propertyOverrides": [
             {
+              "nodeId": "e60ad0cd235647038e35138a360c057e",
+              "componentType": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
+              "propertyName": "Friction",
+              "value": 10
+            },
+            {
               "nodeId": "7e2ac95631cc425f88fc6345525f8089",
               "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
               "propertyName": "Effects",
@@ -3477,7 +3483,7 @@
                   "enabled": true,
                   "properties": {
                     "Radius": 20,
-                    "Intensity": 0.6,
+                    "Intensity": 0.5,
                     "Bias": 1,
                     "SampleCount": 32,
                     "BlurSize": 8
@@ -3539,7 +3545,7 @@
           "properties": {
             "Radius": 0.4,
             "Length": 1.8,
-            "Friction": 0.8,
+            "Friction": 10,
             "Restitution": 0,
             "Center": {
               "x": 0,
@@ -3694,7 +3700,7 @@
                     "enabled": true,
                     "properties": {
                       "Radius": 20,
-                      "Intensity": 0.6,
+                      "Intensity": 0.5,
                       "Bias": 1,
                       "SampleCount": 32,
                       "BlurSize": 8

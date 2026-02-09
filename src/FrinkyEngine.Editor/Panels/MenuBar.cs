@@ -265,6 +265,21 @@ public class MenuBar
                     _app.TogglePhysicsHitboxPreview();
                 }
 
+                ImGui.Separator();
+
+                if (ImGui.BeginMenu("Theme"))
+                {
+                    foreach (var themeId in Enum.GetValues<EditorThemeId>())
+                    {
+                        var isSelected = EditorTheme.Current == themeId;
+                        if (ImGui.MenuItem(EditorTheme.FormatThemeName(themeId), (string?)null, isSelected))
+                        {
+                            EditorPreferences.Instance.SetTheme(themeId);
+                        }
+                    }
+                    ImGui.EndMenu();
+                }
+
                 ImGui.EndMenu();
             }
 

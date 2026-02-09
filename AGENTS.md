@@ -30,9 +30,22 @@ Co-Authored-By: (the agent model's name and attribution byline)
 - .NET 8, C# 12, nullable enabled, `AllowUnsafeBlocks=true`
 - File-scoped namespaces
 - Components in `Components/`, panels in `Panels/`, serialization in `Serialization/`
-- Scenes: `.fscene`, Projects: `.fproject` (both JSON)
+- Scenes: `.fscene`, Prefabs: `.fprefab`, Projects: `.fproject` (all JSON)
 - Public Core API types/methods get `<summary>` XML docs; Editor/Runtime internals do not
 - Update `README.md` when adding features or changing behavior
+
+## Console Commands
+
+When adding a new system or feature, evaluate whether it benefits from console commands or CVars.
+
+- Registration: `ConsoleBackend.RegisterCommand()` / `ConsoleBackend.RegisterCVar(new ConsoleCVar(...))`
+- All registration happens in `EngineOverlays.EnsureConsoleBackendInitialized()` (`src/FrinkyEngine.Core/UI/EngineOverlays.cs`)
+- Runtime cvar state in dedicated static classes (e.g. `RenderRuntimeCvars`)
+- Naming: `prefix_name` — `r_` rendering, `snd_` audio, `physics_` physics
+
+## Serialization Pitfalls
+
+- `SceneSerializer` and `PrefabSerializer` each have independent `JsonOptions` with converters — register new type converters in BOTH
 
 ## API Pitfalls
 

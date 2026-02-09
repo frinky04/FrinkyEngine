@@ -19,7 +19,7 @@
         "properties": {
           "Radius": 0.4,
           "Length": 1.8,
-          "Friction": 0.8,
+          "Friction": 10,
           "Restitution": 0,
           "Center": {
             "x": 0,
@@ -167,11 +167,11 @@
                   "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
                   "enabled": true,
                   "properties": {
-                    "Radius": 40,
-                    "Intensity": 0.6,
+                    "Radius": 20,
+                    "Intensity": 0.5,
                     "Bias": 1,
-                    "SampleCount": 64,
-                    "BlurSize": 16
+                    "SampleCount": 32,
+                    "BlurSize": 8
                   }
                 },
                 {

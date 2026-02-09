@@ -44,6 +44,12 @@ public class EditorPreferences
         }
     }
 
+    public void SetTheme(EditorThemeId themeId)
+    {
+        EditorTheme.Apply(themeId);
+        SaveConfig();
+    }
+
     public void SaveConfig()
     {
         if (_configPath == null) return;
@@ -53,7 +59,8 @@ public class EditorPreferences
             var data = new EditorPreferencesData
             {
                 IconScale = EditorIcons.IconScale,
-                AssetBrowserGridView = AssetBrowserGridView
+                AssetBrowserGridView = AssetBrowserGridView,
+                Theme = EditorTheme.Current.ToString()
             };
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(_configPath, json);
@@ -68,11 +75,17 @@ public class EditorPreferences
     {
         EditorIcons.IconScale = Math.Clamp(data.IconScale, 0.5f, 3.0f);
         Instance.AssetBrowserGridView = data.AssetBrowserGridView;
+
+        if (Enum.TryParse<EditorThemeId>(data.Theme, out var themeId))
+            EditorTheme.Apply(themeId);
+        else
+            EditorTheme.Apply(EditorThemeId.Dark);
     }
 
     private class EditorPreferencesData
     {
         public float IconScale { get; set; } = 1.0f;
         public bool AssetBrowserGridView { get; set; } = true;
+        public string Theme { get; set; } = "Dark";
     }
 }

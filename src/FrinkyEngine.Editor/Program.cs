@@ -43,13 +43,15 @@ public static class Program
             }
         }
 
-        // Configure ImGui dark style
+        // Configure ImGui style
         var style = ImGui.GetStyle();
         style.WindowRounding = 2f;
         style.FrameRounding = 2f;
         style.GrabRounding = 2f;
         style.ScrollbarRounding = 2f;
         style.TabRounding = 2f;
+
+        EditorTheme.Apply(EditorThemeId.Dark);
 
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
 
@@ -70,7 +72,7 @@ public static class Program
             app.Update(dt);
 
             Raylib.BeginDrawing();
-            Raylib.ClearBackground(new Color(30, 30, 30, 255));
+            Raylib.ClearBackground(EditorTheme.ClearColor);
 
             // Suppress ImGui mouse input while cursor is locked (camera fly or play mode)
             if (_cursorWasLockedLastFrame)
