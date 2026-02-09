@@ -89,10 +89,32 @@ public class KeybindManager
         {
             if (keybind.IsPressed() && _actions.TryGetValue(action, out var callback))
             {
+                if (!CanProcessActionInCurrentMode(action))
+                    continue;
+
                 callback();
                 return;
             }
         }
+    }
+
+    private static bool CanProcessActionInCurrentMode(EditorAction action)
+    {
+        var app = EditorApplication.Instance;
+        if (app == null)
+            return true;
+
+        if (app.Mode != EditorMode.Play)
+            return true;
+
+        // In Play mode, only allow these specific actions
+        return action is EditorAction.PlayStop
+            or EditorAction.SimulateStop
+            or EditorAction.ToggleGameView
+            or EditorAction.TogglePlayModeCursorLock
+            or EditorAction.FrameSelected
+            or EditorAction.DeselectEntity
+            or EditorAction.TogglePhysicsHitboxPreview;
     }
 
     public Keybind GetBinding(EditorAction action) =>
