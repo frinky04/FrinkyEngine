@@ -95,7 +95,8 @@ public class EditorProjectSettings
 
     public void Normalize()
     {
-        if (TargetFps < 30 || TargetFps > 500)
+        // 0 = uncapped, otherwise clamp to 30-500
+        if (TargetFps != 0 && (TargetFps < 30 || TargetFps > 500))
             TargetFps = 120;
 
         Hierarchy ??= new HierarchyEditorSettings();

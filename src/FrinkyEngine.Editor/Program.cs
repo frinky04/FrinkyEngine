@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
@@ -52,6 +53,7 @@ public static class Program
 
         var app = new EditorApplication();
         app.Initialize();
+        FrameProfiler.Enabled = true;
 
         // Handle project argument
         if (args.Length > 0 && File.Exists(args[0]))
@@ -62,6 +64,7 @@ public static class Program
         while (!Raylib.WindowShouldClose())
         {
             float dt = Raylib.GetFrameTime();
+            FrameProfiler.BeginFrame();
             app.Update(dt);
 
             Raylib.BeginDrawing();
@@ -73,19 +76,20 @@ public static class Program
                 io.ConfigFlags |= ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange;
             }
 
-            RlImGui.Begin(dt);
-
-            DrawDockspace(app);
-
-            app.DrawUI();
-            MessageBoxes.Draw();
-
-            RlImGui.End();
+            using (FrameProfiler.Scope(ProfileCategory.Editor))
+            {
+                RlImGui.Begin(dt);
+                DrawDockspace(app);
+                app.DrawUI();
+                MessageBoxes.Draw();
+                RlImGui.End();
+            }
 
             // Clear suppression flags and update tracking for next frame
             io.ConfigFlags &= ~(ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange);
             _cursorWasLockedLastFrame = app.IsCursorLocked;
 
+            FrameProfiler.EndFrame();
             Raylib.EndDrawing();
         }
 

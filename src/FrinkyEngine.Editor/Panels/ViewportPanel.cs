@@ -3,6 +3,7 @@ using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
+using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Serialization;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
@@ -87,26 +88,29 @@ public class ViewportPanel
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     var textureToDisplay = _renderTexture;
 
-                    _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
-                        () =>
-                        {
-                            if (physicsHitboxDrawMode != PhysicsHitboxDrawMode.Off)
+                    using (FrameProfiler.Scope(ProfileCategory.Rendering))
+                    {
+                        _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
+                            () =>
                             {
-                                EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, physicsHitboxDrawMode);
-                            }
+                                if (physicsHitboxDrawMode != PhysicsHitboxDrawMode.Off)
+                                {
+                                    EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, physicsHitboxDrawMode);
+                                }
 
-                            if (isEditorMode)
-                            {
-                                gizmo.Draw(camera, selectedEntities, selected);
-                                EditorGizmos.DrawAll(_app.CurrentScene, camera);
-                                foreach (var selectedEntity in selectedEntities)
-                                    EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
-                            }
+                                if (isEditorMode)
+                                {
+                                    gizmo.Draw(camera, selectedEntities, selected);
+                                    EditorGizmos.DrawAll(_app.CurrentScene, camera);
+                                    foreach (var selectedEntity in selectedEntities)
+                                        EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
+                                }
 
-                            if (_dragPreviewPosition.HasValue)
-                                DrawDropPreview(_dragPreviewPosition.Value);
-                        },
-                        isEditorMode: isEditorMode);
+                                if (_dragPreviewPosition.HasValue)
+                                    DrawDropPreview(_dragPreviewPosition.Value);
+                            },
+                            isEditorMode: isEditorMode);
+                    }
 
                     // Post-processing
                     var mainCamEntity = _app.CurrentScene.MainCamera?.Entity;

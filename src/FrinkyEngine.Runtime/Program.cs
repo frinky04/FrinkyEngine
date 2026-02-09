@@ -4,6 +4,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
+using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using FrinkyEngine.Core.UI;
@@ -196,9 +197,12 @@ public static class Program
         int lastRTWidth = 0;
         int lastRTHeight = 0;
 
+        FrameProfiler.Enabled = true;
+
         while (!Raylib.WindowShouldClose())
         {
             float dt = Raylib.GetFrameTime();
+            FrameProfiler.BeginFrame();
             scene.Update(dt);
             EngineOverlays.Update(dt);
 
@@ -215,6 +219,7 @@ public static class Program
                     IsHovered: true,
                     AllowCursorChanges: false));
                 UI.EndFrame();
+                FrameProfiler.EndFrame();
                 Raylib.EndDrawing();
                 continue;
             }
@@ -237,7 +242,10 @@ public static class Program
                     lastRTHeight = screenH;
                 }
 
-                sceneRenderer.Render(scene, camera3D, sceneRT, isEditorMode: false);
+                using (FrameProfiler.Scope(ProfileCategory.Rendering))
+                {
+                    sceneRenderer.Render(scene, camera3D, sceneRT, isEditorMode: false);
+                }
 
                 var finalTex = postProcessPipeline.Execute(
                     ppStack!,
@@ -254,21 +262,32 @@ public static class Program
                 var src = new Rectangle(0, 0, finalTex.Width, -finalTex.Height);
                 var dst = new Rectangle(0, 0, screenW, screenH);
                 Raylib.DrawTexturePro(finalTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
-                UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
-                UI.EndFrame();
+                using (FrameProfiler.Scope(ProfileCategory.UI))
+                {
+                    UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
+                    UI.EndFrame();
+                }
+                FrameProfiler.EndFrame();
                 Raylib.EndDrawing();
             }
             else
             {
                 Raylib.BeginDrawing();
-                sceneRenderer.Render(scene, camera3D, isEditorMode: false);
-                UI.BeginFrame(dt, new UiFrameDesc(
-                    Raylib.GetScreenWidth(),
-                    Raylib.GetScreenHeight(),
-                    IsFocused: Raylib.IsWindowFocused(),
-                    IsHovered: true,
-                    AllowCursorChanges: false));
-                UI.EndFrame();
+                using (FrameProfiler.Scope(ProfileCategory.Rendering))
+                {
+                    sceneRenderer.Render(scene, camera3D, isEditorMode: false);
+                }
+                using (FrameProfiler.Scope(ProfileCategory.UI))
+                {
+                    UI.BeginFrame(dt, new UiFrameDesc(
+                        Raylib.GetScreenWidth(),
+                        Raylib.GetScreenHeight(),
+                        IsFocused: Raylib.IsWindowFocused(),
+                        IsHovered: true,
+                        AllowCursorChanges: false));
+                    UI.EndFrame();
+                }
+                FrameProfiler.EndFrame();
                 Raylib.EndDrawing();
             }
         }
@@ -295,7 +314,7 @@ public static class Program
 
         return new RuntimeLaunchSettings
         {
-            TargetFps = ClampOrDefault(settings.TargetFps, 30, 500, 120),
+            TargetFps = settings.TargetFps == 0 ? 0 : ClampOrDefault(settings.TargetFps, 30, 500, 120),
             VSync = settings.VSync,
             WindowWidth = ClampOrDefault(settings.WindowWidth, 320, 10000, 1280),
             WindowHeight = ClampOrDefault(settings.WindowHeight, 200, 10000, 720),
