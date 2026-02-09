@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": 23.855658,
-    "y": 15.285269,
-    "z": 9.165788
+    "x": 20.36402,
+    "y": 13.2963,
+    "z": 7.74212
   },
-  "editorCameraYaw": -1230.8959,
-  "editorCameraPitch": -26.599712,
+  "editorCameraYaw": -1236.5961,
+  "editorCameraPitch": -30.499704,
   "physics": {
     "gravity": {
       "x": 0,
@@ -2531,20 +2531,6 @@
             "LockRotationZ": false,
             "InterpolationMode": "Inherit"
           }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": -45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            },
-            "Test": ""
-          }
         }
       ],
       "children": []
@@ -2742,20 +2728,6 @@
             "LockRotationZ": false,
             "InterpolationMode": "Inherit"
           }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": -45,
-            "Axis": {
-              "x": 0,
-              "y": 0,
-              "z": 1
-            },
-            "Test": ""
-          }
         }
       ],
       "children": []
@@ -2899,20 +2871,6 @@
             "LockRotationY": false,
             "LockRotationZ": false,
             "InterpolationMode": "Inherit"
-          }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": 45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            },
-            "Test": ""
           }
         }
       ],
@@ -3058,20 +3016,6 @@
             "LockRotationZ": false,
             "InterpolationMode": "Inherit"
           }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": 45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            },
-            "Test": ""
-          }
         }
       ],
       "children": []
@@ -3215,20 +3159,6 @@
             "LockRotationY": false,
             "LockRotationZ": false,
             "InterpolationMode": "Inherit"
-          }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.RotatorComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Speed": -45,
-            "Axis": {
-              "x": 0,
-              "y": 1,
-              "z": 0
-            },
-            "Test": ""
           }
         }
       ],
@@ -3466,50 +3396,14 @@
         "assetPath": "Prefabs/Player.fprefab",
         "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
         "overrides": {
-          "propertyOverrides": [
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [
             {
               "nodeId": "e60ad0cd235647038e35138a360c057e",
-              "componentType": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
-              "propertyName": "Friction",
-              "value": 10
-            },
-            {
-              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
-              "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
-              "propertyName": "Effects",
-              "value": [
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
-                  "enabled": true,
-                  "properties": {
-                    "Radius": 20,
-                    "Intensity": 0.5,
-                    "Bias": 1,
-                    "SampleCount": 32,
-                    "BlurSize": 8
-                  }
-                },
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                  "enabled": true,
-                  "properties": {
-                    "FogColor": {
-                      "r": 48,
-                      "g": 48,
-                      "b": 48,
-                      "a": 255
-                    },
-                    "FogStart": 100,
-                    "FogEnd": 500,
-                    "Density": 0.02,
-                    "Mode": "Linear"
-                  }
-                }
-              ]
+              "componentType": "PrefabTestingGround.Scripts.MoveSpeedHud"
             }
           ],
-          "addedComponents": [],
-          "removedComponents": [],
           "addedChildren": [],
           "removedChildren": []
         }
@@ -3627,12 +3521,6 @@
             "AttachedCameraBackDistance": 0,
             "CameraEntity": "393ca4a5-4fc2-489a-92bc-1b5a41abf441"
           }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.MoveSpeedHud",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {}
         }
       ],
       "children": [
