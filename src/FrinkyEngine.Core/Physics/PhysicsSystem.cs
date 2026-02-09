@@ -485,8 +485,41 @@ internal sealed class PhysicsSystem : IDisposable
                     continue;
                 }
 
+                // Capture velocity before destroying body to preserve momentum through rebuild
+                Vector3 preservedLinearVelocity = Vector3.Zero;
+                Vector3 preservedAngularVelocity = Vector3.Zero;
+                bool shouldPreserveVelocity = false;
+
+                if (existing.BodyHandle is BodyHandle bodyHandle &&
+                    _simulation.Bodies.BodyExists(bodyHandle))
+                {
+                    var body = _simulation.Bodies.GetBodyReference(bodyHandle);
+                    preservedLinearVelocity = body.Velocity.Linear;
+                    preservedAngularVelocity = body.Velocity.Angular;
+                    shouldPreserveVelocity = true;
+                }
+
                 RemoveBodyState(existing);
                 _bodyStates.Remove(entity.Id);
+
+                // Create new body and restore velocity to maintain physics continuity
+                var rebuiltState = CreateBodyState(entity, rigidbody, collider, configHash);
+                if (rebuiltState != null)
+                {
+                    _bodyStates[entity.Id] = rebuiltState;
+
+                    if (shouldPreserveVelocity &&
+                        rebuiltState.BodyHandle is BodyHandle newBodyHandle &&
+                        _simulation.Bodies.BodyExists(newBodyHandle))
+                    {
+                        var newBody = _simulation.Bodies.GetBodyReference(newBodyHandle);
+                        newBody.Velocity.Linear = preservedLinearVelocity;
+                        newBody.Velocity.Angular = preservedAngularVelocity;
+                        newBody.Awake = true;
+                    }
+                }
+
+                continue;
             }
 
             var newState = CreateBodyState(entity, rigidbody, collider, configHash);

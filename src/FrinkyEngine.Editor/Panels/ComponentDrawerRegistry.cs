@@ -505,6 +505,16 @@ public static class ComponentDrawerRegistry
         DrawDragFloat("Max Slope (deg)", ref maxSlope, 0.25f, 0f, 89f);
         controller.MaxSlopeDegrees = maxSlope;
 
+        // ── Crouching ──
+        DrawSection("Crouching");
+        float crouchHeightScale = controller.CrouchHeightScale;
+        DrawDragFloat("Height Scale", ref crouchHeightScale, 0.01f, 0.1f, 1.0f);
+        controller.CrouchHeightScale = crouchHeightScale;
+
+        float crouchSpeedScale = controller.CrouchSpeedScale;
+        DrawDragFloat("Speed Scale##crouch", ref crouchSpeedScale, 0.01f, 0.0f, 1.0f);
+        controller.CrouchSpeedScale = crouchSpeedScale;
+
         // ── Forces ──
         DrawSection("Forces");
         float maxHForce = controller.MaximumHorizontalForce;
@@ -540,6 +550,7 @@ public static class ComponentDrawerRegistry
         // ── Debug Info ──
         DrawSection("Debug Info");
         DrawReadOnlyText("Supported", controller.Supported ? "Yes" : "No");
+        DrawReadOnlyText("Is Crouching", controller.IsCrouching ? "Yes" : "No");
         var target = controller.LastComputedTargetVelocity;
         DrawReadOnlyText("Target Velocity", $"{target.X:0.00}, {target.Y:0.00}, {target.Z:0.00}");
 
@@ -581,6 +592,7 @@ public static class ComponentDrawerRegistry
         DrawSearchableEnumCombo("Left##key", input.MoveLeftKey, v => input.MoveLeftKey = v);
         DrawSearchableEnumCombo("Right##key", input.MoveRightKey, v => input.MoveRightKey = v);
         DrawSearchableEnumCombo("Jump##key", input.JumpKey, v => input.JumpKey = v);
+        DrawSearchableEnumCombo("Crouch##key", input.CrouchKey, v => input.CrouchKey = v);
 
         // ── Mouse Look ──
         DrawSection("Mouse Look");
@@ -645,6 +657,19 @@ public static class ComponentDrawerRegistry
             float backDist = input.AttachedCameraBackDistance;
             DrawDragFloat("Back Distance", ref backDist, 0.05f, 0f, 100f);
             input.AttachedCameraBackDistance = backDist;
+
+            DrawCheckbox("Adjust Camera On Crouch", input.AdjustCameraOnCrouch, v => input.AdjustCameraOnCrouch = v);
+
+            if (input.AdjustCameraOnCrouch)
+            {
+                float standingHeight = input.StandingHeadHeight;
+                DrawDragFloat("Standing Head Height", ref standingHeight, 0.05f, 0.1f, 10f);
+                input.StandingHeadHeight = standingHeight;
+
+                float lerpSpeed = input.CameraOffsetLerpSpeed;
+                DrawDragFloat("Camera Lerp Speed", ref lerpSpeed, 0.1f, 0.1f, 100f);
+                input.CameraOffsetLerpSpeed = lerpSpeed;
+            }
         }
     }
 

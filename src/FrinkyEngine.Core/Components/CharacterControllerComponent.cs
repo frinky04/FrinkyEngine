@@ -21,6 +21,11 @@ public class CharacterControllerComponent : Component
     private Vector3 _viewDirectionOverride = -Vector3.UnitZ;
     private int _settingsVersion;
 
+    private bool _isCrouching;
+    private float _crouchHeightScale = 0.5f;
+    private float _crouchSpeedScale = 0.5f;
+    private float _standingCapsuleLength = -1f;
+
     private Vector3 _pendingWorldMovementInput;
     private Vector2 _pendingPlanarInput;
     private bool _hasPendingPlanarInput;
@@ -190,6 +195,48 @@ public class CharacterControllerComponent : Component
     /// </summary>
     public Vector3 LastComputedTargetVelocity => _lastComputedTargetVelocity;
 
+    /// <summary>
+    /// True when the character is currently in a crouched state.
+    /// </summary>
+    public bool IsCrouching => _isCrouching;
+
+    /// <summary>
+    /// Scale applied to capsule height when crouching (0.1-1.0).
+    /// Default is 0.5 (50% of standing height).
+    /// </summary>
+    public float CrouchHeightScale
+    {
+        get => _crouchHeightScale;
+        set
+        {
+            var clamped = Math.Clamp(value, 0.1f, 1.0f);
+            if (_crouchHeightScale == clamped)
+                return;
+
+            _crouchHeightScale = clamped;
+
+            if (_isCrouching)
+                ApplyCrouchToCapsule(true);
+        }
+    }
+
+    /// <summary>
+    /// Speed multiplier applied when crouching (0.0-1.0).
+    /// Default is 0.5 (50% of normal move speed).
+    /// </summary>
+    public float CrouchSpeedScale
+    {
+        get => _crouchSpeedScale;
+        set
+        {
+            var clamped = Math.Clamp(value, 0.0f, 1.0f);
+            if (_crouchSpeedScale == clamped)
+                return;
+
+            _crouchSpeedScale = clamped;
+        }
+    }
+
     internal int SettingsVersion => _settingsVersion;
 
     /// <summary>
@@ -255,6 +302,49 @@ public class CharacterControllerComponent : Component
         return rigidbody?.GetLinearVelocity() ?? Vector3.Zero;
     }
 
+    /// <summary>
+    /// Enters crouch state, reducing capsule height and movement speed.
+    /// </summary>
+    public void Crouch()
+    {
+        if (_isCrouching)
+            return;
+
+        _isCrouching = true;
+        ApplyCrouchToCapsule(true);
+    }
+
+    /// <summary>
+    /// Exits crouch state, restoring capsule height and movement speed.
+    /// </summary>
+    public void Stand()
+    {
+        if (!_isCrouching)
+            return;
+
+        _isCrouching = false;
+        ApplyCrouchToCapsule(false);
+    }
+
+    /// <summary>
+    /// Sets the crouch state directly.
+    /// </summary>
+    public void SetCrouching(bool shouldCrouch)
+    {
+        if (shouldCrouch)
+            Crouch();
+        else
+            Stand();
+    }
+
+    /// <summary>
+    /// Gets the effective move speed accounting for crouch state.
+    /// </summary>
+    internal float GetEffectiveMoveSpeed()
+    {
+        return _isCrouching ? (_moveSpeed * _crouchSpeedScale) : _moveSpeed;
+    }
+
     internal CharacterControllerInputSnapshot CaptureInputSnapshot()
     {
         return new CharacterControllerInputSnapshot(
@@ -283,10 +373,22 @@ public class CharacterControllerComponent : Component
     }
 
     /// <inheritdoc />
-    public override void OnEnable() => NotifyPhysicsChanged();
+    public override void OnEnable()
+    {
+        // Reset cached dimensions and crouch state when re-enabled
+        _standingCapsuleLength = -1f;
+        if (_isCrouching)
+            _isCrouching = false;
+        NotifyPhysicsChanged();
+    }
 
     /// <inheritdoc />
-    public override void OnDisable() => NotifyPhysicsChanged();
+    public override void OnDisable()
+    {
+        if (_isCrouching)
+            Stand();
+        NotifyPhysicsChanged();
+    }
 
     /// <inheritdoc />
     public override void OnDestroy() => NotifyPhysicsChanged();
@@ -303,6 +405,43 @@ public class CharacterControllerComponent : Component
     private void NotifyPhysicsChanged()
     {
         Entity.Scene?.NotifyPhysicsStateChanged();
+    }
+
+    private void ApplyCrouchToCapsule(bool crouch)
+    {
+        var capsule = Entity.GetComponent<CapsuleColliderComponent>();
+        if (capsule == null || !capsule.Enabled)
+            return;
+
+        // Cache standing height on first crouch
+        if (_standingCapsuleLength < 0f)
+        {
+            _standingCapsuleLength = capsule.Length;
+        }
+
+        float targetLength;
+        if (crouch)
+        {
+            targetLength = _standingCapsuleLength * _crouchHeightScale;
+        }
+        else
+        {
+            targetLength = _standingCapsuleLength;
+        }
+
+        float heightDelta = capsule.Length - targetLength;
+
+        // Modify capsule (triggers physics rebuild automatically)
+        capsule.Length = targetLength;
+
+        // Adjust entity position to keep feet on ground ONLY when supported
+        // When in air, let capsule shrink without compensation for "crouch jump" behavior
+        if (MathF.Abs(heightDelta) > 0.001f && _supported)
+        {
+            var transform = Entity.Transform;
+            var adjustmentVector = -Vector3.UnitY * (heightDelta * 0.5f);
+            transform.LocalPosition += adjustmentVector;
+        }
     }
 
     private static bool IsFinite(Vector3 value)
