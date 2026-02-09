@@ -34,6 +34,8 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Maximum supported horizontal speed for input-driven movement.
     /// </summary>
+    [InspectorSection("Movement")]
+    [InspectorLabel("Move Speed")]
     public float MoveSpeed
     {
         get => _moveSpeed;
@@ -51,6 +53,7 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Upward launch speed used when a jump is requested while supported.
     /// </summary>
+    [InspectorLabel("Jump Velocity")]
     public float JumpVelocity
     {
         get => _jumpVelocity;
@@ -68,6 +71,7 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Maximum walkable slope angle in degrees.
     /// </summary>
+    [InspectorLabel("Max Slope (deg)")]
     public float MaxSlopeDegrees
     {
         get => _maxSlopeDegrees;
@@ -85,6 +89,8 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Maximum horizontal force applied by support constraints.
     /// </summary>
+    [InspectorSection("Forces")]
+    [InspectorLabel("Max Horizontal Force")]
     public float MaximumHorizontalForce
     {
         get => _maximumHorizontalForce;
@@ -102,6 +108,7 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Maximum vertical force used to maintain support contact.
     /// </summary>
+    [InspectorLabel("Max Vertical Force")]
     public float MaximumVerticalForce
     {
         get => _maximumVerticalForce;
@@ -119,6 +126,8 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Air control acceleration force scale applied while unsupported.
     /// </summary>
+    [InspectorSection("Air Control")]
+    [InspectorLabel("Force Scale")]
     public float AirControlForceScale
     {
         get => _airControlForceScale;
@@ -136,6 +145,7 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// Air control speed cap scale relative to desired movement speed.
     /// </summary>
+    [InspectorLabel("Speed Scale")]
     public float AirControlSpeedScale
     {
         get => _airControlSpeedScale;
@@ -153,6 +163,8 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// When true, view direction is read from <see cref="TransformComponent.Forward"/>.
     /// </summary>
+    [InspectorSection("View Direction")]
+    [InspectorLabel("Use Entity Forward")]
     public bool UseEntityForwardAsViewDirection
     {
         get => _useEntityForwardAsViewDirection;
@@ -168,6 +180,8 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// View direction used when <see cref="UseEntityForwardAsViewDirection"/> is false.
     /// </summary>
+    [InspectorLabel("View Override")]
+    [InspectorVisibleIf(nameof(UseEntityForwardAsViewDirection), false)]
     public Vector3 ViewDirectionOverride
     {
         get => _viewDirectionOverride;
@@ -183,11 +197,15 @@ public class CharacterControllerComponent : Component
     /// <summary>
     /// True when the character is currently supported by a walkable contact.
     /// </summary>
+    [InspectorSection("Debug Info")]
+    [InspectorReadOnly]
     public bool Supported => _supported;
 
     /// <summary>
     /// Last target horizontal world velocity computed from input this frame.
     /// </summary>
+    [InspectorLabel("Target Velocity")]
+    [InspectorReadOnly]
     public Vector3 LastComputedTargetVelocity => _lastComputedTargetVelocity;
 
     internal int SettingsVersion => _settingsVersion;

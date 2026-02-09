@@ -49,6 +49,9 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
     /// </summary>
+    [InspectorSection("Key Bindings")]
+    [InspectorLabel("Forward")]
+    [InspectorSearchableEnum]
     public KeyboardKey MoveForwardKey
     {
         get => _moveForwardKey;
@@ -58,6 +61,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Key used to move backward. Defaults to <see cref="KeyboardKey.S"/>.
     /// </summary>
+    [InspectorLabel("Backward")]
+    [InspectorSearchableEnum]
     public KeyboardKey MoveBackwardKey
     {
         get => _moveBackwardKey;
@@ -67,6 +72,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Key used to strafe left. Defaults to <see cref="KeyboardKey.A"/>.
     /// </summary>
+    [InspectorLabel("Left")]
+    [InspectorSearchableEnum]
     public KeyboardKey MoveLeftKey
     {
         get => _moveLeftKey;
@@ -76,6 +83,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Key used to strafe right. Defaults to <see cref="KeyboardKey.D"/>.
     /// </summary>
+    [InspectorLabel("Right")]
+    [InspectorSearchableEnum]
     public KeyboardKey MoveRightKey
     {
         get => _moveRightKey;
@@ -85,6 +94,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Key used for jumping. Defaults to <see cref="KeyboardKey.Space"/>.
     /// </summary>
+    [InspectorLabel("Jump")]
+    [InspectorSearchableEnum]
     public KeyboardKey JumpKey
     {
         get => _jumpKey;
@@ -94,6 +105,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Enables mouse-driven look rotation.
     /// </summary>
+    [InspectorSection("Mouse Look")]
+    [InspectorLabel("Enable Mouse Look")]
     public bool EnableMouseLook
     {
         get => _enableMouseLook;
@@ -103,6 +116,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// If true, look rotation is only applied while <see cref="LookMouseButton"/> is held.
     /// </summary>
+    [InspectorLabel("Require Mouse Button")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool RequireLookMouseButton
     {
         get => _requireLookMouseButton;
@@ -112,6 +127,10 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Mouse button gate for look input when <see cref="RequireLookMouseButton"/> is enabled.
     /// </summary>
+    [InspectorLabel("Look Mouse Button")]
+    [InspectorSearchableEnum]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
+    [InspectorVisibleIf(nameof(RequireLookMouseButton))]
     public MouseButton LookMouseButton
     {
         get => _lookMouseButton;
@@ -121,6 +140,7 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// If true, applies pitch rotation around the local X axis.
     /// </summary>
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool RotatePitch
     {
         get => _rotatePitch;
@@ -131,6 +151,8 @@ public class SimplePlayerInputComponent : Component
     /// If true, character look uses <see cref="CharacterControllerComponent.ViewDirectionOverride"/>
     /// so pitch does not have to rotate the physics body.
     /// </summary>
+    [InspectorLabel("Use View Override")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool UseViewDirectionOverrideForCharacterLook
     {
         get => _useViewDirectionOverrideForCharacterLook;
@@ -141,6 +163,8 @@ public class SimplePlayerInputComponent : Component
     /// If true and a character controller is active, pitch is applied to the entity transform.
     /// Keeping this false avoids tilting the character body.
     /// </summary>
+    [InspectorLabel("Apply Pitch To Body")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool ApplyPitchToCharacterBody
     {
         get => _applyPitchToCharacterBody;
@@ -150,6 +174,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Inverts mouse Y input for pitch rotation.
     /// </summary>
+    [InspectorLabel("Invert Y")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool InvertMouseY
     {
         get => _invertMouseY;
@@ -159,6 +185,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Inverts mouse X input for yaw rotation.
     /// </summary>
+    [InspectorLabel("Invert X")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public bool InvertMouseX
     {
         get => _invertMouseX;
@@ -168,6 +196,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Sensitivity multiplier applied to mouse delta.
     /// </summary>
+    [InspectorLabel("Sensitivity")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public float MouseSensitivity
     {
         get => _mouseSensitivity;
@@ -177,6 +207,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Lower clamp for pitch in degrees.
     /// </summary>
+    [InspectorLabel("Min Pitch")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public float MinPitchDegrees
     {
         get => _minPitchDegrees;
@@ -190,6 +222,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Upper clamp for pitch in degrees.
     /// </summary>
+    [InspectorLabel("Max Pitch")]
+    [InspectorVisibleIf(nameof(EnableMouseLook))]
     public float MaxPitchDegrees
     {
         get => _maxPitchDegrees;
@@ -203,6 +237,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// If true, forwards movement and jump to <see cref="CharacterControllerComponent"/> when available.
     /// </summary>
+    [InspectorSection("Character Controller")]
+    [InspectorLabel("Use Character Controller")]
     public bool UseCharacterController
     {
         get => _useCharacterController;
@@ -212,6 +248,7 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Allows jump key processing.
     /// </summary>
+    [InspectorLabel("Allow Jump")]
     public bool AllowJump
     {
         get => _allowJump;
@@ -221,6 +258,9 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Speed used by fallback motion when no character controller is present.
     /// </summary>
+    [InspectorSection("Fallback Motion")]
+    [InspectorLabel("Move Speed")]
+    [InspectorVisibleIf(nameof(UseCharacterController), false)]
     public float FallbackMoveSpeed
     {
         get => _fallbackMoveSpeed;
@@ -230,6 +270,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Upward impulse used for fallback rigidbody jumping.
     /// </summary>
+    [InspectorLabel("Jump Impulse")]
+    [InspectorVisibleIf(nameof(UseCharacterController), false)]
     public float FallbackJumpImpulse
     {
         get => _fallbackJumpImpulse;
@@ -239,6 +281,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// If true, a child camera entity is driven using janky follow/pitch behavior.
     /// </summary>
+    [InspectorSection("Attached Camera")]
+    [InspectorLabel("Drive Attached Camera")]
     public bool DriveAttachedCamera
     {
         get => _driveAttachedCamera;
@@ -248,6 +292,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Local offset applied to the attached camera entity relative to the controller entity.
     /// </summary>
+    [InspectorLabel("Local Offset")]
+    [InspectorVisibleIf(nameof(DriveAttachedCamera))]
     public Vector3 AttachedCameraLocalOffset
     {
         get => _attachedCameraLocalOffset;
@@ -257,6 +303,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Additional camera distance along local +Z (behind the entity when forward is -Z).
     /// </summary>
+    [InspectorLabel("Back Distance")]
+    [InspectorVisibleIf(nameof(DriveAttachedCamera))]
     public float AttachedCameraBackDistance
     {
         get => _attachedCameraBackDistance;
@@ -266,6 +314,8 @@ public class SimplePlayerInputComponent : Component
     /// <summary>
     /// Optional explicit reference to the camera entity. When set, takes priority over child entity search.
     /// </summary>
+    [InspectorLabel("Camera Entity")]
+    [InspectorVisibleIf(nameof(DriveAttachedCamera))]
     public EntityReference CameraEntity
     {
         get => _cameraEntity;

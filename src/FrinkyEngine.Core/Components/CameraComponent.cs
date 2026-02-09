@@ -27,20 +27,48 @@ public enum ProjectionType
 [ComponentCategory("Rendering")]
 public class CameraComponent : Component
 {
+    private float _fieldOfView = 60f;
+    private float _nearPlane = 0.1f;
+    private float _farPlane = 1000f;
+
     /// <summary>
     /// Vertical field of view in degrees, used for perspective projection (defaults to 60).
     /// </summary>
-    public float FieldOfView { get; set; } = 60f;
+    [InspectorLabel("Field of View")]
+    public float FieldOfView
+    {
+        get => _fieldOfView;
+        set => _fieldOfView = float.IsFinite(value) ? Math.Clamp(value, 1f, 179f) : 60f;
+    }
 
     /// <summary>
     /// Distance to the near clipping plane (defaults to 0.1).
     /// </summary>
-    public float NearPlane { get; set; } = 0.1f;
+    [InspectorLabel("Near Plane")]
+    public float NearPlane
+    {
+        get => _nearPlane;
+        set
+        {
+            _nearPlane = float.IsFinite(value) ? MathF.Max(value, 0.001f) : 0.1f;
+            if (_farPlane <= _nearPlane)
+                _farPlane = _nearPlane + 0.001f;
+        }
+    }
 
     /// <summary>
     /// Distance to the far clipping plane (defaults to 1000).
     /// </summary>
-    public float FarPlane { get; set; } = 1000f;
+    [InspectorLabel("Far Plane")]
+    public float FarPlane
+    {
+        get => _farPlane;
+        set
+        {
+            var safeValue = float.IsFinite(value) ? value : 1000f;
+            _farPlane = MathF.Max(safeValue, _nearPlane + 0.001f);
+        }
+    }
 
     /// <summary>
     /// Whether this camera uses perspective or orthographic projection.
@@ -50,11 +78,13 @@ public class CameraComponent : Component
     /// <summary>
     /// Background color used to clear the screen before rendering (defaults to dark gray).
     /// </summary>
+    [InspectorLabel("Clear Color")]
     public Color ClearColor { get; set; } = new(30, 30, 30, 255);
 
     /// <summary>
     /// When <c>true</c>, marks this as the primary camera used for rendering.
     /// </summary>
+    [InspectorLabel("Is Main")]
     public bool IsMain { get; set; } = true;
 
     /// <summary>

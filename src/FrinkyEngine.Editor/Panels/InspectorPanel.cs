@@ -1,5 +1,7 @@
 using System.Numerics;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering.PostProcessing;
@@ -15,6 +17,7 @@ public class InspectorPanel
 {
     private readonly EditorApplication _app;
     private string _componentSearch = string.Empty;
+    private static readonly Dictionary<string, string> _enumSearchFilters = new();
 
     public bool FocusNameField { get; set; }
 
@@ -320,12 +323,21 @@ public class InspectorPanel
 
     private void DrawMultiReflection(IReadOnlyList<Component> components)
     {
+        string? lastSection = null;
         var type = components[0].GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (!prop.CanRead || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
-            if (prop.Name is "RenderModel") continue;
+            if (!IsInspectableProperty(prop))
+                continue;
+            if (!IsPropertyVisibleForAll(components, prop))
+                continue;
+
+            var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
+            if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
+            {
+                ImGui.SeparatorText(section);
+                lastSection = section;
+            }
 
             DrawMultiProperty(components, prop);
         }
@@ -334,9 +346,16 @@ public class InspectorPanel
     private void DrawMultiProperty(IReadOnlyList<Component> components, PropertyInfo prop)
     {
         var propType = prop.PropertyType;
-        var label = prop.Name;
+        var label = GetInspectorLabel(prop);
         var firstValue = prop.GetValue(components[0]);
         bool mixed = components.Skip(1).Any(c => !Equals(prop.GetValue(c), firstValue));
+        bool isReadOnly = !prop.CanWrite || prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+
+        if (isReadOnly)
+        {
+            DrawMultiReadOnlyValue(label, firstValue, mixed);
+            return;
+        }
 
         if (propType == typeof(float))
         {
@@ -419,7 +438,10 @@ public class InspectorPanel
         else if (propType.IsEnum)
         {
             object currentValue = firstValue ?? Enum.GetValues(propType).GetValue(0)!;
-            if (ComboEnumHelper.Combo(GetMixedLabel(label, mixed), propType, ref currentValue))
+            bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
+                ? DrawMixedSearchableEnum(label, propType, ref currentValue, mixed)
+                : ComboEnumHelper.Combo(GetMixedLabel(label, mixed), propType, ref currentValue);
+            if (changed)
             {
                 _app.RecordUndo();
                 foreach (var component in components)
@@ -435,6 +457,10 @@ public class InspectorPanel
             string preview = mixed ? "(Mixed)" : (!entityRef.IsValid ? "(None)" : (resolved?.Name ?? "(Missing)"));
             ImGui.LabelText(label, preview);
         }
+        else if (propType == typeof(AudioAttenuationSettings))
+        {
+            DrawMultiAudioAttenuation(components, prop, label);
+        }
         else if (propType == typeof(List<PostProcessEffect>))
         {
             ImGui.LabelText(label, "(edit individually)");
@@ -443,6 +469,222 @@ public class InspectorPanel
         {
             ImGui.LabelText(label, propType.Name);
         }
+    }
+
+    private void DrawMultiAudioAttenuation(IReadOnlyList<Component> components, PropertyInfo prop, string label)
+    {
+        if (!components.All(c => c is AudioSourceComponent))
+        {
+            ImGui.LabelText(label, "(unsupported multi edit)");
+            return;
+        }
+
+        var sources = components.Cast<AudioSourceComponent>().ToList();
+        bool spatialized = sources[0].Spatialized;
+        bool mixedSpatialized = sources.Skip(1).Any(s => s.Spatialized != spatialized);
+        if (mixedSpatialized)
+        {
+            ImGui.LabelText(label, "(Mixed Spatialized mode)");
+            return;
+        }
+
+        if (spatialized)
+        {
+            var minValues = sources.Select(s => s.Attenuation.MinDistance).ToList();
+            float minDistance = minValues[0];
+            if (DrawMixedDragFloat("Min Distance", ref minDistance, minValues.Any(v => v != minValues[0]), 0.1f))
+            {
+                foreach (var source in sources)
+                {
+                    var attenuation = source.Attenuation;
+                    attenuation.MinDistance = minDistance;
+                    prop.SetValue(source, attenuation);
+                }
+            }
+
+            var maxValues = sources.Select(s => s.Attenuation.MaxDistance).ToList();
+            float maxDistance = maxValues[0];
+            if (DrawMixedDragFloat("Max Distance", ref maxDistance, maxValues.Any(v => v != maxValues[0]), 0.1f))
+            {
+                foreach (var source in sources)
+                {
+                    var attenuation = source.Attenuation;
+                    attenuation.MaxDistance = maxDistance;
+                    prop.SetValue(source, attenuation);
+                }
+            }
+
+            var firstRolloff = sources[0].Attenuation.Rolloff;
+            bool mixedRolloff = sources.Skip(1).Any(s => s.Attenuation.Rolloff != firstRolloff);
+            object rolloffValue = firstRolloff;
+            if (ComboEnumHelper.Combo(GetMixedLabel("Rolloff", mixedRolloff), typeof(AudioRolloffMode), ref rolloffValue))
+            {
+                _app.RecordUndo();
+                var rolloff = (AudioRolloffMode)rolloffValue;
+                foreach (var source in sources)
+                {
+                    var attenuation = source.Attenuation;
+                    attenuation.Rolloff = rolloff;
+                    prop.SetValue(source, attenuation);
+                }
+                _app.RefreshUndoBaseline();
+            }
+
+            var blendValues = sources.Select(s => s.Attenuation.SpatialBlend).ToList();
+            float spatialBlend = blendValues[0];
+            if (DrawMixedDragFloat("Spatial Blend", ref spatialBlend, blendValues.Any(v => v != blendValues[0]), 0.01f))
+            {
+                foreach (var source in sources)
+                {
+                    var attenuation = source.Attenuation;
+                    attenuation.SpatialBlend = spatialBlend;
+                    prop.SetValue(source, attenuation);
+                }
+            }
+
+            return;
+        }
+
+        var panValues = sources.Select(s => s.Attenuation.PanStereo).ToList();
+        float panStereo = panValues[0];
+        if (DrawMixedDragFloat("Stereo Pan", ref panStereo, panValues.Any(v => v != panValues[0]), 0.01f))
+        {
+            foreach (var source in sources)
+            {
+                var attenuation = source.Attenuation;
+                attenuation.PanStereo = panStereo;
+                prop.SetValue(source, attenuation);
+            }
+        }
+    }
+
+    private static bool IsInspectableProperty(PropertyInfo prop)
+    {
+        if (!prop.CanRead)
+            return false;
+        if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "RenderModel")
+            return false;
+        if (prop.CanWrite)
+            return true;
+        return prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+    }
+
+    private static bool IsPropertyVisibleForAll(IReadOnlyList<Component> components, PropertyInfo prop)
+    {
+        foreach (var visibleIf in prop.GetCustomAttributes<InspectorVisibleIfAttribute>())
+        {
+            var condition = components[0].GetType().GetProperty(visibleIf.PropertyName, BindingFlags.Public | BindingFlags.Instance);
+            if (condition == null || !condition.CanRead || condition.PropertyType != typeof(bool))
+                return false;
+
+            foreach (var component in components)
+            {
+                var current = (bool?)condition.GetValue(component) ?? false;
+                if (current != visibleIf.ExpectedValue)
+                    return false;
+            }
+        }
+
+        foreach (var visibleIfEnum in prop.GetCustomAttributes<InspectorVisibleIfEnumAttribute>())
+        {
+            var condition = components[0].GetType().GetProperty(visibleIfEnum.PropertyName, BindingFlags.Public | BindingFlags.Instance);
+            if (condition == null || !condition.CanRead || !condition.PropertyType.IsEnum)
+                return false;
+
+            foreach (var component in components)
+            {
+                var value = condition.GetValue(component);
+                if (value is not Enum enumValue)
+                    return false;
+                if (!string.Equals(enumValue.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string GetInspectorLabel(PropertyInfo prop)
+    {
+        var label = prop.GetCustomAttribute<InspectorLabelAttribute>()?.Label;
+        if (!string.IsNullOrWhiteSpace(label))
+            return label;
+        return PascalCaseRegex.Replace(prop.Name, " $1$2");
+    }
+
+    private static void DrawMultiReadOnlyValue(string label, object? value, bool mixed)
+    {
+        if (mixed)
+        {
+            ImGui.LabelText(label, "(Mixed)");
+            return;
+        }
+
+        var text = value switch
+        {
+            null => "(null)",
+            bool b => b ? "Yes" : "No",
+            float f => $"{f:0.###}",
+            double d => $"{d:0.###}",
+            Vector2 v2 => $"{v2.X:0.00}, {v2.Y:0.00}",
+            Vector3 v3 => $"{v3.X:0.00}, {v3.Y:0.00}, {v3.Z:0.00}",
+            Quaternion q => FormatEuler(q),
+            _ => value.ToString() ?? "(null)"
+        };
+
+        ImGui.LabelText(label, text);
+    }
+
+    private static string FormatEuler(Quaternion q)
+    {
+        var euler = Core.FrinkyMath.QuaternionToEuler(q);
+        return $"{euler.X:0.00}, {euler.Y:0.00}, {euler.Z:0.00}";
+    }
+
+    private bool DrawMixedSearchableEnum(string label, Type enumType, ref object currentValue, bool mixed)
+    {
+        if (!enumType.IsEnum)
+            return false;
+
+        var mixedLabel = GetMixedLabel(label, mixed);
+        var filterId = $"{mixedLabel}_{enumType.FullName}";
+        if (!_enumSearchFilters.ContainsKey(filterId))
+            _enumSearchFilters[filterId] = "";
+
+        var preview = currentValue?.ToString() ?? "(None)";
+        bool changed = false;
+        if (ImGui.BeginCombo(mixedLabel, preview))
+        {
+            var filter = _enumSearchFilters[filterId];
+            ImGui.InputTextWithHint("##filter", "Search...", ref filter, 64);
+            _enumSearchFilters[filterId] = filter;
+
+            var filterLower = filter.ToLowerInvariant();
+            foreach (var value in Enum.GetValues(enumType))
+            {
+                var name = value.ToString() ?? string.Empty;
+                if (filter.Length > 0 && !name.ToLowerInvariant().Contains(filterLower))
+                    continue;
+
+                bool isSelected = Equals(value, currentValue);
+                if (ImGui.Selectable(name, isSelected))
+                {
+                    currentValue = value;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui.SetItemDefaultFocus();
+            }
+
+            ImGui.EndCombo();
+        }
+        else
+        {
+            _enumSearchFilters[filterId] = "";
+        }
+
+        return changed;
     }
 
     private bool DrawMixedDragFloat(string label, ref float value, bool mixed, float speed)
@@ -497,6 +739,8 @@ public class InspectorPanel
         if (ImGui.IsItemDeactivatedAfterEdit())
             _app.RefreshUndoBaseline();
     }
+
+    private static readonly Regex PascalCaseRegex = new(@"(?<=[a-z0-9])([A-Z])|(?<=[A-Z])([A-Z][a-z])", RegexOptions.Compiled);
 
     private static Vector4 ColorToVec4(Color c) =>
         new(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);

@@ -23,6 +23,7 @@ public class AudioSourceComponent : Component
     /// Asset-relative or absolute path to the sound file.
     /// </summary>
     [AssetFilter(AssetType.Audio)]
+    [InspectorLabel("Sound")]
     public AssetReference SoundPath
     {
         get => _soundPath;
@@ -80,6 +81,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Start offset in seconds for streamed clips.
     /// </summary>
+    [InspectorLabel("Start Time (s)")]
     public float StartTimeSeconds
     {
         get => _startTimeSeconds;
@@ -108,6 +110,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Spatial attenuation settings.
     /// </summary>
+    [InspectorSection("Attenuation")]
     public AudioAttenuationSettings Attenuation
     {
         get => _attenuation;
