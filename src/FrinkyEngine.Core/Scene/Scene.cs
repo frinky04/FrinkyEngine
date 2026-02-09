@@ -13,6 +13,12 @@ namespace FrinkyEngine.Core.Scene;
 public class Scene : IDisposable
 {
     /// <summary>
+    /// Global time scale applied to the game delta time.
+    /// A value of 1.0 is normal speed, 0.5 is half speed, 0 is paused.
+    /// </summary>
+    public static float TimeScale { get; set; } = 1.0f;
+
+    /// <summary>
     /// Display name of this scene.
     /// </summary>
     public string Name { get; set; } = "Untitled";
@@ -204,6 +210,8 @@ public class Scene : IDisposable
     /// <param name="dt">Time elapsed since the previous frame, in seconds.</param>
     public void Update(float dt)
     {
+        dt *= TimeScale;
+
         using (FrameProfiler.Scope(ProfileCategory.Game))
         {
             foreach (var entity in _entities)

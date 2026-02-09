@@ -929,6 +929,20 @@ public static unsafe class EngineOverlays
             () => AudioProjectSettings.Current.AmbientVolume,
             v => { AudioProjectSettings.Current.AmbientVolume = v; AudioApi.SetBusVolume(AudioBusId.Ambient, v); });
 
+        // --- Time cvars ---
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "time_scale",
+            "time_scale [0.0-10.0]",
+            "Game time scale (1.0 = normal, 0.5 = half speed, 2.0 = double speed, 0 = paused).",
+            () => Scene.Scene.TimeScale.ToString("F2"),
+            value =>
+            {
+                if (!TryParseFloatClamped(value, 0f, 10f, out var v))
+                    return false;
+                Scene.Scene.TimeScale = v;
+                return true;
+            }));
+
         // --- Physics cvars ---
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "physics_gravity",
