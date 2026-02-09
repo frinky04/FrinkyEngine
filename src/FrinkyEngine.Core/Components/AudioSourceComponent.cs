@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.ECS;
 using AudioApi = FrinkyEngine.Core.Audio.Audio;
@@ -10,7 +11,7 @@ namespace FrinkyEngine.Core.Components;
 [ComponentCategory("Audio")]
 public class AudioSourceComponent : Component
 {
-    private string _soundPath = string.Empty;
+    private AssetReference _soundPath = new("");
     private float _volume = 1f;
     private float _pitch = 1f;
     private float _startTimeSeconds;
@@ -21,10 +22,11 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Asset-relative or absolute path to the sound file.
     /// </summary>
-    public string SoundPath
+    [AssetFilter(AssetType.Audio)]
+    public AssetReference SoundPath
     {
         get => _soundPath;
-        set => _soundPath = value?.Trim() ?? string.Empty;
+        set => _soundPath = new AssetReference(value.Path?.Trim() ?? "");
     }
 
     /// <summary>
@@ -131,7 +133,7 @@ public class AudioSourceComponent : Component
     /// </summary>
     public void Play()
     {
-        if (string.IsNullOrWhiteSpace(SoundPath))
+        if (SoundPath.IsEmpty)
             return;
 
         Stop();
@@ -149,8 +151,8 @@ public class AudioSourceComponent : Component
         };
 
         _currentHandle = Spatialized
-            ? AudioApi.SpawnSoundAttached(SoundPath, Entity, in playParams)
-            : AudioApi.PlaySound2D(SoundPath, in playParams);
+            ? AudioApi.SpawnSoundAttached(SoundPath.Path, Entity, in playParams)
+            : AudioApi.PlaySound2D(SoundPath.Path, in playParams);
 
         if (!_currentHandle.IsValid)
             return;
@@ -222,8 +224,8 @@ public class AudioSourceComponent : Component
         };
 
         _currentHandle = Spatialized
-            ? AudioApi.SpawnSoundAttached(SoundPath, Entity, in playParams)
-            : AudioApi.PlaySound2D(SoundPath, in playParams);
+            ? AudioApi.SpawnSoundAttached(SoundPath.Path, Entity, in playParams)
+            : AudioApi.PlaySound2D(SoundPath.Path, in playParams);
     }
 
     /// <summary>

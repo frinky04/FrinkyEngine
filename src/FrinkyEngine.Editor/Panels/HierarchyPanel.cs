@@ -752,7 +752,7 @@ public class HierarchyPanel
 
     private static string? GetPrefabAbsolutePath(Entity prefabRoot)
     {
-        var assetPath = prefabRoot.Prefab?.AssetPath;
+        var assetPath = prefabRoot.Prefab?.AssetPath.Path;
         if (string.IsNullOrWhiteSpace(assetPath))
             return null;
 
@@ -1425,7 +1425,7 @@ public class HierarchyPanel
 
     private static bool MatchesPrefabFilter(Entity entity, HierarchyPrefabFilter mode)
     {
-        bool isPrefabInstance = entity.Prefab != null && !string.IsNullOrWhiteSpace(entity.Prefab.AssetPath);
+        bool isPrefabInstance = entity.Prefab != null && !entity.Prefab.AssetPath.IsEmpty;
         bool isPrefabRoot = isPrefabInstance && entity.Prefab!.IsRoot;
 
         return mode switch

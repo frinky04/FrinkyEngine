@@ -5,6 +5,7 @@ using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
 using Hexa.NET.ImGui;
@@ -215,40 +216,7 @@ public static class ComponentDrawerRegistry
         var source = (AudioSourceComponent)c;
         var app = EditorApplication.Instance;
 
-        ImGui.Text("Sound");
-        ImGui.SetNextItemWidth(-30);
-        string soundPath = source.SoundPath;
-        if (ImGui.InputText("##SoundPathAudio", ref soundPath, 256))
-            source.SoundPath = soundPath;
-        TrackContinuousUndo(app);
-        ImGui.SameLine();
-        if (ImGui.Button("...##BrowseAudio"))
-            ImGui.OpenPopup("AudioBrowser");
-
-        if (ImGui.BeginPopup("AudioBrowser"))
-        {
-            var audioAssets = AssetDatabase.Instance.GetAssets(AssetType.Audio);
-            if (audioAssets.Count == 0)
-            {
-                ImGui.TextDisabled("No audio assets found");
-            }
-            else
-            {
-                foreach (var asset in audioAssets)
-                {
-                    ImGui.PushID(asset.RelativePath);
-                    if (AssetSelectable(AssetType.Audio, asset.RelativePath))
-                    {
-                        app.RecordUndo();
-                        source.SoundPath = asset.RelativePath;
-                        app.RefreshUndoBaseline();
-                    }
-                    ImGui.PopID();
-                }
-            }
-
-            ImGui.EndPopup();
-        }
+        DrawAssetReference("Sound", source.SoundPath, AssetType.Audio, v => source.SoundPath = v);
 
         DrawCheckbox("Play On Start", source.PlayOnStart, v => source.PlayOnStart = v);
         DrawCheckbox("Spatialized", source.Spatialized, v => source.Spatialized = v);
@@ -339,40 +307,7 @@ public static class ComponentDrawerRegistry
         var mr = (MeshRendererComponent)c;
         var app = EditorApplication.Instance;
 
-        // Model Path with browse button on its own row
-        ImGui.Text("Model Path");
-        ImGui.SetNextItemWidth(-30);
-        string modelPath = mr.ModelPath;
-        if (ImGui.InputText("##ModelPath", ref modelPath, 256))
-            mr.ModelPath = modelPath;
-        TrackContinuousUndo(app);
-        ImGui.SameLine();
-        if (ImGui.Button("...##BrowseModel"))
-            ImGui.OpenPopup("ModelBrowser");
-
-        if (ImGui.BeginPopup("ModelBrowser"))
-        {
-            var models = AssetDatabase.Instance.GetAssets(AssetType.Model);
-            if (models.Count == 0)
-            {
-                ImGui.TextDisabled("No models found");
-            }
-            else
-            {
-                foreach (var asset in models)
-                {
-                    ImGui.PushID(asset.RelativePath);
-                    if (AssetSelectable(AssetType.Model, asset.RelativePath))
-                    {
-                        app.RecordUndo();
-                        mr.ModelPath = asset.RelativePath;
-                        app.RefreshUndoBaseline();
-                    }
-                    ImGui.PopID();
-                }
-            }
-            ImGui.EndPopup();
-        }
+        DrawAssetReference("Model Path", mr.ModelPath, AssetType.Model, v => mr.ModelPath = v);
 
         ImGui.Spacing();
 
@@ -398,7 +333,7 @@ public static class ComponentDrawerRegistry
                 if (ImGui.TreeNode($"Slot {i}"))
                 {
                     var matType = slot.MaterialType;
-                    if (ComboEnumHelper<Core.Rendering.MaterialType>.Combo("Type", ref matType))
+                    if (ComboEnumHelper<MaterialType>.Combo("Type", ref matType))
                     {
                         app.RecordUndo();
                         slot.MaterialType = matType;
@@ -406,48 +341,16 @@ public static class ComponentDrawerRegistry
                         app.RefreshUndoBaseline();
                     }
 
-                    if (slot.MaterialType is Core.Rendering.MaterialType.Textured or Core.Rendering.MaterialType.TriplanarTexture)
+                    if (slot.MaterialType is MaterialType.Textured or MaterialType.TriplanarTexture)
                     {
-                        ImGui.Text("Texture");
-                        ImGui.SetNextItemWidth(-30);
-                        string texPath = slot.TexturePath;
-                        if (ImGui.InputText("##SlotTexture", ref texPath, 256))
+                        DrawAssetReference("Texture", slot.TexturePath, AssetType.Texture, v =>
                         {
-                            slot.TexturePath = texPath;
+                            slot.TexturePath = v;
                             slotsChanged = true;
-                        }
-                        TrackContinuousUndo(app);
-                        ImGui.SameLine();
-                        if (ImGui.Button("...##BrowseSlotTex"))
-                            ImGui.OpenPopup("SlotTexBrowser");
-
-                        if (ImGui.BeginPopup("SlotTexBrowser"))
-                        {
-                            var textures = AssetDatabase.Instance.GetAssets(AssetType.Texture);
-                            if (textures.Count == 0)
-                            {
-                                ImGui.TextDisabled("No textures found");
-                            }
-                            else
-                            {
-                                foreach (var asset in textures)
-                                {
-                                    ImGui.PushID(asset.RelativePath);
-                                    if (AssetSelectable(AssetType.Texture, asset.RelativePath))
-                                    {
-                                        app.RecordUndo();
-                                        slot.TexturePath = asset.RelativePath;
-                                        slotsChanged = true;
-                                        app.RefreshUndoBaseline();
-                                    }
-                                    ImGui.PopID();
-                                }
-                            }
-                            ImGui.EndPopup();
-                        }
+                        });
                     }
 
-                    if (slot.MaterialType == Core.Rendering.MaterialType.TriplanarTexture)
+                    if (slot.MaterialType == MaterialType.TriplanarTexture)
                     {
                         float scale = slot.TriplanarScale;
                         if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
@@ -492,7 +395,7 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
 
         var matType = prim.MaterialType;
-        if (ComboEnumHelper<Core.Rendering.MaterialType>.Combo("Material Type", ref matType))
+        if (ComboEnumHelper<MaterialType>.Combo("Material Type", ref matType))
         {
             app.RecordUndo();
             prim.MaterialType = matType;
@@ -504,44 +407,12 @@ public static class ComponentDrawerRegistry
             prim.Tint = Vec4ToColor(tint);
         TrackContinuousUndo(app);
 
-        if (prim.MaterialType is FrinkyEngine.Core.Rendering.MaterialType.Textured or FrinkyEngine.Core.Rendering.MaterialType.TriplanarTexture)
+        if (prim.MaterialType is MaterialType.Textured or MaterialType.TriplanarTexture)
         {
-            ImGui.Text("Texture Path");
-            ImGui.SetNextItemWidth(-30);
-            string texPath = prim.TexturePath;
-            if (ImGui.InputText("##TexturePath", ref texPath, 256))
-                prim.TexturePath = texPath;
-            TrackContinuousUndo(app);
-            ImGui.SameLine();
-            if (ImGui.Button("...##BrowseTexture"))
-                ImGui.OpenPopup("TextureBrowser");
-
-            if (ImGui.BeginPopup("TextureBrowser"))
-            {
-                var textures = AssetDatabase.Instance.GetAssets(AssetType.Texture);
-                if (textures.Count == 0)
-                {
-                    ImGui.TextDisabled("No textures found");
-                }
-                else
-                {
-                    foreach (var asset in textures)
-                    {
-                        ImGui.PushID(asset.RelativePath);
-                        if (AssetSelectable(AssetType.Texture, asset.RelativePath))
-                        {
-                            app.RecordUndo();
-                            prim.TexturePath = asset.RelativePath;
-                            app.RefreshUndoBaseline();
-                        }
-                        ImGui.PopID();
-                    }
-                }
-                ImGui.EndPopup();
-            }
+            DrawAssetReference("Texture Path", prim.TexturePath, AssetType.Texture, v => prim.TexturePath = v);
         }
 
-        if (prim.MaterialType == FrinkyEngine.Core.Rendering.MaterialType.TriplanarTexture)
+        if (prim.MaterialType == MaterialType.TriplanarTexture)
         {
             float scale = prim.TriplanarScale;
             if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
@@ -926,6 +797,16 @@ public static class ComponentDrawerRegistry
         {
             DrawEntityReference(label, component, prop);
         }
+        else if (propType == typeof(AssetReference))
+        {
+            var assetRef = (AssetReference)prop.GetValue(component)!;
+            var filterAttr = prop.GetCustomAttribute<AssetFilterAttribute>();
+            var assetFilter = filterAttr?.Filter ?? AssetType.Unknown;
+            DrawAssetReference(label, assetRef, assetFilter, v =>
+            {
+                prop.SetValue(component, v);
+            });
+        }
         else
         {
             ImGui.LabelText(label, propType.Name);
@@ -1030,6 +911,133 @@ public static class ComponentDrawerRegistry
         }
 
         ImGui.Columns(1);
+        ImGui.PopID();
+    }
+
+    private static readonly Dictionary<string, string> _assetRefFilters = new();
+
+    private static unsafe void DrawAssetReference(string label, AssetReference current, AssetType filter, Action<AssetReference> setter)
+    {
+        var app = EditorApplication.Instance;
+        var db = AssetDatabase.Instance;
+
+        string preview = current.IsEmpty ? "(None)" : current.Path;
+        bool isBroken = !current.IsEmpty && !db.AssetExists(current.Path);
+
+        var filterId = $"AssetRef_{label}";
+
+        ImGui.PushID(label);
+        ImGui.Text(label);
+
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float clearButtonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+        float comboWidth = availWidth - clearButtonWidth - ImGui.GetStyle().ItemSpacing.X;
+
+        if (isBroken)
+            ImGui.PushStyleColor(ImGuiCol.Text, WarningColor);
+
+        ImGui.SetNextItemWidth(comboWidth);
+        if (ImGui.BeginCombo("##assetref", preview))
+        {
+            if (isBroken)
+                ImGui.PopStyleColor();
+
+            if (!_assetRefFilters.ContainsKey(filterId))
+                _assetRefFilters[filterId] = "";
+            var searchFilter = _assetRefFilters[filterId];
+            ImGui.InputTextWithHint("##assetFilter", "Search...", ref searchFilter, 128);
+            _assetRefFilters[filterId] = searchFilter;
+
+            // (None) option
+            if (ImGui.Selectable("(None)", current.IsEmpty))
+            {
+                app.RecordUndo();
+                setter(new AssetReference(""));
+                app.RefreshUndoBaseline();
+            }
+
+            var tagDb = app.TagDatabase;
+            var assets = filter == AssetType.Unknown ? db.GetAssets(null) : db.GetAssets(filter);
+            foreach (var asset in assets)
+            {
+                var tags = tagDb?.GetTagsForAsset(asset.RelativePath);
+
+                bool matchesSearch = true;
+                if (searchFilter.Length > 0)
+                {
+                    matchesSearch = asset.RelativePath.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
+                    if (!matchesSearch && tags != null)
+                        matchesSearch = tags.Any(t => t.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!matchesSearch)
+                    continue;
+
+                ImGui.PushID(asset.RelativePath);
+
+                // Draw asset icon + label
+                if (AssetSelectable(asset.Type, asset.RelativePath))
+                {
+                    app.RecordUndo();
+                    setter(new AssetReference(asset.RelativePath));
+                    app.RefreshUndoBaseline();
+                }
+
+                // Draw tag chips on the same line
+                if (tags is { Count: > 0 })
+                {
+                    ImGui.SameLine();
+                    foreach (var tag in tags)
+                    {
+                        ImGui.SameLine();
+                        ImGui.TextDisabled($"[{tag.Name}]");
+                    }
+                }
+
+                ImGui.PopID();
+            }
+
+            ImGui.EndCombo();
+        }
+        else
+        {
+            if (isBroken)
+                ImGui.PopStyleColor();
+            _assetRefFilters[filterId] = "";
+        }
+
+        // Drag-and-drop target
+        if (ImGui.BeginDragDropTarget())
+        {
+            ImGuiPayload* payload = ImGui.AcceptDragDropPayload(AssetBrowserPanel.AssetDragPayload);
+            if (payload != null && payload->Delivery != 0)
+            {
+                var draggedPath = app.DraggedAssetPath;
+                if (!string.IsNullOrEmpty(draggedPath))
+                {
+                    var draggedAsset = db.GetAssets()
+                        .FirstOrDefault(a => string.Equals(a.RelativePath, draggedPath, StringComparison.OrdinalIgnoreCase));
+
+                    if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
+                    {
+                        app.RecordUndo();
+                        setter(new AssetReference(draggedPath));
+                        app.RefreshUndoBaseline();
+                    }
+                }
+            }
+            ImGui.EndDragDropTarget();
+        }
+
+        // Clear button
+        ImGui.SameLine();
+        if (ImGui.Button("X") && !current.IsEmpty)
+        {
+            app.RecordUndo();
+            setter(new AssetReference(""));
+            app.RefreshUndoBaseline();
+        }
+
         ImGui.PopID();
     }
 
@@ -1280,6 +1288,16 @@ public static class ComponentDrawerRegistry
                     prop.SetValue(effect, currentValue);
                     app.RefreshUndoBaseline();
                 }
+            }
+            else if (propType == typeof(AssetReference))
+            {
+                var assetRef = (AssetReference)prop.GetValue(effect)!;
+                var filterAttr = prop.GetCustomAttribute<AssetFilterAttribute>();
+                var assetFilter = filterAttr?.Filter ?? AssetType.Unknown;
+                DrawAssetReference(label, assetRef, assetFilter, v =>
+                {
+                    prop.SetValue(effect, v);
+                });
             }
             else
             {

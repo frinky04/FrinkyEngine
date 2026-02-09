@@ -22,7 +22,7 @@ public class PrefabDatabase
             return null;
 
         PrefabAssetData result = loaded;
-        if (resolveVariants && !string.IsNullOrWhiteSpace(loaded.SourcePrefab))
+        if (resolveVariants && !string.IsNullOrWhiteSpace(loaded.SourcePrefab.Path))
         {
             var resolved = ResolveVariant(normalized, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             if (resolved != null)
@@ -71,10 +71,10 @@ public class PrefabDatabase
         if (variant == null)
             return null;
 
-        if (string.IsNullOrWhiteSpace(variant.SourcePrefab))
+        if (string.IsNullOrWhiteSpace(variant.SourcePrefab.Path))
             return variant;
 
-        var source = ResolveVariant(variant.SourcePrefab, stack);
+        var source = ResolveVariant(variant.SourcePrefab.Path, stack);
         if (source == null)
             return null;
 

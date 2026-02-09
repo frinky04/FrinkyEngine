@@ -32,6 +32,7 @@ public class AssetDatabase
     };
 
     private List<AssetEntry> _assets = new();
+    private HashSet<string> _pathIndex = new(StringComparer.OrdinalIgnoreCase);
     private string _assetsPath = string.Empty;
 
     /// <summary>
@@ -52,6 +53,7 @@ public class AssetDatabase
     {
         _assetsPath = assetsPath;
         _assets.Clear();
+        _pathIndex.Clear();
 
         if (!Directory.Exists(assetsPath))
             return;
@@ -62,6 +64,7 @@ public class AssetDatabase
             var ext = Path.GetExtension(file).ToLowerInvariant();
             var type = _extensionMap.TryGetValue(ext, out var t) ? t : AssetType.Unknown;
             _assets.Add(new AssetEntry(relativePath, type));
+            _pathIndex.Add(relativePath);
         }
 
         _assets.Sort((a, b) => string.Compare(a.RelativePath, b.RelativePath, StringComparison.OrdinalIgnoreCase));
@@ -140,11 +143,22 @@ public class AssetDatabase
     }
 
     /// <summary>
+    /// Returns true if an asset with the given relative path exists in the database.
+    /// </summary>
+    /// <param name="relativePath">Asset-relative path to check.</param>
+    /// <returns>True if the asset exists.</returns>
+    public bool AssetExists(string relativePath)
+    {
+        return !string.IsNullOrEmpty(relativePath) && _pathIndex.Contains(relativePath);
+    }
+
+    /// <summary>
     /// Clears all cached asset entries and resets the scan path.
     /// </summary>
     public void Clear()
     {
         _assets.Clear();
+        _pathIndex.Clear();
         _assetsPath = string.Empty;
     }
 }
