@@ -1,6 +1,7 @@
 using System.Numerics;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using Hexa.NET.ImGuizmo;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -27,24 +28,13 @@ public enum MultiTransformMode
 
 public class GizmoSystem
 {
-    private const float GizmoScaleFactor = 0.15f;
-    private const float PickThresholdFactor = 0.18f;
-    private const float ArrowLength = 1f;
-    private const float ArrowHeadLength = 0.2f;
-    private const float ArrowHeadRadius = 0.07f;
-    private const float ShaftRadius = 0.02f;
-    private const float RotateRadius = 0.9f;
-    private const float RotateLineRadius = 0.015f;
-    private const float ScaleCubeSize = 0.1f;
-    private const float RelativeScaleFactorMin = 0.01f;
     private const float MinLocalScale = 0.001f;
-    private const int CircleSegments = 64;
 
     public GizmoMode Mode { get; set; } = GizmoMode.Translate;
     public GizmoSpace Space { get; set; } = GizmoSpace.World;
     public MultiTransformMode MultiMode { get; set; } = MultiTransformMode.Independent;
-    public bool IsDragging => _isDragging;
-    public int HoveredAxis => _hoveredAxis;
+    public bool IsDragging => ImGuizmo.IsUsing();
+    public int HoveredAxis => ImGuizmo.IsOver() ? 0 : -1;
 
     public bool SnapTranslation;
     public bool SnapRotation;
@@ -57,390 +47,251 @@ public class GizmoSystem
     public static readonly float[] RotationSnapPresets = { 5f, 10f, 15f, 30f, 45f, 90f };
     public static readonly float[] ScaleSnapPresets = { 0.05f, 0.1f, 0.25f, 0.5f, 1.0f };
 
-    private int _hoveredAxis = -1; // -1=none, 0=X, 1=Y, 2=Z
-    private bool _isDragging;
+    // Track previous-frame dragging so we can detect transitions for delta application
+    private bool _wasDragging;
+    // Snapshot of each entity's transforms at drag start, for delta-based application
+    private readonly List<DragStartSnapshot> _dragSnapshots = new();
 
-    private readonly List<DragTargetState> _dragTargets = new();
-    private Vector3 _dragOrigin;
-    private Vector3 _dragPivot;
-    private Vector3[] _dragAxes = { Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ };
-    private Vector3 _dragStartIntersection;
-    private float _dragStartAngle;
-    private bool _hasRotateStart;
-
-    private static readonly Color[] AxisColors = { Color.Red, Color.Green, Color.Blue };
-    private static readonly Color HoverColor = Color.Yellow;
-
-    public void Draw(Camera3D camera, Entity? selected)
-    {
-        if (selected == null)
-        {
-            Draw(camera, Array.Empty<Entity>(), null);
-            return;
-        }
-
-        Draw(camera, new[] { selected }, selected);
-    }
-
-    public void Draw(Camera3D camera, IReadOnlyList<Entity> selected, Entity? primary)
-    {
-        if (primary == null || selected.Count == 0 || Mode == GizmoMode.None) return;
-
-        var selectedRoots = FilterToSelectionRoots(selected);
-        if (selectedRoots.Count == 0) return;
-
-        var origin = GetGizmoOrigin(selectedRoots, primary);
-        float distance = Vector3.Distance(camera.Position, origin);
-        float gizmoScale = distance * GizmoScaleFactor;
-        var axes = GetGizmoAxes(primary);
-
-        Rlgl.DrawRenderBatchActive();
-        Rlgl.DisableDepthTest();
-
-        switch (Mode)
-        {
-            case GizmoMode.Translate:
-                DrawTranslateGizmo(origin, axes, gizmoScale);
-                break;
-            case GizmoMode.Rotate:
-                DrawRotateGizmo(origin, axes, gizmoScale);
-                break;
-            case GizmoMode.Scale:
-                DrawScaleGizmo(origin, axes, gizmoScale);
-                break;
-        }
-
-        Rlgl.DrawRenderBatchActive();
-        Rlgl.EnableDepthTest();
-    }
-
-    public void Update(Camera3D camera, Entity? selected, Vector2 viewportMousePos, Vector2 viewportSize)
-    {
-        if (selected == null)
-        {
-            Update(camera, Array.Empty<Entity>(), null, viewportMousePos, viewportSize);
-            return;
-        }
-
-        Update(camera, new[] { selected }, selected, viewportMousePos, viewportSize);
-    }
-
-    public void Update(
+    public unsafe void DrawAndUpdate(
         Camera3D camera,
         IReadOnlyList<Entity> selected,
         Entity? primary,
-        Vector2 viewportMousePos,
+        Vector2 viewportScreenPos,
         Vector2 viewportSize)
     {
         if (primary == null || selected.Count == 0 || Mode == GizmoMode.None)
         {
-            ResetInteractionState();
+            _wasDragging = false;
+            _dragSnapshots.Clear();
             return;
         }
 
         var selectedRoots = FilterToSelectionRoots(selected);
         if (selectedRoots.Count == 0)
         {
-            ResetInteractionState();
+            _wasDragging = false;
+            _dragSnapshots.Clear();
             return;
         }
 
-        var origin = GetGizmoOrigin(selectedRoots, primary);
-        float distance = Vector3.Distance(camera.Position, origin);
-        float gizmoScale = distance * GizmoScaleFactor;
-        var axes = GetGizmoAxes(primary);
-        var ray = RaycastUtils.GetViewportRay(camera, viewportMousePos, viewportSize);
+        // Configure ImGuizmo for this viewport
+        ImGuizmo.SetRect(viewportScreenPos.X, viewportScreenPos.Y, viewportSize.X, viewportSize.Y);
+        ImGuizmo.SetOrthographic(false);
+        ImGuizmo.SetDrawlist();
+        ImGuizmo.Enable(true);
 
-        if (_isDragging)
+        // Build view and projection matrices
+        var view = Matrix4x4.CreateLookAt(camera.Position, camera.Target, camera.Up);
+        float aspect = viewportSize.X / viewportSize.Y;
+        var proj = Matrix4x4.CreatePerspectiveFieldOfView(
+            camera.FovY * FrinkyEngine.Core.FrinkyMath.Deg2Rad, aspect, 0.01f, 1000f);
+
+        // Map GizmoMode to ImGuizmo operation
+        var op = Mode switch
         {
-            if (Raylib.IsMouseButtonReleased(MouseButton.Left))
+            GizmoMode.Translate => ImGuizmoOperation.Translate,
+            GizmoMode.Rotate => ImGuizmoOperation.Rotate,
+            GizmoMode.Scale => ImGuizmoOperation.Scale,
+            _ => ImGuizmoOperation.Translate
+        };
+
+        // Map GizmoSpace to ImGuizmo mode; Scale always forces Local
+        var mode = (Space == GizmoSpace.Local || Mode == GizmoMode.Scale)
+            ? ImGuizmoMode.Local
+            : ImGuizmoMode.World;
+
+        // Build snap values
+        float* snapPtr = null;
+        float snapX = 0, snapY = 0, snapZ = 0;
+        if (Mode == GizmoMode.Translate && IsSnapActive(SnapTranslation))
+        {
+            snapX = snapY = snapZ = TranslationSnapValue;
+            snapPtr = &snapX;
+        }
+        else if (Mode == GizmoMode.Rotate && IsSnapActive(SnapRotation))
+        {
+            snapX = snapY = snapZ = RotationSnapValue;
+            snapPtr = &snapX;
+        }
+        else if (Mode == GizmoMode.Scale && IsSnapActive(SnapScale))
+        {
+            snapX = snapY = snapZ = ScaleSnapValue;
+            snapPtr = &snapX;
+        }
+
+        // Build the gizmo object matrix
+        Matrix4x4 objectMatrix;
+        bool isMulti = selectedRoots.Count > 1;
+        bool isRelative = isMulti && MultiMode == MultiTransformMode.Relative;
+
+        if (isRelative)
+        {
+            var center = ComputeSelectionCenter(selectedRoots);
+            objectMatrix = Matrix4x4.CreateTranslation(center);
+        }
+        else
+        {
+            objectMatrix = primary.Transform.WorldMatrix;
+        }
+
+        // Call Manipulate — use pointer overload so we can pass snapPtr (which may be null)
+        var deltaMatrix = Matrix4x4.Identity;
+        bool changed = ImGuizmo.Manipulate(
+            (float*)&view, (float*)&proj, op, mode,
+            (float*)&objectMatrix, (float*)&deltaMatrix,
+            snapPtr, (float*)null, (float*)null);
+
+        // Detect drag start: transition from not-dragging to dragging
+        bool currentlyDragging = ImGuizmo.IsUsing();
+        if (currentlyDragging && !_wasDragging)
+        {
+            // Drag just started — capture snapshots
+            _dragSnapshots.Clear();
+            foreach (var entity in selectedRoots)
             {
-                _isDragging = false;
-                _dragTargets.Clear();
-                _hasRotateStart = false;
+                _dragSnapshots.Add(new DragStartSnapshot
+                {
+                    Entity = entity,
+                    StartWorldPosition = entity.Transform.WorldPosition,
+                    StartWorldRotation = entity.Transform.WorldRotation,
+                    StartLocalScale = entity.Transform.LocalScale,
+                });
+            }
+        }
+
+        if (!currentlyDragging)
+        {
+            _dragSnapshots.Clear();
+        }
+
+        _wasDragging = currentlyDragging;
+
+        // Apply the result
+        if (changed)
+        {
+            if (!isMulti)
+            {
+                // Single entity: apply the full object matrix directly
+                ApplySingleEntity(selectedRoots[0], objectMatrix);
             }
             else
             {
-                ApplyDrag(ray);
+                // Multi-entity: apply delta to each entity
+                ApplyMultiEntityDelta(selectedRoots, deltaMatrix, isRelative);
             }
-            return;
-        }
-
-        _hoveredAxis = -1;
-        switch (Mode)
-        {
-            case GizmoMode.Translate:
-            case GizmoMode.Scale:
-                _hoveredAxis = PickLinearAxis(ray, origin, axes, gizmoScale);
-                break;
-            case GizmoMode.Rotate:
-                _hoveredAxis = PickRotateAxis(ray, origin, axes, gizmoScale);
-                break;
-        }
-
-        if (_hoveredAxis >= 0 && Raylib.IsMouseButtonPressed(MouseButton.Left))
-            BeginDrag(selectedRoots, origin, axes, ray);
-    }
-
-    private void BeginDrag(IReadOnlyList<Entity> selectedRoots, Vector3 origin, Vector3[] axes, Ray ray)
-    {
-        _dragTargets.Clear();
-        foreach (var entity in selectedRoots)
-            _dragTargets.Add(CaptureTargetState(entity));
-
-        if (_dragTargets.Count == 0)
-            return;
-
-        _isDragging = true;
-        _dragOrigin = origin;
-        _dragAxes = axes;
-        _dragPivot = ComputeSelectionCenter(_dragTargets);
-        _hasRotateStart = false;
-
-        if (Mode == GizmoMode.Translate || Mode == GizmoMode.Scale)
-        {
-            _dragStartIntersection = ClosestPointOnAxis(ray, _dragOrigin, _dragAxes[_hoveredAxis]);
-            return;
-        }
-
-        if (Mode == GizmoMode.Rotate)
-        {
-            var axis = _dragAxes[_hoveredAxis];
-            var hitPoint = RayPlaneIntersection(ray, _dragOrigin, axis);
-            if (hitPoint.HasValue)
-            {
-                var dir = Vector3.Normalize(hitPoint.Value - _dragOrigin);
-                _dragStartAngle = AngleOnPlane(dir, axis);
-                _hasRotateStart = true;
-                return;
-            }
-
-            _isDragging = false;
-            _dragTargets.Clear();
         }
     }
 
-    private void ApplyDrag(Ray ray)
+    private static void ApplySingleEntity(Entity entity, Matrix4x4 newWorldMatrix)
     {
-        if (_dragTargets.Count == 0 || _hoveredAxis < 0) return;
+        var parent = entity.Transform.Parent;
+        Matrix4x4 localMatrix;
+
+        if (parent != null)
+        {
+            // Compute new local matrix by removing parent's world transform
+            if (Matrix4x4.Invert(parent.WorldMatrix, out var parentInverse))
+                localMatrix = newWorldMatrix * parentInverse;
+            else
+                localMatrix = newWorldMatrix;
+        }
+        else
+        {
+            localMatrix = newWorldMatrix;
+        }
+
+        if (Matrix4x4.Decompose(localMatrix, out var scale, out var rotation, out var translation))
+        {
+            entity.Transform.LocalPosition = translation;
+            entity.Transform.LocalRotation = Quaternion.Normalize(rotation);
+            entity.Transform.LocalScale = ClampLocalScale(scale);
+        }
+    }
+
+    private void ApplyMultiEntityDelta(IReadOnlyList<Entity> roots, Matrix4x4 deltaMatrix, bool isRelative)
+    {
+        if (!Matrix4x4.Decompose(deltaMatrix, out var deltaScale, out var deltaRotation, out var deltaTranslation))
+            return;
+
+        // The delta translation is the full translation component of the delta matrix
+        var translation = new Vector3(deltaMatrix.M41, deltaMatrix.M42, deltaMatrix.M43);
 
         switch (Mode)
         {
             case GizmoMode.Translate:
-                ApplyTranslateDrag(ray);
+                foreach (var entity in roots)
+                    entity.Transform.WorldPosition += translation;
                 break;
+
             case GizmoMode.Rotate:
-                ApplyRotateDrag(ray);
+                if (isRelative)
+                {
+                    // Rotate all entities around the group pivot
+                    var pivot = ComputeSelectionCenter(roots);
+                    foreach (var entity in roots)
+                    {
+                        var offset = entity.Transform.WorldPosition - pivot;
+                        var rotatedOffset = Vector3.Transform(offset, deltaRotation);
+                        entity.Transform.WorldPosition = pivot + rotatedOffset;
+                        entity.Transform.WorldRotation = Quaternion.Normalize(
+                            deltaRotation * entity.Transform.WorldRotation);
+                    }
+                }
+                else
+                {
+                    // Independent: each entity rotates from its own origin
+                    foreach (var entity in roots)
+                    {
+                        if (Space == GizmoSpace.World)
+                        {
+                            entity.Transform.WorldRotation = Quaternion.Normalize(
+                                deltaRotation * entity.Transform.WorldRotation);
+                        }
+                        else
+                        {
+                            entity.Transform.LocalRotation = Quaternion.Normalize(
+                                entity.Transform.LocalRotation * deltaRotation);
+                        }
+                    }
+                }
                 break;
+
             case GizmoMode.Scale:
-                ApplyScaleDrag(ray);
+                foreach (var entity in roots)
+                {
+                    var newScale = new Vector3(
+                        entity.Transform.LocalScale.X * deltaScale.X,
+                        entity.Transform.LocalScale.Y * deltaScale.Y,
+                        entity.Transform.LocalScale.Z * deltaScale.Z);
+                    entity.Transform.LocalScale = ClampLocalScale(newScale);
+                }
+
+                if (isRelative)
+                {
+                    // Also scale positions relative to pivot
+                    var pivot = ComputeSelectionCenter(roots);
+                    foreach (var snap in _dragSnapshots)
+                    {
+                        var offset = snap.StartWorldPosition - pivot;
+                        var scaledOffset = new Vector3(
+                            offset.X * deltaScale.X,
+                            offset.Y * deltaScale.Y,
+                            offset.Z * deltaScale.Z);
+                        snap.Entity.Transform.WorldPosition = pivot + scaledOffset;
+                    }
+                }
                 break;
         }
     }
 
-    private void ApplyTranslateDrag(Ray ray)
+    private static Vector3 ComputeSelectionCenter(IReadOnlyList<Entity> entities)
     {
-        var axis = _dragAxes[_hoveredAxis];
-        var currentPoint = ClosestPointOnAxis(ray, _dragOrigin, axis);
-        float signedDistance = Vector3.Dot(currentPoint - _dragStartIntersection, axis);
-        if (IsSnapActive(SnapTranslation))
-            signedDistance = SnapValue(signedDistance, TranslationSnapValue);
-        var worldDelta = axis * signedDistance;
+        if (entities.Count == 0) return Vector3.Zero;
 
-        if (MultiMode == MultiTransformMode.Relative)
-        {
-            ApplyWorldTranslationToTargets(worldDelta);
-            return;
-        }
-
-        if (Space == GizmoSpace.World)
-        {
-            ApplyWorldTranslationToTargets(worldDelta);
-            return;
-        }
-
-        foreach (var target in _dragTargets)
-        {
-            var targetAxis = GetEntityLocalAxisWorld(target.Entity, _hoveredAxis);
-            var localModeDelta = targetAxis * signedDistance;
-            ApplyWorldTranslation(target, localModeDelta);
-        }
-    }
-
-    private void ApplyRotateDrag(Ray ray)
-    {
-        if (!_hasRotateStart) return;
-
-        var axis = _dragAxes[_hoveredAxis];
-        var hitPoint = RayPlaneIntersection(ray, _dragOrigin, axis);
-        if (!hitPoint.HasValue) return;
-
-        var dir = Vector3.Normalize(hitPoint.Value - _dragOrigin);
-        float currentAngle = AngleOnPlane(dir, axis);
-        float deltaAngle = currentAngle - _dragStartAngle;
-
-        if (IsSnapActive(SnapRotation))
-        {
-            float snapRad = RotationSnapValue * FrinkyEngine.Core.FrinkyMath.Deg2Rad;
-            deltaAngle = SnapValue(deltaAngle, snapRad);
-        }
-
-        if (MultiMode == MultiTransformMode.Relative)
-        {
-            var groupRotation = Quaternion.CreateFromAxisAngle(axis, deltaAngle);
-            foreach (var target in _dragTargets)
-            {
-                var rotatedOffset = Vector3.Transform(target.StartWorldPosition - _dragPivot, groupRotation);
-                target.Entity.Transform.WorldPosition = _dragPivot + rotatedOffset;
-                target.Entity.Transform.WorldRotation = Quaternion.Normalize(groupRotation * target.StartWorldRotation);
-            }
-
-            return;
-        }
-
-        if (Space == GizmoSpace.World)
-        {
-            foreach (var target in _dragTargets)
-            {
-                var worldDelta = Quaternion.CreateFromAxisAngle(axis, deltaAngle);
-                target.Entity.Transform.WorldRotation = Quaternion.Normalize(
-                    worldDelta * target.StartWorldRotation);
-            }
-
-            return;
-        }
-
-        var localRotateAxis = GetLocalScaleOrRotateAxis(_hoveredAxis);
-        foreach (var target in _dragTargets)
-        {
-            target.Entity.Transform.LocalRotation = Quaternion.Normalize(
-                target.StartLocalRotation * Quaternion.CreateFromAxisAngle(localRotateAxis, deltaAngle));
-        }
-    }
-
-    private void ApplyScaleDrag(Ray ray)
-    {
-        var axis = _dragAxes[_hoveredAxis];
-        var currentPoint = ClosestPointOnAxis(ray, _dragOrigin, axis);
-        float signedDistance = Vector3.Dot(currentPoint - _dragStartIntersection, axis);
-        if (IsSnapActive(SnapScale))
-            signedDistance = SnapValue(signedDistance, ScaleSnapValue);
-        var scaleAxis = GetLocalScaleOrRotateAxis(_hoveredAxis);
-
-        if (MultiMode == MultiTransformMode.Relative)
-        {
-            float scaleFactor = MathF.Max(RelativeScaleFactorMin, 1f + signedDistance);
-            foreach (var target in _dragTargets)
-            {
-                var offset = target.StartWorldPosition - _dragPivot;
-                var parallel = Vector3.Dot(offset, axis) * axis;
-                var perpendicular = offset - parallel;
-                var newWorldPosition = _dragPivot + perpendicular + parallel * scaleFactor;
-                target.Entity.Transform.WorldPosition = newWorldPosition;
-
-                // In relative mode, derive each target's local scale direction from the gizmo world axis
-                // so rotated selections scale consistently instead of using one fixed local component.
-                var projectedLocalDir = GetProjectedLocalScaleDirection(target, axis, scaleAxis);
-                var localScaleFactor = Vector3.One + projectedLocalDir * signedDistance;
-                var scaledLocal = new Vector3(
-                    target.StartLocalScale.X * MathF.Max(RelativeScaleFactorMin, localScaleFactor.X),
-                    target.StartLocalScale.Y * MathF.Max(RelativeScaleFactorMin, localScaleFactor.Y),
-                    target.StartLocalScale.Z * MathF.Max(RelativeScaleFactorMin, localScaleFactor.Z));
-                target.Entity.Transform.LocalScale = ClampLocalScale(scaledLocal);
-            }
-
-            return;
-        }
-
-        foreach (var target in _dragTargets)
-        {
-            target.Entity.Transform.LocalScale = ClampLocalScale(target.StartLocalScale + scaleAxis * signedDistance);
-        }
-    }
-
-    private void ApplyWorldTranslationToTargets(Vector3 worldDelta)
-    {
-        foreach (var target in _dragTargets)
-            ApplyWorldTranslation(target, worldDelta);
-    }
-
-    private static void ApplyWorldTranslation(DragTargetState target, Vector3 worldDelta)
-    {
-        target.Entity.Transform.WorldPosition = target.StartWorldPosition + worldDelta;
-    }
-
-    private Vector3 GetGizmoOrigin(IReadOnlyList<Entity> selectedRoots, Entity primary)
-    {
-        if (selectedRoots.Count > 1 && MultiMode == MultiTransformMode.Relative)
-        {
-            Vector3 sum = Vector3.Zero;
-            foreach (var entity in selectedRoots)
-                sum += entity.Transform.WorldPosition;
-            return sum / selectedRoots.Count;
-        }
-
-        return primary.Transform.WorldPosition;
-    }
-
-    private Vector3[] GetGizmoAxes(Entity primary)
-    {
-        if (Space == GizmoSpace.Local)
-        {
-            return
-            [
-                primary.Transform.Right,
-                primary.Transform.Up,
-                -primary.Transform.Forward
-            ];
-        }
-
-        return [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ];
-    }
-
-    private static Vector3 GetEntityLocalAxisWorld(Entity entity, int axisIndex)
-    {
-        return axisIndex switch
-        {
-            0 => entity.Transform.Right,
-            1 => entity.Transform.Up,
-            2 => -entity.Transform.Forward,
-            _ => Vector3.Zero
-        };
-    }
-
-    private static Vector3 GetLocalScaleOrRotateAxis(int axisIndex)
-    {
-        return axisIndex switch
-        {
-            0 => Vector3.UnitX,
-            1 => Vector3.UnitY,
-            2 => Vector3.UnitZ,
-            _ => Vector3.Zero
-        };
-    }
-
-    private static DragTargetState CaptureTargetState(Entity entity)
-    {
-        var transform = entity.Transform;
-        return new DragTargetState
-        {
-            Entity = entity,
-            StartLocalPosition = transform.LocalPosition,
-            StartLocalRotation = transform.LocalRotation,
-            StartLocalScale = transform.LocalScale,
-            StartWorldPosition = transform.WorldPosition,
-            StartWorldRotation = transform.WorldRotation,
-        };
-    }
-
-    private static Vector3 ComputeSelectionCenter(IReadOnlyList<DragTargetState> targets)
-    {
-        if (targets.Count == 0) return Vector3.Zero;
-
-        Vector3 sum = Vector3.Zero;
-        foreach (var target in targets)
-            sum += target.StartWorldPosition;
-        return sum / targets.Count;
+        var sum = Vector3.Zero;
+        foreach (var entity in entities)
+            sum += entity.Transform.WorldPosition;
+        return sum / entities.Count;
     }
 
     private static List<Entity> FilterToSelectionRoots(IReadOnlyList<Entity> selected)
@@ -470,18 +321,6 @@ public class GizmoSystem
         return false;
     }
 
-    private static Vector3 GetProjectedLocalScaleDirection(DragTargetState target, Vector3 worldAxis, Vector3 fallbackLocalAxis)
-    {
-        var inverseWorldRotation = Quaternion.Inverse(target.StartWorldRotation);
-        var localAxis = Vector3.Transform(worldAxis, inverseWorldRotation);
-        var direction = new Vector3(MathF.Abs(localAxis.X), MathF.Abs(localAxis.Y), MathF.Abs(localAxis.Z));
-
-        if (direction.LengthSquared() < 1e-6f)
-            return fallbackLocalAxis;
-
-        return Vector3.Normalize(direction);
-    }
-
     private static Vector3 ClampLocalScale(Vector3 value)
     {
         return new Vector3(
@@ -490,212 +329,17 @@ public class GizmoSystem
             MathF.Max(MinLocalScale, value.Z));
     }
 
-    private static float SnapValue(float value, float increment)
-    {
-        if (increment <= 0) return value;
-        return MathF.Round(value / increment) * increment;
-    }
-
     private static bool IsSnapActive(bool snapEnabled)
     {
         bool ctrlHeld = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl);
         return snapEnabled ^ ctrlHeld;
     }
 
-    private void ResetInteractionState()
-    {
-        _hoveredAxis = -1;
-        _isDragging = false;
-        _dragTargets.Clear();
-        _hasRotateStart = false;
-    }
-
-    private void DrawTranslateGizmo(Vector3 origin, Vector3[] axes, float scale)
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            var color = (_hoveredAxis == i) ? HoverColor : AxisColors[i];
-            var end = origin + axes[i] * ArrowLength * scale;
-            var headEnd = origin + axes[i] * (ArrowLength + ArrowHeadLength) * scale;
-
-            float r = ShaftRadius * scale;
-            Raylib.DrawCylinderEx(origin, end, r, r, 6, color);
-            Raylib.DrawCylinderEx(end, headEnd, ArrowHeadRadius * scale, 0f, 8, color);
-        }
-    }
-
-    private void DrawRotateGizmo(Vector3 origin, Vector3[] axes, float scale)
-    {
-        float radius = RotateRadius * scale;
-
-        for (int i = 0; i < 3; i++)
-        {
-            var color = (_hoveredAxis == i) ? HoverColor : AxisColors[i];
-            var axis = axes[i];
-
-            var perp1 = GetPerpendicular(axis);
-            var perp2 = Vector3.Cross(axis, perp1);
-
-            float r = RotateLineRadius * scale;
-            Vector3 prevPoint = origin + perp1 * radius;
-            for (int j = 1; j <= CircleSegments; j++)
-            {
-                float angle = j * MathF.PI * 2f / CircleSegments;
-                var point = origin + (perp1 * MathF.Cos(angle) + perp2 * MathF.Sin(angle)) * radius;
-                Raylib.DrawCylinderEx(prevPoint, point, r, r, 4, color);
-                prevPoint = point;
-            }
-        }
-    }
-
-    private void DrawScaleGizmo(Vector3 origin, Vector3[] axes, float scale)
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            var color = (_hoveredAxis == i) ? HoverColor : AxisColors[i];
-            var end = origin + axes[i] * ArrowLength * scale;
-
-            float r = ShaftRadius * scale;
-            Raylib.DrawCylinderEx(origin, end, r, r, 6, color);
-
-            var cubeSize = new Vector3(ScaleCubeSize * scale);
-            Raylib.DrawCubeV(end, cubeSize, color);
-        }
-    }
-
-    private int PickLinearAxis(Ray ray, Vector3 origin, Vector3[] axes, float scale)
-    {
-        float threshold = scale * PickThresholdFactor;
-        float bestDist = threshold;
-        int bestAxis = -1;
-
-        for (int i = 0; i < 3; i++)
-        {
-            var axisEnd = origin + axes[i] * (ArrowLength + ArrowHeadLength) * scale;
-            float dist = RaySegmentDistance(ray, origin, axisEnd);
-            if (dist < bestDist)
-            {
-                bestDist = dist;
-                bestAxis = i;
-            }
-        }
-
-        return bestAxis;
-    }
-
-    private int PickRotateAxis(Ray ray, Vector3 origin, Vector3[] axes, float scale)
-    {
-        float radius = RotateRadius * scale;
-        float threshold = scale * PickThresholdFactor;
-        float bestDelta = threshold;
-        int bestAxis = -1;
-
-        for (int i = 0; i < 3; i++)
-        {
-            var hitPoint = RayPlaneIntersection(ray, origin, axes[i]);
-            if (!hitPoint.HasValue) continue;
-
-            float distFromCenter = Vector3.Distance(hitPoint.Value, origin);
-            float delta = MathF.Abs(distFromCenter - radius);
-            if (delta < bestDelta)
-            {
-                bestDelta = delta;
-                bestAxis = i;
-            }
-        }
-
-        return bestAxis;
-    }
-
-    private static Vector3 ClosestPointOnAxis(Ray ray, Vector3 axisOrigin, Vector3 axisDir)
-    {
-        var w = axisOrigin - ray.Position;
-        float a = Vector3.Dot(axisDir, axisDir);
-        float b = Vector3.Dot(axisDir, ray.Direction);
-        float c = Vector3.Dot(ray.Direction, ray.Direction);
-        float d = Vector3.Dot(axisDir, w);
-        float e = Vector3.Dot(ray.Direction, w);
-
-        float denom = a * c - b * b;
-        if (MathF.Abs(denom) < 1e-8f)
-            return axisOrigin;
-
-        float t = (b * e - c * d) / denom;
-        return axisOrigin + axisDir * t;
-    }
-
-    private static Vector3? RayPlaneIntersection(Ray ray, Vector3 planePoint, Vector3 planeNormal)
-    {
-        float denom = Vector3.Dot(planeNormal, ray.Direction);
-        if (MathF.Abs(denom) < 1e-6f) return null;
-
-        float t = Vector3.Dot(planePoint - ray.Position, planeNormal) / denom;
-        if (t < 0) return null;
-
-        return ray.Position + ray.Direction * t;
-    }
-
-    private static float RaySegmentDistance(Ray ray, Vector3 segStart, Vector3 segEnd)
-    {
-        var segDir = segEnd - segStart;
-        float segLen = segDir.Length();
-        if (segLen < 1e-6f) return Vector3.Distance(segStart, ray.Position);
-        segDir /= segLen;
-
-        var w = segStart - ray.Position;
-        float a = Vector3.Dot(segDir, segDir);
-        float b = Vector3.Dot(segDir, ray.Direction);
-        float c = Vector3.Dot(ray.Direction, ray.Direction);
-        float d = Vector3.Dot(segDir, w);
-        float e = Vector3.Dot(ray.Direction, w);
-
-        float denom = a * c - b * b;
-        float tSeg;
-        float tRay;
-
-        if (MathF.Abs(denom) < 1e-8f)
-        {
-            tSeg = 0f;
-            tRay = e / c;
-        }
-        else
-        {
-            tSeg = (b * e - c * d) / denom;
-            tRay = (a * e - b * d) / denom;
-        }
-
-        tSeg = Math.Clamp(tSeg, 0f, segLen);
-        tRay = MathF.Max(tRay, 0f);
-
-        var closestOnSeg = segStart + segDir * tSeg;
-        var closestOnRay = ray.Position + ray.Direction * tRay;
-
-        return Vector3.Distance(closestOnSeg, closestOnRay);
-    }
-
-    private static float AngleOnPlane(Vector3 direction, Vector3 planeNormal)
-    {
-        var perp1 = GetPerpendicular(planeNormal);
-        var perp2 = Vector3.Cross(planeNormal, perp1);
-        return MathF.Atan2(Vector3.Dot(direction, perp2), Vector3.Dot(direction, perp1));
-    }
-
-    private static Vector3 GetPerpendicular(Vector3 v)
-    {
-        var abs = new Vector3(MathF.Abs(v.X), MathF.Abs(v.Y), MathF.Abs(v.Z));
-        var cross = abs.X < abs.Y
-            ? (abs.X < abs.Z ? Vector3.UnitX : Vector3.UnitZ)
-            : (abs.Y < abs.Z ? Vector3.UnitY : Vector3.UnitZ);
-        return Vector3.Normalize(Vector3.Cross(v, cross));
-    }
-
-    private sealed class DragTargetState
+    private sealed class DragStartSnapshot
     {
         public required Entity Entity { get; init; }
-        public required Vector3 StartLocalPosition { get; init; }
-        public required Quaternion StartLocalRotation { get; init; }
-        public required Vector3 StartLocalScale { get; init; }
         public required Vector3 StartWorldPosition { get; init; }
         public required Quaternion StartWorldRotation { get; init; }
+        public required Vector3 StartLocalScale { get; init; }
     }
 }

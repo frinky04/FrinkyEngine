@@ -102,7 +102,6 @@ public class ViewportPanel
 
                                 if (isEditorMode)
                                 {
-                                    gizmo.Draw(camera, selectedEntities, selected);
                                     EditorGizmos.DrawAll(_app.CurrentScene, camera);
                                     foreach (var selectedEntity in selectedEntities)
                                         EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
@@ -171,21 +170,22 @@ public class ViewportPanel
                     if (isEditorMode)
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
-                    // Gizmo input: compute viewport-local mouse position
+                    // Draw ImGuizmo overlay (must be called unconditionally to handle ongoing drags)
+                    if (isEditorMode)
+                        gizmo.DrawAndUpdate(camera, selectedEntities, selected, imageScreenPos, new Vector2(w, h));
+
+                    // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                     _isHovered = ImGui.IsWindowHovered();
                     if (_isHovered && !toolbarHovered && isEditorMode)
                     {
-                        var mousePos = ImGui.GetMousePos();
-                        var localMouse = mousePos - imageScreenPos;
-                        gizmo.Update(camera, selectedEntities, selected, localMouse, new Vector2(w, h));
-
-                        // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                         if (Raylib.IsMouseButtonPressed(MouseButton.Left)
                             && !gizmo.IsDragging
                             && gizmo.HoveredAxis < 0
                             && !Raylib.IsMouseButtonDown(MouseButton.Right)
                             && _app.CurrentScene != null)
                         {
+                            var mousePos = ImGui.GetMousePos();
+                            var localMouse = mousePos - imageScreenPos;
                             var pickedEntity = _app.PickingSystem.Pick(
                                 _app.CurrentScene, camera, localMouse, new Vector2(w, h));
 
@@ -199,10 +199,6 @@ public class ViewportPanel
                                 _app.SetSingleSelection(pickedEntity);
                             }
                         }
-                    }
-                    else
-                    {
-                        gizmo.Update(camera, Array.Empty<Core.ECS.Entity>(), null, Vector2.Zero, Vector2.One);
                     }
                 }
                 else
@@ -218,16 +214,6 @@ public class ViewportPanel
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
                     _isHovered = ImGui.IsWindowHovered();
-                    if (_isHovered && !toolbarHovered && isEditorMode)
-                    {
-                        var mousePos = ImGui.GetMousePos();
-                        var localMouse = mousePos - imageScreenPos;
-                        gizmo.Update(camera, selectedEntities, selected, localMouse, new Vector2(w, h));
-                    }
-                    else
-                    {
-                        gizmo.Update(camera, Array.Empty<Core.ECS.Entity>(), null, Vector2.Zero, Vector2.One);
-                    }
                 }
 
                 // Gizmo drag batching for undo
