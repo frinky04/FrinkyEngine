@@ -25,8 +25,10 @@ public class ViewportPanel
     private int _texelSizeLoc = -1;
     private int _outlineColorLoc = -1;
     private int _outlineWidthLoc = -1;
-    private int _lastWidth;
-    private int _lastHeight;
+    private int _lastDisplayWidth;
+    private int _lastDisplayHeight;
+    private int _lastScaledWidth;
+    private int _lastScaledHeight;
     private bool _isHovered;
     private bool _wasGizmoDragging;
     private System.Numerics.Vector3? _dragPreviewPosition;
@@ -39,24 +41,45 @@ public class ViewportPanel
         _app = app;
     }
 
-    public void EnsureRenderTexture(int width, int height)
+    public void EnsureRenderTexture(int displayWidth, int displayHeight)
     {
-        if (width <= 0 || height <= 0) return;
-        if (width == _lastWidth && height == _lastHeight) return;
+        if (displayWidth <= 0 || displayHeight <= 0) return;
 
-        if (_lastWidth > 0)
+        var (scaledW, scaledH) = _app.IsInRuntimeMode
+            ? RenderRuntimeCvars.GetScaledDimensions(displayWidth, displayHeight)
+            : (displayWidth, displayHeight);
+
+        bool displayChanged = displayWidth != _lastDisplayWidth || displayHeight != _lastDisplayHeight;
+        bool scaledChanged = scaledW != _lastScaledWidth || scaledH != _lastScaledHeight;
+
+        if (!displayChanged && !scaledChanged) return;
+
+        if (scaledChanged)
         {
-            Raylib.UnloadRenderTexture(_renderTexture);
-            Raylib.UnloadRenderTexture(_selectionMaskTexture);
-            Raylib.UnloadRenderTexture(_outlineCompositeTexture);
+            if (_lastScaledWidth > 0)
+                Raylib.UnloadRenderTexture(_renderTexture);
+
+            _renderTexture = PostProcessPipeline.LoadRenderTextureWithDepthTexture(scaledW, scaledH);
+            bool isSupersampled = scaledW >= displayWidth && scaledH >= displayHeight;
+            Raylib.SetTextureFilter(_renderTexture.Texture, isSupersampled ? TextureFilter.Bilinear : TextureFilter.Point);
+            _lastScaledWidth = scaledW;
+            _lastScaledHeight = scaledH;
         }
 
-        _renderTexture = PostProcessPipeline.LoadRenderTextureWithDepthTexture(width, height);
-        _selectionMaskTexture = Raylib.LoadRenderTexture(width, height);
-        _outlineCompositeTexture = Raylib.LoadRenderTexture(width, height);
-        Raylib.SetTextureFilter(_selectionMaskTexture.Texture, TextureFilter.Point);
-        _lastWidth = width;
-        _lastHeight = height;
+        if (displayChanged)
+        {
+            if (_lastDisplayWidth > 0)
+            {
+                Raylib.UnloadRenderTexture(_selectionMaskTexture);
+                Raylib.UnloadRenderTexture(_outlineCompositeTexture);
+            }
+
+            _selectionMaskTexture = Raylib.LoadRenderTexture(displayWidth, displayHeight);
+            _outlineCompositeTexture = Raylib.LoadRenderTexture(displayWidth, displayHeight);
+            Raylib.SetTextureFilter(_selectionMaskTexture.Texture, TextureFilter.Point);
+            _lastDisplayWidth = displayWidth;
+            _lastDisplayHeight = displayHeight;
+        }
 
         EnsureSelectionOutlineShaderLoaded();
     }
@@ -113,7 +136,7 @@ public class ViewportPanel
                             isEditorMode: isEditorMode);
                     }
 
-                    // Post-processing
+                    // Post-processing (at scaled resolution)
                     var mainCamEntity = _app.CurrentScene.MainCamera?.Entity;
                     var ppStack = mainCamEntity?.GetComponent<PostProcessStackComponent>();
                     bool runtimePostProcessEnabled = !_app.IsInRuntimeMode || RenderRuntimeCvars.PostProcessingEnabled;
@@ -130,7 +153,7 @@ public class ViewportPanel
                             _app.CurrentScene.MainCamera,
                             _app.SceneRenderer,
                             _app.CurrentScene,
-                            w, h,
+                            _lastScaledWidth, _lastScaledHeight,
                             isEditorMode,
                             _renderTexture.Depth);
 
@@ -139,7 +162,7 @@ public class ViewportPanel
                         {
                             Raylib.BeginTextureMode(_renderTexture);
                             var src = new Rectangle(0, 0, postProcessedTex.Width, -postProcessedTex.Height);
-                            var dst = new Rectangle(0, 0, w, h);
+                            var dst = new Rectangle(0, 0, _lastScaledWidth, _lastScaledHeight);
                             Raylib.DrawTexturePro(postProcessedTex, src, dst, Vector2.Zero, 0f, Color.White);
                             Raylib.EndTextureMode();
                         }
@@ -159,6 +182,23 @@ public class ViewportPanel
                             CompositeSelectionOutline(w, h);
                             textureToDisplay = _outlineCompositeTexture;
                         }
+                    }
+
+                    // When screen percentage is active and no selection outline promoted
+                    // to the composite texture, upscale the scene to display resolution
+                    // so that Game UI renders at full resolution (crisp text).
+                    bool needsUpscale = _app.IsInRuntimeMode
+                                        && RenderRuntimeCvars.ScreenPercentage != 100
+                                        && textureToDisplay.Id == _renderTexture.Id;
+                    if (needsUpscale)
+                    {
+                        Raylib.BeginTextureMode(_outlineCompositeTexture);
+                        Raylib.ClearBackground(new Color(0, 0, 0, 0));
+                        var upSrc = new Rectangle(0, 0, _lastScaledWidth, -_lastScaledHeight);
+                        var upDst = new Rectangle(0, 0, w, h);
+                        Raylib.DrawTexturePro(_renderTexture.Texture, upSrc, upDst, Vector2.Zero, 0f, Color.White);
+                        Raylib.EndTextureMode();
+                        textureToDisplay = _outlineCompositeTexture;
                     }
 
                     var imageScreenPos = ImGui.GetCursorScreenPos();
@@ -623,7 +663,7 @@ public class ViewportPanel
         _selectionOutlinePostShaderLoaded = true;
     }
 
-    private void CompositeSelectionOutline(int width, int height)
+    private void CompositeSelectionOutline(int displayWidth, int displayHeight)
     {
         if (!_selectionOutlinePostShaderLoaded || _selectionOutlinePostShader.Id == 0)
             return;
@@ -631,8 +671,10 @@ public class ViewportPanel
         Raylib.BeginTextureMode(_outlineCompositeTexture);
         Raylib.ClearBackground(new Color(0, 0, 0, 0));
 
-        // Pass 1: copy lit scene as-is.
-        DrawFullscreenTexture(_renderTexture.Texture, width, height);
+        // Pass 1: draw scene upscaled to display resolution (Point filtering gives pixelated look).
+        var sceneSrc = new Rectangle(0, 0, _lastScaledWidth, -_lastScaledHeight);
+        var sceneDst = new Rectangle(0, 0, displayWidth, displayHeight);
+        Raylib.DrawTexturePro(_renderTexture.Texture, sceneSrc, sceneDst, Vector2.Zero, 0f, Color.White);
         Rlgl.DrawRenderBatchActive();
 
         // Pass 2: draw outline overlay from mask using post shader.
@@ -640,7 +682,7 @@ public class ViewportPanel
 
         if (_texelSizeLoc >= 0)
         {
-            float[] texelSize = { 1.0f / width, 1.0f / height };
+            float[] texelSize = { 1.0f / displayWidth, 1.0f / displayHeight };
             Raylib.SetShaderValue(_selectionOutlinePostShader, _texelSizeLoc, texelSize, ShaderUniformDataType.Vec2);
         }
 
@@ -662,7 +704,7 @@ public class ViewportPanel
             Raylib.SetShaderValue(_selectionOutlinePostShader, _outlineWidthLoc, outlineWidth, ShaderUniformDataType.Float);
         }
 
-        DrawFullscreenTexture(_selectionMaskTexture.Texture, width, height);
+        DrawFullscreenTexture(_selectionMaskTexture.Texture, displayWidth, displayHeight);
         Raylib.EndShaderMode();
         Raylib.EndTextureMode();
     }
@@ -676,13 +718,19 @@ public class ViewportPanel
 
     public void Shutdown()
     {
-        if (_lastWidth > 0)
+        if (_lastScaledWidth > 0)
         {
             Raylib.UnloadRenderTexture(_renderTexture);
+            _lastScaledWidth = 0;
+            _lastScaledHeight = 0;
+        }
+
+        if (_lastDisplayWidth > 0)
+        {
             Raylib.UnloadRenderTexture(_selectionMaskTexture);
             Raylib.UnloadRenderTexture(_outlineCompositeTexture);
-            _lastWidth = 0;
-            _lastHeight = 0;
+            _lastDisplayWidth = 0;
+            _lastDisplayHeight = 0;
         }
 
         if (_selectionOutlinePostShaderLoaded)

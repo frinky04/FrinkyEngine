@@ -139,6 +139,9 @@ public class ExportManifest
     /// <summary>Whether voice stealing is enabled.</summary>
     public bool? AudioEnableVoiceStealing { get; set; }
 
+    /// <summary>Screen percentage for resolution scaling.</summary>
+    public int? ScreenPercentage { get; set; }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,

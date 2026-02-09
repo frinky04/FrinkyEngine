@@ -94,7 +94,8 @@ public class ProjectSettings
                 AudioAmbientVolume = 1f,
                 AudioMaxVoices = 128,
                 AudioDopplerScale = 1f,
-                AudioEnableVoiceStealing = true
+                AudioEnableVoiceStealing = true,
+                ScreenPercentage = 100
             },
             Build = new BuildProjectSettings
             {
@@ -209,7 +210,8 @@ public class ProjectSettings
                 AudioAmbientVolume = Runtime.AudioAmbientVolume,
                 AudioMaxVoices = Runtime.AudioMaxVoices,
                 AudioDopplerScale = Runtime.AudioDopplerScale,
-                AudioEnableVoiceStealing = Runtime.AudioEnableVoiceStealing
+                AudioEnableVoiceStealing = Runtime.AudioEnableVoiceStealing,
+                ScreenPercentage = Runtime.ScreenPercentage
             },
             Build = new BuildProjectSettings
             {
@@ -259,6 +261,7 @@ public class ProjectSettings
         Runtime.AudioAmbientVolume = ClampFloat(Runtime.AudioAmbientVolume, 0f, 2f, 1f);
         Runtime.AudioMaxVoices = Clamp(Runtime.AudioMaxVoices, 16, 512, 128);
         Runtime.AudioDopplerScale = ClampFloat(Runtime.AudioDopplerScale, 0f, 10f, 1f);
+        Runtime.ScreenPercentage = Clamp(Runtime.ScreenPercentage, 10, 200, 100);
 
         Build ??= new BuildProjectSettings();
         Build.OutputName = Coalesce(Build.OutputName, safeProjectName);
@@ -491,6 +494,11 @@ public class RuntimeProjectSettings
 
     /// <summary>Allows low-priority voice stealing when the voice budget is full.</summary>
     public bool AudioEnableVoiceStealing { get; set; } = true;
+
+    // --- Rendering ---
+
+    /// <summary>Screen percentage (10-200, defaults to 100). Below 100 renders at lower resolution for a pixelated look.</summary>
+    public int ScreenPercentage { get; set; } = 100;
 }
 
 /// <summary>

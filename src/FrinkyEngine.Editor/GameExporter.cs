@@ -157,7 +157,8 @@ public static class GameExporter
                 AudioAmbientVolume = projectSettings.Runtime.AudioAmbientVolume,
                 AudioMaxVoices = projectSettings.Runtime.AudioMaxVoices,
                 AudioDopplerScale = projectSettings.Runtime.AudioDopplerScale,
-                AudioEnableVoiceStealing = projectSettings.Runtime.AudioEnableVoiceStealing
+                AudioEnableVoiceStealing = projectSettings.Runtime.AudioEnableVoiceStealing,
+                ScreenPercentage = projectSettings.Runtime.ScreenPercentage
             };
 
             var manifestPath = Path.Combine(tempDir, "manifest.json");

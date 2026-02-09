@@ -90,6 +90,46 @@ public static class RenderRuntimeCvars
     }
 
     /// <summary>
+    /// Screen percentage (10-200). 100 = native resolution. Values below 100 render at lower
+    /// resolution and upscale with nearest-neighbor filtering for a pixelated look.
+    /// </summary>
+    public static int ScreenPercentage { get; set; } = 100;
+
+    /// <summary>
+    /// Gets the screen percentage cvar value as a string.
+    /// </summary>
+    /// <returns>The current value string.</returns>
+    public static string GetScreenPercentageValue() => ScreenPercentage.ToString();
+
+    /// <summary>
+    /// Attempts to parse and apply the screen percentage cvar (10-200).
+    /// </summary>
+    /// <param name="value">User input value.</param>
+    /// <returns><c>true</c> if the value was accepted; otherwise <c>false</c>.</returns>
+    public static bool TrySetScreenPercentage(string value)
+    {
+        if (!int.TryParse(value, out var sp) || sp < 10 || sp > 200)
+            return false;
+        ScreenPercentage = sp;
+        return true;
+    }
+
+    /// <summary>
+    /// Returns scaled dimensions based on the current screen percentage.
+    /// </summary>
+    /// <param name="displayWidth">The display width in pixels.</param>
+    /// <param name="displayHeight">The display height in pixels.</param>
+    /// <returns>The scaled width and height.</returns>
+    public static (int width, int height) GetScaledDimensions(int displayWidth, int displayHeight)
+    {
+        if (ScreenPercentage == 100)
+            return (displayWidth, displayHeight);
+        return (
+            Math.Max(1, displayWidth * ScreenPercentage / 100),
+            Math.Max(1, displayHeight * ScreenPercentage / 100));
+    }
+
+    /// <summary>
     /// Target FPS value (0 = uncapped). Mirrors the value passed to Raylib.SetTargetFPS.
     /// </summary>
     public static int TargetFps { get; set; }

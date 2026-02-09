@@ -26,6 +26,7 @@ public static class Program
         public int ForwardPlusTileSize { get; init; } = ForwardPlusSettings.DefaultTileSize;
         public int ForwardPlusMaxLights { get; init; } = ForwardPlusSettings.DefaultMaxLights;
         public int ForwardPlusMaxLightsPerTile { get; init; } = ForwardPlusSettings.DefaultMaxLightsPerTile;
+        public int ScreenPercentage { get; init; } = 100;
     }
 
     public static void Main(string[] args)
@@ -84,7 +85,8 @@ public static class Program
                 StartMaximized = settings.Runtime.StartMaximized,
                 ForwardPlusTileSize = settings.Runtime.ForwardPlusTileSize,
                 ForwardPlusMaxLights = settings.Runtime.ForwardPlusMaxLights,
-                ForwardPlusMaxLightsPerTile = settings.Runtime.ForwardPlusMaxLightsPerTile
+                ForwardPlusMaxLightsPerTile = settings.Runtime.ForwardPlusMaxLightsPerTile,
+                ScreenPercentage = settings.Runtime.ScreenPercentage
             });
     }
 
@@ -130,7 +132,8 @@ public static class Program
                     StartMaximized = manifest.StartMaximized ?? false,
                     ForwardPlusTileSize = manifest.ForwardPlusTileSize ?? ForwardPlusSettings.DefaultTileSize,
                     ForwardPlusMaxLights = manifest.ForwardPlusMaxLights ?? ForwardPlusSettings.DefaultMaxLights,
-                    ForwardPlusMaxLightsPerTile = manifest.ForwardPlusMaxLightsPerTile ?? ForwardPlusSettings.DefaultMaxLightsPerTile
+                    ForwardPlusMaxLightsPerTile = manifest.ForwardPlusMaxLightsPerTile ?? ForwardPlusSettings.DefaultMaxLightsPerTile,
+                    ScreenPercentage = manifest.ScreenPercentage ?? 100
                 });
         }
         finally
@@ -194,8 +197,10 @@ public static class Program
         postProcessPipeline.Initialize(shaderDir);
 
         RenderTexture2D sceneRT = default;
-        int lastRTWidth = 0;
-        int lastRTHeight = 0;
+        int lastScaledW = 0;
+        int lastScaledH = 0;
+
+        RenderRuntimeCvars.ScreenPercentage = launchSettings.ScreenPercentage;
 
         FrameProfiler.Enabled = true;
 
@@ -226,6 +231,21 @@ public static class Program
                 continue;
             }
 
+            int screenW = Raylib.GetScreenWidth();
+            int screenH = Raylib.GetScreenHeight();
+            var (scaledW, scaledH) = RenderRuntimeCvars.GetScaledDimensions(screenW, screenH);
+
+            if (scaledW != lastScaledW || scaledH != lastScaledH)
+            {
+                if (lastScaledW > 0)
+                    Raylib.UnloadRenderTexture(sceneRT);
+                sceneRT = PostProcessPipeline.LoadRenderTextureWithDepthTexture(scaledW, scaledH);
+                bool isSupersampled = scaledW >= screenW && scaledH >= screenH;
+                Raylib.SetTextureFilter(sceneRT.Texture, isSupersampled ? TextureFilter.Bilinear : TextureFilter.Point);
+                lastScaledW = scaledW;
+                lastScaledH = scaledH;
+            }
+
             var camera3D = mainCamera.BuildCamera3D();
             var ppStack = mainCamera.Entity.GetComponent<PostProcessStackComponent>();
             bool hasPostProcess = ppStack != null
@@ -233,78 +253,49 @@ public static class Program
                                   && ppStack.PostProcessingEnabled
                                   && ppStack.Effects.Count > 0;
 
+            using (FrameProfiler.Scope(ProfileCategory.Rendering))
+            {
+                sceneRenderer.Render(scene, camera3D, sceneRT, isEditorMode: false);
+            }
+
+            Texture2D blitTex;
             if (hasPostProcess)
             {
-                int screenW = Raylib.GetScreenWidth();
-                int screenH = Raylib.GetScreenHeight();
-
-                if (screenW != lastRTWidth || screenH != lastRTHeight)
-                {
-                    if (lastRTWidth > 0)
-                        Raylib.UnloadRenderTexture(sceneRT);
-                    sceneRT = PostProcessPipeline.LoadRenderTextureWithDepthTexture(screenW, screenH);
-                    lastRTWidth = screenW;
-                    lastRTHeight = screenH;
-                }
-
-                using (FrameProfiler.Scope(ProfileCategory.Rendering))
-                {
-                    sceneRenderer.Render(scene, camera3D, sceneRT, isEditorMode: false);
-                }
-
-                var finalTex = postProcessPipeline.Execute(
+                blitTex = postProcessPipeline.Execute(
                     ppStack!,
                     sceneRT.Texture,
                     camera3D,
                     mainCamera,
                     sceneRenderer,
                     scene,
-                    screenW, screenH,
+                    scaledW, scaledH,
                     isEditorMode: false,
                     sceneRT.Depth);
-
-                Raylib.BeginDrawing();
-                Raylib.ClearBackground(Color.Black);
-                var src = new Rectangle(0, 0, finalTex.Width, -finalTex.Height);
-                var dst = new Rectangle(0, 0, screenW, screenH);
-                Raylib.DrawTexturePro(finalTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
-                using (FrameProfiler.Scope(ProfileCategory.UI))
-                {
-                    UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
-                    UI.EndFrame();
-                }
-                FrameProfiler.EndFrame();
-                FrameProfiler.BeginIdle();
-                Raylib.EndDrawing();
-                FrameProfiler.EndIdle();
             }
             else
             {
-                Raylib.BeginDrawing();
-                using (FrameProfiler.Scope(ProfileCategory.Rendering))
-                {
-                    sceneRenderer.Render(scene, camera3D, isEditorMode: false);
-                }
-                using (FrameProfiler.Scope(ProfileCategory.UI))
-                {
-                    UI.BeginFrame(dt, new UiFrameDesc(
-                        Raylib.GetScreenWidth(),
-                        Raylib.GetScreenHeight(),
-                        IsFocused: Raylib.IsWindowFocused(),
-                        IsHovered: true,
-                        AllowCursorChanges: false));
-                    UI.EndFrame();
-                }
-                FrameProfiler.EndFrame();
-                FrameProfiler.BeginIdle();
-                Raylib.EndDrawing();
-                FrameProfiler.EndIdle();
+                blitTex = sceneRT.Texture;
             }
+
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(Color.Black);
+            var src = new Rectangle(0, 0, blitTex.Width, -blitTex.Height);
+            var dst = new Rectangle(0, 0, screenW, screenH);
+            Raylib.DrawTexturePro(blitTex, src, dst, System.Numerics.Vector2.Zero, 0f, Color.White);
+            using (FrameProfiler.Scope(ProfileCategory.UI))
+            {
+                UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
+                UI.EndFrame();
+            }
+            FrameProfiler.EndFrame();
+            FrameProfiler.BeginIdle();
+            Raylib.EndDrawing();
+            FrameProfiler.EndIdle();
         }
 
         UI.Shutdown();
         postProcessPipeline.Shutdown();
-        if (lastRTWidth > 0)
+        if (lastScaledW > 0)
             Raylib.UnloadRenderTexture(sceneRT);
         sceneRenderer.UnloadShader();
         AssetManager.Instance.UnloadAll();
@@ -333,7 +324,8 @@ public static class Program
             StartMaximized = settings.StartMaximized,
             ForwardPlusTileSize = ClampOrDefault(settings.ForwardPlusTileSize, 8, 64, ForwardPlusSettings.DefaultTileSize),
             ForwardPlusMaxLights = ClampOrDefault(settings.ForwardPlusMaxLights, 16, 2048, ForwardPlusSettings.DefaultMaxLights),
-            ForwardPlusMaxLightsPerTile = ClampOrDefault(settings.ForwardPlusMaxLightsPerTile, 8, 256, ForwardPlusSettings.DefaultMaxLightsPerTile)
+            ForwardPlusMaxLightsPerTile = ClampOrDefault(settings.ForwardPlusMaxLightsPerTile, 8, 256, ForwardPlusSettings.DefaultMaxLightsPerTile),
+            ScreenPercentage = ClampOrDefault(settings.ScreenPercentage, 10, 200, 100)
         };
     }
 
