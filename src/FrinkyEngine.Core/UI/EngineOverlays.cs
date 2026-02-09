@@ -302,7 +302,6 @@ public static unsafe class EngineOverlays
 
         if (ImGui.Begin("##EngineOverlay_Console", flags))
         {
-            RefreshSuggestions(_consoleInput);
             float inputHeight = ImGui.GetFrameHeightWithSpacing();
             float outputHeight = height - inputHeight - ImGui.GetCursorPosY() - 8f;
             outputHeight = Math.Max(1f, outputHeight);
@@ -330,7 +329,8 @@ public static unsafe class EngineOverlays
             if (ImGui.InputTextWithHint("##ConsoleInput", "Enter command...", ref _consoleInput, 512,
                     ImGuiInputTextFlags.EnterReturnsTrue
                     | ImGuiInputTextFlags.CallbackCompletion
-                    | ImGuiInputTextFlags.CallbackHistory,
+                    | ImGuiInputTextFlags.CallbackHistory
+                    | ImGuiInputTextFlags.CallbackEdit,
                     ConsoleInputCallback))
             {
                 SubmitConsoleInput();
@@ -418,24 +418,37 @@ public static unsafe class EngineOverlays
 
         if (data->EventFlag == ImGuiInputTextFlags.CallbackCompletion)
         {
-            FrinkyLog.Info("Console callback: completion (Tab).");
             ApplyAutocompleteCycle(data);
+        }
+        else if (data->EventFlag == ImGuiInputTextFlags.CallbackEdit)
+        {
+            _consoleInput = GetCallbackBuffer(data);
         }
         else if (data->EventFlag == ImGuiInputTextFlags.CallbackHistory)
         {
-            if (data->EventKey == ImGuiKey.UpArrow)
+            if (_consoleSuggestions.Count > 0)
             {
-                FrinkyLog.Info("Console callback: history Up.");
-                NavigateHistoryUp(data);
-            }
-            else if (data->EventKey == ImGuiKey.DownArrow)
-            {
-                FrinkyLog.Info("Console callback: history Down.");
-                NavigateHistoryDown(data);
+                if (data->EventKey == ImGuiKey.UpArrow)
+                {
+                    if (_consoleSuggestionIndex > 0)
+                        _consoleSuggestionIndex--;
+                    else
+                        _consoleSuggestionIndex = _consoleSuggestions.Count - 1;
+                }
+                else if (data->EventKey == ImGuiKey.DownArrow)
+                {
+                    if (_consoleSuggestionIndex < _consoleSuggestions.Count - 1)
+                        _consoleSuggestionIndex++;
+                    else
+                        _consoleSuggestionIndex = 0;
+                }
             }
             else
             {
-                FrinkyLog.Info($"Console callback: history key ignored ({data->EventKey}).");
+                if (data->EventKey == ImGuiKey.UpArrow)
+                    NavigateHistoryUp(data);
+                else if (data->EventKey == ImGuiKey.DownArrow)
+                    NavigateHistoryDown(data);
             }
         }
 
@@ -463,7 +476,6 @@ public static unsafe class EngineOverlays
         SetCallbackBuffer(data, next);
         _consoleInput = next;
         ResetAutocompleteState();
-        FrinkyLog.Info($"Console history cursor -> {_consoleHistoryCursor}.");
     }
 
     private static unsafe void NavigateHistoryDown(ImGuiInputTextCallbackData* data)
@@ -486,7 +498,6 @@ public static unsafe class EngineOverlays
         SetCallbackBuffer(data, next);
         _consoleInput = next;
         ResetAutocompleteState();
-        FrinkyLog.Info($"Console history cursor -> {_consoleHistoryCursor}.");
     }
 
     private static unsafe void ApplyAutocompleteCycle(ImGuiInputTextCallbackData* data)
@@ -495,8 +506,7 @@ public static unsafe class EngineOverlays
             return;
 
         var current = GetCallbackBuffer(data);
-        if (!TryApplyActiveSuggestionToBuffer(data, current, advanceSelection: true))
-            FrinkyLog.Info("Console autocomplete: no fuzzy matches.");
+        TryApplyActiveSuggestionToBuffer(data, current, advanceSelection: true);
     }
 
     private static bool TryApplyActiveSuggestionToInput(bool advanceSelection)
@@ -537,15 +547,12 @@ public static unsafe class EngineOverlays
             return false;
 
         if (_consoleSuggestionIndex < 0 || _consoleSuggestionIndex >= _consoleSuggestions.Count)
-        {
             _consoleSuggestionIndex = 0;
-        }
-        else if (advanceSelection)
-        {
-            _consoleSuggestionIndex = (_consoleSuggestionIndex + 1) % _consoleSuggestions.Count;
-        }
 
         replaced = ReplaceFirstToken(replaced, _consoleSuggestions[_consoleSuggestionIndex].Entry.Name);
+
+        if (advanceSelection)
+            _consoleSuggestionIndex = (_consoleSuggestionIndex + 1) % _consoleSuggestions.Count;
         return true;
     }
 
@@ -555,7 +562,8 @@ public static unsafe class EngineOverlays
             return 0f;
 
         int rows = Math.Min(ConsoleSuggestionVisibleRows, _consoleSuggestions.Count);
-        return rows * ImGui.GetTextLineHeightWithSpacing() + 8f;
+        float windowPadding = ImGui.GetStyle().WindowPadding.Y * 2;
+        return rows * ImGui.GetTextLineHeightWithSpacing() + windowPadding + 4f;
     }
 
     private static void DrawSuggestionPanel(Vector2 inputRectMin, Vector2 inputRectMax)
@@ -805,6 +813,8 @@ public static unsafe class EngineOverlays
             return;
 
         ConsoleBackend.EnsureBuiltinsRegistered();
+
+        // --- Rendering cvars ---
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_postprocess",
             "r_postprocess [0|1]",
@@ -812,6 +822,184 @@ public static unsafe class EngineOverlays
             RenderRuntimeCvars.GetPostProcessingValue,
             RenderRuntimeCvars.TrySetPostProcessing));
 
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_showstats",
+            "r_showstats [0-3]",
+            "Stats overlay mode (0=off, 1=fps, 2=advanced, 3=verbose).",
+            () => ((int)_statsMode).ToString(),
+            value =>
+            {
+                if (!int.TryParse(value, out var v) || v < 0 || v > 3)
+                    return false;
+                _statsMode = (StatsOverlayMode)v;
+                return true;
+            }));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_profiler",
+            "r_profiler [0|1]",
+            "Enable or disable the frame profiler (1=on, 0=off).",
+            () => FrameProfiler.Enabled ? "1" : "0",
+            value =>
+            {
+                if (!TryParseBool01(value, out var enabled))
+                    return false;
+                FrameProfiler.Enabled = enabled;
+                return true;
+            }));
+
+        // --- Audio cvars ---
+        RegisterVolumeCVar("snd_master", "Master audio bus volume.",
+            () => AudioProjectSettings.Current.MasterVolume,
+            v => AudioProjectSettings.Current.MasterVolume = v);
+        RegisterVolumeCVar("snd_music", "Music bus volume.",
+            () => AudioProjectSettings.Current.MusicVolume,
+            v => AudioProjectSettings.Current.MusicVolume = v);
+        RegisterVolumeCVar("snd_sfx", "SFX bus volume.",
+            () => AudioProjectSettings.Current.SfxVolume,
+            v => AudioProjectSettings.Current.SfxVolume = v);
+        RegisterVolumeCVar("snd_ui", "UI bus volume.",
+            () => AudioProjectSettings.Current.UiVolume,
+            v => AudioProjectSettings.Current.UiVolume = v);
+        RegisterVolumeCVar("snd_voice", "Voice bus volume.",
+            () => AudioProjectSettings.Current.VoiceVolume,
+            v => AudioProjectSettings.Current.VoiceVolume = v);
+        RegisterVolumeCVar("snd_ambient", "Ambient bus volume.",
+            () => AudioProjectSettings.Current.AmbientVolume,
+            v => AudioProjectSettings.Current.AmbientVolume = v);
+
+        // --- Physics cvars ---
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "physics_gravity",
+            "physics_gravity <x> <y> <z>",
+            "Scene gravity vector.",
+            () =>
+            {
+                var scene = SceneManager.Instance.ActiveScene;
+                if (scene == null) return "no scene";
+                var g = scene.PhysicsSettings.Gravity;
+                return $"{g.X:F2} {g.Y:F2} {g.Z:F2}";
+            },
+            value =>
+            {
+                var scene = SceneManager.Instance.ActiveScene;
+                if (scene == null) return false;
+                var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 3) return false;
+                if (!float.TryParse(parts[0], out var x) ||
+                    !float.TryParse(parts[1], out var y) ||
+                    !float.TryParse(parts[2], out var z))
+                    return false;
+                if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z))
+                    return false;
+                scene.PhysicsSettings.Gravity = new Vector3(x, y, z);
+                return true;
+            }));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "physics_timestep",
+            "physics_timestep [value]",
+            "Fixed physics simulation timestep in seconds.",
+            () => PhysicsProjectSettings.Current.FixedTimestep.ToString("F4"),
+            value =>
+            {
+                if (!TryParseFloatClamped(value, 1f / 240f, 1f / 15f, out var v))
+                    return false;
+                PhysicsProjectSettings.Current.FixedTimestep = v;
+                return true;
+            }));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "physics_interpolation",
+            "physics_interpolation [0|1]",
+            "Enable or disable physics interpolation (1=on, 0=off).",
+            () => PhysicsProjectSettings.Current.InterpolationEnabled ? "1" : "0",
+            value =>
+            {
+                if (!TryParseBool01(value, out var enabled))
+                    return false;
+                PhysicsProjectSettings.Current.InterpolationEnabled = enabled;
+                return true;
+            }));
+
+        // --- Commands ---
+        ConsoleBackend.RegisterCommand("clear", "clear", "Clear console history.",
+            _ =>
+            {
+                ConsoleHistory.Clear();
+                return new ConsoleExecutionResult(true, new[] { "Console cleared." });
+            });
+
+        ConsoleBackend.RegisterCommand("scene", "scene", "Display active scene info.",
+            _ =>
+            {
+                var scene = SceneManager.Instance.ActiveScene;
+                if (scene == null)
+                    return new ConsoleExecutionResult(true, new[] { "No active scene." });
+
+                var lines = new List<string>
+                {
+                    $"Scene: {scene.Name}",
+                    $"Entities: {scene.Entities.Count}",
+                    $"Cameras: {scene.Cameras.Count}",
+                    $"Lights: {scene.Lights.Count}"
+                };
+                return new ConsoleExecutionResult(true, lines);
+            });
+
+        ConsoleBackend.RegisterCommand("echo", "echo <text>", "Print text to console.",
+            args =>
+            {
+                var text = args.Count > 0 ? string.Join(' ', args) : string.Empty;
+                return new ConsoleExecutionResult(true, new[] { text });
+            });
+
+        ConsoleBackend.RegisterCommand("quit", "quit", "Exit the application.",
+            _ =>
+            {
+                Raylib.CloseWindow();
+                return new ConsoleExecutionResult(true, new[] { "Quitting..." });
+            });
+
         _consoleBackendInitialized = true;
+    }
+
+    private static void RegisterVolumeCVar(string name, string description, Func<float> getter, Action<float> setter)
+    {
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            name,
+            $"{name} [0.0-2.0]",
+            description,
+            () => getter().ToString("F2"),
+            value =>
+            {
+                if (!TryParseFloatClamped(value, 0f, 2f, out var v))
+                    return false;
+                setter(v);
+                return true;
+            }));
+    }
+
+    private static bool TryParseBool01(string value, out bool enabled)
+    {
+        enabled = false;
+        if (value == null) return false;
+        switch (value.Trim())
+        {
+            case "1": enabled = true; return true;
+            case "0": enabled = false; return true;
+            default: return false;
+        }
+    }
+
+    private static bool TryParseFloatClamped(string value, float min, float max, out float result)
+    {
+        result = 0f;
+        if (!float.TryParse(value, out var parsed) || !float.IsFinite(parsed))
+            return false;
+        if (parsed < min || parsed > max)
+            return false;
+        result = parsed;
+        return true;
     }
 }
