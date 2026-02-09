@@ -18,6 +18,7 @@ public class MenuBar
     private bool _openNewProject;
     private bool _openCreateScript;
     private bool _openProjectSettings;
+    private bool _openKeybindEditor;
     private ProjectSettings? _projectSettingsDraft;
     private ProjectSettings? _projectSettingsBaseline;
     private EditorProjectSettings? _editorProjectSettingsDraft;
@@ -28,6 +29,11 @@ public class MenuBar
     private int _selectedBaseClassIndex;
     private string[] _baseClassOptions = Array.Empty<string>();
     private Type[] _baseClassTypes = Array.Empty<Type>();
+
+    // Keybind editor state
+    private bool _isCapturingKeybind;
+    private EditorAction? _capturingAction;
+    private string _keybindSearchFilter = string.Empty;
 
     public MenuBar(EditorApplication app)
     {
@@ -212,6 +218,14 @@ public class MenuBar
                 }
                 ImGui.EndDisabled();
 
+                ImGui.Separator();
+
+                var hasProject = _app.ProjectDirectory != null;
+                ImGui.BeginDisabled(!hasProject);
+                if (ImGui.MenuItem("Keybindings..."))
+                    _openKeybindEditor = true;
+                ImGui.EndDisabled();
+
                 ImGui.EndMenu();
             }
 
@@ -341,9 +355,16 @@ public class MenuBar
             _openProjectSettings = false;
         }
 
+        if (_openKeybindEditor)
+        {
+            ImGui.OpenPopup("KeybindEditor");
+            _openKeybindEditor = false;
+        }
+
         DrawNewProjectPopup();
         DrawCreateScriptPopup();
         DrawProjectSettingsPopup();
+        DrawKeybindEditorPopup();
     }
 
     private void RefreshBaseClassOptions()
@@ -907,6 +928,205 @@ public class MenuBar
         if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
             normalized = normalized["Assets/".Length..];
         return normalized;
+    }
+
+    private void DrawKeybindEditorPopup()
+    {
+        var viewport = ImGui.GetMainViewport();
+        var center = new Vector2(viewport.WorkPos.X + viewport.WorkSize.X * 0.5f,
+                                 viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(600, 500), ImGuiCond.Appearing);
+
+        if (!ImGui.BeginPopupModal("KeybindEditor"))
+        {
+            // Popup was dismissed externally — clean up capture state
+            if (_isCapturingKeybind)
+                StopKeybindCapture();
+            return;
+        }
+
+        var km = KeybindManager.Instance;
+
+        // Top bar: search + reset all
+        ImGui.SetNextItemWidth(-160);
+        ImGui.InputTextWithHint("##keybindSearch", "Search actions...", ref _keybindSearchFilter, 256);
+        ImGui.SameLine();
+        if (ImGui.Button("Reset All to Defaults"))
+        {
+            km.ResetToDefaults();
+            km.SaveConfig();
+        }
+
+        ImGui.Separator();
+
+        // Handle key capture
+        if (_isCapturingKeybind && _capturingAction.HasValue)
+        {
+            // Escape cancels capture without closing popup
+            if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+            {
+                StopKeybindCapture();
+            }
+            else
+            {
+                var pressedKey = PollKeyPress();
+                if (pressedKey.HasValue)
+                {
+                    var io = ImGui.GetIO();
+                    var newKeybind = new Keybind(pressedKey.Value, io.KeyCtrl, io.KeyShift, io.KeyAlt);
+                    km.SetBinding(_capturingAction.Value, newKeybind);
+                    StopKeybindCapture();
+                }
+            }
+        }
+
+        // Scrollable table
+        if (ImGui.BeginChild("KeybindTable", new Vector2(0, -ImGui.GetFrameHeightWithSpacing())))
+        {
+            if (ImGui.BeginTable("keybinds", 4,
+                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY))
+            {
+                ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Binding", ImGuiTableColumnFlags.WidthFixed, 150);
+                ImGui.TableSetupColumn("##rebind", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("##reset", ImGuiTableColumnFlags.WidthFixed, 50);
+                ImGui.TableHeadersRow();
+
+                var searchLower = _keybindSearchFilter.ToLowerInvariant();
+
+                foreach (var action in Enum.GetValues<EditorAction>())
+                {
+                    var displayName = KeybindManager.FormatActionName(action);
+                    if (!string.IsNullOrEmpty(searchLower) &&
+                        !displayName.ToLowerInvariant().Contains(searchLower))
+                        continue;
+
+                    ImGui.TableNextRow();
+
+                    var currentBinding = km.GetBinding(action);
+                    var defaultBinding = km.GetDefaultBinding(action);
+                    var isModified = currentBinding != defaultBinding;
+                    var conflicts = km.FindConflicts(action, currentBinding);
+                    var hasConflict = conflicts.Count > 0;
+                    var isThisCapturing = _isCapturingKeybind && _capturingAction == action;
+
+                    // Action column
+                    ImGui.TableNextColumn();
+                    if (isModified)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.8f, 1.0f, 1.0f));
+                        ImGui.TextUnformatted(displayName);
+                        ImGui.PopStyleColor();
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted(displayName);
+                    }
+
+                    // Binding column
+                    ImGui.TableNextColumn();
+                    if (isThisCapturing)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 0.0f, 1.0f));
+                        ImGui.TextUnformatted("Press a key...");
+                        ImGui.PopStyleColor();
+                    }
+                    else if (hasConflict)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.3f, 0.3f, 1.0f));
+                        ImGui.TextUnformatted(currentBinding.ToDisplayString());
+                        ImGui.PopStyleColor();
+                        if (ImGui.IsItemHovered())
+                        {
+                            var conflictNames = string.Join(", ",
+                                conflicts.Select(KeybindManager.FormatActionName));
+                            ImGui.SetTooltip($"Conflicts with: {conflictNames}");
+                        }
+                    }
+                    else
+                    {
+                        ImGui.TextUnformatted(currentBinding.ToDisplayString());
+                    }
+
+                    // Rebind column
+                    ImGui.TableNextColumn();
+                    ImGui.PushID((int)action);
+                    if (isThisCapturing)
+                    {
+                        if (ImGui.SmallButton("Cancel"))
+                            StopKeybindCapture();
+                    }
+                    else
+                    {
+                        ImGui.BeginDisabled(_isCapturingKeybind);
+                        if (ImGui.SmallButton("Rebind"))
+                            StartKeybindCapture(action);
+                        ImGui.EndDisabled();
+                    }
+
+                    // Reset column
+                    ImGui.TableNextColumn();
+                    ImGui.BeginDisabled(!isModified);
+                    if (ImGui.SmallButton("Reset"))
+                        km.ResetBinding(action);
+                    ImGui.EndDisabled();
+                    ImGui.PopID();
+                }
+
+                ImGui.EndTable();
+            }
+        }
+        ImGui.EndChild();
+
+        // Bottom bar
+        if (ImGui.Button("Close") || (!_isCapturingKeybind && ImGui.IsKeyPressed(ImGuiKey.Escape)))
+        {
+            StopKeybindCapture();
+            ImGui.CloseCurrentPopup();
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private void StartKeybindCapture(EditorAction action)
+    {
+        _isCapturingKeybind = true;
+        _capturingAction = action;
+        KeybindManager.Instance.IsCapturingKeybind = true;
+    }
+
+    private void StopKeybindCapture()
+    {
+        _isCapturingKeybind = false;
+        _capturingAction = null;
+        KeybindManager.Instance.IsCapturingKeybind = false;
+    }
+
+    private static ImGuiKey? PollKeyPress()
+    {
+        // ImGui named keys range from Tab (512) to NamedKey_END.
+        // Keys outside this range are legacy indices and cause assertions.
+        for (var i = (int)ImGuiKey.Tab; i < (int)ImGuiKey.NamedKeyEnd; i++)
+        {
+            var key = (ImGuiKey)i;
+            // Skip modifier keys
+            if (key is ImGuiKey.LeftCtrl or ImGuiKey.RightCtrl
+                or ImGuiKey.LeftShift or ImGuiKey.RightShift
+                or ImGuiKey.LeftAlt or ImGuiKey.RightAlt
+                or ImGuiKey.LeftSuper or ImGuiKey.RightSuper)
+                continue;
+
+            // Skip non-keyboard keys
+            var name = key.ToString();
+            if (name.StartsWith("Gamepad") || name.StartsWith("Mouse")
+                || name.StartsWith("Reserved") || name.StartsWith("Mod"))
+                continue;
+
+            if (ImGui.IsKeyPressed(key))
+                return key;
+        }
+        return null;
     }
 
     private static void EditText(string label, ref string value, uint maxLength)

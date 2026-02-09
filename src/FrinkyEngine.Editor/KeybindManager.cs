@@ -6,20 +6,65 @@ namespace FrinkyEngine.Editor;
 
 public class KeybindManager
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    private static readonly Dictionary<EditorAction, Keybind> Defaults = BuildDefaults();
+
     public static KeybindManager Instance { get; } = new();
 
     private readonly Dictionary<EditorAction, Keybind> _bindings = new();
     private readonly Dictionary<EditorAction, Action> _actions = new();
     private string? _configPath;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true
-    };
+    public bool IsCapturingKeybind { get; set; }
 
     private KeybindManager()
     {
         ResetToDefaults();
+    }
+
+    private static Dictionary<EditorAction, Keybind> BuildDefaults()
+    {
+        return new Dictionary<EditorAction, Keybind>
+        {
+            [EditorAction.NewScene] = new Keybind(ImGuiKey.N, ctrl: true),
+            [EditorAction.OpenScene] = new Keybind(ImGuiKey.O, ctrl: true),
+            [EditorAction.SaveScene] = new Keybind(ImGuiKey.S, ctrl: true),
+            [EditorAction.SaveSceneAs] = new Keybind(ImGuiKey.S, ctrl: true, shift: true),
+            [EditorAction.Undo] = new Keybind(ImGuiKey.Z, ctrl: true),
+            [EditorAction.Redo] = new Keybind(ImGuiKey.Y, ctrl: true),
+            [EditorAction.BuildScripts] = new Keybind(ImGuiKey.B, ctrl: true),
+            [EditorAction.PlayStop] = new Keybind(ImGuiKey.F5),
+            [EditorAction.SimulateStop] = new Keybind(ImGuiKey.F5, alt: true),
+            [EditorAction.DeleteEntity] = new Keybind(ImGuiKey.Delete),
+            [EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true),
+            [EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2),
+            [EditorAction.NewProject] = new Keybind(ImGuiKey.N, ctrl: true, shift: true),
+            [EditorAction.GizmoTranslate] = new Keybind(ImGuiKey.Key1),
+            [EditorAction.GizmoRotate] = new Keybind(ImGuiKey.Key2),
+            [EditorAction.GizmoScale] = new Keybind(ImGuiKey.Key3),
+            [EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X),
+            [EditorAction.DeselectEntity] = new Keybind(ImGuiKey.Escape),
+            [EditorAction.SelectAllEntities] = new Keybind(ImGuiKey.A, ctrl: true),
+            [EditorAction.ExpandSelection] = new Keybind(ImGuiKey.RightArrow),
+            [EditorAction.CollapseSelection] = new Keybind(ImGuiKey.LeftArrow),
+            [EditorAction.FocusHierarchySearch] = new Keybind(ImGuiKey.F, ctrl: true),
+            [EditorAction.ToggleGameView] = new Keybind(ImGuiKey.G),
+            [EditorAction.TogglePhysicsHitboxPreview] = new Keybind(ImGuiKey.F8),
+            [EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.O, ctrl: true, shift: true),
+            [EditorAction.OpenProjectInVSCode] = new Keybind(ImGuiKey.V, ctrl: true, shift: true),
+            [EditorAction.ExportGame] = new Keybind(ImGuiKey.E, ctrl: true, shift: true),
+            [EditorAction.CreatePrefabFromSelection] = new Keybind(ImGuiKey.M, ctrl: true, shift: true),
+            [EditorAction.ApplyPrefab] = new Keybind(ImGuiKey.P, ctrl: true, alt: true),
+            [EditorAction.RevertPrefab] = new Keybind(ImGuiKey.R, ctrl: true, alt: true),
+            [EditorAction.MakeUniquePrefab] = new Keybind(ImGuiKey.U, ctrl: true, shift: true),
+            [EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true),
+            [EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true),
+            [EditorAction.FrameSelected] = new Keybind(ImGuiKey.F),
+        };
     }
 
     public void RegisterAction(EditorAction action, Action callback)
@@ -34,6 +79,9 @@ public class KeybindManager
 
     public void ProcessKeybinds()
     {
+        if (IsCapturingKeybind)
+            return;
+
         if (ImGui.GetIO().WantTextInput)
             return;
 
@@ -45,6 +93,49 @@ public class KeybindManager
                 return;
             }
         }
+    }
+
+    public Keybind GetBinding(EditorAction action) =>
+        _bindings.TryGetValue(action, out var kb) ? kb : default;
+
+    public Keybind GetDefaultBinding(EditorAction action) =>
+        Defaults.TryGetValue(action, out var kb) ? kb : default;
+
+    public void SetBinding(EditorAction action, Keybind keybind)
+    {
+        _bindings[action] = keybind;
+        SaveConfig();
+    }
+
+    public void ResetBinding(EditorAction action)
+    {
+        if (Defaults.TryGetValue(action, out var defaultKb))
+            _bindings[action] = defaultKb;
+        SaveConfig();
+    }
+
+    public List<EditorAction> FindConflicts(EditorAction exclude, Keybind keybind)
+    {
+        var conflicts = new List<EditorAction>();
+        foreach (var (action, binding) in _bindings)
+        {
+            if (action != exclude && binding == keybind)
+                conflicts.Add(action);
+        }
+        return conflicts;
+    }
+
+    public static string FormatActionName(EditorAction action)
+    {
+        var name = action.ToString();
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]) && !char.IsUpper(name[i - 1]))
+                sb.Append(' ');
+            sb.Append(name[i]);
+        }
+        return sb.ToString();
     }
 
     public void LoadConfig(string? projectDirectory)
@@ -109,41 +200,8 @@ public class KeybindManager
     public void ResetToDefaults()
     {
         _bindings.Clear();
-
-        _bindings[EditorAction.NewScene] = new Keybind(ImGuiKey.N, ctrl: true);
-        _bindings[EditorAction.OpenScene] = new Keybind(ImGuiKey.O, ctrl: true);
-        _bindings[EditorAction.SaveScene] = new Keybind(ImGuiKey.S, ctrl: true);
-        _bindings[EditorAction.SaveSceneAs] = new Keybind(ImGuiKey.S, ctrl: true, shift: true);
-        _bindings[EditorAction.Undo] = new Keybind(ImGuiKey.Z, ctrl: true);
-        _bindings[EditorAction.Redo] = new Keybind(ImGuiKey.Y, ctrl: true);
-        _bindings[EditorAction.BuildScripts] = new Keybind(ImGuiKey.B, ctrl: true);
-        _bindings[EditorAction.PlayStop] = new Keybind(ImGuiKey.P, ctrl: true);
-        _bindings[EditorAction.SimulateStop] = new Keybind(ImGuiKey.P, ctrl: true, shift: true);
-        _bindings[EditorAction.DeleteEntity] = new Keybind(ImGuiKey.Delete);
-        _bindings[EditorAction.DuplicateEntity] = new Keybind(ImGuiKey.D, ctrl: true);
-        _bindings[EditorAction.RenameEntity] = new Keybind(ImGuiKey.F2);
-        _bindings[EditorAction.NewProject] = new Keybind(ImGuiKey.N, ctrl: true, shift: true);
-        _bindings[EditorAction.GizmoTranslate] = new Keybind(ImGuiKey.Key1);
-        _bindings[EditorAction.GizmoRotate] = new Keybind(ImGuiKey.Key2);
-        _bindings[EditorAction.GizmoScale] = new Keybind(ImGuiKey.Key3);
-        _bindings[EditorAction.GizmoToggleSpace] = new Keybind(ImGuiKey.X);
-        _bindings[EditorAction.DeselectEntity] = new Keybind(ImGuiKey.Escape);
-        _bindings[EditorAction.SelectAllEntities] = new Keybind(ImGuiKey.A, ctrl: true);
-        _bindings[EditorAction.ExpandSelection] = new Keybind(ImGuiKey.RightArrow);
-        _bindings[EditorAction.CollapseSelection] = new Keybind(ImGuiKey.LeftArrow);
-        _bindings[EditorAction.FocusHierarchySearch] = new Keybind(ImGuiKey.F, ctrl: true);
-        _bindings[EditorAction.ToggleGameView] = new Keybind(ImGuiKey.G);
-        _bindings[EditorAction.TogglePhysicsHitboxPreview] = new Keybind(ImGuiKey.F8);
-        _bindings[EditorAction.OpenAssetsFolder] = new Keybind(ImGuiKey.O, ctrl: true, shift: true);
-        _bindings[EditorAction.OpenProjectInVSCode] = new Keybind(ImGuiKey.V, ctrl: true, shift: true);
-        _bindings[EditorAction.ExportGame] = new Keybind(ImGuiKey.E, ctrl: true, shift: true);
-        _bindings[EditorAction.CreatePrefabFromSelection] = new Keybind(ImGuiKey.P, ctrl: true, shift: true);
-        _bindings[EditorAction.ApplyPrefab] = new Keybind(ImGuiKey.P, ctrl: true, alt: true);
-        _bindings[EditorAction.RevertPrefab] = new Keybind(ImGuiKey.R, ctrl: true, alt: true);
-        _bindings[EditorAction.MakeUniquePrefab] = new Keybind(ImGuiKey.U, ctrl: true, shift: true);
-        _bindings[EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true);
-        _bindings[EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true);
-        _bindings[EditorAction.FrameSelected] = new Keybind(ImGuiKey.F);
+        foreach (var (action, keybind) in Defaults)
+            _bindings[action] = keybind;
     }
 
     private void ApplyConfig(KeybindConfig config)
