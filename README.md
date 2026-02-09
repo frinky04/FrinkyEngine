@@ -449,6 +449,17 @@ Use for packaged game distribution.
 
 If no `.fproject` argument and no `.fasset` is found, the runtime prints usage help.
 
+### Runtime Overlay Controls
+
+The built-in runtime overlays are available in both standalone runtime and editor Play/Simulate mode:
+
+- `F3` cycles stats overlay modes:
+  - `None`
+  - `FPS + MS`
+  - `Advanced Stats`
+  - `Most Verbose Stats`
+- `` ` `` (Grave) toggles the developer console overlay
+
 ## Export and Packaging
 
 ### Editor Export (`File -> Export Game...`)
