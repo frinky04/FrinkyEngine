@@ -220,8 +220,11 @@ public class MenuBar
 
                 ImGui.Separator();
 
+                var hasProject = _app.ProjectDirectory != null;
+                ImGui.BeginDisabled(!hasProject);
                 if (ImGui.MenuItem("Keybindings..."))
                     _openKeybindEditor = true;
+                ImGui.EndDisabled();
 
                 ImGui.EndMenu();
             }
