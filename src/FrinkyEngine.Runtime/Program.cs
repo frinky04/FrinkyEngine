@@ -220,7 +220,9 @@ public static class Program
                     AllowCursorChanges: false));
                 UI.EndFrame();
                 FrameProfiler.EndFrame();
+                FrameProfiler.BeginIdle();
                 Raylib.EndDrawing();
+                FrameProfiler.EndIdle();
                 continue;
             }
 
@@ -271,7 +273,9 @@ public static class Program
                     UI.EndFrame();
                 }
                 FrameProfiler.EndFrame();
+                FrameProfiler.BeginIdle();
                 Raylib.EndDrawing();
+                FrameProfiler.EndIdle();
             }
             else
             {
@@ -291,7 +295,9 @@ public static class Program
                     UI.EndFrame();
                 }
                 FrameProfiler.EndFrame();
+                FrameProfiler.BeginIdle();
                 Raylib.EndDrawing();
+                FrameProfiler.EndIdle();
             }
         }
 

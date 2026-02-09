@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using FrinkyEngine.Core.Audio;
+using AudioApi = FrinkyEngine.Core.Audio.Audio;
 using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.Profiling;
@@ -48,6 +49,7 @@ public static unsafe class EngineOverlays
     private static PhysicsFrameStats _displayedPhysicsStats;
     private static AudioFrameStats _displayedAudioStats;
     private static SubCategoryTiming[] _displayedSubTimings = Array.Empty<SubCategoryTiming>();
+    private static double _displayedIdleMs;
     private static float _fpsAccumulator;
 
     private static bool _consoleVisible;
@@ -60,6 +62,7 @@ public static unsafe class EngineOverlays
     private static int _consoleSuggestionIndex = -1;
     private static readonly ImGuiInputTextCallback ConsoleInputCallback = HandleConsoleInputTextCallback;
     private static bool _consoleFocusInput;
+    private static bool _consoleAutoScroll = true;
     private static bool _consoleBackendInitialized;
 
     /// <summary>
@@ -126,6 +129,7 @@ public static unsafe class EngineOverlays
         _consoleHistoryDraft = string.Empty;
         ResetAutocompleteState();
         _consoleFocusInput = false;
+        _consoleAutoScroll = true;
     }
 
     private static void RefreshDisplayedStats()
@@ -150,6 +154,7 @@ public static unsafe class EngineOverlays
 
         _displayedSnapshot = FrameProfiler.GetLatest();
         _displayedSubTimings = _displayedSnapshot.SubTimings ?? Array.Empty<SubCategoryTiming>();
+        _displayedIdleMs = FrameProfiler.GetLatestIdleMs();
     }
 
     private static void DrawStatsOverlay()
@@ -209,6 +214,14 @@ public static unsafe class EngineOverlays
         var latest = _displayedSnapshot;
 
         ImGui.Text($"CPU: {latest.TotalFrameMs:F2}ms");
+
+        bool isUncapped = RenderRuntimeCvars.TargetFps == 0
+                          && !Raylib.IsWindowState(ConfigFlags.VSyncHint);
+        if (isUncapped)
+            ImGui.Text($"GPU (est): {_displayedIdleMs:F2}ms");
+        else
+            ImGui.Text($"Idle: {_displayedIdleMs:F2}ms");
+
         ImGui.Text($"Game: {latest.GetCategoryMs(ProfileCategory.Game):F2}  Late: {latest.GetCategoryMs(ProfileCategory.GameLate):F2}");
         ImGui.Text($"Phys: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
         ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
@@ -311,7 +324,15 @@ public static unsafe class EngineOverlays
                 foreach (var line in ConsoleHistory)
                     ImGui.TextUnformatted(line);
 
-                if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY() - 4f)
+                bool isAtBottom = ImGui.GetScrollY() >= ImGui.GetScrollMaxY() - 4f;
+
+                if (isAtBottom)
+                    _consoleAutoScroll = true;
+
+                if (ImGui.IsWindowHovered() && ImGui.GetIO().MouseWheel != 0 && !isAtBottom)
+                    _consoleAutoScroll = false;
+
+                if (_consoleAutoScroll)
                     ImGui.SetScrollHereY(1.0f);
             }
             ImGui.EndChild();
@@ -380,6 +401,7 @@ public static unsafe class EngineOverlays
         _consoleInput = string.Empty;
         ClearInputNavigationState(restoreDraft: false);
         _consoleFocusInput = true;
+        _consoleAutoScroll = true;
     }
 
     private static void AddCommandHistoryEntry(string command)
@@ -627,6 +649,9 @@ public static unsafe class EngineOverlays
                 }
 
                 ImGui.TextUnformatted(rowText);
+
+                if (selected)
+                    ImGui.SetScrollHereY();
             }
         }
 
@@ -848,25 +873,61 @@ public static unsafe class EngineOverlays
                 return true;
             }));
 
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_ambient",
+            "r_ambient <r> <g> <b>",
+            "Override default ambient light (0-1 per channel). Use 'r_ambient default' to reset.",
+            RenderRuntimeCvars.GetAmbientValue,
+            RenderRuntimeCvars.TrySetAmbient));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_maxfps",
+            "r_maxfps [0-500]",
+            "Set target FPS (0 = uncapped).",
+            RenderRuntimeCvars.GetTargetFpsValue,
+            value =>
+            {
+                if (!RenderRuntimeCvars.TrySetTargetFps(value))
+                    return false;
+                Raylib.SetTargetFPS(RenderRuntimeCvars.TargetFps);
+                return true;
+            }));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_vsync",
+            "r_vsync [0|1]",
+            "Toggle VSync (1=on, 0=off).",
+            () => Raylib.IsWindowState(ConfigFlags.VSyncHint) ? "1" : "0",
+            value =>
+            {
+                if (!TryParseBool01(value, out var enabled))
+                    return false;
+                if (enabled)
+                    Raylib.SetWindowState(ConfigFlags.VSyncHint);
+                else
+                    Raylib.ClearWindowState(ConfigFlags.VSyncHint);
+                return true;
+            }));
+
         // --- Audio cvars ---
         RegisterVolumeCVar("snd_master", "Master audio bus volume.",
             () => AudioProjectSettings.Current.MasterVolume,
-            v => AudioProjectSettings.Current.MasterVolume = v);
+            v => { AudioProjectSettings.Current.MasterVolume = v; AudioApi.SetBusVolume(AudioBusId.Master, v); });
         RegisterVolumeCVar("snd_music", "Music bus volume.",
             () => AudioProjectSettings.Current.MusicVolume,
-            v => AudioProjectSettings.Current.MusicVolume = v);
+            v => { AudioProjectSettings.Current.MusicVolume = v; AudioApi.SetBusVolume(AudioBusId.Music, v); });
         RegisterVolumeCVar("snd_sfx", "SFX bus volume.",
             () => AudioProjectSettings.Current.SfxVolume,
-            v => AudioProjectSettings.Current.SfxVolume = v);
+            v => { AudioProjectSettings.Current.SfxVolume = v; AudioApi.SetBusVolume(AudioBusId.Sfx, v); });
         RegisterVolumeCVar("snd_ui", "UI bus volume.",
             () => AudioProjectSettings.Current.UiVolume,
-            v => AudioProjectSettings.Current.UiVolume = v);
+            v => { AudioProjectSettings.Current.UiVolume = v; AudioApi.SetBusVolume(AudioBusId.Ui, v); });
         RegisterVolumeCVar("snd_voice", "Voice bus volume.",
             () => AudioProjectSettings.Current.VoiceVolume,
-            v => AudioProjectSettings.Current.VoiceVolume = v);
+            v => { AudioProjectSettings.Current.VoiceVolume = v; AudioApi.SetBusVolume(AudioBusId.Voice, v); });
         RegisterVolumeCVar("snd_ambient", "Ambient bus volume.",
             () => AudioProjectSettings.Current.AmbientVolume,
-            v => AudioProjectSettings.Current.AmbientVolume = v);
+            v => { AudioProjectSettings.Current.AmbientVolume = v; AudioApi.SetBusVolume(AudioBusId.Ambient, v); });
 
         // --- Physics cvars ---
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
@@ -959,6 +1020,70 @@ public static unsafe class EngineOverlays
             {
                 Raylib.CloseWindow();
                 return new ConsoleExecutionResult(true, new[] { "Quitting..." });
+            });
+
+        ConsoleBackend.RegisterCommand("open_scene", "open_scene <path>", "Load a .fscene file by path.",
+            args =>
+            {
+                if (args.Count == 0)
+                    return new ConsoleExecutionResult(false, new[] { "Usage: open_scene <path>" });
+
+                var path = string.Join(' ', args);
+                if (!File.Exists(path))
+                    return new ConsoleExecutionResult(false, new[] { $"File not found: {path}" });
+
+                var scene = SceneManager.Instance.LoadScene(path);
+                return scene != null
+                    ? new ConsoleExecutionResult(true, new[] { $"Loaded scene: {path}" })
+                    : new ConsoleExecutionResult(false, new[] { $"Failed to load scene: {path}" });
+            });
+
+        ConsoleBackend.RegisterCommand("restart_scene", "restart_scene", "Reload the current scene from disk.",
+            _ =>
+            {
+                var active = SceneManager.Instance.ActiveScene;
+                if (active == null)
+                    return new ConsoleExecutionResult(false, new[] { "No active scene." });
+
+                var filePath = active.FilePath;
+                if (string.IsNullOrEmpty(filePath))
+                    return new ConsoleExecutionResult(false, new[] { "Active scene has no file path (unsaved scene)." });
+
+                if (!File.Exists(filePath))
+                    return new ConsoleExecutionResult(false, new[] { $"Scene file not found: {filePath}" });
+
+                var scene = SceneManager.Instance.LoadScene(filePath);
+                return scene != null
+                    ? new ConsoleExecutionResult(true, new[] { $"Reloaded scene: {filePath}" })
+                    : new ConsoleExecutionResult(false, new[] { $"Failed to reload scene: {filePath}" });
+            });
+
+        ConsoleBackend.RegisterCommand("entities", "entities", "List all entities in the active scene.",
+            _ =>
+            {
+                var scene = SceneManager.Instance.ActiveScene;
+                if (scene == null)
+                    return new ConsoleExecutionResult(true, new[] { "No active scene." });
+
+                var entities = scene.Entities;
+                if (entities.Count == 0)
+                    return new ConsoleExecutionResult(true, new[] { "Scene has no entities." });
+
+                const int maxDisplay = 50;
+                var lines = new List<string>();
+                int count = Math.Min(entities.Count, maxDisplay);
+                for (int i = 0; i < count; i++)
+                {
+                    var e = entities[i];
+                    var status = e.Active ? "active" : "inactive";
+                    lines.Add($"  {e.Name} [{status}]");
+                }
+
+                if (entities.Count > maxDisplay)
+                    lines.Add($"  ... and {entities.Count - maxDisplay} more");
+
+                lines.Insert(0, $"Entities ({entities.Count}):");
+                return new ConsoleExecutionResult(true, lines);
             });
 
         _consoleBackendInitialized = true;

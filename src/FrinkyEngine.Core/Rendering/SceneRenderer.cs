@@ -179,7 +179,10 @@ public class SceneRenderer
             _lightingShader.Locs[(int)ShaderLocationIndex.MapBrdf] = _triplanarParamsTexLoc;
         }
 
-        float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
+        var ambOvr = RenderRuntimeCvars.AmbientOverride;
+        float[] ambient = ambOvr.HasValue
+            ? new[] { ambOvr.Value.X, ambOvr.Value.Y, ambOvr.Value.Z, 1.0f }
+            : new[] { 0.15f, 0.15f, 0.15f, 1.0f };
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
 
         _shaderLoaded = true;
@@ -453,7 +456,10 @@ public class SceneRenderer
         _forwardPlusDroppedTileLights = 0;
         _forwardPlusClippedLights = 0;
 
-        float[] ambient = { 0.15f, 0.15f, 0.15f, 1.0f };
+        var ambOvr = RenderRuntimeCvars.AmbientOverride;
+        float[] ambient = ambOvr.HasValue
+            ? new[] { ambOvr.Value.X, ambOvr.Value.Y, ambOvr.Value.Z, 1.0f }
+            : new[] { 0.15f, 0.15f, 0.15f, 1.0f };
         bool skylightFound = false;
         int eligibleLights = 0;
         int visibleLights = 0;

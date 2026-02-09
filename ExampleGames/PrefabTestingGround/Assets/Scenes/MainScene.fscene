@@ -5,8 +5,8 @@
     "y": 21.638409,
     "z": -13.604995
   },
-  "editorCameraYaw": -1406.396,
-  "editorCameraPitch": -20.749685,
+  "editorCameraYaw": -1408.1963,
+  "editorCameraPitch": -13.399687,
   "physics": {
     "gravity": {
       "x": 0,
@@ -3466,7 +3466,42 @@
         "assetPath": "Prefabs/Player.fprefab",
         "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
         "overrides": {
-          "propertyOverrides": [],
+          "propertyOverrides": [
+            {
+              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
+              "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+              "propertyName": "Effects",
+              "value": [
+                {
+                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
+                  "enabled": true,
+                  "properties": {
+                    "Radius": 40,
+                    "Intensity": 0.6,
+                    "Bias": 1,
+                    "SampleCount": 64,
+                    "BlurSize": 16
+                  }
+                },
+                {
+                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
+                  "enabled": false,
+                  "properties": {
+                    "FogColor": {
+                      "r": 48,
+                      "g": 48,
+                      "b": 48,
+                      "a": 255
+                    },
+                    "FogStart": 100,
+                    "FogEnd": 500,
+                    "Density": 0.02,
+                    "Mode": "Linear"
+                  }
+                }
+              ]
+            }
+          ],
           "addedComponents": [],
           "removedComponents": [],
           "addedChildren": [],
@@ -3667,7 +3702,7 @@
                   },
                   {
                     "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                    "enabled": true,
+                    "enabled": false,
                     "properties": {
                       "FogColor": {
                         "r": 48,

@@ -28,6 +28,10 @@ public static class FrameProfiler
     private static readonly int[] _scopeStack = new int[MaxScopeDepth]; // category index, or -1
     private static int _scopeDepth;
 
+    // Idle timing (measures EndDrawing duration = GPU sync + frame limiter wait)
+    private static readonly Stopwatch _idleStopwatch = new();
+    private static readonly double[] _idleHistory = new double[HistorySize];
+
     // Ring buffer
     private static readonly FrameSnapshot[] _history = new FrameSnapshot[HistorySize];
     private static int _historyHead;
@@ -89,6 +93,7 @@ public static class FrameProfiler
         _subCount = 0;
         _scopeDepth = 0;
         _currentGpuStats = default;
+        _idleStopwatch.Reset();
     }
 
     /// <summary>
@@ -118,6 +123,64 @@ public static class FrameProfiler
             _historyCount++;
 
         _scopeDepth = 0;
+    }
+
+    /// <summary>
+    /// Starts measuring idle time (GPU sync + frame limiter). Call immediately before EndDrawing.
+    /// </summary>
+    public static void BeginIdle()
+    {
+        if (!_enabled) return;
+        _idleStopwatch.Restart();
+    }
+
+    /// <summary>
+    /// Stops measuring idle time. Call immediately after EndDrawing.
+    /// Stores the result in the parallel idle history at the most recent snapshot index.
+    /// </summary>
+    public static void EndIdle()
+    {
+        if (!_enabled) return;
+        _idleStopwatch.Stop();
+        // Store at the last-pushed snapshot index
+        int idx = (_historyHead - 1 + HistorySize) % HistorySize;
+        _idleHistory[idx] = _idleStopwatch.Elapsed.TotalMilliseconds;
+    }
+
+    /// <summary>
+    /// Returns the idle time in milliseconds for the most recent frame.
+    /// </summary>
+    public static double GetLatestIdleMs()
+    {
+        if (_historyCount == 0)
+            return 0;
+        int idx = (_historyHead - 1 + HistorySize) % HistorySize;
+        return _idleHistory[idx];
+    }
+
+    /// <summary>
+    /// Fills the buffer with idle times ordered oldest-first, matching <see cref="GetHistory"/> ordering.
+    /// The buffer must be at least as large as the current history count.
+    /// Returns the number of entries written.
+    /// </summary>
+    public static int GetOrderedIdleHistory(double[] buffer)
+    {
+        if (_historyCount == 0 || buffer == null)
+            return 0;
+
+        int count = Math.Min(buffer.Length, _historyCount);
+
+        if (_historyCount < HistorySize)
+        {
+            Array.Copy(_idleHistory, 0, buffer, 0, count);
+        }
+        else
+        {
+            int start = _historyHead;
+            for (int i = 0; i < count; i++)
+                buffer[i] = _idleHistory[(start + i) % HistorySize];
+        }
+        return count;
     }
 
     /// <summary>

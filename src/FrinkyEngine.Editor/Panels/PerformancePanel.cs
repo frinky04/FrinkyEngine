@@ -1,4 +1,5 @@
 using System.Numerics;
+using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.Profiling;
 using Hexa.NET.ImGui;
 using Raylib_cs;
@@ -22,6 +23,7 @@ public class PerformancePanel
     private static readonly uint ColorUI = ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.85f, 0.85f, 1.0f));
     private static readonly uint ColorEditor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.55f, 0.55f, 0.55f, 1.0f));
     private static readonly uint ColorOther = ImGui.ColorConvertFloat4ToU32(new Vector4(0.30f, 0.30f, 0.30f, 1.0f));
+    private static readonly uint ColorIdle = ImGui.ColorConvertFloat4ToU32(new Vector4(0.45f, 0.55f, 0.70f, 1.0f));
 
     private static readonly (string Name, uint Color)[] CategoryInfo =
     [
@@ -102,6 +104,24 @@ public class PerformancePanel
 
             var cpuLabel = _ignoreEditor ? "CPU (no editor)" : "CPU";
             ImGui.TextWrapped($"{cpuLabel}: {cpuAvg:F1} ms  Min: {cpuMin:F1}  Max: {cpuMax:F1}");
+
+            // Smoothed idle time
+            var idleBuffer = new double[FrameProfiler.HistorySize];
+            int idleCount = FrameProfiler.GetOrderedIdleHistory(idleBuffer);
+            if (idleCount > 0)
+            {
+                int idleSmoothCount = Math.Min(SmoothingFrames, idleCount);
+                int idleStart = idleCount - idleSmoothCount;
+                double idleSum = 0;
+                for (int i = idleStart; i < idleCount; i++)
+                    idleSum += idleBuffer[i];
+                double idleAvg = idleSum / idleSmoothCount;
+
+                bool isUncapped = RenderRuntimeCvars.TargetFps == 0
+                                  && !Raylib.IsWindowState(ConfigFlags.VSyncHint);
+                var idleLabel = isUncapped ? "GPU (est)" : "Idle";
+                ImGui.TextWrapped($"{idleLabel}: {idleAvg:F1} ms");
+            }
         }
 
         int entityCount = _app.CurrentScene?.Entities.Count ?? 0;
@@ -121,11 +141,17 @@ public class PerformancePanel
         float availWidth = ImGui.GetContentRegionAvail().X;
         float chartHeight = 120f;
 
-        // Compute max frame time for Y-axis scale
+        // Fetch idle history for stacking
+        var idleBuffer = new double[FrameProfiler.HistorySize];
+        int idleCount = FrameProfiler.GetOrderedIdleHistory(idleBuffer);
+
+        // Compute max frame time for Y-axis scale (CPU + idle)
         double maxFrameMs = 16.67; // minimum scale: 60fps line visible
         for (int i = 0; i < history.Length; i++)
         {
             double frameMs = GetDisplayedTotalMs(history[i]);
+            if (i < idleCount)
+                frameMs += idleBuffer[i];
             if (frameMs > maxFrameMs)
                 maxFrameMs = frameMs;
         }
@@ -185,6 +211,19 @@ public class PerformancePanel
                     new Vector2(x, top),
                     new Vector2(x + Math.Max(barWidth - 1, 1), bottom),
                     ColorOther);
+                yOffset += segmentHeight;
+            }
+
+            // Idle segment (GPU sync + frame limiter)
+            if (i < idleCount && idleBuffer[i] > 0)
+            {
+                float segmentHeight = (float)(idleBuffer[i] / maxFrameMs * chartHeight);
+                float top = baseY - yOffset - segmentHeight;
+                float bottom = baseY - yOffset;
+                drawList.AddRectFilled(
+                    new Vector2(x, top),
+                    new Vector2(x + Math.Max(barWidth - 1, 1), bottom),
+                    ColorIdle);
             }
         }
 
@@ -225,6 +264,14 @@ public class PerformancePanel
                 ImGui.TextColored(ImGui.ColorConvertU32ToFloat4(ColorOther),
                     $"  Other: {otherMs:F2} ms ({pct:F1}%%)");
             }
+            if (hoveredFrame < idleCount && idleBuffer[hoveredFrame] > 0.001)
+            {
+                bool isUncapped = RenderRuntimeCvars.TargetFps == 0
+                                  && !Raylib.IsWindowState(ConfigFlags.VSyncHint);
+                var idleLabel = isUncapped ? "GPU (est)" : "Idle";
+                ImGui.TextColored(ImGui.ColorConvertU32ToFloat4(ColorIdle),
+                    $"  {idleLabel}: {idleBuffer[hoveredFrame]:F2} ms");
+            }
             ImGui.EndTooltip();
 
             // Highlight the hovered bar
@@ -260,11 +307,19 @@ public class PerformancePanel
         Span<double> avgCategoryMs = stackalloc double[(int)ProfileCategory.Count];
         double avgTotalMs = 0;
         double avgOtherMs = 0;
+
+        // Idle averaging
+        var tableIdleBuffer = new double[FrameProfiler.HistorySize];
+        int tableIdleCount = FrameProfiler.GetOrderedIdleHistory(tableIdleBuffer);
+        double avgIdleMs = 0;
+
         for (int i = start; i < history.Length; i++)
         {
             var snap = history[i];
             avgTotalMs += GetDisplayedTotalMs(snap);
             avgOtherMs += GetDisplayedOtherMs(snap);
+            if (i < tableIdleCount)
+                avgIdleMs += tableIdleBuffer[i];
             for (int c = 0; c < (int)ProfileCategory.Count; c++)
             {
                 var category = (ProfileCategory)c;
@@ -276,6 +331,7 @@ public class PerformancePanel
         }
         avgTotalMs /= count;
         avgOtherMs /= count;
+        avgIdleMs /= count;
         for (int c = 0; c < (int)ProfileCategory.Count; c++)
             avgCategoryMs[c] /= count;
 
@@ -333,6 +389,28 @@ public class PerformancePanel
                 ImGui.Text("Other");
                 ImGui.TableNextColumn();
                 ImGui.Text($"{avgOtherMs:F2}");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{pct:F1}%%");
+            }
+
+            // Idle / GPU (est) row
+            if (avgIdleMs > 0.001)
+            {
+                bool isUncapped = RenderRuntimeCvars.TargetFps == 0
+                                  && !Raylib.IsWindowState(ConfigFlags.VSyncHint);
+                var idleLabel = isUncapped ? "GPU (est.)" : "Idle";
+                double pct = avgTotalMs > 0 ? avgIdleMs / (avgTotalMs + avgIdleMs) * 100.0 : 0;
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                var pos = ImGui.GetCursorScreenPos();
+                var dl = ImGui.GetWindowDrawList();
+                float sz = ImGui.GetTextLineHeight() - 2;
+                dl.AddRectFilled(pos, pos + new Vector2(sz, sz), ColorIdle, 2f);
+                ImGui.Dummy(new Vector2(sz + 4, sz));
+                ImGui.SameLine();
+                ImGui.Text(idleLabel);
+                ImGui.TableNextColumn();
+                ImGui.Text($"{avgIdleMs:F2}");
                 ImGui.TableNextColumn();
                 ImGui.Text($"{pct:F1}%%");
             }
@@ -485,6 +563,16 @@ public class PerformancePanel
         ImGui.Dummy(new Vector2(sz + 2, sz));
         ImGui.SameLine(0, 2);
         ImGui.Text("Other");
+
+        // "Idle" / "GPU (est)" entry
+        ImGui.SameLine(0, 12);
+        bool isUncapped = RenderRuntimeCvars.TargetFps == 0
+                          && !Raylib.IsWindowState(ConfigFlags.VSyncHint);
+        var idlePos = ImGui.GetCursorScreenPos();
+        drawList.AddRectFilled(idlePos + new Vector2(0, 1), idlePos + new Vector2(sz, sz + 1), ColorIdle, 2f);
+        ImGui.Dummy(new Vector2(sz + 2, sz));
+        ImGui.SameLine(0, 2);
+        ImGui.Text(isUncapped ? "GPU (est)" : "Idle");
     }
 
     private double GetDisplayedTotalMs(in FrameSnapshot snap)

@@ -23,7 +23,9 @@ public static class Program
 
         Raylib.SetConfigFlags(flags);
         Raylib.InitWindow(1600, 900, "FrinkyEngine Editor");
-        Raylib.SetTargetFPS(startupEditorSettings?.TargetFps ?? 120);
+        var editorTargetFps = startupEditorSettings?.TargetFps ?? 120;
+        Raylib.SetTargetFPS(editorTargetFps);
+        RenderRuntimeCvars.TargetFps = editorTargetFps;
         Raylib.SetExitKey(0);
 
         RlImGui.Setup(true, true);
@@ -90,7 +92,9 @@ public static class Program
             _cursorWasLockedLastFrame = app.IsCursorLocked;
 
             FrameProfiler.EndFrame();
+            FrameProfiler.BeginIdle();
             Raylib.EndDrawing();
+            FrameProfiler.EndIdle();
         }
 
         app.Shutdown();
