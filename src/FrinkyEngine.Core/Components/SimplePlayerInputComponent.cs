@@ -55,6 +55,7 @@ public class SimplePlayerInputComponent : Component
     private Vector3 _originalCameraOffset;
     private bool _cameraOffsetCached;
     private float _currentCrouchCameraBlend;
+    private float _cachedStandingCapsuleLength = -1f;
 
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
@@ -343,6 +344,9 @@ public class SimplePlayerInputComponent : Component
             _originalCameraOffset = _attachedCameraLocalOffset;
             _cameraOffsetCached = true;
         }
+
+        // Reset cached capsule length when component starts
+        _cachedStandingCapsuleLength = -1f;
     }
 
     /// <inheritdoc />
@@ -607,6 +611,18 @@ public class SimplePlayerInputComponent : Component
         if (capsule == null || !capsule.Enabled)
             return;
 
+        // Cache standing capsule length on first use
+        if (_cachedStandingCapsuleLength < 0f && !controller.IsCrouching)
+        {
+            _cachedStandingCapsuleLength = capsule.Length;
+        }
+
+        // If we haven't cached yet (started crouched), use current length as estimate
+        if (_cachedStandingCapsuleLength < 0f)
+        {
+            _cachedStandingCapsuleLength = capsule.Length / controller.CrouchHeightScale;
+        }
+
         // Interpolate crouch blend
         float targetBlend = controller.IsCrouching ? 1.0f : 0.0f;
         if (MathF.Abs(_currentCrouchCameraBlend - targetBlend) > 0.001f)
@@ -618,10 +634,24 @@ public class SimplePlayerInputComponent : Component
             _currentCrouchCameraBlend = targetBlend;
         }
 
-        float capsuleLength = capsule.Length;
         float capsuleRadius = capsule.Radius;
 
-        // Always calculate from bottom of capsule (feet)
+        // Use blended capsule length only when in air (not supported)
+        // When grounded, the position compensation in ApplyCrouchToCapsule handles smoothing
+        float capsuleLength;
+        if (controller.Supported)
+        {
+            // Grounded: use actual capsule length (position compensation handles smoothing)
+            capsuleLength = capsule.Length;
+        }
+        else
+        {
+            // In air: use virtual blended length to prevent snap
+            float crouchedCapsuleLength = _cachedStandingCapsuleLength * controller.CrouchHeightScale;
+            capsuleLength = Lerp(_cachedStandingCapsuleLength, crouchedCapsuleLength, _currentCrouchCameraBlend);
+        }
+
+        // Calculate camera position
         float capsuleBottom = -(capsuleLength * 0.5f + capsuleRadius);
 
         // Calculate crouching head height using controller's crouch scale
