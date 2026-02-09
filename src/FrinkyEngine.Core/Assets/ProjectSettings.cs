@@ -234,7 +234,7 @@ public class ProjectSettings
         Project.Description = CoalesceSingleLine(Project.Description, string.Empty);
 
         Runtime ??= new RuntimeProjectSettings();
-        Runtime.TargetFps = Clamp(Runtime.TargetFps, 30, 500, 120);
+        Runtime.TargetFps = ClampFpsAllowUncapped(Runtime.TargetFps, 30, 500, 120);
         Runtime.WindowTitle = Coalesce(Runtime.WindowTitle, safeProjectName);
         Runtime.WindowWidth = Clamp(Runtime.WindowWidth, 320, 10000, 1280);
         Runtime.WindowHeight = Clamp(Runtime.WindowHeight, 200, 10000, 720);
@@ -295,6 +295,15 @@ public class ProjectSettings
 
     private static int Clamp(int value, int min, int max, int fallback)
     {
+        if (value < min || value > max)
+            return fallback;
+        return value;
+    }
+
+    private static int ClampFpsAllowUncapped(int value, int min, int max, int fallback)
+    {
+        if (value == 0)
+            return 0;
         if (value < min || value > max)
             return fallback;
         return value;
@@ -363,7 +372,7 @@ public class ProjectMetadataSettings
 public class RuntimeProjectSettings
 {
     /// <summary>
-    /// Target frames per second (clamped to 30–500, defaults to 120).
+    /// Target frames per second (0 for uncapped, otherwise clamped to 30-500; defaults to 120).
     /// </summary>
     public int TargetFps { get; set; } = 120;
 

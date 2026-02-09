@@ -10,6 +10,7 @@ public class PerformancePanel
     private const int SmoothingFrames = 30;
 
     private readonly EditorApplication _app;
+    private bool _ignoreEditor = true;
 
     // Category colors (ABGR packed for ImGui)
     private static readonly uint ColorGame = ImGui.ColorConvertFloat4ToU32(new Vector4(0.30f, 0.78f, 0.30f, 1.0f));
@@ -78,6 +79,8 @@ public class PerformancePanel
         bool enabled = FrameProfiler.Enabled;
         if (ImGui.Checkbox("Enable Profiling", ref enabled))
             FrameProfiler.Enabled = enabled;
+        ImGui.SameLine();
+        ImGui.Checkbox("Ignore Editor", ref _ignoreEditor);
 
         // Use Raylib's actual FPS/frame time (accounts for frame limiter wait)
         int fps = Raylib.GetFPS();
@@ -97,7 +100,7 @@ public class PerformancePanel
             double cpuMax = double.MinValue;
             for (int i = start; i < history.Length; i++)
             {
-                double t = history[i].TotalFrameMs;
+                double t = GetDisplayedTotalMs(history[i]);
                 cpuSum += t;
                 if (t > 0 && t < cpuMin) cpuMin = t;
                 if (t > cpuMax) cpuMax = t;
@@ -105,7 +108,8 @@ public class PerformancePanel
             if (cpuMin == double.MaxValue) cpuMin = 0;
             double cpuAvg = cpuSum / count;
 
-            ImGui.Text($"CPU: {cpuAvg:F1} ms   Min: {cpuMin:F1} ms   Max: {cpuMax:F1} ms");
+            var cpuLabel = _ignoreEditor ? "CPU (est, no editor)" : "CPU";
+            ImGui.Text($"{cpuLabel}: {cpuAvg:F1} ms   Min: {cpuMin:F1} ms   Max: {cpuMax:F1} ms");
         }
 
         int entityCount = _app.CurrentScene?.Entities.Count ?? 0;
@@ -113,7 +117,7 @@ public class PerformancePanel
         ImGui.Separator();
     }
 
-    private static void DrawStackedBarChart()
+    private void DrawStackedBarChart()
     {
         var history = FrameProfiler.GetHistory();
         if (history.Length == 0)
@@ -129,8 +133,9 @@ public class PerformancePanel
         double maxFrameMs = 16.67; // minimum scale: 60fps line visible
         for (int i = 0; i < history.Length; i++)
         {
-            if (history[i].TotalFrameMs > maxFrameMs)
-                maxFrameMs = history[i].TotalFrameMs;
+            double frameMs = GetDisplayedTotalMs(history[i]);
+            if (frameMs > maxFrameMs)
+                maxFrameMs = frameMs;
         }
         maxFrameMs *= 1.15; // 15% headroom
 
@@ -158,7 +163,11 @@ public class PerformancePanel
             float yOffset = 0f;
             for (int c = 0; c < (int)ProfileCategory.Count; c++)
             {
-                double ms = snap.GetCategoryMs((ProfileCategory)c);
+                var category = (ProfileCategory)c;
+                if (!ShouldShowCategory(category))
+                    continue;
+
+                double ms = GetDisplayedCategoryMs(snap, category);
                 if (ms <= 0) continue;
 
                 float segmentHeight = (float)(ms / maxFrameMs * chartHeight);
@@ -174,7 +183,7 @@ public class PerformancePanel
             }
 
             // "Other" segment
-            double otherMs = snap.OtherMs;
+            double otherMs = GetDisplayedOtherMs(snap);
             if (otherMs > 0)
             {
                 float segmentHeight = (float)(otherMs / maxFrameMs * chartHeight);
@@ -199,24 +208,30 @@ public class PerformancePanel
             hoveredFrame = Math.Clamp(hoveredFrame, 0, history.Length - 1);
 
             var snap = history[hoveredFrame];
+            double displayedTotalMs = GetDisplayedTotalMs(snap);
             ImGui.BeginTooltip();
-            ImGui.Text($"Frame {hoveredFrame}  Total: {snap.TotalFrameMs:F2} ms");
+            ImGui.Text($"Frame {hoveredFrame}  Total: {displayedTotalMs:F2} ms");
             ImGui.Separator();
             for (int c = 0; c < (int)ProfileCategory.Count; c++)
             {
-                double ms = snap.GetCategoryMs((ProfileCategory)c);
+                var category = (ProfileCategory)c;
+                if (!ShouldShowCategory(category))
+                    continue;
+
+                double ms = GetDisplayedCategoryMs(snap, category);
                 if (ms > 0.001)
                 {
-                    double pct = snap.TotalFrameMs > 0 ? ms / snap.TotalFrameMs * 100.0 : 0;
+                    double pct = displayedTotalMs > 0 ? ms / displayedTotalMs * 100.0 : 0;
                     ImGui.TextColored(ImGui.ColorConvertU32ToFloat4(CategoryInfo[c].Color),
                         $"  {CategoryInfo[c].Name}: {ms:F2} ms ({pct:F1}%%)");
                 }
             }
-            if (snap.OtherMs > 0.001)
+            double otherMs = GetDisplayedOtherMs(snap);
+            if (otherMs > 0.001)
             {
-                double pct = snap.TotalFrameMs > 0 ? snap.OtherMs / snap.TotalFrameMs * 100.0 : 0;
+                double pct = displayedTotalMs > 0 ? otherMs / displayedTotalMs * 100.0 : 0;
                 ImGui.TextColored(ImGui.ColorConvertU32ToFloat4(ColorOther),
-                    $"  Other: {snap.OtherMs:F2} ms ({pct:F1}%%)");
+                    $"  Other: {otherMs:F2} ms ({pct:F1}%%)");
             }
             ImGui.EndTooltip();
 
@@ -242,7 +257,7 @@ public class PerformancePanel
         drawList.AddText(new Vector2(origin.X + 4, y - 14), textColor, label);
     }
 
-    private static void DrawBreakdownTable()
+    private void DrawBreakdownTable()
     {
         var history = FrameProfiler.GetHistory();
         if (history.Length == 0) return;
@@ -256,10 +271,16 @@ public class PerformancePanel
         for (int i = start; i < history.Length; i++)
         {
             var snap = history[i];
-            avgTotalMs += snap.TotalFrameMs;
-            avgOtherMs += snap.OtherMs;
+            avgTotalMs += GetDisplayedTotalMs(snap);
+            avgOtherMs += GetDisplayedOtherMs(snap);
             for (int c = 0; c < (int)ProfileCategory.Count; c++)
-                avgCategoryMs[c] += snap.GetCategoryMs((ProfileCategory)c);
+            {
+                var category = (ProfileCategory)c;
+                if (!ShouldShowCategory(category))
+                    continue;
+
+                avgCategoryMs[c] += GetDisplayedCategoryMs(snap, category);
+            }
         }
         avgTotalMs /= count;
         avgOtherMs /= count;
@@ -278,6 +299,10 @@ public class PerformancePanel
 
             for (int c = 0; c < (int)ProfileCategory.Count; c++)
             {
+                var category = (ProfileCategory)c;
+                if (!ShouldShowCategory(category))
+                    continue;
+
                 double ms = avgCategoryMs[c];
                 if (ms < 0.001) continue;
                 double pct = ms / avgTotalMs * 100.0;
@@ -437,28 +462,62 @@ public class PerformancePanel
         }
     }
 
-    private static void DrawLegend()
+    private void DrawLegend()
     {
         ImGui.Separator();
         var drawList = ImGui.GetWindowDrawList();
         float sz = ImGui.GetTextLineHeight() - 2;
 
+        bool drewAnyCategory = false;
         for (int c = 0; c < CategoryInfo.Length; c++)
         {
-            if (c > 0) ImGui.SameLine(0, 12);
+            var category = (ProfileCategory)c;
+            if (!ShouldShowCategory(category))
+                continue;
+
+            if (drewAnyCategory)
+                ImGui.SameLine(0, 12);
             var pos = ImGui.GetCursorScreenPos();
             drawList.AddRectFilled(pos + new Vector2(0, 1), pos + new Vector2(sz, sz + 1), CategoryInfo[c].Color, 2f);
             ImGui.Dummy(new Vector2(sz + 2, sz));
             ImGui.SameLine(0, 2);
             ImGui.Text(CategoryInfo[c].Name);
+            drewAnyCategory = true;
         }
 
         // "Other" entry
-        ImGui.SameLine(0, 12);
+        if (drewAnyCategory)
+            ImGui.SameLine(0, 12);
         var otherPos = ImGui.GetCursorScreenPos();
         drawList.AddRectFilled(otherPos + new Vector2(0, 1), otherPos + new Vector2(sz, sz + 1), ColorOther, 2f);
         ImGui.Dummy(new Vector2(sz + 2, sz));
         ImGui.SameLine(0, 2);
         ImGui.Text("Other");
+    }
+
+    private double GetDisplayedTotalMs(in FrameSnapshot snap)
+    {
+        if (!_ignoreEditor)
+            return snap.TotalFrameMs;
+
+        return Math.Max(0, snap.TotalFrameMs - snap.GetCategoryMs(ProfileCategory.Editor));
+    }
+
+    private double GetDisplayedCategoryMs(in FrameSnapshot snap, ProfileCategory category)
+    {
+        if (_ignoreEditor && category == ProfileCategory.Editor)
+            return 0;
+
+        return snap.GetCategoryMs(category);
+    }
+
+    private double GetDisplayedOtherMs(in FrameSnapshot snap)
+    {
+        return snap.OtherMs;
+    }
+
+    private bool ShouldShowCategory(ProfileCategory category)
+    {
+        return !_ignoreEditor || category != ProfileCategory.Editor;
     }
 }

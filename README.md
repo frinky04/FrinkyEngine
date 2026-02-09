@@ -123,7 +123,7 @@ The template `.csproj` includes a placeholder comment for `FrinkyEngine.Core`. A
 | **Inspector** | Component editing with custom drawers and reflection fallback |
 | **Assets** | File browser with drag-and-drop for models, prefabs, and scenes |
 | **Console** | Log stream viewer |
-| **Performance** | Frame time and rendering statistics |
+| **Performance** | Frame time and rendering statistics, including an `Ignore Editor` toggle for runtime-estimate CPU views |
 
 ### Play and Simulate Modes
 
@@ -531,6 +531,8 @@ Validates the version tag, builds the solution with warnings-as-errors, publishe
   }
 }
 ```
+
+`runtime.targetFps` accepts `0` for uncapped framerate; otherwise valid range is `30` to `500`.
 
 ### `.frinky/editor_settings.json` and `.frinky/keybinds.json`
 
