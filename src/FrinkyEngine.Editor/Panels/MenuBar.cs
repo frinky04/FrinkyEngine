@@ -1094,8 +1094,9 @@ public class MenuBar
     {
         // ImGui named keys range from Tab (512) to NamedKey_END.
         // Keys outside this range are legacy indices and cause assertions.
-        for (var key = ImGuiKey.Tab; key < ImGuiKey.NamedKeyEnd; key++)
+        for (var i = (int)ImGuiKey.Tab; i < (int)ImGuiKey.NamedKeyEnd; i++)
         {
+            var key = (ImGuiKey)i;
             // Skip modifier keys
             if (key is ImGuiKey.LeftCtrl or ImGuiKey.RightCtrl
                 or ImGuiKey.LeftShift or ImGuiKey.RightShift
