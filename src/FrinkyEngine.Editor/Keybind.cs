@@ -40,7 +40,7 @@ public enum EditorAction
     FrameSelected
 }
 
-public struct Keybind
+public struct Keybind : IEquatable<Keybind>
 {
     public ImGuiKey Key { get; set; }
     public bool Ctrl { get; set; }
@@ -54,6 +54,16 @@ public struct Keybind
         Shift = shift;
         Alt = alt;
     }
+
+    public readonly bool Equals(Keybind other) =>
+        Key == other.Key && Ctrl == other.Ctrl && Shift == other.Shift && Alt == other.Alt;
+
+    public override readonly bool Equals(object? obj) => obj is Keybind other && Equals(other);
+
+    public override readonly int GetHashCode() => HashCode.Combine(Key, Ctrl, Shift, Alt);
+
+    public static bool operator ==(Keybind left, Keybind right) => left.Equals(right);
+    public static bool operator !=(Keybind left, Keybind right) => !left.Equals(right);
 
     public readonly bool IsPressed()
     {
