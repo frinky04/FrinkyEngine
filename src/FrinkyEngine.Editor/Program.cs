@@ -4,6 +4,7 @@ using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
+using Hexa.NET.ImGuizmo;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -29,6 +30,7 @@ public static class Program
         Raylib.SetExitKey(0);
 
         RlImGui.Setup(true, true);
+        ImGuizmo.SetImGuiContext(ImGui.GetCurrentContext());
         UI.Initialize();
 
         // Load JetBrains Mono font
@@ -83,6 +85,7 @@ public static class Program
             using (FrameProfiler.Scope(ProfileCategory.Editor))
             {
                 RlImGui.Begin(dt);
+                ImGuizmo.BeginFrame();
                 DrawDockspace(app);
                 app.DrawUI();
                 MessageBoxes.Draw();
