@@ -1,9 +1,9 @@
 {
-  "name": "Domino (5)",
+  "name": "Domino (6)",
   "sourcePrefab": "",
   "root": {
     "stableId": "1616efa979984dd983446dbcfd57810f",
-    "name": "Domino (5)",
+    "name": "Domino (6)",
     "active": true,
     "components": [
       {
@@ -26,7 +26,7 @@
           "TriplanarBlendSharpness": 4,
           "TriplanarUseWorldSpace": false,
           "Tint": {
-            "r": 255,
+            "r": 254,
             "g": 173,
             "b": 173,
             "a": 255
@@ -62,7 +62,7 @@
             "y": 0.2,
             "z": 1
           },
-          "Friction": 2,
+          "Friction": 1,
           "Restitution": 0,
           "Center": {
             "x": 0,

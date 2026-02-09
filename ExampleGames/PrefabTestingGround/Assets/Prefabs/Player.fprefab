@@ -85,7 +85,7 @@
           "ApplyPitchToCharacterBody": false,
           "InvertMouseY": false,
           "InvertMouseX": false,
-          "MouseSensitivity": 0.1,
+          "MouseSensitivity": 0.05,
           "MinPitchDegrees": -85,
           "MaxPitchDegrees": 85,
           "UseCharacterController": true,
@@ -101,6 +101,12 @@
           "AttachedCameraBackDistance": 0,
           "CameraEntity": "7e2ac956-31cc-425f-88fc-6345525f8089"
         }
+      },
+      {
+        "type": "PrefabTestingGround.Scripts.MoveSpeedHud",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {}
       }
     ],
     "children": [
@@ -173,25 +179,15 @@
                   "enabled": true,
                   "properties": {
                     "FogColor": {
-                      "r": 122,
-                      "g": 122,
-                      "b": 122,
+                      "r": 48,
+                      "g": 48,
+                      "b": 48,
                       "a": 255
                     },
                     "FogStart": 100,
                     "FogEnd": 500,
                     "Density": 0.02,
                     "Mode": "Linear"
-                  }
-                },
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
-                  "enabled": true,
-                  "properties": {
-                    "Threshold": 1.55,
-                    "SoftKnee": 0.5,
-                    "Intensity": 0.15,
-                    "Iterations": 6
                   }
                 }
               ]

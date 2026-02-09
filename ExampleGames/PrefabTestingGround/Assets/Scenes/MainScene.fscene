@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -18.06647,
-    "y": 7.918848,
-    "z": -5.89697
+    "x": -33.992138,
+    "y": 21.638409,
+    "z": -13.604995
   },
-  "editorCameraYaw": -1420.7965,
-  "editorCameraPitch": -15.1997,
+  "editorCameraYaw": -1411.046,
+  "editorCameraPitch": -24.649685,
   "physics": {
     "gravity": {
       "x": 0,
@@ -2445,309 +2445,6 @@
       "children": []
     },
     {
-      "name": "Player",
-      "id": "4c83cb43-4a8c-4e39-b8e1-3465e98a40ae",
-      "active": true,
-      "prefab": {
-        "isRoot": true,
-        "assetPath": "Prefabs/Player.fprefab",
-        "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
-        "overrides": {
-          "propertyOverrides": [
-            {
-              "nodeId": "e60ad0cd235647038e35138a360c057e",
-              "componentType": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
-              "propertyName": "MouseSensitivity",
-              "value": 0.05
-            },
-            {
-              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
-              "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
-              "propertyName": "Effects",
-              "value": [
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
-                  "enabled": true,
-                  "properties": {
-                    "Radius": 40,
-                    "Intensity": 0.6,
-                    "Bias": 1,
-                    "SampleCount": 64,
-                    "BlurSize": 16
-                  }
-                },
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                  "enabled": true,
-                  "properties": {
-                    "FogColor": {
-                      "r": 48,
-                      "g": 48,
-                      "b": 48,
-                      "a": 255
-                    },
-                    "FogStart": 100,
-                    "FogEnd": 500,
-                    "Density": 0.02,
-                    "Mode": "Linear"
-                  }
-                },
-                {
-                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
-                  "enabled": true,
-                  "properties": {
-                    "Threshold": 1.55,
-                    "SoftKnee": 0.5,
-                    "Intensity": 0.15,
-                    "Iterations": 6
-                  }
-                }
-              ]
-            }
-          ],
-          "addedComponents": [
-            {
-              "nodeId": "e60ad0cd235647038e35138a360c057e",
-              "component": {
-                "type": "PrefabTestingGround.Scripts.MoveSpeedHud",
-                "enabled": true,
-                "editorOnly": false,
-                "properties": {}
-              }
-            }
-          ],
-          "removedComponents": [],
-          "addedChildren": [],
-          "removedChildren": []
-        }
-      },
-      "components": [
-        {
-          "$type": "FrinkyEngine.Core.Components.TransformComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "LocalPosition": {
-              "x": -1.5421085,
-              "y": 3.2049685,
-              "z": 1.0852804
-            },
-            "LocalRotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0,
-              "w": 1
-            },
-            "LocalScale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "Radius": 0.4,
-            "Length": 1.8,
-            "Friction": 0.8,
-            "Restitution": 0,
-            "Center": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.CharacterControllerComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MoveSpeed": 4,
-            "JumpVelocity": 6,
-            "MaxSlopeDegrees": 45,
-            "MaximumHorizontalForce": 20,
-            "MaximumVerticalForce": 100,
-            "AirControlForceScale": 0.8,
-            "AirControlSpeedScale": 0.5,
-            "UseEntityForwardAsViewDirection": true,
-            "ViewDirectionOverride": {
-              "x": -0,
-              "y": -0,
-              "z": -1
-            }
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MotionType": "Dynamic",
-            "Mass": 1,
-            "LinearDamping": 0.03,
-            "AngularDamping": 0.03,
-            "ContinuousDetection": true,
-            "LockPositionX": false,
-            "LockPositionY": false,
-            "LockPositionZ": false,
-            "LockRotationX": false,
-            "LockRotationY": false,
-            "LockRotationZ": false,
-            "InterpolationMode": "Inherit"
-          }
-        },
-        {
-          "$type": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {
-            "MoveForwardKey": "W",
-            "MoveBackwardKey": "S",
-            "MoveLeftKey": "A",
-            "MoveRightKey": "D",
-            "JumpKey": "Space",
-            "EnableMouseLook": true,
-            "RequireLookMouseButton": false,
-            "LookMouseButton": "Right",
-            "RotatePitch": true,
-            "UseViewDirectionOverrideForCharacterLook": true,
-            "ApplyPitchToCharacterBody": false,
-            "InvertMouseY": false,
-            "InvertMouseX": false,
-            "MouseSensitivity": 0.05,
-            "MinPitchDegrees": -85,
-            "MaxPitchDegrees": 85,
-            "UseCharacterController": true,
-            "AllowJump": true,
-            "FallbackMoveSpeed": 4,
-            "FallbackJumpImpulse": 3,
-            "DriveAttachedCamera": true,
-            "AttachedCameraLocalOffset": {
-              "x": 0,
-              "y": 0.9,
-              "z": 0
-            },
-            "AttachedCameraBackDistance": 0,
-            "CameraEntity": "05db33ae-c5d8-4ee4-a2fd-c4b7b27984d1"
-          }
-        },
-        {
-          "$type": "PrefabTestingGround.Scripts.MoveSpeedHud",
-          "enabled": true,
-          "editorOnly": false,
-          "properties": {}
-        }
-      ],
-      "children": [
-        {
-          "name": "Camera A",
-          "id": "05db33ae-c5d8-4ee4-a2fd-c4b7b27984d1",
-          "active": true,
-          "prefab": {
-            "isRoot": false,
-            "assetPath": "Prefabs/Player.fprefab",
-            "sourceNodeId": "7e2ac95631cc425f88fc6345525f8089",
-            "overrides": null
-          },
-          "components": [
-            {
-              "$type": "FrinkyEngine.Core.Components.TransformComponent",
-              "enabled": true,
-              "editorOnly": false,
-              "properties": {
-                "LocalPosition": {
-                  "x": 0,
-                  "y": 0.8236935,
-                  "z": 0
-                },
-                "LocalRotation": {
-                  "x": 0,
-                  "y": 0,
-                  "z": 0,
-                  "w": 1
-                },
-                "LocalScale": {
-                  "x": 1,
-                  "y": 1,
-                  "z": 1
-                }
-              }
-            },
-            {
-              "$type": "FrinkyEngine.Core.Components.CameraComponent",
-              "enabled": true,
-              "editorOnly": false,
-              "properties": {
-                "FieldOfView": 90,
-                "NearPlane": 0.1,
-                "FarPlane": 1000,
-                "Projection": "Perspective",
-                "ClearColor": {
-                  "r": 30,
-                  "g": 30,
-                  "b": 30,
-                  "a": 255
-                },
-                "IsMain": true
-              }
-            },
-            {
-              "$type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
-              "enabled": true,
-              "editorOnly": false,
-              "properties": {
-                "PostProcessingEnabled": true,
-                "Effects": [
-                  {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
-                    "enabled": true,
-                    "properties": {
-                      "Radius": 40,
-                      "Intensity": 0.6,
-                      "Bias": 1,
-                      "SampleCount": 64,
-                      "BlurSize": 16
-                    }
-                  },
-                  {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                    "enabled": true,
-                    "properties": {
-                      "FogColor": {
-                        "r": 48,
-                        "g": 48,
-                        "b": 48,
-                        "a": 255
-                      },
-                      "FogStart": 100,
-                      "FogEnd": 500,
-                      "Density": 0.02,
-                      "Mode": "Linear"
-                    }
-                  },
-                  {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
-                    "enabled": true,
-                    "properties": {
-                      "Threshold": 1.55,
-                      "SoftKnee": 0.5,
-                      "Intensity": 0.15,
-                      "Iterations": 6
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "children": []
-        }
-      ]
-    },
-    {
       "name": "Cube (1)",
       "id": "d09f8f24-7281-4f41-93fa-1909155ccff8",
       "active": true,
@@ -3759,6 +3456,238 @@
         }
       ],
       "children": []
+    },
+    {
+      "name": "Player",
+      "id": "4c83cb43-4a8c-4e39-b8e1-3465e98a40ae",
+      "active": true,
+      "prefab": {
+        "isRoot": true,
+        "assetPath": "Prefabs/Player.fprefab",
+        "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
+        "overrides": {
+          "propertyOverrides": [],
+          "addedComponents": [],
+          "removedComponents": [],
+          "addedChildren": [],
+          "removedChildren": []
+        }
+      },
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -1.5421085,
+              "y": 3.2049685,
+              "z": 1.0852804
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Radius": 0.4,
+            "Length": 1.8,
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CharacterControllerComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MoveSpeed": 4,
+            "JumpVelocity": 6,
+            "MaxSlopeDegrees": 45,
+            "MaximumHorizontalForce": 20,
+            "MaximumVerticalForce": 100,
+            "AirControlForceScale": 0.8,
+            "AirControlSpeedScale": 0.5,
+            "UseEntityForwardAsViewDirection": true,
+            "ViewDirectionOverride": {
+              "x": -0,
+              "y": -0,
+              "z": -1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MoveForwardKey": "W",
+            "MoveBackwardKey": "S",
+            "MoveLeftKey": "A",
+            "MoveRightKey": "D",
+            "JumpKey": "Space",
+            "EnableMouseLook": true,
+            "RequireLookMouseButton": false,
+            "LookMouseButton": "Right",
+            "RotatePitch": true,
+            "UseViewDirectionOverrideForCharacterLook": true,
+            "ApplyPitchToCharacterBody": false,
+            "InvertMouseY": false,
+            "InvertMouseX": false,
+            "MouseSensitivity": 0.05,
+            "MinPitchDegrees": -85,
+            "MaxPitchDegrees": 85,
+            "UseCharacterController": true,
+            "AllowJump": true,
+            "FallbackMoveSpeed": 4,
+            "FallbackJumpImpulse": 3,
+            "DriveAttachedCamera": true,
+            "AttachedCameraLocalOffset": {
+              "x": 0,
+              "y": 0.9,
+              "z": 0
+            },
+            "AttachedCameraBackDistance": 0,
+            "CameraEntity": "393ca4a5-4fc2-489a-92bc-1b5a41abf441"
+          }
+        },
+        {
+          "$type": "PrefabTestingGround.Scripts.MoveSpeedHud",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {}
+        }
+      ],
+      "children": [
+        {
+          "name": "Camera A",
+          "id": "393ca4a5-4fc2-489a-92bc-1b5a41abf441",
+          "active": true,
+          "prefab": {
+            "isRoot": false,
+            "assetPath": "Prefabs/Player.fprefab",
+            "sourceNodeId": "7e2ac95631cc425f88fc6345525f8089",
+            "overrides": null
+          },
+          "components": [
+            {
+              "$type": "FrinkyEngine.Core.Components.TransformComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "LocalPosition": {
+                  "x": 0,
+                  "y": 0.8236935,
+                  "z": 0
+                },
+                "LocalRotation": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "w": 1
+                },
+                "LocalScale": {
+                  "x": 1,
+                  "y": 1,
+                  "z": 1
+                }
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.CameraComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "FieldOfView": 90,
+                "NearPlane": 0.1,
+                "FarPlane": 1000,
+                "Projection": "Perspective",
+                "ClearColor": {
+                  "r": 30,
+                  "g": 30,
+                  "b": 30,
+                  "a": 255
+                },
+                "IsMain": true
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "PostProcessingEnabled": true,
+                "Effects": [
+                  {
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
+                    "enabled": true,
+                    "properties": {
+                      "Radius": 40,
+                      "Intensity": 0.6,
+                      "Bias": 1,
+                      "SampleCount": 64,
+                      "BlurSize": 16
+                    }
+                  },
+                  {
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
+                    "enabled": true,
+                    "properties": {
+                      "FogColor": {
+                        "r": 48,
+                        "g": 48,
+                        "b": 48,
+                        "a": 255
+                      },
+                      "FogStart": 100,
+                      "FogEnd": 500,
+                      "Density": 0.02,
+                      "Mode": "Linear"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
     }
   ]
 }

@@ -27,7 +27,16 @@
     "physicsMaximumRecoveryVelocity": 2,
     "physicsDefaultFriction": 0.8,
     "physicsDefaultRestitution": 0,
-    "physicsInterpolationEnabled": true
+    "physicsInterpolationEnabled": true,
+    "audioMasterVolume": 1,
+    "audioMusicVolume": 1,
+    "audioSfxVolume": 1,
+    "audioUiVolume": 1,
+    "audioVoiceVolume": 1,
+    "audioAmbientVolume": 1,
+    "audioMaxVoices": 128,
+    "audioDopplerScale": 1,
+    "audioEnableVoiceStealing": true
   },
   "build": {
     "outputName": "PhysicsStressTest",

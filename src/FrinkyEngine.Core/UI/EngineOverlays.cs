@@ -10,7 +10,7 @@ namespace FrinkyEngine.Core.UI;
 public static class EngineOverlays
 {
     private const int ConsoleHistoryMax = 128;
-    private const float FpsRefreshInterval = 0.25f;
+    private const float FpsRefreshInterval = 0.1f;
 
     private static bool _fpsVisible;
     private static int _displayedFps;
