@@ -144,7 +144,7 @@ public class TransformComponent : Component
         get
         {
             var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
+                ? _parent.WorldRotation * _localRotation
                 : _localRotation;
             return Vector3.Transform(-Vector3.UnitZ, rot);
         }
@@ -158,7 +158,7 @@ public class TransformComponent : Component
         get
         {
             var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
+                ? _parent.WorldRotation * _localRotation
                 : _localRotation;
             return Vector3.Transform(Vector3.UnitX, rot);
         }
@@ -172,7 +172,7 @@ public class TransformComponent : Component
         get
         {
             var rot = _parent != null
-                ? _localRotation * _parent.WorldRotation
+                ? _parent.WorldRotation * _localRotation
                 : _localRotation;
             return Vector3.Transform(Vector3.UnitY, rot);
         }
@@ -186,7 +186,7 @@ public class TransformComponent : Component
         get
         {
             if (_parent != null)
-                return _localRotation * _parent.WorldRotation;
+                return _parent.WorldRotation * _localRotation;
             return _localRotation;
         }
         set
@@ -194,7 +194,7 @@ public class TransformComponent : Component
             if (_parent != null)
             {
                 var parentInverse = Quaternion.Inverse(_parent.WorldRotation);
-                _localRotation = Quaternion.Normalize(value * parentInverse);
+                _localRotation = Quaternion.Normalize(parentInverse * value);
             }
             else
             {
