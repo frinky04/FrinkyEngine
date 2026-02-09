@@ -460,6 +460,14 @@ The built-in runtime overlays are available in both standalone runtime and edito
   - `Most Verbose Stats`
 - `` ` `` (Grave) toggles the developer console overlay
 
+Console backend and cvar support:
+- `help` lists registered commands and cvars.
+- `r_postprocess` prints the current post-processing state (`0` or `1`).
+- `r_postprocess 0` disables post-processing for standalone runtime and editor Play/Simulate mode.
+- `r_postprocess 1` enables post-processing for standalone runtime and editor Play/Simulate mode.
+- `Tab` cycles autofill matches for the first command/cvar token.
+- `Up/Down` navigates entered command history; `Down` from newest restores your draft input.
+
 ## Export and Packaging
 
 ### Editor Export (`File -> Export Game...`)

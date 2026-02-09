@@ -31,6 +31,8 @@ public class ViewportPanel
     private bool _wasGizmoDragging;
     private System.Numerics.Vector3? _dragPreviewPosition;
     private readonly PostProcessPipeline _postProcessPipeline = new();
+    private bool _consoleKeyboardOverrideLogged;
+    private bool _consoleFocusOverrideLogged;
 
     public ViewportPanel(EditorApplication app)
     {
@@ -115,7 +117,11 @@ public class ViewportPanel
                     // Post-processing
                     var mainCamEntity = _app.CurrentScene.MainCamera?.Entity;
                     var ppStack = mainCamEntity?.GetComponent<PostProcessStackComponent>();
-                    if (ppStack != null && ppStack.PostProcessingEnabled && ppStack.Effects.Count > 0)
+                    bool runtimePostProcessEnabled = !_app.IsInRuntimeMode || RenderRuntimeCvars.PostProcessingEnabled;
+                    if (ppStack != null
+                        && runtimePostProcessEnabled
+                        && ppStack.PostProcessingEnabled
+                        && ppStack.Effects.Count > 0)
                     {
                         _postProcessPipeline.Initialize("Shaders");
                         var postProcessedTex = _postProcessPipeline.Execute(
@@ -262,17 +268,43 @@ public class ViewportPanel
         var mousePos = ImGui.GetMousePos();
         var localMouse = mousePos - imageScreenPos;
         bool hovered = ImGui.IsWindowHovered();
+        bool focused = ImGui.IsWindowFocused();
+        bool consoleVisible = EngineOverlays.IsConsoleVisible;
+        bool allowKeyboardInput = hovered || consoleVisible;
+        bool allowFocusedInput = focused || consoleVisible;
+
+        if (consoleVisible && !hovered && !_consoleKeyboardOverrideLogged)
+        {
+            FrinkyLog.Info("Viewport UI: keyboard input forced on because developer console is visible.");
+            _consoleKeyboardOverrideLogged = true;
+        }
+        else if ((!consoleVisible || hovered) && _consoleKeyboardOverrideLogged)
+        {
+            FrinkyLog.Info("Viewport UI: keyboard input returned to hover-gated mode.");
+            _consoleKeyboardOverrideLogged = false;
+        }
+
+        if (consoleVisible && !focused && !_consoleFocusOverrideLogged)
+        {
+            FrinkyLog.Info("Viewport UI: focus gating bypassed because developer console is visible.");
+            _consoleFocusOverrideLogged = true;
+        }
+        else if ((!consoleVisible || focused) && _consoleFocusOverrideLogged)
+        {
+            FrinkyLog.Info("Viewport UI: focus gating returned to window-focus mode.");
+            _consoleFocusOverrideLogged = false;
+        }
 
         var frameDesc = new UiFrameDesc(
             width,
             height,
-            IsFocused: ImGui.IsWindowFocused(),
+            IsFocused: allowFocusedInput,
             IsHovered: hovered,
             UseMousePositionOverride: true,
             MousePosition: localMouse,
             AllowCursorChanges: false,
             AllowSetMousePos: false,
-            AllowKeyboardInput: hovered);
+            AllowKeyboardInput: allowKeyboardInput);
 
         using (FrameProfiler.Scope(ProfileCategory.UI))
         {

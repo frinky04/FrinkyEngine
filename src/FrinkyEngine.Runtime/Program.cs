@@ -226,7 +226,10 @@ public static class Program
 
             var camera3D = mainCamera.BuildCamera3D();
             var ppStack = mainCamera.Entity.GetComponent<PostProcessStackComponent>();
-            bool hasPostProcess = ppStack != null && ppStack.PostProcessingEnabled && ppStack.Effects.Count > 0;
+            bool hasPostProcess = ppStack != null
+                                  && RenderRuntimeCvars.PostProcessingEnabled
+                                  && ppStack.PostProcessingEnabled
+                                  && ppStack.Effects.Count > 0;
 
             if (hasPostProcess)
             {

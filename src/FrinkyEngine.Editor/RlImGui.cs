@@ -1,5 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Raylib_cs;
 using NativeMemory = System.Runtime.InteropServices.NativeMemory;
@@ -24,6 +26,7 @@ public static unsafe class RlImGui
     private static bool _lastShiftPressed;
     private static bool _lastAltPressed;
     private static bool _lastSuperPressed;
+    private static bool _deferringKeyboardToGameUi;
 
     public static void Setup(bool darkTheme, bool enableDocking)
     {
@@ -97,6 +100,16 @@ public static unsafe class RlImGui
         bool shift = Raylib.IsKeyDown(KeyboardKey.LeftShift) || Raylib.IsKeyDown(KeyboardKey.RightShift);
         bool alt = Raylib.IsKeyDown(KeyboardKey.LeftAlt) || Raylib.IsKeyDown(KeyboardKey.RightAlt);
         bool super = Raylib.IsKeyDown(KeyboardKey.LeftSuper) || Raylib.IsKeyDown(KeyboardKey.RightSuper);
+        bool deferKeyboardToGameUi = EngineOverlays.IsConsoleVisible;
+
+        if (deferKeyboardToGameUi != _deferringKeyboardToGameUi)
+        {
+            _deferringKeyboardToGameUi = deferKeyboardToGameUi;
+            FrinkyLog.Info(
+                deferKeyboardToGameUi
+                    ? "RlImGui: deferring key/char queue to in-game UI console."
+                    : "RlImGui: resumed key/char queue consumption.");
+        }
 
         if (ctrl != _lastControlPressed) io.AddKeyEvent(ImGuiKey.ModCtrl, ctrl);
         if (shift != _lastShiftPressed) io.AddKeyEvent(ImGuiKey.ModShift, shift);
@@ -109,12 +122,15 @@ public static unsafe class RlImGui
         _lastSuperPressed = super;
 
         // Key press events
-        int keyPressed = (int)Raylib.GetKeyPressed();
-        while (keyPressed != 0)
+        if (!deferKeyboardToGameUi)
         {
-            if (RaylibKeyMap.TryGetValue((KeyboardKey)keyPressed, out var imKey))
-                io.AddKeyEvent(imKey, true);
-            keyPressed = (int)Raylib.GetKeyPressed();
+            int keyPressed = (int)Raylib.GetKeyPressed();
+            while (keyPressed != 0)
+            {
+                if (RaylibKeyMap.TryGetValue((KeyboardKey)keyPressed, out var imKey))
+                    io.AddKeyEvent(imKey, true);
+                keyPressed = (int)Raylib.GetKeyPressed();
+            }
         }
 
         // Key release events
@@ -125,11 +141,14 @@ public static unsafe class RlImGui
         }
 
         // Text input
-        int charPressed = Raylib.GetCharPressed();
-        while (charPressed != 0)
+        if (!deferKeyboardToGameUi)
         {
-            io.AddInputCharacter((uint)charPressed);
-            charPressed = Raylib.GetCharPressed();
+            int charPressed = Raylib.GetCharPressed();
+            while (charPressed != 0)
+            {
+                io.AddInputCharacter((uint)charPressed);
+                charPressed = Raylib.GetCharPressed();
+            }
         }
 
         // Gamepad

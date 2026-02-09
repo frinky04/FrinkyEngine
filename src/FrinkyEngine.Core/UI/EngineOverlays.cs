@@ -1,8 +1,11 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Physics;
+using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Scene;
+using FrinkyEngine.Core.UI.ConsoleSystem;
 using Hexa.NET.ImGui;
 using Raylib_cs;
 
@@ -11,7 +14,7 @@ namespace FrinkyEngine.Core.UI;
 /// <summary>
 /// Built-in engine overlays (stats overlay, developer console) that render through the Game UI pipeline.
 /// </summary>
-public static class EngineOverlays
+public static unsafe class EngineOverlays
 {
     private enum StatsOverlayMode : byte
     {
@@ -22,6 +25,7 @@ public static class EngineOverlays
     }
 
     private const int ConsoleHistoryMax = 128;
+    private const int ConsoleCommandHistoryMax = 128;
     private const int VerboseMaxSubTimings = 5;
     private const float FpsRefreshInterval = 0.1f;
 
@@ -41,7 +45,21 @@ public static class EngineOverlays
     private static bool _consoleVisible;
     private static string _consoleInput = string.Empty;
     private static readonly List<string> ConsoleHistory = new();
+    private static readonly List<string> _consoleCommandHistory = new();
+    private static int _consoleHistoryCursor = -1;
+    private static string _consoleHistoryDraft = string.Empty;
+    private static readonly List<string> _autocompleteMatches = new();
+    private static string _autocompleteLeading = string.Empty;
+    private static string _autocompleteSuffix = string.Empty;
+    private static int _autocompleteMatchIndex = -1;
+    private static readonly ImGuiInputTextCallback ConsoleInputCallback = HandleConsoleInputTextCallback;
     private static bool _consoleFocusInput;
+    private static bool _consoleBackendInitialized;
+
+    /// <summary>
+    /// Gets whether the developer console overlay is currently visible.
+    /// </summary>
+    public static bool IsConsoleVisible => _consoleVisible;
 
     /// <summary>
     /// Checks keybinds and queues overlay draw commands for the current frame.
@@ -50,6 +68,8 @@ public static class EngineOverlays
     /// <param name="dt">Frame delta time in seconds.</param>
     public static void Update(float dt)
     {
+        EnsureConsoleBackendInitialized();
+
         if (Raylib.IsKeyPressed(KeyboardKey.F3))
             _statsMode = (StatsOverlayMode)(((int)_statsMode + 1) % 4);
 
@@ -57,7 +77,17 @@ public static class EngineOverlays
         {
             _consoleVisible = !_consoleVisible;
             if (_consoleVisible)
+            {
+                FrinkyLog.Info("Developer console opened.");
                 _consoleFocusInput = true;
+            }
+            else
+            {
+                FrinkyLog.Info("Developer console closed.");
+                ClearInputNavigationState(restoreDraft: false);
+                _consoleInput = string.Empty;
+                _consoleFocusInput = false;
+            }
         }
 
         if (_statsMode != StatsOverlayMode.None)
@@ -85,6 +115,10 @@ public static class EngineOverlays
         _consoleVisible = false;
         _consoleInput = string.Empty;
         ConsoleHistory.Clear();
+        _consoleCommandHistory.Clear();
+        _consoleHistoryCursor = -1;
+        _consoleHistoryDraft = string.Empty;
+        ResetAutocompleteState();
         _consoleFocusInput = false;
     }
 
@@ -286,16 +320,22 @@ public static class EngineOverlays
             }
 
             if (ImGui.InputTextWithHint("##ConsoleInput", "Enter command...", ref _consoleInput, 512,
-                    ImGuiInputTextFlags.EnterReturnsTrue))
+                    ImGuiInputTextFlags.EnterReturnsTrue
+                    | ImGuiInputTextFlags.CallbackCompletion
+                    | ImGuiInputTextFlags.CallbackHistory,
+                    ConsoleInputCallback))
             {
-                var trimmed = _consoleInput.Trim();
-                if (trimmed.Length > 0)
+                SubmitConsoleInput();
+            }
+            else if (ImGui.IsItemEdited())
+            {
+                if (_consoleHistoryCursor != -1)
                 {
-                    AddHistoryLine($"> {trimmed}");
-                    AddHistoryLine("[No commands available]");
+                    _consoleHistoryCursor = -1;
+                    _consoleHistoryDraft = _consoleInput;
                 }
-                _consoleInput = string.Empty;
-                _consoleFocusInput = true;
+
+                ResetAutocompleteState();
             }
             ImGui.PopItemWidth();
         }
@@ -307,5 +347,244 @@ public static class EngineOverlays
         ConsoleHistory.Add(line);
         while (ConsoleHistory.Count > ConsoleHistoryMax)
             ConsoleHistory.RemoveAt(0);
+    }
+
+    private static void SubmitConsoleInput()
+    {
+        var trimmed = _consoleInput.Trim();
+        if (trimmed.Length > 0)
+        {
+            AddCommandHistoryEntry(trimmed);
+            AddHistoryLine($"> {trimmed}");
+
+            var result = ConsoleBackend.Execute(trimmed);
+            foreach (var line in result.Lines)
+                AddHistoryLine(line);
+        }
+
+        _consoleInput = string.Empty;
+        ClearInputNavigationState(restoreDraft: false);
+        _consoleFocusInput = true;
+    }
+
+    private static void AddCommandHistoryEntry(string command)
+    {
+        if (_consoleCommandHistory.Count > 0
+            && string.Equals(_consoleCommandHistory[^1], command, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _consoleCommandHistory.Add(command);
+        while (_consoleCommandHistory.Count > ConsoleCommandHistoryMax)
+            _consoleCommandHistory.RemoveAt(0);
+    }
+
+    private static void ResetAutocompleteState()
+    {
+        _autocompleteMatches.Clear();
+        _autocompleteLeading = string.Empty;
+        _autocompleteSuffix = string.Empty;
+        _autocompleteMatchIndex = -1;
+    }
+
+    private static void ClearInputNavigationState(bool restoreDraft)
+    {
+        if (restoreDraft && _consoleHistoryCursor != -1)
+            _consoleInput = _consoleHistoryDraft;
+
+        _consoleHistoryCursor = -1;
+        _consoleHistoryDraft = string.Empty;
+        ResetAutocompleteState();
+    }
+
+    private static unsafe int HandleConsoleInputTextCallback(ImGuiInputTextCallbackData* data)
+    {
+        if (data == null)
+            return 0;
+
+        if (data->EventFlag == ImGuiInputTextFlags.CallbackCompletion)
+        {
+            FrinkyLog.Info("Console callback: completion (Tab).");
+            ApplyAutocompleteCycle(data);
+        }
+        else if (data->EventFlag == ImGuiInputTextFlags.CallbackHistory)
+        {
+            if (data->EventKey == ImGuiKey.UpArrow)
+            {
+                FrinkyLog.Info("Console callback: history Up.");
+                NavigateHistoryUp(data);
+            }
+            else if (data->EventKey == ImGuiKey.DownArrow)
+            {
+                FrinkyLog.Info("Console callback: history Down.");
+                NavigateHistoryDown(data);
+            }
+            else
+            {
+                FrinkyLog.Info($"Console callback: history key ignored ({data->EventKey}).");
+            }
+        }
+
+        return 0;
+    }
+
+    private static unsafe void NavigateHistoryUp(ImGuiInputTextCallbackData* data)
+    {
+        if (_consoleCommandHistory.Count == 0 || data == null)
+            return;
+
+        var current = GetCallbackBuffer(data);
+
+        if (_consoleHistoryCursor == -1)
+        {
+            _consoleHistoryDraft = current;
+            _consoleHistoryCursor = _consoleCommandHistory.Count - 1;
+        }
+        else if (_consoleHistoryCursor > 0)
+        {
+            _consoleHistoryCursor--;
+        }
+
+        var next = _consoleCommandHistory[_consoleHistoryCursor];
+        SetCallbackBuffer(data, next);
+        _consoleInput = next;
+        ResetAutocompleteState();
+        FrinkyLog.Info($"Console history cursor -> {_consoleHistoryCursor}.");
+    }
+
+    private static unsafe void NavigateHistoryDown(ImGuiInputTextCallbackData* data)
+    {
+        if (_consoleHistoryCursor == -1 || data == null)
+            return;
+
+        string next;
+        if (_consoleHistoryCursor < _consoleCommandHistory.Count - 1)
+        {
+            _consoleHistoryCursor++;
+            next = _consoleCommandHistory[_consoleHistoryCursor];
+        }
+        else
+        {
+            _consoleHistoryCursor = -1;
+            next = _consoleHistoryDraft;
+        }
+
+        SetCallbackBuffer(data, next);
+        _consoleInput = next;
+        ResetAutocompleteState();
+        FrinkyLog.Info($"Console history cursor -> {_consoleHistoryCursor}.");
+    }
+
+    private static unsafe void ApplyAutocompleteCycle(ImGuiInputTextCallbackData* data)
+    {
+        if (data == null)
+            return;
+
+        var current = GetCallbackBuffer(data);
+        SplitFirstToken(current, out var leading, out var token, out var suffix);
+
+        var continuingCycle = _autocompleteMatchIndex >= 0
+                              && _autocompleteMatchIndex < _autocompleteMatches.Count
+                              && string.Equals(leading, _autocompleteLeading, StringComparison.Ordinal)
+                              && string.Equals(suffix, _autocompleteSuffix, StringComparison.Ordinal)
+                              && string.Equals(token, _autocompleteMatches[_autocompleteMatchIndex], StringComparison.OrdinalIgnoreCase);
+
+        if (!continuingCycle)
+        {
+            ResetAutocompleteState();
+
+            var matches = ConsoleBackend.GetRegisteredNames()
+                .Where(name => name.StartsWith(token, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (matches.Length == 0)
+            {
+                FrinkyLog.Info($"Console autocomplete: no matches for '{token}'.");
+                return;
+            }
+
+            _autocompleteLeading = leading;
+            _autocompleteSuffix = suffix;
+            _autocompleteMatches.AddRange(matches);
+            _autocompleteMatchIndex = -1;
+        }
+
+        _autocompleteMatchIndex = (_autocompleteMatchIndex + 1) % _autocompleteMatches.Count;
+        var next = string.Concat(_autocompleteLeading, _autocompleteMatches[_autocompleteMatchIndex], _autocompleteSuffix);
+        SetCallbackBuffer(data, next);
+        _consoleInput = next;
+        _consoleHistoryCursor = -1;
+        _consoleHistoryDraft = _consoleInput;
+        FrinkyLog.Info($"Console autocomplete -> '{_autocompleteMatches[_autocompleteMatchIndex]}'.");
+    }
+
+    private static unsafe string GetCallbackBuffer(ImGuiInputTextCallbackData* data)
+    {
+        if (data == null || data->Buf == null || data->BufTextLen <= 0)
+            return string.Empty;
+
+        return Marshal.PtrToStringUTF8((IntPtr)data->Buf, data->BufTextLen) ?? string.Empty;
+    }
+
+    private static unsafe void SetCallbackBuffer(ImGuiInputTextCallbackData* data, string text)
+    {
+        if (data == null)
+            return;
+
+        text ??= string.Empty;
+
+        int maxLen = Math.Max(0, data->BufSize - 1);
+        if (text.Length > maxLen)
+            text = text[..maxLen];
+
+        data->DeleteChars(0, data->BufTextLen);
+        if (text.Length > 0)
+            data->InsertChars(0, text);
+
+        data->BufDirty = 1;
+        data->CursorPos = text.Length;
+        data->SelectionStart = text.Length;
+        data->SelectionEnd = text.Length;
+    }
+
+    private static void SplitFirstToken(string input, out string leading, out string token, out string suffix)
+    {
+        input ??= string.Empty;
+
+        int tokenStart = 0;
+        while (tokenStart < input.Length && char.IsWhiteSpace(input[tokenStart]))
+            tokenStart++;
+
+        leading = tokenStart > 0 ? input[..tokenStart] : string.Empty;
+        if (tokenStart >= input.Length)
+        {
+            token = string.Empty;
+            suffix = string.Empty;
+            return;
+        }
+
+        int tokenEnd = tokenStart;
+        while (tokenEnd < input.Length && !char.IsWhiteSpace(input[tokenEnd]))
+            tokenEnd++;
+
+        token = input[tokenStart..tokenEnd];
+        suffix = tokenEnd < input.Length ? input[tokenEnd..] : string.Empty;
+    }
+
+    private static void EnsureConsoleBackendInitialized()
+    {
+        if (_consoleBackendInitialized)
+            return;
+
+        ConsoleBackend.EnsureBuiltinsRegistered();
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_postprocess",
+            "r_postprocess [0|1]",
+            "Enable or disable post-processing in runtime and Play/Simulate (1=on, 0=off).",
+            RenderRuntimeCvars.GetPostProcessingValue,
+            RenderRuntimeCvars.TrySetPostProcessing));
+
+        _consoleBackendInitialized = true;
     }
 }
