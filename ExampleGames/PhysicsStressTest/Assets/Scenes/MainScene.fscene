@@ -212,7 +212,48 @@
         "assetPath": "Prefabs/Player.fprefab",
         "sourceNodeId": "e60ad0cd235647038e35138a360c057e",
         "overrides": {
-          "propertyOverrides": [],
+          "propertyOverrides": [
+            {
+              "nodeId": "e60ad0cd235647038e35138a360c057e",
+              "componentType": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
+              "propertyName": "MouseSensitivity",
+              "value": 0.05
+            },
+            {
+              "nodeId": "7e2ac95631cc425f88fc6345525f8089",
+              "componentType": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+              "propertyName": "Effects",
+              "value": [
+                {
+                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
+                  "enabled": true,
+                  "properties": {
+                    "FogColor": {
+                      "r": 122,
+                      "g": 122,
+                      "b": 122,
+                      "a": 255
+                    },
+                    "FogStart": 100,
+                    "FogEnd": 500,
+                    "Density": 0.02,
+                    "Mode": "Linear"
+                  }
+                },
+                {
+                  "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
+                  "enabled": true,
+                  "properties": {
+                    "Radius": 20,
+                    "Intensity": 0.6,
+                    "Bias": 1,
+                    "SampleCount": 32,
+                    "BlurSize": 8
+                  }
+                }
+              ]
+            }
+          ],
           "addedComponents": [],
           "removedComponents": [],
           "addedChildren": [],
@@ -316,7 +357,7 @@
             "ApplyPitchToCharacterBody": false,
             "InvertMouseY": false,
             "InvertMouseX": false,
-            "MouseSensitivity": 0.1,
+            "MouseSensitivity": 0.05,
             "MinPitchDegrees": -85,
             "MaxPitchDegrees": 85,
             "UseCharacterController": true,
@@ -395,17 +436,6 @@
                 "PostProcessingEnabled": true,
                 "Effects": [
                   {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
-                    "enabled": true,
-                    "properties": {
-                      "Radius": 40,
-                      "Intensity": 0.6,
-                      "Bias": 1,
-                      "SampleCount": 64,
-                      "BlurSize": 16
-                    }
-                  },
-                  {
                     "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
                     "enabled": true,
                     "properties": {
@@ -422,13 +452,14 @@
                     }
                   },
                   {
-                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.BloomEffect",
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
                     "enabled": true,
                     "properties": {
-                      "Threshold": 1.55,
-                      "SoftKnee": 0.5,
-                      "Intensity": 0.15,
-                      "Iterations": 6
+                      "Radius": 20,
+                      "Intensity": 0.6,
+                      "Bias": 1,
+                      "SampleCount": 32,
+                      "BlurSize": 8
                     }
                   }
                 ]

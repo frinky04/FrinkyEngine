@@ -24,7 +24,7 @@ public class AmbientOcclusionEffect : PostProcessEffect
     /// <summary>
     /// Strength of the occlusion darkening.
     /// </summary>
-    public float Intensity { get; set; } = 1.0f;
+    public float Intensity { get; set; } = 0.6f;
 
     /// <summary>
     /// Depth bias in world-space units to prevent self-occlusion artifacts.

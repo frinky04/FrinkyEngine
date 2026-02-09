@@ -1,12 +1,12 @@
 {
   "name": "MainScene",
   "editorCameraPosition": {
-    "x": -33.992138,
-    "y": 21.638409,
-    "z": -13.604995
+    "x": -6.6633396,
+    "y": 4.0617113,
+    "z": 0.9436951
   },
-  "editorCameraYaw": -1408.1963,
-  "editorCameraPitch": -13.399687,
+  "editorCameraYaw": -1451.0951,
+  "editorCameraPitch": -7.699708,
   "physics": {
     "gravity": {
       "x": 0,
@@ -3476,16 +3476,16 @@
                   "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
                   "enabled": true,
                   "properties": {
-                    "Radius": 40,
+                    "Radius": 20,
                     "Intensity": 0.6,
                     "Bias": 1,
-                    "SampleCount": 64,
-                    "BlurSize": 16
+                    "SampleCount": 32,
+                    "BlurSize": 8
                   }
                 },
                 {
                   "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                  "enabled": false,
+                  "enabled": true,
                   "properties": {
                     "FogColor": {
                       "r": 48,
@@ -3693,16 +3693,16 @@
                     "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
                     "enabled": true,
                     "properties": {
-                      "Radius": 40,
+                      "Radius": 20,
                       "Intensity": 0.6,
                       "Bias": 1,
-                      "SampleCount": 64,
-                      "BlurSize": 16
+                      "SampleCount": 32,
+                      "BlurSize": 8
                     }
                   },
                   {
                     "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                    "enabled": false,
+                    "enabled": true,
                     "properties": {
                       "FogColor": {
                         "r": 48,
