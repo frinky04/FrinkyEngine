@@ -1,6 +1,6 @@
 # FrinkyEngine
 
-A C#/.NET 8 3D game engine with a Dear ImGui editor, standalone runtime, forward+ rendering, BEPU physics, post-processing, prefabs, and a `dotnet new` template for game projects.
+A lightweight 3D game engine built with C#, Raylib, and ImGui; featuring an entity-component system, physics, scene/prefab serialization, and post-processing pipeline. Agentically/vibe coded.
 
 ## Features
 
