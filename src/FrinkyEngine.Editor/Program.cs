@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
@@ -52,6 +53,7 @@ public static class Program
 
         var app = new EditorApplication();
         app.Initialize();
+        FrameProfiler.Enabled = true;
 
         // Handle project argument
         if (args.Length > 0 && File.Exists(args[0]))
@@ -62,6 +64,7 @@ public static class Program
         while (!Raylib.WindowShouldClose())
         {
             float dt = Raylib.GetFrameTime();
+            FrameProfiler.BeginFrame();
             app.Update(dt);
 
             Raylib.BeginDrawing();
@@ -73,19 +76,20 @@ public static class Program
                 io.ConfigFlags |= ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange;
             }
 
-            RlImGui.Begin(dt);
-
-            DrawDockspace(app);
-
-            app.DrawUI();
-            MessageBoxes.Draw();
-
-            RlImGui.End();
+            using (FrameProfiler.Scope(ProfileCategory.Editor))
+            {
+                RlImGui.Begin(dt);
+                DrawDockspace(app);
+                app.DrawUI();
+                MessageBoxes.Draw();
+                RlImGui.End();
+            }
 
             // Clear suppression flags and update tracking for next frame
             io.ConfigFlags &= ~(ImGuiConfigFlags.NoMouse | ImGuiConfigFlags.NoMouseCursorChange);
             _cursorWasLockedLastFrame = app.IsCursorLocked;
 
+            FrameProfiler.EndFrame();
             Raylib.EndDrawing();
         }
 
@@ -154,9 +158,13 @@ public static class Program
         ImGuiP.DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags.None);
         ImGuiP.DockBuilderSetNodeSize(dockspaceId, size);
 
-        // Split: left (Hierarchy) | rest
+        // Split: left (Hierarchy + Performance) | rest
         uint leftId, centerId;
         ImGuiP.DockBuilderSplitNode(dockspaceId, ImGuiDir.Left, 0.18f, &leftId, &centerId);
+
+        // Split left: top (Hierarchy) | bottom (Performance)
+        uint leftTopId, leftBottomId;
+        ImGuiP.DockBuilderSplitNode(leftId, ImGuiDir.Down, 0.40f, &leftBottomId, &leftTopId);
 
         // Split rest: center | right (Inspector)
         uint rightId, centerMainId;
@@ -166,7 +174,8 @@ public static class Program
         uint bottomId, topId;
         ImGuiP.DockBuilderSplitNode(centerMainId, ImGuiDir.Down, 0.25f, &bottomId, &topId);
 
-        ImGuiP.DockBuilderDockWindow("Hierarchy", leftId);
+        ImGuiP.DockBuilderDockWindow("Hierarchy", leftTopId);
+        ImGuiP.DockBuilderDockWindow("Performance", leftBottomId);
         ImGuiP.DockBuilderDockWindow("Viewport", topId);
         ImGuiP.DockBuilderDockWindow("Inspector", rightId);
         ImGuiP.DockBuilderDockWindow("Console", bottomId);

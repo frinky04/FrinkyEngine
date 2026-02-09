@@ -2,6 +2,7 @@ using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Physics;
+using FrinkyEngine.Core.Rendering.Profiling;
 
 namespace FrinkyEngine.Core.Scene;
 
@@ -203,24 +204,36 @@ public class Scene : IDisposable
     /// <param name="dt">Time elapsed since the previous frame, in seconds.</param>
     public void Update(float dt)
     {
-        foreach (var entity in _entities)
+        using (FrameProfiler.Scope(ProfileCategory.Game))
         {
-            if (entity.Active)
-                entity.UpdateComponents(dt);
+            foreach (var entity in _entities)
+            {
+                if (entity.Active)
+                    entity.UpdateComponents(dt);
+            }
         }
 
-        PhysicsSystem?.Step(dt);
-
-        // Publish physics-driven transforms before LateUpdate so scripts observe current-frame body poses.
-        PhysicsSystem?.PublishInterpolatedVisualPoses();
-
-        foreach (var entity in _entities)
+        using (FrameProfiler.Scope(ProfileCategory.Physics))
         {
-            if (entity.Active)
-                entity.LateUpdateComponents(dt);
+            PhysicsSystem?.Step(dt);
+
+            // Publish physics-driven transforms before LateUpdate so scripts observe current-frame body poses.
+            PhysicsSystem?.PublishInterpolatedVisualPoses();
         }
 
-        AudioSystem?.Update(dt);
+        using (FrameProfiler.Scope(ProfileCategory.GameLate))
+        {
+            foreach (var entity in _entities)
+            {
+                if (entity.Active)
+                    entity.LateUpdateComponents(dt);
+            }
+        }
+
+        using (FrameProfiler.Scope(ProfileCategory.Audio))
+        {
+            AudioSystem?.Update(dt);
+        }
     }
 
     /// <summary>

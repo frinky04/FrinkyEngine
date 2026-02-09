@@ -63,6 +63,7 @@ public class SceneRenderer
 
     private readonly List<PackedLight> _frameLights = new();
     private readonly List<PointLightCandidate> _pointCandidates = new();
+    private int _frameDrawCallCount;
     private int _forwardPlusDroppedTileLights;
     private int _forwardPlusClippedLights;
     private int _frameCounter;
@@ -74,6 +75,11 @@ public class SceneRenderer
     private float _lastAverageLightsPerTile;
     private int _lastMaxLightsPerTile;
     private bool _lastStatsValid;
+
+    /// <summary>
+    /// Number of draw calls issued in the most recent <see cref="Render"/> pass.
+    /// </summary>
+    public int LastFrameDrawCallCount { get; private set; }
 
     /// <summary>
     /// Diagnostic statistics from the most recent Forward+ frame.
@@ -219,6 +225,8 @@ public class SceneRenderer
     /// <param name="isEditorMode">When <c>true</c>, editor-only objects and the grid are drawn.</param>
     public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null, bool isEditorMode = true)
     {
+        _frameDrawCallCount = 0;
+
         if (renderTarget.HasValue)
             Raylib.BeginTextureMode(renderTarget.Value);
 
@@ -258,6 +266,8 @@ public class SceneRenderer
 
         if (renderTarget.HasValue)
             Raylib.EndTextureMode();
+
+        LastFrameDrawCallCount = _frameDrawCallCount;
     }
 
     /// <summary>
@@ -325,6 +335,7 @@ public class SceneRenderer
 
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
+        _frameDrawCallCount++;
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System.Numerics;
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.Rendering.Profiling;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Rendering.PostProcessing;
@@ -172,6 +173,7 @@ public class PostProcessPipeline
         Texture2D currentSource = sceneColor;
         bool writeToPing = true;
 
+        int passCount = 0;
         for (int i = 0; i < enabledEffects.Count; i++)
         {
             var effect = enabledEffects[i];
@@ -182,7 +184,11 @@ public class PostProcessPipeline
 
             try
             {
-                effect.Render(currentSource, dest, _context);
+                using (FrameProfiler.ScopeNamed(ProfileCategory.PostProcessing, effect.DisplayName))
+                {
+                    effect.Render(currentSource, dest, _context);
+                }
+                passCount++;
             }
             catch (Exception ex)
             {
@@ -195,6 +201,8 @@ public class PostProcessPipeline
             currentSource = dest.Texture;
             writeToPing = !writeToPing;
         }
+
+        FrameProfiler.ReportGpuStats(new GpuFrameStats(0, passCount, 0));
 
         return currentSource;
     }
