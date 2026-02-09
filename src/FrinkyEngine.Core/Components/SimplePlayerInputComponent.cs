@@ -56,6 +56,8 @@ public class SimplePlayerInputComponent : Component
     private bool _cameraOffsetCached;
     private float _currentCrouchCameraBlend;
     private float _cachedStandingCapsuleLength = -1f;
+    private float _supportGracePeriod = 0f;
+    private const float SupportGraceDuration = 0.1f; // 100ms grace period
 
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
@@ -384,6 +386,12 @@ public class SimplePlayerInputComponent : Component
 
         UpdateAttachedCamera(controller);
 
+        // Update support grace period for camera smoothing
+        if (controller != null)
+        {
+            UpdateSupportGracePeriod(controller, dt);
+        }
+
         var moveInput = blockKeyboardInput ? Vector2.Zero : ReadMoveInput();
 
         if (controller != null)
@@ -639,7 +647,7 @@ public class SimplePlayerInputComponent : Component
         // Use blended capsule length only when in air (not supported)
         // When grounded, the position compensation in ApplyCrouchToCapsule handles smoothing
         float capsuleLength;
-        if (controller.Supported)
+        if (IsEffectivelyGrounded(controller))
         {
             // Grounded: use actual capsule length (position compensation handles smoothing)
             capsuleLength = capsule.Length;
@@ -672,5 +680,32 @@ public class SimplePlayerInputComponent : Component
     private static float Lerp(float a, float b, float t)
     {
         return a + (b - a) * Math.Clamp(t, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Updates the support grace period timer for camera smoothing.
+    /// Grace period prevents camera jitter from 1-frame support losses during crouch transitions.
+    /// </summary>
+    private void UpdateSupportGracePeriod(CharacterControllerComponent controller, float dt)
+    {
+        if (controller.Supported)
+        {
+            // Reset grace period when truly supported
+            _supportGracePeriod = 0f;
+        }
+        else if (_supportGracePeriod < SupportGraceDuration)
+        {
+            // Count up grace period while unsupported
+            _supportGracePeriod += dt;
+        }
+    }
+
+    /// <summary>
+    /// Determines if the character should be treated as grounded for camera calculations.
+    /// Returns true if truly supported, or within grace period after losing support.
+    /// </summary>
+    private bool IsEffectivelyGrounded(CharacterControllerComponent controller)
+    {
+        return controller.Supported || _supportGracePeriod < SupportGraceDuration;
     }
 }
