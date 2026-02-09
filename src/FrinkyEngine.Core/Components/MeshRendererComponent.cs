@@ -39,22 +39,26 @@ public class MeshRendererComponent : RenderableComponent
 
         var model = AssetManager.Instance.LoadModel(_modelPath.Path);
 
-        // Extend material slots list to match model's material count
-        while (MaterialSlots.Count < model.MaterialCount)
-            MaterialSlots.Add(new MaterialSlot());
-
-        // Apply material slots
-        for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
+        // Skip material application for the error model — it has its own texture
+        if (File.Exists(AssetManager.Instance.ResolvePath(_modelPath.Path)))
         {
-            var slot = MaterialSlots[i];
-            MaterialApplicator.ApplyToModel(
-                model,
-                i,
-                slot.MaterialType,
-                slot.TexturePath.Path,
-                slot.TriplanarScale,
-                slot.TriplanarBlendSharpness,
-                slot.TriplanarUseWorldSpace);
+            // Extend material slots list to match model's material count
+            while (MaterialSlots.Count < model.MaterialCount)
+                MaterialSlots.Add(new MaterialSlot());
+
+            // Apply material slots
+            for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
+            {
+                var slot = MaterialSlots[i];
+                MaterialApplicator.ApplyToModel(
+                    model,
+                    i,
+                    slot.MaterialType,
+                    slot.TexturePath.Path,
+                    slot.TriplanarScale,
+                    slot.TriplanarBlendSharpness,
+                    slot.TriplanarUseWorldSpace);
+            }
         }
 
         RenderModel = model;

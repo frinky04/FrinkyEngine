@@ -112,15 +112,25 @@ public class EditorApplication
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
     }
 
-    private static void LoadErrorAssets()
+    private static unsafe void LoadErrorAssets()
     {
         const string errorTexturePath = "EditorAssets/Textures/ErrorTexture.png";
         const string errorModelPath = "EditorAssets/Meshes/ErrorMesh.glb";
 
         if (File.Exists(errorTexturePath))
             AssetManager.Instance.ErrorTexture = Raylib.LoadTexture(errorTexturePath);
+
         if (File.Exists(errorModelPath))
-            AssetManager.Instance.ErrorModel = Raylib.LoadModel(errorModelPath);
+        {
+            var model = Raylib.LoadModel(errorModelPath);
+            if (AssetManager.Instance.ErrorTexture.HasValue)
+            {
+                var tex = AssetManager.Instance.ErrorTexture.Value;
+                for (int i = 0; i < model.MaterialCount; i++)
+                    model.Materials[i].Maps[(int)MaterialMapIndex.Albedo].Texture = tex;
+            }
+            AssetManager.Instance.ErrorModel = model;
+        }
     }
 
 
@@ -277,6 +287,11 @@ public class EditorApplication
             return;
         if (Mode != EditorMode.Edit || CurrentScene == null)
             return;
+        if (_buildTask is { IsCompleted: false })
+        {
+            NotificationManager.Instance.Post("Cannot enter play mode while scripts are building.", NotificationType.Error);
+            return;
+        }
 
         UI.ClearFrame();
         _runtimeModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
@@ -489,6 +504,7 @@ public class EditorApplication
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
         UpdateWindowTitle();
+        BuildScripts();
     }
 
     public void UpdateWindowTitle()
