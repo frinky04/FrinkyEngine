@@ -1,0 +1,531 @@
+{
+  "name": "MainScene",
+  "editorCameraPosition": {
+    "x": 1.1031109,
+    "y": 4.7535324,
+    "z": -0.4398148
+  },
+  "editorCameraYaw": -1261.7979,
+  "editorCameraPitch": -15.649723,
+  "physics": {
+    "gravity": {
+      "x": 0,
+      "y": -9.81,
+      "z": 0
+    }
+  },
+  "entities": [
+    {
+      "name": "Plane",
+      "id": "9ca2a087-80cc-4197-9396-926a660d049f",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "LocalScale": {
+              "x": 100,
+              "y": 2,
+              "z": 100
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Width": 10,
+            "Depth": 10,
+            "ResolutionX": 1,
+            "ResolutionZ": 1,
+            "MaterialType": "TriplanarTexture",
+            "TexturePath": "Textures/grid_lightchecker.PNG",
+            "TriplanarScale": 0.25,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Static",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": false,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Size": {
+              "x": 5,
+              "y": 1,
+              "z": 10
+            },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": -0.5,
+              "z": 0
+            }
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Ambient Light",
+      "id": "8b52ca67-a92c-43b6-bb05-83fc178383eb",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 3.1933734,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": -0.35519308,
+              "y": 0.34384108,
+              "z": 0.14242364,
+              "w": 0.85751194
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LightType": "Skylight",
+            "LightColor": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            },
+            "Intensity": 0.5,
+            "Range": 20.6
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Sun Light",
+      "id": "82eb0d2e-4a7d-421b-b9b0-00e6470d4fcc",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": 0,
+              "y": 3.1933734,
+              "z": 0
+            },
+            "LocalRotation": {
+              "x": -0.35519308,
+              "y": 0.34384108,
+              "z": 0.14242364,
+              "w": 0.85751194
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LightType": "Directional",
+            "LightColor": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 255
+            },
+            "Intensity": 0.6,
+            "Range": 20.6
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Player",
+      "id": "4c83cb43-4a8c-4e39-b8e1-3465e98a40ae",
+      "active": true,
+      "prefab": null,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "LocalPosition": {
+              "x": -1.5421085,
+              "y": 3.2049685,
+              "z": 1.0852804
+            },
+            "LocalRotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            },
+            "LocalScale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "Radius": 0.4,
+            "Length": 1.8,
+            "Friction": 10,
+            "Restitution": 0,
+            "Center": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CharacterControllerComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MoveSpeed": 4,
+            "JumpVelocity": 6,
+            "MaxSlopeDegrees": 45,
+            "MaximumHorizontalForce": 20,
+            "MaximumVerticalForce": 100,
+            "AirControlForceScale": 0.8,
+            "AirControlSpeedScale": 0.5,
+            "UseEntityForwardAsViewDirection": true,
+            "ViewDirectionOverride": {
+              "x": -0,
+              "y": -0,
+              "z": -1
+            }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true,
+            "LockPositionX": false,
+            "LockPositionY": false,
+            "LockPositionZ": false,
+            "LockRotationX": false,
+            "LockRotationY": false,
+            "LockRotationZ": false,
+            "InterpolationMode": "Inherit"
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {
+            "MoveForwardKey": "W",
+            "MoveBackwardKey": "S",
+            "MoveLeftKey": "A",
+            "MoveRightKey": "D",
+            "JumpKey": "Space",
+            "EnableMouseLook": true,
+            "RequireLookMouseButton": false,
+            "LookMouseButton": "Right",
+            "RotatePitch": true,
+            "UseViewDirectionOverrideForCharacterLook": true,
+            "ApplyPitchToCharacterBody": false,
+            "InvertMouseY": false,
+            "InvertMouseX": false,
+            "MouseSensitivity": 0.05,
+            "MinPitchDegrees": -85,
+            "MaxPitchDegrees": 85,
+            "UseCharacterController": true,
+            "AllowJump": true,
+            "FallbackMoveSpeed": 4,
+            "FallbackJumpImpulse": 3,
+            "DriveAttachedCamera": true,
+            "AttachedCameraLocalOffset": {
+              "x": 0,
+              "y": 0.9,
+              "z": 0
+            },
+            "AttachedCameraBackDistance": 0,
+            "CameraEntity": "7f5f6cd8-abf8-403a-ba3c-f280264a7932"
+          }
+        },
+        {
+          "$type": "PrefabTestingGround.Scripts.MoveSpeedHud",
+          "enabled": true,
+          "editorOnly": false,
+          "properties": {}
+        }
+      ],
+      "children": [
+        {
+          "name": "Camera",
+          "id": "7f5f6cd8-abf8-403a-ba3c-f280264a7932",
+          "active": true,
+          "prefab": null,
+          "components": [
+            {
+              "$type": "FrinkyEngine.Core.Components.TransformComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "LocalPosition": {
+                  "x": 0,
+                  "y": 0.8236935,
+                  "z": 0
+                },
+                "LocalRotation": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "w": 1
+                },
+                "LocalScale": {
+                  "x": 1,
+                  "y": 1,
+                  "z": 1
+                }
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.CameraComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "FieldOfView": 90,
+                "NearPlane": 0.1,
+                "FarPlane": 1000,
+                "Projection": "Perspective",
+                "ClearColor": {
+                  "r": 30,
+                  "g": 30,
+                  "b": 30,
+                  "a": 255
+                },
+                "IsMain": true
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.PostProcessStackComponent",
+              "enabled": true,
+              "editorOnly": false,
+              "properties": {
+                "PostProcessingEnabled": true,
+                "Effects": [
+                  {
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
+                    "enabled": true,
+                    "properties": {
+                      "Radius": 20,
+                      "Intensity": 0.5,
+                      "Bias": 1,
+                      "SampleCount": 32,
+                      "BlurSize": 8
+                    }
+                  },
+                  {
+                    "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
+                    "enabled": true,
+                    "properties": {
+                      "FogColor": {
+                        "r": 48,
+                        "g": 48,
+                        "b": 48,
+                        "a": 255
+                      },
+                      "FogStart": 100,
+                      "FogEnd": 500,
+                      "Density": 0.02,
+                      "Mode": "Linear"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "children": [
+            {
+              "name": "Cube",
+              "id": "06bd1723-f0f5-450c-a300-f3ab2a1f9573",
+              "active": true,
+              "prefab": null,
+              "components": [
+                {
+                  "$type": "FrinkyEngine.Core.Components.TransformComponent",
+                  "enabled": true,
+                  "editorOnly": false,
+                  "properties": {
+                    "LocalPosition": {
+                      "x": 0,
+                      "y": 0,
+                      "z": -1.266858
+                    },
+                    "LocalRotation": {
+                      "x": 0,
+                      "y": 0,
+                      "z": 0,
+                      "w": 1
+                    },
+                    "LocalScale": {
+                      "x": 0.7,
+                      "y": 0.7,
+                      "z": 1
+                    }
+                  }
+                },
+                {
+                  "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+                  "enabled": true,
+                  "editorOnly": false,
+                  "properties": {
+                    "Width": 1,
+                    "Height": 1,
+                    "Depth": 1,
+                    "MaterialType": "SolidColor",
+                    "TexturePath": "",
+                    "TriplanarScale": 1,
+                    "TriplanarBlendSharpness": 4,
+                    "TriplanarUseWorldSpace": true,
+                    "Tint": {
+                      "r": 255,
+                      "g": 255,
+                      "b": 255,
+                      "a": 255
+                    }
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "name": "Cube (1)",
+                  "id": "d615e5a7-c3a3-40e8-9c85-1942e4b56d50",
+                  "active": true,
+                  "prefab": null,
+                  "components": [
+                    {
+                      "$type": "FrinkyEngine.Core.Components.TransformComponent",
+                      "enabled": true,
+                      "editorOnly": false,
+                      "properties": {
+                        "LocalPosition": {
+                          "x": 2.3841858E-07,
+                          "y": 0.66932726,
+                          "z": -0.07935248
+                        },
+                        "LocalRotation": {
+                          "x": 0,
+                          "y": 0,
+                          "z": 0,
+                          "w": 1
+                        },
+                        "LocalScale": {
+                          "x": 0.45,
+                          "y": 0.45,
+                          "z": 0.6
+                        }
+                      }
+                    },
+                    {
+                      "$type": "FrinkyEngine.Core.Components.CubePrimitive",
+                      "enabled": true,
+                      "editorOnly": false,
+                      "properties": {
+                        "Width": 1,
+                        "Height": 1,
+                        "Depth": 1,
+                        "MaterialType": "SolidColor",
+                        "TexturePath": "",
+                        "TriplanarScale": 1,
+                        "TriplanarBlendSharpness": 4,
+                        "TriplanarUseWorldSpace": true,
+                        "Tint": {
+                          "r": 255,
+                          "g": 255,
+                          "b": 255,
+                          "a": 255
+                        }
+                      }
+                    }
+                  ],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
