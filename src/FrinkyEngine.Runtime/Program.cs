@@ -240,7 +240,8 @@ public static class Program
                 if (lastScaledW > 0)
                     Raylib.UnloadRenderTexture(sceneRT);
                 sceneRT = PostProcessPipeline.LoadRenderTextureWithDepthTexture(scaledW, scaledH);
-                Raylib.SetTextureFilter(sceneRT.Texture, TextureFilter.Point);
+                bool isSupersampled = scaledW >= screenW && scaledH >= screenH;
+                Raylib.SetTextureFilter(sceneRT.Texture, isSupersampled ? TextureFilter.Bilinear : TextureFilter.Point);
                 lastScaledW = scaledW;
                 lastScaledH = scaledH;
             }

@@ -693,7 +693,10 @@ public class MenuBar
         {
             int screenPercentage = draft.Runtime.ScreenPercentage;
             if (ImGui.SliderInt("Screen Percentage", ref screenPercentage, 10, 200))
+            {
                 draft.Runtime.ScreenPercentage = screenPercentage;
+                RenderRuntimeCvars.ScreenPercentage = screenPercentage;
+            }
 
             ImGui.Separator();
 

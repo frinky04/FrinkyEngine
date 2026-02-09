@@ -60,7 +60,8 @@ public class ViewportPanel
                 Raylib.UnloadRenderTexture(_renderTexture);
 
             _renderTexture = PostProcessPipeline.LoadRenderTextureWithDepthTexture(scaledW, scaledH);
-            Raylib.SetTextureFilter(_renderTexture.Texture, TextureFilter.Point);
+            bool isSupersampled = scaledW >= displayWidth && scaledH >= displayHeight;
+            Raylib.SetTextureFilter(_renderTexture.Texture, isSupersampled ? TextureFilter.Bilinear : TextureFilter.Point);
             _lastScaledWidth = scaledW;
             _lastScaledHeight = scaledH;
         }
