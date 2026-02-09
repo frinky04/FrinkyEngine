@@ -957,18 +957,17 @@ public static class ComponentDrawerRegistry
             }
 
             var tagDb = app.TagDatabase;
-            var assets = db.GetAssets(filter);
+            var assets = filter == AssetType.Unknown ? db.GetAssets(null) : db.GetAssets(filter);
             foreach (var asset in assets)
             {
+                var tags = tagDb?.GetTagsForAsset(asset.RelativePath);
+
                 bool matchesSearch = true;
                 if (searchFilter.Length > 0)
                 {
                     matchesSearch = asset.RelativePath.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
-                    if (!matchesSearch && tagDb != null)
-                    {
-                        var tags = tagDb.GetTagsForAsset(asset.RelativePath);
+                    if (!matchesSearch && tags != null)
                         matchesSearch = tags.Any(t => t.Name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase));
-                    }
                 }
 
                 if (!matchesSearch)
@@ -985,17 +984,13 @@ public static class ComponentDrawerRegistry
                 }
 
                 // Draw tag chips on the same line
-                if (tagDb != null)
+                if (tags is { Count: > 0 })
                 {
-                    var tags = tagDb.GetTagsForAsset(asset.RelativePath);
-                    if (tags.Count > 0)
+                    ImGui.SameLine();
+                    foreach (var tag in tags)
                     {
                         ImGui.SameLine();
-                        foreach (var tag in tags)
-                        {
-                            ImGui.SameLine();
-                            ImGui.TextDisabled($"[{tag.Name}]");
-                        }
+                        ImGui.TextDisabled($"[{tag.Name}]");
                     }
                 }
 
@@ -1023,7 +1018,7 @@ public static class ComponentDrawerRegistry
                     var draggedAsset = db.GetAssets()
                         .FirstOrDefault(a => string.Equals(a.RelativePath, draggedPath, StringComparison.OrdinalIgnoreCase));
 
-                    if (draggedAsset != null && draggedAsset.Type == filter)
+                    if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
                     {
                         app.RecordUndo();
                         setter(new AssetReference(draggedPath));
