@@ -1,0 +1,6 @@
+[submodule "ExampleGames/PrefabTestingGround"]
+	path = ExampleGames/PrefabTestingGround
+	url = https://github.com/frinky04/FrinkyEngine-PrefabTestingGround.git
+[submodule "ExampleGames/PhysicsStressTest"]
+	path = ExampleGames/PhysicsStressTest
+	url = https://github.com/frinky04/FrinkyEngine-PhysicsStressTest.git

@@ -24,6 +24,18 @@ A lightweight 3D game engine built with C#, Raylib, and ImGui; featuring an enti
 
 ## Quick Start
 
+> **Note:** Example projects are stored as git submodules. Clone with `--recurse-submodules` to include them:
+>
+> ```bash
+> git clone --recurse-submodules https://github.com/frinky04/FrinkyEngine.git
+> ```
+>
+> If you already cloned without submodules, run:
+>
+> ```bash
+> git submodule update --init --recursive
+> ```
+
 1. **Build the solution.**
 
 ```powershell
@@ -572,7 +584,8 @@ FrinkyEngine/
   Shaders/                    # GLSL shaders (copied to output)
   EditorAssets/               # Editor fonts and icons
   ExampleGames/
-    PrefabTestingGround/      # Example project with prefab usage
+    PrefabTestingGround/      # [submodule] Example project with prefab usage
+    PhysicsStressTest/        # [submodule] Example project with physics stress testing
   artifacts/                  # Publish and build outputs
   *.bat                       # Build, launch, publish, and packaging scripts
   FrinkyEngine.sln
@@ -580,6 +593,8 @@ FrinkyEngine/
 ```
 
 ## Example Games
+
+Example projects are stored as [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules). See [Quick Start](#quick-start) for clone instructions.
 
 ### PrefabTestingGround
 
@@ -589,6 +604,16 @@ Open it in the editor:
 
 ```bash
 dotnet run --project src/FrinkyEngine.Editor -- ExampleGames/PrefabTestingGround/PrefabTestingGround.fproject
+```
+
+### PhysicsStressTest
+
+A test project for physics stress testing with rigidbodies and colliders. Located at `ExampleGames/PhysicsStressTest/`.
+
+Open it in the editor:
+
+```bash
+dotnet run --project src/FrinkyEngine.Editor -- ExampleGames/PhysicsStressTest/PhysicsStressTest.fproject
 ```
 
 ## Troubleshooting
