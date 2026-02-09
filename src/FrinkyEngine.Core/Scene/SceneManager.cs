@@ -18,6 +18,12 @@ public class SceneManager
     public Scene? ActiveScene { get; private set; }
 
     /// <summary>
+    /// When true, saving the scene is prohibited (e.g., during Play mode).
+    /// The Editor sets this when entering/exiting Play mode.
+    /// </summary>
+    public bool IsSaveDisabled { get; set; }
+
+    /// <summary>
     /// Creates a new empty scene and makes it the active scene.
     /// </summary>
     /// <param name="name">Display name for the new scene.</param>
@@ -45,9 +51,14 @@ public class SceneManager
     /// Saves the active scene to the specified file path in <c>.fscene</c> JSON format.
     /// </summary>
     /// <param name="path">Destination file path.</param>
+    /// <exception cref="InvalidOperationException">Thrown when <see cref="IsSaveDisabled"/> is true.</exception>
     public void SaveScene(string path)
     {
         if (ActiveScene == null) return;
+
+        if (IsSaveDisabled)
+            throw new InvalidOperationException("Cannot save scenes while in Play mode. Exit Play mode before saving.");
+
         ActiveScene.FilePath = path;
         SceneSerializer.Save(ActiveScene, path);
     }
