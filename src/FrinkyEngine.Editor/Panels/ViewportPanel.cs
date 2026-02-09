@@ -51,7 +51,7 @@ public class ViewportPanel
             Raylib.UnloadRenderTexture(_outlineCompositeTexture);
         }
 
-        _renderTexture = Raylib.LoadRenderTexture(width, height);
+        _renderTexture = PostProcessPipeline.LoadRenderTextureWithDepthTexture(width, height);
         _selectionMaskTexture = Raylib.LoadRenderTexture(width, height);
         _outlineCompositeTexture = Raylib.LoadRenderTexture(width, height);
         Raylib.SetTextureFilter(_selectionMaskTexture.Texture, TextureFilter.Point);
@@ -132,7 +132,8 @@ public class ViewportPanel
                             _app.SceneRenderer,
                             _app.CurrentScene,
                             w, h,
-                            isEditorMode);
+                            isEditorMode,
+                            _renderTexture.Depth);
 
                         // If post-processing produced a different texture, blit it back to _renderTexture
                         if (postProcessedTex.Id != _renderTexture.Texture.Id)

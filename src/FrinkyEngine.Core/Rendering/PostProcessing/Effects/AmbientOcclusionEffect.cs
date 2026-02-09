@@ -34,12 +34,12 @@ public class AmbientOcclusionEffect : PostProcessEffect
     /// <summary>
     /// Number of hemisphere samples per pixel (max 64).
     /// </summary>
-    public int SampleCount { get; set; } = 64;
+    public int SampleCount { get; set; } = 32;
 
     /// <summary>
     /// Size of the bilateral blur kernel (half-extent in pixels).
     /// </summary>
-    public int BlurSize { get; set; } = 16;
+    public int BlurSize { get; set; } = 8;
 
     private Shader _ssaoShader;
     private Shader _blurShader;

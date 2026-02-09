@@ -18,6 +18,11 @@ public class PostProcessPipeline
     private bool _depthShaderLoaded;
     private int _depthNearPlaneLoc = -1;
     private int _depthFarPlaneLoc = -1;
+    private Shader _linearizeShader;
+    private bool _linearizeShaderLoaded;
+    private int _linearizeDepthTexLoc = -1;
+    private int _linearizeNearPlaneLoc = -1;
+    private int _linearizeFarPlaneLoc = -1;
     private int _width;
     private int _height;
     private string _shaderBasePath = "Shaders";
@@ -47,6 +52,22 @@ public class PostProcessPipeline
             {
                 _depthNearPlaneLoc = Raylib.GetShaderLocation(_depthShader, "nearPlane");
                 _depthFarPlaneLoc = Raylib.GetShaderLocation(_depthShader, "farPlane");
+            }
+        }
+
+        var ppVsPath = Path.Combine(shaderBasePath, "postprocess.vs");
+        var linearizeFsPath = Path.Combine(shaderBasePath, "depth_linearize.fs");
+
+        if (File.Exists(ppVsPath) && File.Exists(linearizeFsPath))
+        {
+            _linearizeShader = Raylib.LoadShader(ppVsPath, linearizeFsPath);
+            _linearizeShaderLoaded = _linearizeShader.Id != 0;
+
+            if (_linearizeShaderLoaded)
+            {
+                _linearizeDepthTexLoc = Raylib.GetShaderLocation(_linearizeShader, "depthTex");
+                _linearizeNearPlaneLoc = Raylib.GetShaderLocation(_linearizeShader, "nearPlane");
+                _linearizeFarPlaneLoc = Raylib.GetShaderLocation(_linearizeShader, "farPlane");
             }
         }
     }
@@ -94,6 +115,7 @@ public class PostProcessPipeline
     /// <param name="width">Viewport width.</param>
     /// <param name="height">Viewport height.</param>
     /// <param name="isEditorMode">Whether we're in editor mode.</param>
+    /// <param name="sceneDepthTexture">Optional hardware depth texture from the scene RT. When provided, depth is linearized via a fullscreen blit instead of a geometry re-render.</param>
     /// <returns>The final output texture.</returns>
     public Texture2D Execute(
         PostProcessStackComponent stack,
@@ -104,7 +126,8 @@ public class PostProcessPipeline
         Scene.Scene? scene,
         int width,
         int height,
-        bool isEditorMode)
+        bool isEditorMode,
+        Texture2D sceneDepthTexture = default)
     {
         if (!stack.PostProcessingEnabled)
             return sceneColor;
@@ -145,18 +168,46 @@ public class PostProcessPipeline
             }
         }
 
-        // Render depth pre-pass if needed
+        // Produce linear depth if needed
         float nearPlane = cam?.NearPlane ?? 0.1f;
         float farPlane = cam?.FarPlane ?? 1000f;
 
-        if (needsDepth && _depthShaderLoaded && sceneRenderer != null && scene != null)
+        if (needsDepth)
         {
-            if (_depthNearPlaneLoc >= 0)
-                Raylib.SetShaderValue(_depthShader, _depthNearPlaneLoc, nearPlane, ShaderUniformDataType.Float);
-            if (_depthFarPlaneLoc >= 0)
-                Raylib.SetShaderValue(_depthShader, _depthFarPlaneLoc, farPlane, ShaderUniformDataType.Float);
+            if (sceneDepthTexture.Id != 0 && _linearizeShaderLoaded)
+            {
+                // Fast path: linearize the existing hardware depth texture via a fullscreen blit
+                using (FrameProfiler.ScopeNamed(ProfileCategory.PostProcessing, "Depth Linearize"))
+                {
+                    if (_linearizeNearPlaneLoc >= 0)
+                        Raylib.SetShaderValue(_linearizeShader, _linearizeNearPlaneLoc, nearPlane, ShaderUniformDataType.Float);
+                    if (_linearizeFarPlaneLoc >= 0)
+                        Raylib.SetShaderValue(_linearizeShader, _linearizeFarPlaneLoc, farPlane, ShaderUniformDataType.Float);
 
-            sceneRenderer.RenderDepthPrePass(scene, camera, _depthRT, _depthShader, isEditorMode);
+                    if (_linearizeDepthTexLoc >= 0)
+                    {
+                        Raylib.SetShaderValue(_linearizeShader, _linearizeDepthTexLoc, 1, ShaderUniformDataType.Int);
+                        Rlgl.ActiveTextureSlot(1);
+                        Rlgl.EnableTexture(sceneDepthTexture.Id);
+                    }
+
+                    PostProcessContext.Blit(sceneColor, _depthRT, _linearizeShader);
+
+                    Rlgl.ActiveTextureSlot(1);
+                    Rlgl.DisableTexture();
+                    Rlgl.ActiveTextureSlot(0);
+                }
+            }
+            else if (_depthShaderLoaded && sceneRenderer != null && scene != null)
+            {
+                // Fallback: full geometry re-render depth pre-pass
+                if (_depthNearPlaneLoc >= 0)
+                    Raylib.SetShaderValue(_depthShader, _depthNearPlaneLoc, nearPlane, ShaderUniformDataType.Float);
+                if (_depthFarPlaneLoc >= 0)
+                    Raylib.SetShaderValue(_depthShader, _depthFarPlaneLoc, farPlane, ShaderUniformDataType.Float);
+
+                sceneRenderer.RenderDepthPrePass(scene, camera, _depthRT, _depthShader, isEditorMode);
+            }
         }
 
         // Set up context
@@ -229,6 +280,12 @@ public class PostProcessPipeline
             Raylib.UnloadShader(_depthShader);
             _depthShaderLoaded = false;
         }
+
+        if (_linearizeShaderLoaded)
+        {
+            Raylib.UnloadShader(_linearizeShader);
+            _linearizeShaderLoaded = false;
+        }
     }
 
     /// <summary>
@@ -296,6 +353,84 @@ public class PostProcessPipeline
 
         Raylib.SetTextureFilter(rt.Texture, TextureFilter.Bilinear);
         Raylib.SetTextureWrap(rt.Texture, TextureWrap.Clamp);
+
+        return rt;
+    }
+
+    /// <summary>
+    /// Creates a render texture whose depth attachment is a sampleable texture instead of
+    /// a renderbuffer. This allows post-processing effects to read the scene depth directly
+    /// via a fullscreen linearize blit, eliminating the need for a geometry depth pre-pass.
+    /// </summary>
+    /// <param name="width">Texture width.</param>
+    /// <param name="height">Texture height.</param>
+    /// <returns>A render texture with a sampleable depth texture attachment.</returns>
+    public static RenderTexture2D LoadRenderTextureWithDepthTexture(int width, int height)
+    {
+        uint fboId = Rlgl.LoadFramebuffer();
+        if (fboId == 0)
+            return Raylib.LoadRenderTexture(width, height);
+
+        Rlgl.EnableFramebuffer(fboId);
+
+        // Color attachment — standard RGBA8
+        uint colorId;
+        unsafe
+        {
+            colorId = Rlgl.LoadTexture(null, width, height, PixelFormat.UncompressedR8G8B8A8, 1);
+        }
+
+        if (colorId == 0)
+        {
+            Rlgl.UnloadFramebuffer(fboId);
+            return Raylib.LoadRenderTexture(width, height);
+        }
+
+        Rlgl.FramebufferAttach(fboId, colorId,
+            FramebufferAttachType.ColorChannel0,
+            FramebufferAttachTextureType.Texture2D, 0);
+
+        // Depth attachment — texture (not renderbuffer) so it can be sampled
+        uint depthId = Rlgl.LoadTextureDepth(width, height, false);
+        Rlgl.FramebufferAttach(fboId, depthId,
+            FramebufferAttachType.Depth,
+            FramebufferAttachTextureType.Texture2D, 0);
+
+        if (!Rlgl.FramebufferComplete(fboId))
+        {
+            Rlgl.UnloadTexture(colorId);
+            Rlgl.UnloadTexture(depthId);
+            Rlgl.UnloadFramebuffer(fboId);
+            return Raylib.LoadRenderTexture(width, height);
+        }
+
+        Rlgl.DisableFramebuffer();
+
+        var rt = new RenderTexture2D
+        {
+            Id = fboId,
+            Texture = new Texture2D
+            {
+                Id = colorId,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedR8G8B8A8
+            },
+            Depth = new Texture2D
+            {
+                Id = depthId,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedGrayscale
+            }
+        };
+
+        Raylib.SetTextureFilter(rt.Texture, TextureFilter.Bilinear);
+        Raylib.SetTextureWrap(rt.Texture, TextureWrap.Clamp);
+        Raylib.SetTextureFilter(rt.Depth, TextureFilter.Point);
+        Raylib.SetTextureWrap(rt.Depth, TextureWrap.Clamp);
 
         return rt;
     }

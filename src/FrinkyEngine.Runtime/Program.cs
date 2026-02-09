@@ -242,7 +242,7 @@ public static class Program
                 {
                     if (lastRTWidth > 0)
                         Raylib.UnloadRenderTexture(sceneRT);
-                    sceneRT = Raylib.LoadRenderTexture(screenW, screenH);
+                    sceneRT = PostProcessPipeline.LoadRenderTextureWithDepthTexture(screenW, screenH);
                     lastRTWidth = screenW;
                     lastRTHeight = screenH;
                 }
@@ -260,7 +260,8 @@ public static class Program
                     sceneRenderer,
                     scene,
                     screenW, screenH,
-                    isEditorMode: false);
+                    isEditorMode: false,
+                    sceneRT.Depth);
 
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Color.Black);
