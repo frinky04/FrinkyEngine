@@ -6,7 +6,7 @@
     "description": ""
   },
   "runtime": {
-    "targetFps": 500,
+    "targetFps": 0,
     "vSync": false,
     "windowTitle": "PhysicsStressTest",
     "windowWidth": 1280,

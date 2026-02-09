@@ -1,9 +1,9 @@
 {
-  "name": "Domino (6)",
+  "name": "Domino (3)",
   "sourcePrefab": "",
   "root": {
     "stableId": "1616efa979984dd983446dbcfd57810f",
-    "name": "Domino (6)",
+    "name": "Domino (3)",
     "active": true,
     "components": [
       {
@@ -26,7 +26,7 @@
           "TriplanarBlendSharpness": 4,
           "TriplanarUseWorldSpace": false,
           "Tint": {
-            "r": 254,
+            "r": 255,
             "g": 173,
             "b": 173,
             "a": 255
