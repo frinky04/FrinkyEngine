@@ -158,9 +158,13 @@ public static class Program
         ImGuiP.DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags.None);
         ImGuiP.DockBuilderSetNodeSize(dockspaceId, size);
 
-        // Split: left (Hierarchy) | rest
+        // Split: left (Hierarchy + Performance) | rest
         uint leftId, centerId;
         ImGuiP.DockBuilderSplitNode(dockspaceId, ImGuiDir.Left, 0.18f, &leftId, &centerId);
+
+        // Split left: top (Hierarchy) | bottom (Performance)
+        uint leftTopId, leftBottomId;
+        ImGuiP.DockBuilderSplitNode(leftId, ImGuiDir.Down, 0.40f, &leftBottomId, &leftTopId);
 
         // Split rest: center | right (Inspector)
         uint rightId, centerMainId;
@@ -170,7 +174,8 @@ public static class Program
         uint bottomId, topId;
         ImGuiP.DockBuilderSplitNode(centerMainId, ImGuiDir.Down, 0.25f, &bottomId, &topId);
 
-        ImGuiP.DockBuilderDockWindow("Hierarchy", leftId);
+        ImGuiP.DockBuilderDockWindow("Hierarchy", leftTopId);
+        ImGuiP.DockBuilderDockWindow("Performance", leftBottomId);
         ImGuiP.DockBuilderDockWindow("Viewport", topId);
         ImGuiP.DockBuilderDockWindow("Inspector", rightId);
         ImGuiP.DockBuilderDockWindow("Console", bottomId);

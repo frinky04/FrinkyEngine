@@ -35,7 +35,7 @@ public class PerformancePanel
         ("Editor", ColorEditor),
     ];
 
-    public bool IsVisible { get; set; }
+    public bool IsVisible { get; set; } = true;
 
     public PerformancePanel(EditorApplication app)
     {
@@ -45,12 +45,6 @@ public class PerformancePanel
     public void Draw()
     {
         if (!IsVisible) return;
-
-        var viewport = ImGui.GetMainViewport();
-        ImGui.SetNextWindowPos(
-            new Vector2(viewport.WorkPos.X + 10, viewport.WorkPos.Y + 10),
-            ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(480, 620), ImGuiCond.FirstUseEver);
 
         var flags = ImGuiWindowFlags.NoCollapse
                   | ImGuiWindowFlags.NoFocusOnAppearing
@@ -85,9 +79,7 @@ public class PerformancePanel
         // Use Raylib's actual FPS/frame time (accounts for frame limiter wait)
         int fps = Raylib.GetFPS();
         float frameMs = Raylib.GetFrameTime() * 1000f;
-
-        ImGui.SameLine();
-        ImGui.Text($"  FPS: {fps}   Frame: {frameMs:F1} ms");
+        ImGui.TextWrapped($"FPS: {fps}   Frame: {frameMs:F1} ms");
 
         // Smoothed CPU time from profiler (excludes frame limiter wait)
         var history = FrameProfiler.GetHistory();
@@ -108,12 +100,12 @@ public class PerformancePanel
             if (cpuMin == double.MaxValue) cpuMin = 0;
             double cpuAvg = cpuSum / count;
 
-            var cpuLabel = _ignoreEditor ? "CPU (est, no editor)" : "CPU";
-            ImGui.Text($"{cpuLabel}: {cpuAvg:F1} ms   Min: {cpuMin:F1} ms   Max: {cpuMax:F1} ms");
+            var cpuLabel = _ignoreEditor ? "CPU (no editor)" : "CPU";
+            ImGui.TextWrapped($"{cpuLabel}: {cpuAvg:F1} ms  Min: {cpuMin:F1}  Max: {cpuMax:F1}");
         }
 
         int entityCount = _app.CurrentScene?.Entities.Count ?? 0;
-        ImGui.Text($"Entities: {entityCount}");
+        ImGui.TextWrapped($"Entities: {entityCount}");
         ImGui.Separator();
     }
 
