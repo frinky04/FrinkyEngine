@@ -321,9 +321,12 @@ public class InspectorPanel
         }
     }
 
+    private string? _lastMultiHeader;
+
     private void DrawMultiReflection(IReadOnlyList<Component> components)
     {
         string? lastSection = null;
+        _lastMultiHeader = null;
         var type = components[0].GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -332,14 +335,57 @@ public class InspectorPanel
             if (!IsPropertyVisibleForAll(components, prop))
                 continue;
 
-            var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
-            if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
-            {
-                ImGui.SeparatorText(section);
-                lastSection = section;
-            }
-
+            ApplyMultiLayoutAttributes(prop, ref lastSection);
             DrawMultiProperty(components, prop);
+            EndMultiLayoutAttributes(prop);
+        }
+    }
+
+    private void ApplyMultiLayoutAttributes(PropertyInfo prop, ref string? lastSection)
+    {
+        var spaceAttr = prop.GetCustomAttribute<InspectorSpaceAttribute>();
+        if (spaceAttr != null)
+            ImGui.Dummy(new Vector2(0, spaceAttr.Height));
+
+        var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
+        if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
+        {
+            ImGui.SeparatorText(section);
+            lastSection = section;
+        }
+
+        var headerAttr = prop.GetCustomAttribute<InspectorHeaderAttribute>();
+        if (headerAttr != null && !string.Equals(headerAttr.Title, _lastMultiHeader, StringComparison.Ordinal))
+        {
+            ImGui.TextDisabled(headerAttr.Title);
+            _lastMultiHeader = headerAttr.Title;
+        }
+
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Indent(indentAttr.Levels * 16f);
+    }
+
+    private void EndMultiLayoutAttributes(PropertyInfo prop)
+    {
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Unindent(indentAttr.Levels * 16f);
+    }
+
+    private void DrawMultiPropertyWithTooltip(PropertyInfo prop, Action drawAction)
+    {
+        var tooltipAttr = prop.GetCustomAttribute<InspectorTooltipAttribute>();
+        if (tooltipAttr != null)
+            ImGui.BeginGroup();
+
+        drawAction();
+
+        if (tooltipAttr != null)
+        {
+            ImGui.EndGroup();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(tooltipAttr.Tooltip);
         }
     }
 
@@ -357,97 +403,132 @@ public class InspectorPanel
             return;
         }
 
+        var rangeAttr = prop.GetCustomAttribute<InspectorRangeAttribute>();
+
         if (propType == typeof(float))
         {
             float val = firstValue is float f ? f : 0f;
-            if (DrawMixedDragFloat(label, ref val, mixed, 0.1f))
+            float speed = rangeAttr?.Speed ?? 0.1f;
+            float min = rangeAttr?.Min ?? float.MinValue;
+            float max = rangeAttr?.Max ?? float.MaxValue;
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                foreach (var component in components)
-                    prop.SetValue(component, val);
-            }
+                if (DrawMixedDragFloat(label, ref val, mixed, speed, min, max))
+                {
+                    foreach (var component in components)
+                        prop.SetValue(component, val);
+                }
+            });
         }
         else if (propType == typeof(int))
         {
             int val = firstValue is int i ? i : 0;
-            if (DrawMixedDragInt(label, ref val, mixed))
+            float speed = rangeAttr?.Speed ?? 1f;
+            int min = (int)(rangeAttr?.Min ?? int.MinValue);
+            int max = (int)(rangeAttr?.Max ?? int.MaxValue);
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                foreach (var component in components)
-                    prop.SetValue(component, val);
-            }
+                if (DrawMixedDragInt(label, ref val, mixed, speed, min, max))
+                {
+                    foreach (var component in components)
+                        prop.SetValue(component, val);
+                }
+            });
         }
         else if (propType == typeof(bool))
         {
             bool val = firstValue is bool b && b;
-            if (ImGui.Checkbox(GetMixedLabel(label, mixed), ref val))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                _app.RecordUndo();
-                foreach (var component in components)
-                    prop.SetValue(component, val);
-                _app.RefreshUndoBaseline();
-            }
+                if (ImGui.Checkbox(GetMixedLabel(label, mixed), ref val))
+                {
+                    _app.RecordUndo();
+                    foreach (var component in components)
+                        prop.SetValue(component, val);
+                    _app.RefreshUndoBaseline();
+                }
+            });
         }
         else if (propType == typeof(string))
         {
             string val = firstValue as string ?? string.Empty;
-            if (DrawMixedInputText(label, ref val, mixed, 256))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                foreach (var component in components)
-                    prop.SetValue(component, val);
-            }
+                if (DrawMixedInputText(label, ref val, mixed, 256))
+                {
+                    foreach (var component in components)
+                        prop.SetValue(component, val);
+                }
+            });
         }
         else if (propType == typeof(Vector3))
         {
             var val = firstValue is Vector3 v ? v : Vector3.Zero;
-            if (DrawMixedVector3(label, val, mixed, 0.1f, out var updated))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                foreach (var component in components)
-                    prop.SetValue(component, updated);
-            }
+                if (DrawMixedVector3(label, val, mixed, 0.1f, out var updated))
+                {
+                    foreach (var component in components)
+                        prop.SetValue(component, updated);
+                }
+            });
         }
         else if (propType == typeof(Vector2))
         {
             var val = firstValue is Vector2 v ? v : Vector2.Zero;
-            if (DrawMixedVector2(label, val, mixed, 0.1f, out var updated))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                foreach (var component in components)
-                    prop.SetValue(component, updated);
-            }
+                if (DrawMixedVector2(label, val, mixed, 0.1f, out var updated))
+                {
+                    foreach (var component in components)
+                        prop.SetValue(component, updated);
+                }
+            });
         }
         else if (propType == typeof(Quaternion))
         {
             var q = firstValue is Quaternion quaternion ? quaternion : Quaternion.Identity;
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
-            if (DrawMixedVector3(label, euler, mixed, 0.5f, out var updatedEuler))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                var updatedQuaternion = Core.FrinkyMath.EulerToQuaternion(updatedEuler);
-                foreach (var component in components)
-                    prop.SetValue(component, updatedQuaternion);
-            }
+                if (DrawMixedVector3(label, euler, mixed, 0.5f, out var updatedEuler))
+                {
+                    var updatedQuaternion = Core.FrinkyMath.EulerToQuaternion(updatedEuler);
+                    foreach (var component in components)
+                        prop.SetValue(component, updatedQuaternion);
+                }
+            });
         }
         else if (propType == typeof(Color))
         {
             var colorValue = firstValue is Color color ? color : new Color(255, 255, 255, 255);
             var vec4 = ColorToVec4(colorValue);
-            if (DrawMixedColor4(label, vec4, mixed, out var updatedColor))
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                var resolvedColor = Vec4ToColor(updatedColor);
-                foreach (var component in components)
-                    prop.SetValue(component, resolvedColor);
-            }
+                if (DrawMixedColor4(label, vec4, mixed, out var updatedColor))
+                {
+                    var resolvedColor = Vec4ToColor(updatedColor);
+                    foreach (var component in components)
+                        prop.SetValue(component, resolvedColor);
+                }
+            });
         }
         else if (propType.IsEnum)
         {
             object currentValue = firstValue ?? Enum.GetValues(propType).GetValue(0)!;
-            bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
-                ? DrawMixedSearchableEnum(label, propType, ref currentValue, mixed)
-                : ComboEnumHelper.Combo(GetMixedLabel(label, mixed), propType, ref currentValue);
-            if (changed)
+            DrawMultiPropertyWithTooltip(prop, () =>
             {
-                _app.RecordUndo();
-                foreach (var component in components)
-                    prop.SetValue(component, currentValue);
-                _app.RefreshUndoBaseline();
-            }
+                bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
+                    ? DrawMixedSearchableEnum(label, propType, ref currentValue, mixed)
+                    : ComboEnumHelper.Combo(GetMixedLabel(label, mixed), propType, ref currentValue);
+                if (changed)
+                {
+                    _app.RecordUndo();
+                    foreach (var component in components)
+                        prop.SetValue(component, currentValue);
+                    _app.RefreshUndoBaseline();
+                }
+            });
         }
         else if (propType == typeof(EntityReference))
         {
@@ -687,16 +768,16 @@ public class InspectorPanel
         return changed;
     }
 
-    private bool DrawMixedDragFloat(string label, ref float value, bool mixed, float speed)
+    private bool DrawMixedDragFloat(string label, ref float value, bool mixed, float speed, float min = float.MinValue, float max = float.MaxValue)
     {
-        bool changed = ImGui.DragFloat(GetMixedLabel(label, mixed), ref value, speed);
+        bool changed = ImGui.DragFloat(GetMixedLabel(label, mixed), ref value, speed, min, max);
         TrackContinuousUndo();
         return changed;
     }
 
-    private bool DrawMixedDragInt(string label, ref int value, bool mixed)
+    private bool DrawMixedDragInt(string label, ref int value, bool mixed, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
     {
-        bool changed = ImGui.DragInt(GetMixedLabel(label, mixed), ref value);
+        bool changed = ImGui.DragInt(GetMixedLabel(label, mixed), ref value, speed, min, max);
         TrackContinuousUndo();
         return changed;
     }

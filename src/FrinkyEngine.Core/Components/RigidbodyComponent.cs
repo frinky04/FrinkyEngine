@@ -47,6 +47,7 @@ public class RigidbodyComponent : Component
     /// Body mass used when <see cref="MotionType"/> is <see cref="BodyMotionType.Dynamic"/>.
     /// </summary>
     [InspectorVisibleIfEnum(nameof(MotionType), nameof(BodyMotionType.Dynamic))]
+    [InspectorRange(0.0001f, 100000f, 0.05f)]
     public float Mass
     {
         get => _mass;
@@ -65,6 +66,7 @@ public class RigidbodyComponent : Component
     /// Fraction of linear velocity removed per second in range [0, 1].
     /// </summary>
     [InspectorLabel("Linear Damping")]
+    [InspectorRange(0f, 1f, 0.005f)]
     public float LinearDamping
     {
         get => _linearDamping;
@@ -83,6 +85,7 @@ public class RigidbodyComponent : Component
     /// Fraction of angular velocity removed per second in range [0, 1].
     /// </summary>
     [InspectorLabel("Angular Damping")]
+    [InspectorRange(0f, 1f, 0.005f)]
     public float AngularDamping
     {
         get => _angularDamping;

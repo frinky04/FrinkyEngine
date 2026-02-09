@@ -36,6 +36,7 @@ public class CharacterControllerComponent : Component
     /// </summary>
     [InspectorSection("Movement")]
     [InspectorLabel("Move Speed")]
+    [InspectorRange(0f, 100f, 0.1f)]
     public float MoveSpeed
     {
         get => _moveSpeed;
@@ -54,6 +55,7 @@ public class CharacterControllerComponent : Component
     /// Upward launch speed used when a jump is requested while supported.
     /// </summary>
     [InspectorLabel("Jump Velocity")]
+    [InspectorRange(0f, 100f, 0.1f)]
     public float JumpVelocity
     {
         get => _jumpVelocity;
@@ -72,6 +74,7 @@ public class CharacterControllerComponent : Component
     /// Maximum walkable slope angle in degrees.
     /// </summary>
     [InspectorLabel("Max Slope (deg)")]
+    [InspectorRange(0f, 89f, 0.5f)]
     public float MaxSlopeDegrees
     {
         get => _maxSlopeDegrees;
@@ -91,6 +94,7 @@ public class CharacterControllerComponent : Component
     /// </summary>
     [InspectorSection("Forces")]
     [InspectorLabel("Max Horizontal Force")]
+    [InspectorRange(0f, 10000f, 0.5f)]
     public float MaximumHorizontalForce
     {
         get => _maximumHorizontalForce;
@@ -109,6 +113,7 @@ public class CharacterControllerComponent : Component
     /// Maximum vertical force used to maintain support contact.
     /// </summary>
     [InspectorLabel("Max Vertical Force")]
+    [InspectorRange(0f, 10000f, 0.5f)]
     public float MaximumVerticalForce
     {
         get => _maximumVerticalForce;
@@ -128,6 +133,7 @@ public class CharacterControllerComponent : Component
     /// </summary>
     [InspectorSection("Air Control")]
     [InspectorLabel("Force Scale")]
+    [InspectorRange(0f, 10f, 0.01f)]
     public float AirControlForceScale
     {
         get => _airControlForceScale;
@@ -146,6 +152,7 @@ public class CharacterControllerComponent : Component
     /// Air control speed cap scale relative to desired movement speed.
     /// </summary>
     [InspectorLabel("Speed Scale")]
+    [InspectorRange(0f, 10f, 0.01f)]
     public float AirControlSpeedScale
     {
         get => _airControlSpeedScale;

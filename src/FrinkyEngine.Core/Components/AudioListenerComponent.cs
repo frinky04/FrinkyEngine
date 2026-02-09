@@ -20,6 +20,7 @@ public class AudioListenerComponent : Component
     /// Per-listener volume scale applied after bus gains.
     /// </summary>
     [InspectorLabel("Master Volume Scale")]
+    [InspectorRange(0f, 2f, 0.01f)]
     public float MasterVolumeScale
     {
         get => _masterVolumeScale;

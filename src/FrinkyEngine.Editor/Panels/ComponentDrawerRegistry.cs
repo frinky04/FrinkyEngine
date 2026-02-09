@@ -290,10 +290,13 @@ public static class ComponentDrawerRegistry
 
     private static void DrawSubclassProperties(Component component)
     {
+        string? lastSection = null;
+        string? lastHeader = null;
         var type = component.GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
+            ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
             DrawProperty(component, prop);
         }
     }
@@ -301,6 +304,7 @@ public static class ComponentDrawerRegistry
     public static void DrawReflection(Component component)
     {
         string? lastSection = null;
+        string? lastHeader = null;
         var type = component.GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -309,17 +313,56 @@ public static class ComponentDrawerRegistry
             if (!IsPropertyVisible(component, prop))
                 continue;
 
-            var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
-            if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
-            {
-                DrawSection(section!);
-                lastSection = section;
-            }
-
+            ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
             DrawProperty(component, prop);
         }
 
         DrawReflectionExtensions(component);
+    }
+
+    private static void ApplyLayoutAttributes(PropertyInfo prop, ref string? lastSection, ref string? lastHeader)
+    {
+        // Space
+        var spaceAttr = prop.GetCustomAttribute<InspectorSpaceAttribute>();
+        if (spaceAttr != null)
+            ImGui.Dummy(new Vector2(0, spaceAttr.Height));
+
+        // Section (separator text)
+        var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
+        if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
+        {
+            DrawSection(section!);
+            lastSection = section;
+        }
+
+        // Header (collapsing header style, but just text for now)
+        var headerAttr = prop.GetCustomAttribute<InspectorHeaderAttribute>();
+        if (headerAttr != null && !string.Equals(headerAttr.Title, lastHeader, StringComparison.Ordinal))
+        {
+            ImGui.TextDisabled(headerAttr.Title);
+            lastHeader = headerAttr.Title;
+        }
+
+        // Indent
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Indent(indentAttr.Levels * 16f);
+    }
+
+    private static void DrawPropertyWithTooltip(PropertyInfo prop, Action drawAction)
+    {
+        var tooltipAttr = prop.GetCustomAttribute<InspectorTooltipAttribute>();
+        if (tooltipAttr != null)
+            ImGui.BeginGroup();
+
+        drawAction();
+
+        if (tooltipAttr != null)
+        {
+            ImGui.EndGroup();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(tooltipAttr.Tooltip);
+        }
     }
 
     private static void DrawProperty(Component component, PropertyInfo prop)
@@ -332,70 +375,102 @@ public static class ComponentDrawerRegistry
         if (isReadOnly)
         {
             DrawReadOnlyValue(component, prop, label);
+            EndLayoutAttributes(prop);
             return;
         }
+
+        var rangeAttr = prop.GetCustomAttribute<InspectorRangeAttribute>();
 
         if (propType == typeof(float))
         {
             float val = (float)prop.GetValue(component)!;
-            if (ImGui.DragFloat(label, ref val, 0.1f))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            float speed = rangeAttr?.Speed ?? 0.1f;
+            float min = rangeAttr?.Min ?? float.MinValue;
+            float max = rangeAttr?.Max ?? float.MaxValue;
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragFloat(label, ref val, speed, min, max))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(int))
         {
             int val = (int)prop.GetValue(component)!;
-            if (ImGui.DragInt(label, ref val))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            float speed = rangeAttr?.Speed ?? 1f;
+            int min = (int)(rangeAttr?.Min ?? int.MinValue);
+            int max = (int)(rangeAttr?.Max ?? int.MaxValue);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragInt(label, ref val, speed, min, max))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(bool))
         {
-            DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v));
+            DrawPropertyWithTooltip(prop, () =>
+                DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v)));
         }
         else if (propType == typeof(string))
         {
             string val = (string)(prop.GetValue(component) ?? "");
-            if (ImGui.InputText(label, ref val, 256))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.InputText(label, ref val, 256))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(Vector3))
         {
             var val = (Vector3)prop.GetValue(component)!;
-            if (DrawColoredVector3(label, ref val, 0.1f))
-                prop.SetValue(component, val);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (DrawColoredVector3(label, ref val, 0.1f))
+                    prop.SetValue(component, val);
+            });
         }
         else if (propType == typeof(Vector2))
         {
             var val = (Vector2)prop.GetValue(component)!;
-            if (ImGui.DragFloat2(label, ref val, 0.1f))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragFloat2(label, ref val, 0.1f))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(Quaternion))
         {
             var q = (Quaternion)prop.GetValue(component)!;
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
-            if (DrawColoredVector3(label, ref euler, 0.5f))
-                prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (DrawColoredVector3(label, ref euler, 0.5f))
+                    prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+            });
         }
         else if (propType == typeof(Color))
         {
-            DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v));
+            DrawPropertyWithTooltip(prop, () =>
+                DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v)));
         }
         else if (propType.IsEnum)
         {
             object currentValue = prop.GetValue(component) ?? Enum.GetValues(propType).GetValue(0)!;
-            bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
-                ? DrawSearchableEnumCombo(label, propType, ref currentValue)
-                : ComboEnumHelper.Combo(label, propType, ref currentValue);
-            if (changed)
+            DrawPropertyWithTooltip(prop, () =>
             {
-                app.RecordUndo();
-                prop.SetValue(component, currentValue);
-                app.RefreshUndoBaseline();
-            }
+                bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
+                    ? DrawSearchableEnumCombo(label, propType, ref currentValue)
+                    : ComboEnumHelper.Combo(label, propType, ref currentValue);
+                if (changed)
+                {
+                    app.RecordUndo();
+                    prop.SetValue(component, currentValue);
+                    app.RefreshUndoBaseline();
+                }
+            });
         }
         else if (propType == typeof(EntityReference))
         {
@@ -422,6 +497,15 @@ public static class ComponentDrawerRegistry
         {
             ImGui.LabelText(label, propType.Name);
         }
+
+        EndLayoutAttributes(prop);
+    }
+
+    private static void EndLayoutAttributes(PropertyInfo prop)
+    {
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Unindent(indentAttr.Levels * 16f);
     }
 
     private static void DrawAudioSourceAttenuation(AudioSourceComponent source, PropertyInfo prop)

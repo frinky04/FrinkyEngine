@@ -48,12 +48,16 @@ public class LightComponent : Component
     /// <summary>
     /// Brightness multiplier applied to the light color (defaults to 1).
     /// </summary>
+    [InspectorRange(0f, 10f, 0.05f)]
+    [InspectorTooltip("Brightness multiplier")]
     public float Intensity { get; set; } = 1.0f;
 
     /// <summary>
     /// Maximum distance for point light attenuation, in world units (defaults to 10).
     /// </summary>
     [InspectorVisibleIfEnum(nameof(LightType), nameof(LightType.Point))]
+    [InspectorRange(0f, 100f, 0.1f)]
+    [InspectorTooltip("Maximum distance for point light attenuation")]
     public float Range
     {
         get => _range;

@@ -35,6 +35,8 @@ public class CameraComponent : Component
     /// Vertical field of view in degrees, used for perspective projection (defaults to 60).
     /// </summary>
     [InspectorLabel("Field of View")]
+    [InspectorRange(1f, 179f, 0.5f)]
+    [InspectorTooltip("Vertical field of view in degrees")]
     public float FieldOfView
     {
         get => _fieldOfView;
@@ -45,6 +47,8 @@ public class CameraComponent : Component
     /// Distance to the near clipping plane (defaults to 0.1).
     /// </summary>
     [InspectorLabel("Near Plane")]
+    [InspectorRange(0.001f, 100f, 0.01f)]
+    [InspectorTooltip("Distance to near clipping plane")]
     public float NearPlane
     {
         get => _nearPlane;
@@ -60,6 +64,8 @@ public class CameraComponent : Component
     /// Distance to the far clipping plane (defaults to 1000).
     /// </summary>
     [InspectorLabel("Far Plane")]
+    [InspectorRange(1f, 10000f, 1f)]
+    [InspectorTooltip("Distance to far clipping plane")]
     public float FarPlane
     {
         get => _farPlane;
