@@ -24,8 +24,16 @@ public static unsafe class EngineOverlays
         Verbose = 3
     }
 
+    private readonly struct ConsoleSuggestionItem(ConsoleEntryDescriptor entry, int score)
+    {
+        public ConsoleEntryDescriptor Entry { get; } = entry;
+        public int Score { get; } = score;
+    }
+
     private const int ConsoleHistoryMax = 128;
     private const int ConsoleCommandHistoryMax = 128;
+    private const int ConsoleSuggestionVisibleRows = 5;
+    private const int ConsoleSuggestionMaxMatches = 32;
     private const int VerboseMaxSubTimings = 5;
     private const float FpsRefreshInterval = 0.1f;
 
@@ -48,10 +56,8 @@ public static unsafe class EngineOverlays
     private static readonly List<string> _consoleCommandHistory = new();
     private static int _consoleHistoryCursor = -1;
     private static string _consoleHistoryDraft = string.Empty;
-    private static readonly List<string> _autocompleteMatches = new();
-    private static string _autocompleteLeading = string.Empty;
-    private static string _autocompleteSuffix = string.Empty;
-    private static int _autocompleteMatchIndex = -1;
+    private static readonly List<ConsoleSuggestionItem> _consoleSuggestions = new();
+    private static int _consoleSuggestionIndex = -1;
     private static readonly ImGuiInputTextCallback ConsoleInputCallback = HandleConsoleInputTextCallback;
     private static bool _consoleFocusInput;
     private static bool _consoleBackendInitialized;
@@ -296,8 +302,10 @@ public static unsafe class EngineOverlays
 
         if (ImGui.Begin("##EngineOverlay_Console", flags))
         {
+            RefreshSuggestions(_consoleInput);
             float inputHeight = ImGui.GetFrameHeightWithSpacing();
             float outputHeight = height - inputHeight - ImGui.GetCursorPosY() - 8f;
+            outputHeight = Math.Max(1f, outputHeight);
 
             if (ImGui.BeginChild("##ConsoleOutput", new Vector2(0, outputHeight), ImGuiChildFlags.None, ImGuiWindowFlags.None))
             {
@@ -337,7 +345,12 @@ public static unsafe class EngineOverlays
 
                 ResetAutocompleteState();
             }
+
+            var inputRectMin = ImGui.GetItemRectMin();
+            var inputRectMax = ImGui.GetItemRectMax();
+            RefreshSuggestions(_consoleInput);
             ImGui.PopItemWidth();
+            DrawSuggestionPanel(inputRectMin, inputRectMax);
         }
         ImGui.End();
     }
@@ -351,6 +364,8 @@ public static unsafe class EngineOverlays
 
     private static void SubmitConsoleInput()
     {
+        TryApplyActiveSuggestionToInput(advanceSelection: false);
+
         var trimmed = _consoleInput.Trim();
         if (trimmed.Length > 0)
         {
@@ -382,10 +397,8 @@ public static unsafe class EngineOverlays
 
     private static void ResetAutocompleteState()
     {
-        _autocompleteMatches.Clear();
-        _autocompleteLeading = string.Empty;
-        _autocompleteSuffix = string.Empty;
-        _autocompleteMatchIndex = -1;
+        _consoleSuggestions.Clear();
+        _consoleSuggestionIndex = -1;
     }
 
     private static void ClearInputNavigationState(bool restoreDraft)
@@ -482,41 +495,255 @@ public static unsafe class EngineOverlays
             return;
 
         var current = GetCallbackBuffer(data);
-        SplitFirstToken(current, out var leading, out var token, out var suffix);
+        if (!TryApplyActiveSuggestionToBuffer(data, current, advanceSelection: true))
+            FrinkyLog.Info("Console autocomplete: no fuzzy matches.");
+    }
 
-        var continuingCycle = _autocompleteMatchIndex >= 0
-                              && _autocompleteMatchIndex < _autocompleteMatches.Count
-                              && string.Equals(leading, _autocompleteLeading, StringComparison.Ordinal)
-                              && string.Equals(suffix, _autocompleteSuffix, StringComparison.Ordinal)
-                              && string.Equals(token, _autocompleteMatches[_autocompleteMatchIndex], StringComparison.OrdinalIgnoreCase);
+    private static bool TryApplyActiveSuggestionToInput(bool advanceSelection)
+    {
+        if (!TryApplySuggestionToText(_consoleInput, advanceSelection, out var replaced))
+            return false;
 
-        if (!continuingCycle)
-        {
-            ResetAutocompleteState();
-
-            var matches = ConsoleBackend.GetRegisteredNames()
-                .Where(name => name.StartsWith(token, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-            if (matches.Length == 0)
-            {
-                FrinkyLog.Info($"Console autocomplete: no matches for '{token}'.");
-                return;
-            }
-
-            _autocompleteLeading = leading;
-            _autocompleteSuffix = suffix;
-            _autocompleteMatches.AddRange(matches);
-            _autocompleteMatchIndex = -1;
-        }
-
-        _autocompleteMatchIndex = (_autocompleteMatchIndex + 1) % _autocompleteMatches.Count;
-        var next = string.Concat(_autocompleteLeading, _autocompleteMatches[_autocompleteMatchIndex], _autocompleteSuffix);
-        SetCallbackBuffer(data, next);
-        _consoleInput = next;
+        _consoleInput = replaced;
         _consoleHistoryCursor = -1;
         _consoleHistoryDraft = _consoleInput;
-        FrinkyLog.Info($"Console autocomplete -> '{_autocompleteMatches[_autocompleteMatchIndex]}'.");
+        return true;
+    }
+
+    private static unsafe bool TryApplyActiveSuggestionToBuffer(
+        ImGuiInputTextCallbackData* data,
+        string currentInput,
+        bool advanceSelection)
+    {
+        if (data == null)
+            return false;
+
+        if (!TryApplySuggestionToText(currentInput, advanceSelection, out var replaced))
+            return false;
+
+        SetCallbackBuffer(data, replaced);
+        _consoleInput = replaced;
+        _consoleHistoryCursor = -1;
+        _consoleHistoryDraft = _consoleInput;
+        return true;
+    }
+
+    private static bool TryApplySuggestionToText(string input, bool advanceSelection, out string replaced)
+    {
+        replaced = input ?? string.Empty;
+        RefreshSuggestions(replaced);
+
+        if (_consoleSuggestions.Count == 0)
+            return false;
+
+        if (_consoleSuggestionIndex < 0 || _consoleSuggestionIndex >= _consoleSuggestions.Count)
+        {
+            _consoleSuggestionIndex = 0;
+        }
+        else if (advanceSelection)
+        {
+            _consoleSuggestionIndex = (_consoleSuggestionIndex + 1) % _consoleSuggestions.Count;
+        }
+
+        replaced = ReplaceFirstToken(replaced, _consoleSuggestions[_consoleSuggestionIndex].Entry.Name);
+        return true;
+    }
+
+    private static float CalculateSuggestionPanelHeight()
+    {
+        if (_consoleSuggestions.Count == 0)
+            return 0f;
+
+        int rows = Math.Min(ConsoleSuggestionVisibleRows, _consoleSuggestions.Count);
+        return rows * ImGui.GetTextLineHeightWithSpacing() + 8f;
+    }
+
+    private static void DrawSuggestionPanel(Vector2 inputRectMin, Vector2 inputRectMax)
+    {
+        if (_consoleSuggestions.Count == 0)
+            return;
+
+        float panelHeight = CalculateSuggestionPanelHeight();
+        float panelWidth = Math.Max(160f, inputRectMax.X - inputRectMin.X);
+        float panelX = inputRectMin.X;
+        float panelY = inputRectMax.Y + 4f;
+        float screenHeight = ImGui.GetIO().DisplaySize.Y;
+        if (panelY + panelHeight > screenHeight)
+        {
+            float aboveY = inputRectMin.Y - panelHeight - 4f;
+            if (aboveY >= 0f)
+                panelY = aboveY;
+            else
+                panelY = Math.Max(0f, screenHeight - panelHeight);
+        }
+
+        ImGui.SetNextWindowPos(new Vector2(panelX, panelY), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(panelWidth, panelHeight), ImGuiCond.Always);
+        ImGui.SetNextWindowBgAlpha(0.95f);
+
+        var popupFlags = ImGuiWindowFlags.NoDecoration
+                         | ImGuiWindowFlags.NoMove
+                         | ImGuiWindowFlags.NoSavedSettings
+                         | ImGuiWindowFlags.NoNav
+                         | ImGuiWindowFlags.NoInputs
+                         | ImGuiWindowFlags.NoFocusOnAppearing
+                         | ImGuiWindowFlags.NoBringToFrontOnFocus;
+
+        if (!ImGui.Begin("##ConsoleSuggestionsPopup", popupFlags))
+        {
+            ImGui.End();
+            return;
+        }
+
+        if (ImGui.BeginChild(
+                "##ConsoleSuggestionsScroll",
+                Vector2.Zero,
+                ImGuiChildFlags.None,
+                ImGuiWindowFlags.NoNav | ImGuiWindowFlags.NoInputs))
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var selectedBgColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.24f, 0.32f, 0.95f));
+
+            for (int i = 0; i < _consoleSuggestions.Count; i++)
+            {
+                var item = _consoleSuggestions[i];
+                bool selected = i == _consoleSuggestionIndex;
+                string kindLabel = item.Entry.Kind == ConsoleEntryKind.CVar ? "cvar" : "cmd";
+                string rowText = $"{item.Entry.Usage}  [{kindLabel}]";
+                if (selected)
+                {
+                    var min = ImGui.GetCursorScreenPos();
+                    float rowHeight = ImGui.GetTextLineHeightWithSpacing();
+                    var max = new Vector2(min.X + panelWidth, min.Y + rowHeight);
+                    drawList.AddRectFilled(min, max, selectedBgColor);
+                }
+
+                ImGui.TextUnformatted(rowText);
+            }
+        }
+
+        ImGui.EndChild();
+        ImGui.End();
+    }
+
+    private static void RefreshSuggestions(string input)
+    {
+        var query = (input ?? string.Empty).Trim();
+        if (query.Length == 0)
+        {
+            _consoleSuggestions.Clear();
+            _consoleSuggestionIndex = -1;
+            return;
+        }
+
+        string previousActiveName = _consoleSuggestionIndex >= 0 && _consoleSuggestionIndex < _consoleSuggestions.Count
+            ? _consoleSuggestions[_consoleSuggestionIndex].Entry.Name
+            : string.Empty;
+
+        var scored = new List<ConsoleSuggestionItem>();
+        var entries = ConsoleBackend.GetRegisteredEntries();
+        foreach (var entry in entries)
+        {
+            if (TryScoreSuggestion(query, entry, out int score))
+                scored.Add(new ConsoleSuggestionItem(entry, score));
+        }
+
+        scored.Sort(static (left, right) =>
+        {
+            int byScore = right.Score.CompareTo(left.Score);
+            if (byScore != 0)
+                return byScore;
+
+            int byName = string.Compare(left.Entry.Name, right.Entry.Name, StringComparison.OrdinalIgnoreCase);
+            if (byName != 0)
+                return byName;
+
+            return string.Compare(left.Entry.Usage, right.Entry.Usage, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (scored.Count > ConsoleSuggestionMaxMatches)
+            scored.RemoveRange(ConsoleSuggestionMaxMatches, scored.Count - ConsoleSuggestionMaxMatches);
+
+        _consoleSuggestions.Clear();
+        _consoleSuggestions.AddRange(scored);
+
+        if (_consoleSuggestions.Count == 0)
+        {
+            _consoleSuggestionIndex = -1;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(previousActiveName))
+        {
+            int existingIndex = _consoleSuggestions.FindIndex(item =>
+                string.Equals(item.Entry.Name, previousActiveName, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+            {
+                _consoleSuggestionIndex = existingIndex;
+                return;
+            }
+        }
+
+        _consoleSuggestionIndex = 0;
+    }
+
+    private static bool TryScoreSuggestion(string query, ConsoleEntryDescriptor entry, out int score)
+    {
+        score = 0;
+        if (string.IsNullOrWhiteSpace(query))
+            return false;
+
+        var normalizedQuery = query.Trim();
+        var haystack = $"{entry.Name} {entry.Usage} {entry.Description}";
+        if (!TrySubsequenceScore(normalizedQuery, haystack, out score))
+            return false;
+
+        int contiguousIndex = haystack.IndexOf(normalizedQuery, StringComparison.OrdinalIgnoreCase);
+        if (contiguousIndex >= 0)
+            score += 500 - Math.Min(400, contiguousIndex);
+
+        if (entry.Name.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+            score += 1000;
+        else if (entry.Usage.StartsWith(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+            score += 350;
+
+        score += Math.Max(0, 80 - entry.Name.Length);
+        return true;
+    }
+
+    private static bool TrySubsequenceScore(string query, string haystack, out int score)
+    {
+        score = 0;
+        if (string.IsNullOrEmpty(query))
+            return false;
+
+        int queryIndex = 0;
+        int streak = 0;
+        int lastMatchIndex = -2;
+
+        for (int i = 0; i < haystack.Length && queryIndex < query.Length; i++)
+        {
+            if (char.ToLowerInvariant(haystack[i]) != char.ToLowerInvariant(query[queryIndex]))
+                continue;
+
+            bool contiguous = i == lastMatchIndex + 1;
+            streak = contiguous ? streak + 1 : 1;
+            score += 10 + streak * 4;
+
+            if (i == 0 || char.IsWhiteSpace(haystack[i - 1]))
+                score += 6;
+
+            lastMatchIndex = i;
+            queryIndex++;
+        }
+
+        return queryIndex == query.Length;
+    }
+
+    private static string ReplaceFirstToken(string input, string replacement)
+    {
+        SplitFirstToken(input, out var leading, out _, out var suffix);
+        return string.Concat(leading, replacement ?? string.Empty, suffix);
     }
 
     private static unsafe string GetCallbackBuffer(ImGuiInputTextCallbackData* data)

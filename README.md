@@ -465,7 +465,9 @@ Console backend and cvar support:
 - `r_postprocess` prints the current post-processing state (`0` or `1`).
 - `r_postprocess 0` disables post-processing for standalone runtime and editor Play/Simulate mode.
 - `r_postprocess 1` enables post-processing for standalone runtime and editor Play/Simulate mode.
-- `Tab` cycles autofill matches for the first command/cvar token.
+- Live suggestions show matching commands/cvars while typing (fuzzy matched against name, usage, and description).
+- `Tab` cycles the active suggestion and applies it to the first command token.
+- `Enter` accepts the active suggestion (if needed) and executes.
 - `Up/Down` navigates entered command history; `Down` from newest restores your draft input.
 
 ## Export and Packaging

@@ -119,21 +119,39 @@ public static class ConsoleBackend
     }
 
     /// <summary>
-    /// Gets all registered command and cvar names sorted alphabetically.
+    /// Gets all registered command and cvar descriptors sorted by name.
     /// </summary>
-    /// <returns>A read-only list of command and cvar names.</returns>
-    public static IReadOnlyList<string> GetRegisteredNames()
+    /// <returns>A read-only list of command and cvar descriptors.</returns>
+    public static IReadOnlyList<ConsoleEntryDescriptor> GetRegisteredEntries()
     {
         EnsureBuiltinsRegistered();
 
         lock (Sync)
         {
-            return Commands.Keys
-                .Concat(CVars.Keys)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(static n => n, StringComparer.OrdinalIgnoreCase)
+            var entries = new List<ConsoleEntryDescriptor>(Commands.Count + CVars.Count);
+            entries.AddRange(Commands.Values.Select(static command =>
+                new ConsoleEntryDescriptor(ConsoleEntryKind.Command, command.Name, command.Usage, command.Description)));
+            entries.AddRange(CVars.Values.Select(static cvar =>
+                new ConsoleEntryDescriptor(ConsoleEntryKind.CVar, cvar.Name, cvar.Usage, cvar.Description)));
+
+            return entries
+                .OrderBy(static e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static e => e.Kind)
                 .ToArray();
         }
+    }
+
+    /// <summary>
+    /// Gets all registered command and cvar names sorted alphabetically.
+    /// </summary>
+    /// <returns>A read-only list of command and cvar names.</returns>
+    public static IReadOnlyList<string> GetRegisteredNames()
+    {
+        return GetRegisteredEntries()
+            .Select(static e => e.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static n => n, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static bool RegisterCommandNoLock(
