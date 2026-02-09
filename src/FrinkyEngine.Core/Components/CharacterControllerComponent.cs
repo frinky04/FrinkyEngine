@@ -322,6 +322,8 @@ public class CharacterControllerComponent : Component
         if (!_isCrouching)
             return;
 
+        // TODO: Add ceiling check (overlap/sweep test) before allowing stand-up.
+        // Without physics queries, the capsule will clip through low geometry above.
         _isCrouching = false;
         ApplyCrouchToCapsule(false);
     }
@@ -375,10 +377,14 @@ public class CharacterControllerComponent : Component
     /// <inheritdoc />
     public override void OnEnable()
     {
-        // Reset cached dimensions and crouch state when re-enabled
-        _standingCapsuleLength = -1f;
+        // Restore capsule dimensions before resetting cached state
         if (_isCrouching)
+        {
             _isCrouching = false;
+            ApplyCrouchToCapsule(false);
+        }
+
+        _standingCapsuleLength = -1f;
         NotifyPhysicsChanged();
     }
 

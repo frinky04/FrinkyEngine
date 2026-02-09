@@ -43,7 +43,6 @@ public class SimplePlayerInputComponent : Component
     private EntityReference _cameraEntity;
 
     private bool _adjustCameraOnCrouch = true;
-    private float _crouchCameraYOffset = -0.8f;
     private float _cameraOffsetLerpSpeed = 5f;
     private float _standingHeadHeight = 1.6f;
 
@@ -304,18 +303,8 @@ public class SimplePlayerInputComponent : Component
     }
 
     /// <summary>
-    /// Vertical offset applied to camera Y position when crouching.
-    /// Default is -0.8 (lowers camera by 0.8 units).
-    /// </summary>
-    public float CrouchCameraYOffset
-    {
-        get => _crouchCameraYOffset;
-        set => _crouchCameraYOffset = value;
-    }
-
-    /// <summary>
     /// Speed of camera offset interpolation during crouch transitions.
-    /// Higher values = faster transition. Default is 10.0.
+    /// Higher values = faster transition. Default is 5.0.
     /// </summary>
     public float CameraOffsetLerpSpeed
     {
