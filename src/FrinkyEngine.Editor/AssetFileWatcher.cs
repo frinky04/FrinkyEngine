@@ -89,6 +89,7 @@ public class AssetFileWatcher : IDisposable
 
     private void OnRenamedEvent(object sender, RenamedEventArgs e)
     {
+        RecordChange(e.OldFullPath);
         RecordChange(e.FullPath);
     }
 

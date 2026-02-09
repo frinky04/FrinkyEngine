@@ -19,6 +19,7 @@ public static class PrefabSerializer
             new ColorConverter(),
             new EntityReferenceConverter(),
             new PostProcessEffectListConverter(),
+            new AssetReferenceConverter(),
             new JsonStringEnumConverter()
         }
     };

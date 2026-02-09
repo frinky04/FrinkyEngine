@@ -1,11 +1,13 @@
 using System.Text.Json;
+using FrinkyEngine.Core.Assets;
 
 namespace FrinkyEngine.Core.Prefabs;
 
 public class PrefabInstanceMetadata
 {
     public bool IsRoot { get; set; }
-    public string AssetPath { get; set; } = string.Empty;
+    [AssetFilter(AssetType.Prefab)]
+    public AssetReference AssetPath { get; set; } = new("");
     public string SourceNodeId { get; set; } = string.Empty;
     public PrefabOverridesData? Overrides { get; set; }
 
@@ -24,7 +26,8 @@ public class PrefabInstanceMetadata
 public class PrefabAssetData
 {
     public string Name { get; set; } = "Prefab";
-    public string SourcePrefab { get; set; } = string.Empty;
+    [AssetFilter(AssetType.Prefab)]
+    public AssetReference SourcePrefab { get; set; } = new("");
     public PrefabNodeData Root { get; set; } = new();
     public PrefabOverridesData VariantOverrides { get; set; } = new();
 

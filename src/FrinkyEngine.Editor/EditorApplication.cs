@@ -73,6 +73,8 @@ public class EditorApplication
     private EditorNotification? _exportNotification;
     private string? _exportOutputDirectory;
     private AssetFileWatcher? _assetFileWatcher;
+    private bool _deferredScriptsChanged;
+    private HashSet<string>? _deferredChangedPaths;
     private readonly Dictionary<string, HierarchySceneState> _sessionHierarchyStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _hierarchyStateDirty;
     private bool _wasFocused = true;
@@ -105,8 +107,20 @@ public class EditorApplication
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EditorIcons.Load();
+        LoadErrorAssets();
         NewScene();
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
+    }
+
+    private static void LoadErrorAssets()
+    {
+        const string errorTexturePath = "EditorAssets/Textures/ErrorTexture.png";
+        const string errorModelPath = "EditorAssets/Meshes/ErrorMesh.glb";
+
+        if (File.Exists(errorTexturePath))
+            AssetManager.Instance.ErrorTexture = Raylib.LoadTexture(errorTexturePath);
+        if (File.Exists(errorModelPath))
+            AssetManager.Instance.ErrorModel = Raylib.LoadModel(errorModelPath);
     }
 
 
@@ -182,75 +196,16 @@ public class EditorApplication
 
         if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool scriptsChanged, out var changedPaths))
         {
-            AssetDatabase.Instance.Refresh();
-
-            bool assetsReloaded = false;
-            var changedPrefabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (changedPaths != null && CurrentScene != null)
+            if (!Raylib.IsWindowFocused())
             {
-                var assetsPath = AssetManager.Instance.AssetsPath;
-                var relativePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var fullPath in changedPaths)
-                {
-                    if (fullPath.StartsWith(assetsPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var rel = Path.GetRelativePath(assetsPath, fullPath).Replace('\\', '/');
-                        relativePaths.Add(rel);
-                        if (rel.EndsWith(".fprefab", StringComparison.OrdinalIgnoreCase))
-                            changedPrefabs.Add(rel);
-                    }
-                }
-
-                if (relativePaths.Count > 0)
-                {
-                    // Invalidate components first (clear RenderModel) before unloading GPU resources
-                    foreach (var renderable in CurrentScene.Renderables)
-                    {
-                        bool shouldInvalidate = false;
-                        if (renderable is MeshRendererComponent meshRenderer)
-                        {
-                            if (relativePaths.Contains(meshRenderer.ModelPath))
-                                shouldInvalidate = true;
-                            else
-                            {
-                                foreach (var slot in meshRenderer.MaterialSlots)
-                                {
-                                    if (!string.IsNullOrEmpty(slot.TexturePath) && relativePaths.Contains(slot.TexturePath))
-                                    {
-                                        shouldInvalidate = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        else if (renderable is PrimitiveComponent primitive)
-                        {
-                            if (!string.IsNullOrEmpty(primitive.TexturePath) && relativePaths.Contains(primitive.TexturePath))
-                                shouldInvalidate = true;
-                        }
-
-                        if (shouldInvalidate)
-                        {
-                            renderable.Invalidate();
-                            assetsReloaded = true;
-                        }
-                    }
-
-                    // Now unload stale GPU resources from the cache
-                    foreach (var rel in relativePaths)
-                        AssetManager.Instance.InvalidateAsset(rel);
-                }
+                _deferredScriptsChanged |= scriptsChanged;
+                if (changedPaths != null)
+                    (_deferredChangedPaths ??= new(StringComparer.OrdinalIgnoreCase)).UnionWith(changedPaths);
             }
-
-            if (changedPrefabs.Count > 0)
-                Prefabs.SyncInstancesForAssets(changedPrefabs);
-
-            NotificationManager.Instance.Post(
-                assetsReloaded ? "Assets reloaded" : "Assets refreshed",
-                NotificationType.Info, 2.5f);
-
-            if (scriptsChanged)
-                BuildScripts();
+            else
+            {
+                PerformAssetRefresh(scriptsChanged, changedPaths);
+            }
         }
 
         FlushHierarchyStateIfDirty();
@@ -263,6 +218,20 @@ public class EditorApplication
                 Raylib.DisableCursor();
             else if (!isFocused && _wasFocused)
                 Raylib.EnableCursor();
+        }
+        if (isFocused && !_wasFocused && _deferredChangedPaths != null)
+        {
+            // Merge any additional changes that arrived since the last poll
+            if (_assetFileWatcher != null && _assetFileWatcher.PollChanges(out bool latestScripts, out var latestPaths))
+            {
+                _deferredScriptsChanged |= latestScripts;
+                if (latestPaths != null)
+                    _deferredChangedPaths.UnionWith(latestPaths);
+            }
+
+            PerformAssetRefresh(_deferredScriptsChanged, _deferredChangedPaths);
+            _deferredScriptsChanged = false;
+            _deferredChangedPaths = null;
         }
         _wasFocused = isFocused;
 
@@ -554,6 +523,82 @@ public class EditorApplication
         }
 
         return LaunchVSCode(new[] { "-g", absolutePath }, successMessage: null);
+    }
+
+    private void PerformAssetRefresh(bool scriptsChanged, HashSet<string>? changedPaths)
+    {
+        AssetDatabase.Instance.Refresh();
+
+        bool assetsReloaded = false;
+        var changedPrefabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (changedPaths != null && CurrentScene != null)
+        {
+            var assetsPath = AssetManager.Instance.AssetsPath;
+            var relativePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var fullPath in changedPaths)
+            {
+                if (fullPath.StartsWith(assetsPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    var rel = Path.GetRelativePath(assetsPath, fullPath).Replace('\\', '/');
+                    relativePaths.Add(rel);
+                    if (rel.EndsWith(".fprefab", StringComparison.OrdinalIgnoreCase))
+                        changedPrefabs.Add(rel);
+                }
+            }
+
+            if (relativePaths.Count > 0)
+            {
+                // Invalidate components first (clear RenderModel) before unloading GPU resources
+                foreach (var renderable in CurrentScene.Renderables)
+                {
+                    bool shouldInvalidate = false;
+                    if (renderable is MeshRendererComponent meshRenderer)
+                    {
+                        if (relativePaths.Contains(meshRenderer.ModelPath.Path))
+                            shouldInvalidate = true;
+                        else
+                        {
+                            foreach (var slot in meshRenderer.MaterialSlots)
+                            {
+                                if (!slot.TexturePath.IsEmpty && relativePaths.Contains(slot.TexturePath.Path))
+                                {
+                                    shouldInvalidate = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    else if (renderable is PrimitiveComponent primitive)
+                    {
+                        if (!primitive.TexturePath.IsEmpty && relativePaths.Contains(primitive.TexturePath.Path))
+                            shouldInvalidate = true;
+                    }
+
+                    if (shouldInvalidate)
+                    {
+                        renderable.Invalidate();
+                        assetsReloaded = true;
+                    }
+                }
+
+                // Now unload stale GPU resources from the cache
+                foreach (var rel in relativePaths)
+                    AssetManager.Instance.InvalidateAsset(rel);
+            }
+        }
+
+        if (changedPrefabs.Count > 0)
+            Prefabs.SyncInstancesForAssets(changedPrefabs);
+
+        NotificationManager.Instance.Post(
+            assetsReloaded ? "Assets reloaded" : "Assets refreshed",
+            NotificationType.Info, 2.5f);
+
+        if (CurrentScene != null)
+            AssetReferenceValidator.ValidateScene(CurrentScene);
+
+        if (scriptsChanged)
+            BuildScripts();
     }
 
     public void BuildScripts()

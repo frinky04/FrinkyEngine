@@ -18,14 +18,14 @@ public class PrefabService
 
     public bool IsPrefabInstance(Entity? entity)
     {
-        return entity?.Prefab != null && !string.IsNullOrWhiteSpace(entity.Prefab.AssetPath);
+        return entity?.Prefab != null && !entity.Prefab.AssetPath.IsEmpty;
     }
 
     public bool IsPrefabRoot(Entity? entity)
     {
         return entity?.Prefab != null
                && entity.Prefab.IsRoot
-               && !string.IsNullOrWhiteSpace(entity.Prefab.AssetPath);
+               && !entity.Prefab.AssetPath.IsEmpty;
     }
 
     public Entity? GetPrefabRoot(Entity? entity)
@@ -83,7 +83,7 @@ public class PrefabService
         if (root?.Prefab == null)
             return false;
 
-        var relativePath = NormalizePath(root.Prefab.AssetPath);
+        var relativePath = NormalizePath(root.Prefab.AssetPath.Path);
         if (string.IsNullOrWhiteSpace(relativePath))
             return false;
 
@@ -95,7 +95,7 @@ public class PrefabService
             return false;
 
         var preApplyRoots = _app.CurrentScene.Entities
-            .Where(e => IsPrefabRoot(e) && string.Equals(NormalizePath(e.Prefab!.AssetPath), relativePath, StringComparison.OrdinalIgnoreCase))
+            .Where(e => IsPrefabRoot(e) && string.Equals(NormalizePath(e.Prefab!.AssetPath.Path), relativePath, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var overridesByRoot = new Dictionary<Guid, PrefabOverridesData>();
@@ -209,7 +209,7 @@ public class PrefabService
         if (!IsPrefabRoot(root) || root.Prefab == null)
             return;
 
-        var sourcePrefab = PrefabDatabase.Instance.Load(root.Prefab.AssetPath, resolveVariants: true);
+        var sourcePrefab = PrefabDatabase.Instance.Load(root.Prefab.AssetPath.Path, resolveVariants: true);
         if (sourcePrefab == null)
             return;
 
@@ -248,7 +248,7 @@ public class PrefabService
         PrefabDatabase.Instance.Invalidate(assetPath);
 
         var roots = _app.CurrentScene.Entities
-            .Where(e => IsPrefabRoot(e) && string.Equals(NormalizePath(e.Prefab!.AssetPath), assetPath, StringComparison.OrdinalIgnoreCase))
+            .Where(e => IsPrefabRoot(e) && string.Equals(NormalizePath(e.Prefab!.AssetPath.Path), assetPath, StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (roots.Count == 0)
             return;
@@ -435,7 +435,7 @@ public class PrefabService
         var parent = root.Transform.Parent;
         var rootFolder = parent == null ? _app.GetRootEntityFolder(root) : null;
         var rootId = root.Id;
-        var assetPath = NormalizePath(root.Prefab.AssetPath);
+        var assetPath = NormalizePath(root.Prefab.AssetPath.Path);
         var preservedRootName = root.Name;
         var preservedRootPosition = root.Transform.LocalPosition;
         var preservedRootRotation = root.Transform.LocalRotation;

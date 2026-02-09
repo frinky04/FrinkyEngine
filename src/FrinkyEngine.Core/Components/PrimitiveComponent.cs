@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
 using Raylib_cs;
 
@@ -10,7 +11,7 @@ namespace FrinkyEngine.Core.Components;
 public abstract class PrimitiveComponent : RenderableComponent
 {
     private MaterialType _materialType = MaterialType.SolidColor;
-    private string _texturePath = string.Empty;
+    private AssetReference _texturePath = new("");
     private float _triplanarScale = 1f;
     private float _triplanarBlendSharpness = 4f;
     private bool _triplanarUseWorldSpace = true;
@@ -34,12 +35,13 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is
     /// <see cref="Rendering.MaterialType.Textured"/> or <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
-    public string TexturePath
+    [AssetFilter(AssetType.Texture)]
+    public AssetReference TexturePath
     {
         get => _texturePath;
         set
         {
-            if (_texturePath == value) return;
+            if (_texturePath.Path == value.Path) return;
             _texturePath = value;
             MarkMeshDirty();
         }
@@ -149,7 +151,7 @@ public abstract class PrimitiveComponent : RenderableComponent
             model,
             0,
             _materialType,
-            _texturePath,
+            _texturePath.Path,
             _triplanarScale,
             _triplanarBlendSharpness,
             _triplanarUseWorldSpace);

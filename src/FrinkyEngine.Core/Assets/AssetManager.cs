@@ -12,16 +12,26 @@ public class AssetManager
     /// </summary>
     public static AssetManager Instance { get; } = new();
 
-    private readonly Dictionary<string, Model> _models = new();
-    private readonly Dictionary<string, Texture2D> _textures = new();
-    private readonly Dictionary<string, Sound> _audioClips = new();
-    private readonly Dictionary<string, Music> _audioStreams = new();
+    private readonly Dictionary<string, Model> _models = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Sound> _audioClips = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Music> _audioStreams = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<TriplanarParamKey, Texture2D> _triplanarParamsTextures = new();
 
     /// <summary>
     /// Root directory for resolving relative asset paths (defaults to "Assets").
     /// </summary>
     public string AssetsPath { get; set; } = "Assets";
+
+    /// <summary>
+    /// Fallback texture shown when a referenced texture file does not exist on disk.
+    /// </summary>
+    public Texture2D? ErrorTexture { get; set; }
+
+    /// <summary>
+    /// Fallback model shown when a referenced model file does not exist on disk.
+    /// </summary>
+    public Model? ErrorModel { get; set; }
 
     /// <summary>
     /// Combines a relative asset path with <see cref="AssetsPath"/> to produce a full file path.
@@ -40,12 +50,16 @@ public class AssetManager
     /// <returns>The loaded <see cref="Model"/>.</returns>
     public Model LoadModel(string relativePath)
     {
-        if (_models.TryGetValue(relativePath, out var cached))
+        var key = relativePath.Replace('\\', '/');
+        if (_models.TryGetValue(key, out var cached))
             return cached;
 
         var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+            return ErrorModel ?? default;
+
         var model = Raylib.LoadModel(fullPath);
-        _models[relativePath] = model;
+        _models[key] = model;
         return model;
     }
 
@@ -56,12 +70,16 @@ public class AssetManager
     /// <returns>The loaded <see cref="Texture2D"/>.</returns>
     public Texture2D LoadTexture(string relativePath)
     {
-        if (_textures.TryGetValue(relativePath, out var cached))
+        var key = relativePath.Replace('\\', '/');
+        if (_textures.TryGetValue(key, out var cached))
             return cached;
 
         var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+            return ErrorTexture ?? default;
+
         var texture = Raylib.LoadTexture(fullPath);
-        _textures[relativePath] = texture;
+        _textures[key] = texture;
         return texture;
     }
 
@@ -72,12 +90,13 @@ public class AssetManager
     /// <returns>The loaded <see cref="Sound"/>.</returns>
     public Sound LoadAudioClip(string relativePath)
     {
-        if (_audioClips.TryGetValue(relativePath, out var cached))
+        var key = relativePath.Replace('\\', '/');
+        if (_audioClips.TryGetValue(key, out var cached))
             return cached;
 
         var fullPath = ResolvePath(relativePath);
         var sound = Raylib.LoadSound(fullPath);
-        _audioClips[relativePath] = sound;
+        _audioClips[key] = sound;
         return sound;
     }
 
@@ -88,12 +107,13 @@ public class AssetManager
     /// <returns>The loaded <see cref="Music"/> stream.</returns>
     public Music LoadAudioStream(string relativePath)
     {
-        if (_audioStreams.TryGetValue(relativePath, out var cached))
+        var key = relativePath.Replace('\\', '/');
+        if (_audioStreams.TryGetValue(key, out var cached))
             return cached;
 
         var fullPath = ResolvePath(relativePath);
         var music = Raylib.LoadMusicStream(fullPath);
-        _audioStreams[relativePath] = music;
+        _audioStreams[key] = music;
         return music;
     }
 

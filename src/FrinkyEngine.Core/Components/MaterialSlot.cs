@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
 
 namespace FrinkyEngine.Core.Components;
@@ -16,7 +17,8 @@ public class MaterialSlot
     /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is
     /// <see cref="Rendering.MaterialType.Textured"/> or <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
-    public string TexturePath { get; set; } = string.Empty;
+    [AssetFilter(AssetType.Texture)]
+    public AssetReference TexturePath { get; set; } = new("");
 
     /// <summary>
     /// Texture coordinate scale used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.

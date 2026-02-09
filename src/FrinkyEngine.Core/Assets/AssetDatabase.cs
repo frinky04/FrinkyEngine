@@ -140,6 +140,25 @@ public class AssetDatabase
     }
 
     /// <summary>
+    /// Returns true if an asset with the given relative path exists in the database.
+    /// </summary>
+    /// <param name="relativePath">Asset-relative path to check.</param>
+    /// <returns>True if the asset exists.</returns>
+    public bool AssetExists(string relativePath)
+    {
+        if (string.IsNullOrEmpty(relativePath))
+            return false;
+
+        foreach (var asset in _assets)
+        {
+            if (string.Equals(asset.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Clears all cached asset entries and resets the scan path.
     /// </summary>
     public void Clear()

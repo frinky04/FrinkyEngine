@@ -11,17 +11,18 @@ namespace FrinkyEngine.Core.Components;
 [ComponentCategory("Rendering")]
 public class MeshRendererComponent : RenderableComponent
 {
-    private string _modelPath = string.Empty;
+    private AssetReference _modelPath = new("");
 
     /// <summary>
     /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
     /// </summary>
-    public string ModelPath
+    [AssetFilter(AssetType.Model)]
+    public AssetReference ModelPath
     {
         get => _modelPath;
         set
         {
-            if (_modelPath == value) return;
+            if (_modelPath.Path == value.Path) return;
             _modelPath = value;
             RenderModel = null;
         }
@@ -34,9 +35,9 @@ public class MeshRendererComponent : RenderableComponent
 
     internal override void EnsureModelReady()
     {
-        if (RenderModel.HasValue || string.IsNullOrEmpty(_modelPath)) return;
+        if (RenderModel.HasValue || _modelPath.IsEmpty) return;
 
-        var model = AssetManager.Instance.LoadModel(_modelPath);
+        var model = AssetManager.Instance.LoadModel(_modelPath.Path);
 
         // Extend material slots list to match model's material count
         while (MaterialSlots.Count < model.MaterialCount)
@@ -50,7 +51,7 @@ public class MeshRendererComponent : RenderableComponent
                 model,
                 i,
                 slot.MaterialType,
-                slot.TexturePath,
+                slot.TexturePath.Path,
                 slot.TriplanarScale,
                 slot.TriplanarBlendSharpness,
                 slot.TriplanarUseWorldSpace);
