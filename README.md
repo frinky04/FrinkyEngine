@@ -145,7 +145,7 @@ The template `.csproj` includes a placeholder comment for `FrinkyEngine.Core`. A
 
 ## Documentation
 
-Full engine documentation for game developers is in the [`docs/`](docs/README.md) folder:
+Full engine documentation for game developers is available at [frinky04.github.io/FrinkyEngine](https://frinky04.github.io/FrinkyEngine/) and in the [`docs/`](docs/README.md) folder:
 
 - [Getting Started](docs/getting-started.md)
 - [Editor Guide](docs/editor-guide.md)

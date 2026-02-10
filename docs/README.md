@@ -26,6 +26,7 @@ New to FrinkyEngine? Start here:
 | [Exporting & Packaging](exporting.md) | Export pipeline, runtime modes, packaging scripts |
 | [Project Settings](project-settings.md) | `.fproject`, `project_settings.json`, editor settings |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions |
+| [API Reference](api/index.md) | Auto-generated from XML comments |
 
 ## API Reference
 

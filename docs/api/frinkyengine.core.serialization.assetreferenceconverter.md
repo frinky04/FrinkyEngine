@@ -6,7 +6,7 @@ Serializes [AssetReference](./frinkyengine.core.assets.assetreference) as a plai
  Provides full backward compatibility with existing string-based asset paths.
 
 ```csharp
-public class AssetReferenceConverter : System.Text.Json.Serialization.JsonConverter`1[[FrinkyEngine.Core.Assets.AssetReference, FrinkyEngine.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]
+public class AssetReferenceConverter : System.Text.Json.Serialization.JsonConverter`1[[FrinkyEngine.Core.Assets.AssetReference, FrinkyEngine.Core, Version=0.5.4.0, Culture=neutral, PublicKeyToken=null]]
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → JsonConverter → JsonConverter&lt;AssetReference&gt; → [AssetReferenceConverter](./frinkyengine.core.serialization.assetreferenceconverter)<br>

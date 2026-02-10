@@ -5,7 +5,7 @@ Namespace: FrinkyEngine.Core.Serialization
 JSON converter that serializes [EntityReference](./frinkyengine.core.ecs.entityreference) as a GUID string.
 
 ```csharp
-public class EntityReferenceConverter : System.Text.Json.Serialization.JsonConverter`1[[FrinkyEngine.Core.ECS.EntityReference, FrinkyEngine.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]
+public class EntityReferenceConverter : System.Text.Json.Serialization.JsonConverter`1[[FrinkyEngine.Core.ECS.EntityReference, FrinkyEngine.Core, Version=0.5.4.0, Culture=neutral, PublicKeyToken=null]]
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → JsonConverter → JsonConverter&lt;EntityReference&gt; → [EntityReferenceConverter](./frinkyengine.core.serialization.entityreferenceconverter)<br>

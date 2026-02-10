@@ -6,7 +6,7 @@ JSON converter for [List&lt;T&gt;](https://docs.microsoft.com/en-us/dotnet/api/s
  with a `$type` discriminator and its public read/write properties.
 
 ```csharp
-public class PostProcessEffectListConverter : System.Text.Json.Serialization.JsonConverter`1[[System.Collections.Generic.List`1[[FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, FrinkyEngine.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]
+public class PostProcessEffectListConverter : System.Text.Json.Serialization.JsonConverter`1[[System.Collections.Generic.List`1[[FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, FrinkyEngine.Core, Version=0.5.4.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → JsonConverter → JsonConverter&lt;List&lt;PostProcessEffect&gt;&gt; → [PostProcessEffectListConverter](./frinkyengine.core.serialization.postprocesseffectlistconverter)<br>
