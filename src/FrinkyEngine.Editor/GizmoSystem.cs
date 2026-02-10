@@ -100,23 +100,23 @@ public class GizmoSystem
             ? ImGuizmoMode.Local
             : ImGuizmoMode.World;
 
-        // Build snap values
+        // Build snap values (must be contiguous float[3] for ImGuizmo)
         float* snapPtr = null;
-        float snapX = 0, snapY = 0, snapZ = 0;
+        float* snapBuf = stackalloc float[3];
         if (Mode == GizmoMode.Translate && IsSnapActive(SnapTranslation))
         {
-            snapX = snapY = snapZ = TranslationSnapValue;
-            snapPtr = &snapX;
+            snapBuf[0] = snapBuf[1] = snapBuf[2] = TranslationSnapValue;
+            snapPtr = snapBuf;
         }
         else if (Mode == GizmoMode.Rotate && IsSnapActive(SnapRotation))
         {
-            snapX = snapY = snapZ = RotationSnapValue;
-            snapPtr = &snapX;
+            snapBuf[0] = snapBuf[1] = snapBuf[2] = RotationSnapValue;
+            snapPtr = snapBuf;
         }
         else if (Mode == GizmoMode.Scale && IsSnapActive(SnapScale))
         {
-            snapX = snapY = snapZ = ScaleSnapValue;
-            snapPtr = &snapX;
+            snapBuf[0] = snapBuf[1] = snapBuf[2] = ScaleSnapValue;
+            snapPtr = snapBuf;
         }
 
         // Build the gizmo object matrix
