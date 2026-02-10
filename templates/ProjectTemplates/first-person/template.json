@@ -1,0 +1,7 @@
+{
+  "id": "first-person",
+  "name": "First Person",
+  "description": "A character controller with WASD movement, camera look, and jumping.",
+  "sortOrder": 2,
+  "sourceName": "FrinkyGame"
+}

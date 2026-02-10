@@ -1,0 +1,203 @@
+{
+  "name": "MainScene",
+  "physics": {
+    "gravity": { "x": 0, "y": -9.81, "z": 0 }
+  },
+  "entities": [
+    {
+      "name": "Directional Light",
+      "id": "00000000-0000-0000-0000-000000000001",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": { "x": 2, "y": 10, "z": 2 },
+            "LocalRotation": { "x": -0.3420202, "y": 0.20056215, "z": 0.07320953, "w": 0.91466707 },
+            "LocalScale": { "x": 1, "y": 1, "z": 1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.LightComponent",
+          "enabled": true,
+          "properties": {
+            "LightType": "Directional",
+            "LightColor": { "r": 255, "g": 255, "b": 255, "a": 255 },
+            "Intensity": 1.0,
+            "Range": 10.0
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Ground",
+      "id": "00000000-0000-0000-0000-000000000002",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": { "x": 0, "y": 0, "z": 0 },
+            "LocalRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+            "LocalScale": { "x": 1, "y": 1, "z": 1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.PlanePrimitive",
+          "enabled": true,
+          "properties": {
+            "Width": 50,
+            "Depth": 50,
+            "ResolutionX": 1,
+            "ResolutionZ": 1,
+            "MaterialType": "TriplanarTexture",
+            "TexturePath": "",
+            "TriplanarScale": 0.25,
+            "TriplanarBlendSharpness": 4,
+            "TriplanarUseWorldSpace": true,
+            "Tint": { "r": 180, "g": 180, "b": 180, "a": 255 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "properties": {
+            "MotionType": "Static",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": false
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+          "enabled": true,
+          "properties": {
+            "Size": { "x": 50, "y": 1, "z": 50 },
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": { "x": 0, "y": -0.5, "z": 0 }
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "name": "Player",
+      "id": "00000000-0000-0000-0000-000000000003",
+      "active": true,
+      "components": [
+        {
+          "$type": "FrinkyEngine.Core.Components.TransformComponent",
+          "enabled": true,
+          "properties": {
+            "LocalPosition": { "x": 0, "y": 2, "z": 0 },
+            "LocalRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+            "LocalScale": { "x": 1, "y": 1, "z": 1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CapsuleColliderComponent",
+          "enabled": true,
+          "properties": {
+            "Radius": 0.4,
+            "Length": 1.8,
+            "Friction": 0.8,
+            "Restitution": 0,
+            "Center": { "x": 0, "y": 0, "z": 0 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.CharacterControllerComponent",
+          "enabled": true,
+          "properties": {
+            "MoveSpeed": 4,
+            "JumpVelocity": 6,
+            "MaxSlopeDegrees": 45,
+            "MaximumHorizontalForce": 20,
+            "MaximumVerticalForce": 100,
+            "AirControlForceScale": 0.8,
+            "AirControlSpeedScale": 0.5,
+            "UseEntityForwardAsViewDirection": true,
+            "ViewDirectionOverride": { "x": 0, "y": 0, "z": -1 }
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+          "enabled": true,
+          "properties": {
+            "MotionType": "Dynamic",
+            "Mass": 1,
+            "LinearDamping": 0.03,
+            "AngularDamping": 0.03,
+            "ContinuousDetection": true
+          }
+        },
+        {
+          "$type": "FrinkyEngine.Core.Components.SimplePlayerInputComponent",
+          "enabled": true,
+          "properties": {
+            "MoveForwardKey": "W",
+            "MoveBackwardKey": "S",
+            "MoveLeftKey": "A",
+            "MoveRightKey": "D",
+            "JumpKey": "Space",
+            "EnableMouseLook": true,
+            "RequireLookMouseButton": false,
+            "LookMouseButton": "Right",
+            "RotatePitch": true,
+            "UseViewDirectionOverrideForCharacterLook": true,
+            "ApplyPitchToCharacterBody": false,
+            "InvertMouseY": false,
+            "InvertMouseX": false,
+            "MouseSensitivity": 0.1,
+            "MinPitchDegrees": -85,
+            "MaxPitchDegrees": 85,
+            "UseCharacterController": true,
+            "AllowJump": true,
+            "FallbackMoveSpeed": 4,
+            "FallbackJumpImpulse": 3,
+            "DriveAttachedCamera": true,
+            "AttachedCameraLocalOffset": { "x": 0, "y": 0.9, "z": 0 },
+            "AttachedCameraBackDistance": 0,
+            "CameraEntity": "00000000-0000-0000-0000-000000000004"
+          }
+        }
+      ],
+      "children": [
+        {
+          "name": "Camera",
+          "id": "00000000-0000-0000-0000-000000000004",
+          "active": true,
+          "components": [
+            {
+              "$type": "FrinkyEngine.Core.Components.TransformComponent",
+              "enabled": true,
+              "properties": {
+                "LocalPosition": { "x": 0, "y": 0.9, "z": 0 },
+                "LocalRotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+                "LocalScale": { "x": 1, "y": 1, "z": 1 }
+              }
+            },
+            {
+              "$type": "FrinkyEngine.Core.Components.CameraComponent",
+              "enabled": true,
+              "properties": {
+                "FieldOfView": 90,
+                "NearPlane": 0.1,
+                "FarPlane": 1000,
+                "Projection": "Perspective",
+                "ClearColor": { "r": 30, "g": 30, "b": 30, "a": 255 },
+                "IsMain": true
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    }
+  ]
+}

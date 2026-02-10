@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <!-- Reference FrinkyEngine.Core either as a project reference or NuGet package -->
+    <!-- <ProjectReference Include="path/to/FrinkyEngine.Core.csproj" /> -->
+  </ItemGroup>
+
+</Project>

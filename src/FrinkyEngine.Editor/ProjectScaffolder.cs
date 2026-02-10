@@ -1,19 +1,21 @@
 using System.Diagnostics;
-using System.Numerics;
 using FrinkyEngine.Core.Assets;
-using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
-using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Editor;
 
 public static class ProjectScaffolder
 {
+    private static readonly HashSet<string> TextFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs", ".json", ".fscene", ".fprefab", ".txt", ".md", ".gitignore"
+    };
+
     /// <summary>
     /// Creates a new game project on disk and returns the path to the .fproject file.
     /// </summary>
-    public static string CreateProject(string parentDirectory, string projectName)
+    public static string CreateProject(string parentDirectory, string projectName, ProjectTemplate template)
     {
         var projectDir = Path.Combine(parentDirectory, projectName);
         Directory.CreateDirectory(projectDir);
@@ -48,25 +50,67 @@ public static class ProjectScaffolder
         // 3. Create .sln and restore NuGet packages
         CreateSolutionAndRestore(projectDir, projectName);
 
-        // 4. Create default scene (camera + light, same as NewScene)
-        var scenesDir = Path.Combine(projectDir, "Assets", "Scenes");
-        Directory.CreateDirectory(scenesDir);
-        var scenePath = Path.Combine(scenesDir, "MainScene.fscene");
-        var scene = BuildDefaultScene();
-        SceneSerializer.Save(scene, scenePath);
+        // 4. Copy template content (scenes, scripts, etc.)
+        CopyTemplateContent(template.ContentDirectory, projectDir, template.SourceName, projectName);
 
-        // 5. Create example RotatorComponent script
-        var scriptsDir = Path.Combine(projectDir, "Assets", "Scripts");
-        Directory.CreateDirectory(scriptsDir);
-        var scriptPath = Path.Combine(scriptsDir, "RotatorComponent.cs");
-        File.WriteAllText(scriptPath, GenerateRotatorComponent(projectName));
-
-        // 6. Write .gitignore and initialize git repo
+        // 5. Write .gitignore and initialize git repo
         var gitignorePath = Path.Combine(projectDir, ".gitignore");
         File.WriteAllText(gitignorePath, GenerateGitignore());
         InitializeGitRepo(projectDir);
 
         return fprojectPath;
+    }
+
+    /// <summary>
+    /// Creates a new game project using the default template (3d-starter).
+    /// </summary>
+    public static string CreateProject(string parentDirectory, string projectName)
+    {
+        var template = ProjectTemplateRegistry.GetById("3d-starter")
+            ?? ProjectTemplateRegistry.Templates.FirstOrDefault()
+            ?? throw new InvalidOperationException("No project templates found. Ensure ProjectTemplateRegistry.Discover() has been called.");
+        return CreateProject(parentDirectory, projectName, template);
+    }
+
+    private static void CopyTemplateContent(string contentDir, string projectDir, string sourceName, string projectName)
+    {
+        foreach (var sourceFile in Directory.EnumerateFiles(contentDir, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(contentDir, sourceFile);
+
+            // Skip .template.config directories (dotnet new metadata)
+            if (relativePath.StartsWith(".template.config", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Skip root-level files that the scaffolder generates dynamically
+            if (!relativePath.Contains(Path.DirectorySeparatorChar) && !relativePath.Contains(Path.AltDirectorySeparatorChar))
+            {
+                var ext = Path.GetExtension(relativePath);
+                if (ext.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".fproject", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetFileName(relativePath).Equals(".gitignore", StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+
+            var targetPath = Path.Combine(projectDir, relativePath);
+            var targetDirectory = Path.GetDirectoryName(targetPath)!;
+            Directory.CreateDirectory(targetDirectory);
+
+            var extension = Path.GetExtension(sourceFile);
+            if (TextFileExtensions.Contains(extension))
+            {
+                // Perform sourceName → projectName replacement in text files
+                var content = File.ReadAllText(sourceFile);
+                content = content.Replace(sourceName, projectName);
+                File.WriteAllText(targetPath, content);
+            }
+            else
+            {
+                File.Copy(sourceFile, targetPath, overwrite: true);
+            }
+        }
+
+        FrinkyLog.Info($"Scaffold: copied template content from {contentDir}");
     }
 
     private static string? FindCoreProjectPath(string projectDir)
@@ -205,45 +249,6 @@ public static class ProjectScaffolder
               </ItemGroup>
 
             </Project>
-            """;
-    }
-
-    private static Core.Scene.Scene BuildDefaultScene()
-    {
-        var scene = new Core.Scene.Scene { Name = "MainScene" };
-
-        var cameraEntity = scene.CreateEntity("Main Camera");
-        cameraEntity.Transform.LocalPosition = new Vector3(0, 5, 10);
-        cameraEntity.Transform.EulerAngles = new Vector3(-20, 0, 0);
-        cameraEntity.AddComponent<CameraComponent>();
-
-        var lightEntity = scene.CreateEntity("Directional Light");
-        lightEntity.Transform.LocalPosition = new Vector3(2, 10, 2);
-        lightEntity.AddComponent<LightComponent>();
-
-        return scene;
-    }
-
-    private static string GenerateRotatorComponent(string projectName)
-    {
-        return $$"""
-            using System.Numerics;
-            using FrinkyEngine.Core.ECS;
-
-            namespace {{projectName}}.Scripts;
-
-            public class RotatorComponent : Component
-            {
-                public float Speed { get; set; } = 45f;
-                public Vector3 Axis { get; set; } = Vector3.UnitY;
-
-                public override void Update(float dt)
-                {
-                    var euler = Entity.Transform.EulerAngles;
-                    euler += Axis * Speed * dt;
-                    Entity.Transform.EulerAngles = euler;
-                }
-            }
             """;
     }
 

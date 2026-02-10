@@ -108,6 +108,7 @@ public class EditorApplication
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EditorIcons.Load();
         LoadErrorAssets();
+        ProjectTemplateRegistry.Discover();
         NewScene();
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
     }
@@ -444,11 +445,11 @@ public class EditorApplication
             2.0f);
     }
 
-    public void CreateAndOpenProject(string parentDirectory, string projectName)
+    public void CreateAndOpenProject(string parentDirectory, string projectName, ProjectTemplate template)
     {
         try
         {
-            var fprojectPath = ProjectScaffolder.CreateProject(parentDirectory, projectName);
+            var fprojectPath = ProjectScaffolder.CreateProject(parentDirectory, projectName, template);
             FrinkyLog.Info($"Created project: {projectName}");
             OpenProject(fprojectPath);
         }
@@ -456,6 +457,14 @@ public class EditorApplication
         {
             FrinkyLog.Error($"Failed to create project: {ex.Message}");
         }
+    }
+
+    public void CreateAndOpenProject(string parentDirectory, string projectName)
+    {
+        var template = ProjectTemplateRegistry.GetById("3d-starter")
+            ?? ProjectTemplateRegistry.Templates.FirstOrDefault()
+            ?? throw new InvalidOperationException("No project templates found.");
+        CreateAndOpenProject(parentDirectory, projectName, template);
     }
 
     public void OpenProject(string fprojectPath)

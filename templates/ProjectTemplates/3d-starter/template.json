@@ -1,0 +1,7 @@
+{
+  "id": "3d-starter",
+  "name": "3D Starter",
+  "description": "Camera, light, and a sample RotatorComponent to get started.",
+  "sortOrder": 1,
+  "sourceName": "FrinkyGame"
+}

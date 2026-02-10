@@ -14,6 +14,8 @@ public class MenuBar
     private readonly EditorApplication _app;
     private string _newProjectName = string.Empty;
     private string _newProjectParentDir = string.Empty;
+    private int _selectedTemplateIndex;
+    private ProjectTemplate[]? _cachedTemplates;
 
     private bool _openNewProject;
     private bool _openCreateScript;
@@ -342,7 +344,7 @@ public class MenuBar
         // Open popups at this scope level (outside the menu) so BeginPopup can find them
         if (_openNewProject)
         {
-            ImGui.OpenPopup("NewProject");
+            ImGui.OpenPopup("New Project");
             _openNewProject = false;
         }
 
@@ -453,17 +455,101 @@ public class MenuBar
 
     private void DrawNewProjectPopup()
     {
+        // Cache templates on first access
+        _cachedTemplates ??= ProjectTemplateRegistry.Templates.ToArray();
+
         var viewport = ImGui.GetMainViewport();
         var center = new Vector2(viewport.WorkPos.X + viewport.WorkSize.X * 0.5f,
                                  viewport.WorkPos.Y + viewport.WorkSize.Y * 0.5f);
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-        ImGui.SetNextWindowSize(new Vector2(500, 0), ImGuiCond.Appearing);
+        ImGui.SetNextWindowSize(new Vector2(600, 0), ImGuiCond.Appearing);
 
-        if (ImGui.BeginPopupModal("NewProject", ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("New Project", ImGuiWindowFlags.AlwaysAutoResize))
         {
-            ImGui.InputText("Project Name", ref _newProjectName, 256);
+            // --- Template selection ---
+            if (_cachedTemplates.Length > 0)
+            {
+                ImGui.TextUnformatted("Template");
+                ImGui.Spacing();
 
-            ImGui.InputText("Parent Directory", ref _newProjectParentDir, 512);
+                var contentWidth = ImGui.GetContentRegionAvail().X;
+                var cardCount = _cachedTemplates.Length;
+                const float cardSpacing = 8;
+                var cardWidth = (contentWidth - cardSpacing * (cardCount - 1)) / cardCount;
+                const float cardHeight = 80;
+
+                for (var i = 0; i < _cachedTemplates.Length; i++)
+                {
+                    if (i > 0)
+                        ImGui.SameLine(0, cardSpacing);
+
+                    var template = _cachedTemplates[i];
+                    var isSelected = i == _selectedTemplateIndex;
+
+                    // Selected: accent border + slightly brighter background
+                    if (isSelected)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.22f, 0.30f, 0.45f, 1.0f));
+                        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.35f, 0.55f, 0.85f, 1.0f));
+                    }
+                    else
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImGui.GetColorU32(ImGuiCol.FrameBg));
+                        ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.FrameBg));
+                    }
+
+                    ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, isSelected ? 2.0f : 1.0f);
+                    ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 6.0f);
+
+                    if (ImGui.BeginChild($"##template_{i}", new Vector2(cardWidth, cardHeight), ImGuiChildFlags.Borders))
+                    {
+                        // Center the text vertically and horizontally
+                        var textSize = ImGui.CalcTextSize(template.Name);
+                        var regionAvail = ImGui.GetContentRegionAvail();
+                        var cursorStart = ImGui.GetCursorPos();
+                        ImGui.SetCursorPosX(cursorStart.X + (regionAvail.X - textSize.X) * 0.5f);
+                        ImGui.SetCursorPosY(cursorStart.Y + (regionAvail.Y - textSize.Y) * 0.5f);
+                        ImGui.TextUnformatted(template.Name);
+
+                        // Make the entire child area clickable
+                        if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                            _selectedTemplateIndex = i;
+                    }
+                    ImGui.EndChild();
+
+                    ImGui.PopStyleVar(2);
+                    ImGui.PopStyleColor(2);
+                }
+
+                // Description text below the cards
+                ImGui.Spacing();
+                if (_selectedTemplateIndex >= 0 && _selectedTemplateIndex < _cachedTemplates.Length)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetColorU32(ImGuiCol.TextDisabled));
+                    ImGui.TextWrapped(_cachedTemplates[_selectedTemplateIndex].Description);
+                    ImGui.PopStyleColor();
+                }
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+            }
+
+            // --- Project details ---
+            const float labelWidth = 110;
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Project Name");
+            ImGui.SameLine(labelWidth);
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputText("##projectName", ref _newProjectName, 256);
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Location");
+            ImGui.SameLine(labelWidth);
+            var browseWidth = ImGui.CalcTextSize("Browse...").X + ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetStyle().ItemSpacing.X;
+            ImGui.SetNextItemWidth(-browseWidth);
+            ImGui.InputText("##location", ref _newProjectParentDir, 512);
             ImGui.SameLine();
             if (ImGui.Button("Browse..."))
             {
@@ -476,31 +562,48 @@ public class MenuBar
             if (!string.IsNullOrWhiteSpace(_newProjectName) && !string.IsNullOrWhiteSpace(_newProjectParentDir))
             {
                 var targetPath = Path.Combine(_newProjectParentDir, _newProjectName);
-                ImGui.TextDisabled($"Target: {targetPath}");
+                ImGui.TextUnformatted("Target");
+                ImGui.SameLine(labelWidth);
+                ImGui.TextDisabled(targetPath);
 
                 if (Directory.Exists(targetPath))
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(1, 0.3f, 0.3f, 1));
+                    ImGui.Dummy(new Vector2(0, 2));
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0.3f, 0.3f, 1));
                     ImGui.TextWrapped("Target directory already exists!");
                     ImGui.PopStyleColor();
                 }
             }
 
+            // --- Buttons ---
+            ImGui.Spacing();
+            ImGui.Spacing();
+
             var parentExists = !string.IsNullOrWhiteSpace(_newProjectParentDir) && Directory.Exists(_newProjectParentDir);
             var nameValid = !string.IsNullOrWhiteSpace(_newProjectName);
             var targetExists = nameValid && parentExists && Directory.Exists(Path.Combine(_newProjectParentDir, _newProjectName));
+            var hasTemplate = _cachedTemplates.Length > 0 && _selectedTemplateIndex >= 0 && _selectedTemplateIndex < _cachedTemplates.Length;
 
-            ImGui.BeginDisabled(!nameValid || !parentExists || targetExists);
-            if (ImGui.Button("Create"))
+            // Right-align the buttons
+            var style = ImGui.GetStyle();
+            var createBtnWidth = ImGui.CalcTextSize("Create Project").X + style.FramePadding.X * 2 + 16;
+            var cancelBtnWidth = ImGui.CalcTextSize("Cancel").X + style.FramePadding.X * 2 + 16;
+            var totalWidth = cancelBtnWidth + style.ItemSpacing.X + createBtnWidth;
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - totalWidth);
+
+            if (ImGui.Button("Cancel", new Vector2(cancelBtnWidth, 0)))
+                ImGui.CloseCurrentPopup();
+
+            ImGui.SameLine();
+
+            ImGui.BeginDisabled(!nameValid || !parentExists || targetExists || !hasTemplate);
+            if (ImGui.Button("Create Project", new Vector2(createBtnWidth, 0)))
             {
-                _app.CreateAndOpenProject(_newProjectParentDir, _newProjectName);
+                _app.CreateAndOpenProject(_newProjectParentDir, _newProjectName, _cachedTemplates[_selectedTemplateIndex]);
                 ImGui.CloseCurrentPopup();
             }
             ImGui.EndDisabled();
 
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel"))
-                ImGui.CloseCurrentPopup();
             ImGui.EndPopup();
         }
     }

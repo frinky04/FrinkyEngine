@@ -1,0 +1,7 @@
+{
+  "id": "empty",
+  "name": "Empty Project",
+  "description": "A minimal scene with only a camera and directional light.",
+  "sortOrder": 0,
+  "sourceName": "FrinkyGame"
+}

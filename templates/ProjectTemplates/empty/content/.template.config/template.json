@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "FrinkyEngine",
+  "classifications": ["Game", "FrinkyEngine"],
+  "identity": "FrinkyEngine.Game.Empty",
+  "name": "FrinkyEngine Empty Project",
+  "shortName": "frinky-empty",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "FrinkyGame",
+  "preferNameDirectory": true,
+  "symbols": {
+    "engineCorePath": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "description": "Path to FrinkyEngine.Core.csproj (leave empty for NuGet reference)"
+    }
+  }
+}
