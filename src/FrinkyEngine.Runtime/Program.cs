@@ -208,6 +208,13 @@ public static class Program
 
         while (!Raylib.WindowShouldClose())
         {
+            var activeScene = SceneManager.Instance.ActiveScene;
+            if (activeScene != null && !ReferenceEquals(activeScene, scene))
+            {
+                scene = activeScene;
+                scene.Start();
+            }
+
             float dt = Raylib.GetFrameTime();
             FrameProfiler.BeginFrame();
             scene.Update(dt);

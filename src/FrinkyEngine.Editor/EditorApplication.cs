@@ -247,6 +247,13 @@ public class EditorApplication
 
         if (IsInRuntimeMode && CurrentScene != null)
         {
+            var activeScene = SceneManager.Instance.ActiveScene;
+            if (activeScene != null && !ReferenceEquals(activeScene, CurrentScene))
+            {
+                CurrentScene = activeScene;
+                CurrentScene.Start();
+            }
+
             CurrentScene.Update(dt);
             EngineOverlays.Update(dt);
         }
