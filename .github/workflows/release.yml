@@ -46,6 +46,9 @@ jobs:
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      - name: Restore dotnet tools
+        run: dotnet tool restore
+
       - name: Restore solution (win-x64)
         run: dotnet restore FrinkyEngine.sln -r win-x64
 
@@ -76,6 +79,20 @@ jobs:
           --self-contained false
           -p:FrinkyExport=true
           -o artifacts/release/runtime/win-x64
+
+      - name: Publish Core for API doc generation
+        run: >
+          dotnet publish src/FrinkyEngine.Core/FrinkyEngine.Core.csproj
+          -c Release
+          -o artifacts/apidoc-stage
+
+      - name: Generate API documentation
+        run: >
+          dotnet xmldoc2md
+          artifacts/apidoc-stage/FrinkyEngine.Core.dll
+          -o docs/api
+          --github-pages
+        continue-on-error: true
 
       - name: Verify release publish outputs
         shell: pwsh
