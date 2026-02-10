@@ -67,15 +67,22 @@ public class AssetEntry
     public AssetType Type { get; }
 
     /// <summary>
+    /// True if this asset comes from the engine content directory rather than the project.
+    /// </summary>
+    public bool IsEngineAsset { get; }
+
+    /// <summary>
     /// Creates a new asset entry.
     /// </summary>
     /// <param name="relativePath">Path relative to the assets root.</param>
     /// <param name="type">The asset type classification.</param>
-    public AssetEntry(string relativePath, AssetType type)
+    /// <param name="isEngineAsset">Whether this asset is from engine content.</param>
+    public AssetEntry(string relativePath, AssetType type, bool isEngineAsset = false)
     {
         RelativePath = relativePath.Replace('\\', '/');
         FileName = Path.GetFileName(relativePath);
         Extension = Path.GetExtension(relativePath).ToLowerInvariant();
         Type = type;
+        IsEngineAsset = isEngineAsset;
     }
 }

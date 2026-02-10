@@ -59,6 +59,11 @@ public static class Program
 
         AssetManager.Instance.AssetsPath = project.GetAbsoluteAssetsPath(projectDir);
         AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
+
+        var engineContentPath = Path.Combine(AppContext.BaseDirectory, "EngineContent");
+        AssetManager.Instance.EngineContentPath = engineContentPath;
+        AssetDatabase.Instance.ScanEngineContent(engineContentPath);
+
         PhysicsProjectSettings.ApplyFrom(settings.Runtime);
         AudioProjectSettings.ApplyFrom(settings.Runtime);
 
@@ -104,6 +109,11 @@ public static class Program
 
             AssetManager.Instance.AssetsPath = Path.Combine(tempDir, "Assets");
             AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
+
+            var engineContentPath = Path.Combine(tempDir, "EngineContent");
+            AssetManager.Instance.EngineContentPath = engineContentPath;
+            AssetDatabase.Instance.ScanEngineContent(engineContentPath);
+
             PhysicsProjectSettings.ApplyFrom(manifest);
             AudioProjectSettings.ApplyFrom(manifest);
 

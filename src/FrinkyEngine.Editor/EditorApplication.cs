@@ -488,6 +488,10 @@ public class EditorApplication
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
 
+            var engineContentPath = Path.Combine(AppContext.BaseDirectory, "EngineContent");
+            AssetManager.Instance.EngineContentPath = engineContentPath;
+            AssetDatabase.Instance.ScanEngineContent(engineContentPath);
+
             _assetFileWatcher?.Dispose();
             _assetFileWatcher = new AssetFileWatcher();
             _assetFileWatcher.Watch(assetsPath);

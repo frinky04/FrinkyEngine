@@ -840,7 +840,10 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
         var db = AssetDatabase.Instance;
 
-        string preview = current.IsEmpty ? "(None)" : Path.GetFileName(current.Path);
+        bool isEngineRef = current.IsEngineAsset;
+        string preview = current.IsEmpty
+            ? "(None)"
+            : (isEngineRef ? "[E] " : "") + Path.GetFileName(isEngineRef ? AssetReference.StripEnginePrefix(current.Path) : current.Path);
         bool isBroken = !current.IsEmpty && !db.AssetExistsByName(current.Path);
 
         var filterId = $"AssetRef_{label}";
@@ -921,6 +924,36 @@ public static class ComponentDrawerRegistry
                 ImGui.PopID();
             }
 
+            // Engine assets
+            ImGui.Separator();
+            ImGui.TextDisabled("--- Engine Content ---");
+            var engineAssets = filter == AssetType.Unknown ? db.GetEngineAssets(null) : db.GetEngineAssets(filter);
+            foreach (var engineAsset in engineAssets)
+            {
+                bool matchesSearch = true;
+                if (searchFilter.Length > 0)
+                    matchesSearch = engineAsset.RelativePath.Contains(searchFilter, StringComparison.OrdinalIgnoreCase);
+
+                if (!matchesSearch)
+                    continue;
+
+                ImGui.PushID("engine_" + engineAsset.RelativePath);
+
+                var displayName = db.IsEngineFileNameUnique(engineAsset.FileName)
+                    ? "[E] " + engineAsset.FileName
+                    : "[E] " + engineAsset.RelativePath;
+                if (AssetSelectable(engineAsset.Type, displayName))
+                {
+                    app.RecordUndo();
+                    setter(new AssetReference(db.GetEngineCanonicalName(engineAsset.RelativePath)));
+                    app.RefreshUndoBaseline();
+                }
+                if (!db.IsEngineFileNameUnique(engineAsset.FileName) && ImGui.IsItemHovered())
+                    ImGui.SetTooltip(AssetReference.EnginePrefix + engineAsset.RelativePath);
+
+                ImGui.PopID();
+            }
+
             ImGui.EndCombo();
         }
         else
@@ -944,14 +977,30 @@ public static class ComponentDrawerRegistry
                 var draggedPath = app.DraggedAssetPath;
                 if (!string.IsNullOrEmpty(draggedPath))
                 {
-                    var draggedAsset = db.GetAssets()
-                        .FirstOrDefault(a => string.Equals(a.RelativePath, draggedPath, StringComparison.OrdinalIgnoreCase));
-
-                    if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
+                    if (AssetReference.HasEnginePrefix(draggedPath))
                     {
-                        app.RecordUndo();
-                        setter(new AssetReference(db.GetCanonicalName(draggedPath)));
-                        app.RefreshUndoBaseline();
+                        var stripped = AssetReference.StripEnginePrefix(draggedPath);
+                        var draggedAsset = db.GetEngineAssets()
+                            .FirstOrDefault(a => string.Equals(a.RelativePath, stripped, StringComparison.OrdinalIgnoreCase));
+
+                        if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
+                        {
+                            app.RecordUndo();
+                            setter(new AssetReference(db.GetEngineCanonicalName(stripped)));
+                            app.RefreshUndoBaseline();
+                        }
+                    }
+                    else
+                    {
+                        var draggedAsset = db.GetAssets()
+                            .FirstOrDefault(a => string.Equals(a.RelativePath, draggedPath, StringComparison.OrdinalIgnoreCase));
+
+                        if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
+                        {
+                            app.RecordUndo();
+                            setter(new AssetReference(db.GetCanonicalName(draggedPath)));
+                            app.RefreshUndoBaseline();
+                        }
                     }
                 }
             }

@@ -257,6 +257,24 @@ public class AssetBrowserPanel
                 Asset: asset));
         }
 
+        // Engine assets
+        foreach (var asset in db.GetEngineAssets(filter))
+        {
+            if (hasQuery
+                && !asset.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !asset.FileName.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // Skip tag filtering for engine assets (tags are per-project)
+            items.Add(new BrowserItem(
+                Id: AssetReference.EnginePrefix + asset.RelativePath,
+                Label: "[E] " + asset.FileName,
+                Tooltip: AssetReference.EnginePrefix + asset.RelativePath,
+                Asset: asset));
+        }
+
         return items;
     }
 
@@ -532,7 +550,9 @@ public class AssetBrowserPanel
         if (!ImGui.BeginDragDropSource(ImGuiDragDropFlags.SourceAllowNullId))
             return;
 
-        _app.DraggedAssetPath = item.Asset.RelativePath;
+        _app.DraggedAssetPath = item.Asset.IsEngineAsset
+            ? AssetReference.EnginePrefix + item.Asset.RelativePath
+            : item.Asset.RelativePath;
         ImGui.SetDragDropPayload(AssetDragPayload, (void*)null, 0);
         ImGui.TextUnformatted($"[{item.Asset.Type}] {item.Label}");
         ImGui.EndDragDropSource();

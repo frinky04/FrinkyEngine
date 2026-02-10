@@ -24,6 +24,11 @@ public class AssetManager
     public string AssetsPath { get; set; } = "Assets";
 
     /// <summary>
+    /// Root directory for resolving engine content asset paths (defaults to "EngineContent").
+    /// </summary>
+    public string EngineContentPath { get; set; } = "EngineContent";
+
+    /// <summary>
     /// Fallback texture shown when a referenced texture file does not exist on disk.
     /// </summary>
     public Texture2D? ErrorTexture { get; set; }
@@ -35,11 +40,15 @@ public class AssetManager
 
     /// <summary>
     /// Combines a relative asset path with <see cref="AssetsPath"/> to produce a full file path.
+    /// Paths with the <c>engine:</c> prefix are resolved against <see cref="EngineContentPath"/> instead.
     /// </summary>
     /// <param name="relativePath">Path relative to the assets root.</param>
     /// <returns>The resolved absolute path.</returns>
     public string ResolvePath(string relativePath)
     {
+        if (AssetReference.HasEnginePrefix(relativePath))
+            return Path.Combine(EngineContentPath, AssetReference.StripEnginePrefix(relativePath));
+
         return Path.Combine(AssetsPath, relativePath);
     }
 

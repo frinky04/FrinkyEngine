@@ -78,6 +78,17 @@ public static class GameExporter
                 }
             }
 
+            // 3a2: Engine content
+            var engineContentDir = Path.Combine(AppContext.BaseDirectory, "EngineContent");
+            if (Directory.Exists(engineContentDir))
+            {
+                foreach (var file in Directory.GetFiles(engineContentDir, "*", SearchOption.AllDirectories))
+                {
+                    var relativePath = "EngineContent/" + Path.GetRelativePath(engineContentDir, file).Replace('\\', '/');
+                    entries.Add(new FAssetEntry { RelativePath = relativePath, SourcePath = file });
+                }
+            }
+
             // 3b: Shaders from published output
             var publishedShadersDir = Path.Combine(publishDir, "Shaders");
             if (Directory.Exists(publishedShadersDir))
@@ -198,8 +209,10 @@ public static class GameExporter
                 if (relativePath.Equals("FrinkyEngine.Runtime.exe", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // Skip shaders (packed into .fasset)
+                // Skip shaders and engine content (packed into .fasset)
                 if (relativePath.StartsWith("Shaders", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (relativePath.StartsWith("EngineContent", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var destPath = Path.Combine(config.OutputDirectory, relativePath);

@@ -6,6 +6,11 @@ namespace FrinkyEngine.Core.Assets;
 public struct AssetReference
 {
     /// <summary>
+    /// Prefix used in serialized paths to denote engine-provided assets.
+    /// </summary>
+    public const string EnginePrefix = "engine:";
+
+    /// <summary>
     /// The asset-relative path to the referenced file.
     /// </summary>
     public string Path { get; set; }
@@ -19,6 +24,23 @@ public struct AssetReference
     /// True when no asset is referenced.
     /// </summary>
     public bool IsEmpty => string.IsNullOrEmpty(Path);
+
+    /// <summary>
+    /// True when this reference points to an engine-provided asset.
+    /// </summary>
+    public bool IsEngineAsset => HasEnginePrefix(Path);
+
+    /// <summary>
+    /// Returns true if the given path starts with the engine prefix.
+    /// </summary>
+    public static bool HasEnginePrefix(string? path)
+        => path != null && path.StartsWith(EnginePrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Strips the engine prefix from a path. Returns the path unchanged if no prefix is present.
+    /// </summary>
+    public static string StripEnginePrefix(string path)
+        => HasEnginePrefix(path) ? path.Substring(EnginePrefix.Length) : path;
 
     /// <summary>
     /// Implicit conversion from a plain string path.

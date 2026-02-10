@@ -36,6 +36,11 @@ public class AssetDatabase
     private Dictionary<string, List<AssetEntry>> _fileNameIndex = new(StringComparer.OrdinalIgnoreCase);
     private string _assetsPath = string.Empty;
 
+    private List<AssetEntry> _engineAssets = new();
+    private HashSet<string> _enginePathIndex = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, List<AssetEntry>> _engineFileNameIndex = new(StringComparer.OrdinalIgnoreCase);
+    private string _engineContentPath = string.Empty;
+
     /// <summary>
     /// Registers a custom file extension to be recognized as a specific asset type during scanning.
     /// </summary>
@@ -81,12 +86,66 @@ public class AssetDatabase
     }
 
     /// <summary>
+    /// The absolute path to the engine content directory, or empty if not scanned.
+    /// </summary>
+    public string EngineContentPath => _engineContentPath;
+
+    /// <summary>
+    /// Scans the engine content directory and rebuilds the engine asset list.
+    /// </summary>
+    /// <param name="engineContentPath">Absolute path to the engine content root directory.</param>
+    public void ScanEngineContent(string engineContentPath)
+    {
+        _engineContentPath = engineContentPath;
+        _engineAssets.Clear();
+        _enginePathIndex.Clear();
+        _engineFileNameIndex.Clear();
+
+        if (!Directory.Exists(engineContentPath))
+            return;
+
+        foreach (var file in Directory.EnumerateFiles(engineContentPath, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(engineContentPath, file).Replace('\\', '/');
+            var ext = Path.GetExtension(file).ToLowerInvariant();
+            var type = _extensionMap.TryGetValue(ext, out var t) ? t : AssetType.Unknown;
+            var entry = new AssetEntry(relativePath, type, isEngineAsset: true);
+            _engineAssets.Add(entry);
+            _enginePathIndex.Add(relativePath);
+
+            if (!_engineFileNameIndex.TryGetValue(entry.FileName, out var list))
+            {
+                list = new List<AssetEntry>();
+                _engineFileNameIndex[entry.FileName] = list;
+            }
+            list.Add(entry);
+        }
+
+        _engineAssets.Sort((a, b) => string.Compare(a.RelativePath, b.RelativePath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Gets all discovered engine assets, optionally filtered by type.
+    /// </summary>
+    /// <param name="filter">If specified, only assets of this type are returned.</param>
+    /// <returns>A read-only list of matching engine asset entries.</returns>
+    public IReadOnlyList<AssetEntry> GetEngineAssets(AssetType? filter = null)
+    {
+        if (filter == null)
+            return _engineAssets;
+
+        return _engineAssets.Where(a => a.Type == filter.Value).ToList();
+    }
+
+    /// <summary>
     /// Rescans the previously scanned assets directory.
     /// </summary>
     public void Refresh()
     {
         if (!string.IsNullOrEmpty(_assetsPath))
             Scan(_assetsPath);
+        if (!string.IsNullOrEmpty(_engineContentPath))
+            ScanEngineContent(_engineContentPath);
     }
 
     /// <summary>
@@ -154,17 +213,25 @@ public class AssetDatabase
 
     /// <summary>
     /// Returns true if an asset with the given relative path exists in the database.
+    /// Paths with the <c>engine:</c> prefix are checked against the engine content index.
     /// </summary>
     /// <param name="relativePath">Asset-relative path to check.</param>
     /// <returns>True if the asset exists.</returns>
     public bool AssetExists(string relativePath)
     {
-        return !string.IsNullOrEmpty(relativePath) && _pathIndex.Contains(relativePath);
+        if (string.IsNullOrEmpty(relativePath))
+            return false;
+
+        if (AssetReference.HasEnginePrefix(relativePath))
+            return _enginePathIndex.Contains(AssetReference.StripEnginePrefix(relativePath));
+
+        return _pathIndex.Contains(relativePath);
     }
 
     /// <summary>
     /// Resolves a filename or relative path to a full relative path.
     /// Bare filenames are resolved via the filename index; paths containing separators use the path index directly.
+    /// Paths with the <c>engine:</c> prefix are resolved against the engine content index and returned with the prefix intact.
     /// </summary>
     /// <param name="nameOrPath">A bare filename (e.g. "player.glb") or relative path (e.g. "Models/player.glb").</param>
     /// <returns>The full relative path if unambiguously resolved, or null.</returns>
@@ -172,6 +239,14 @@ public class AssetDatabase
     {
         if (string.IsNullOrEmpty(nameOrPath))
             return null;
+
+        // Handle engine: prefix
+        if (AssetReference.HasEnginePrefix(nameOrPath))
+        {
+            var stripped = AssetReference.StripEnginePrefix(nameOrPath);
+            var resolved = ResolveEngineAssetPath(stripped);
+            return resolved != null ? AssetReference.EnginePrefix + resolved : null;
+        }
 
         // If it contains a separator, treat as a full relative path
         if (nameOrPath.Contains('/') || nameOrPath.Contains('\\'))
@@ -182,6 +257,23 @@ public class AssetDatabase
 
         // Bare filename — look up in filename index
         if (_fileNameIndex.TryGetValue(nameOrPath, out var entries) && entries.Count == 1)
+            return entries[0].RelativePath;
+
+        return null;
+    }
+
+    private string? ResolveEngineAssetPath(string nameOrPath)
+    {
+        if (string.IsNullOrEmpty(nameOrPath))
+            return null;
+
+        if (nameOrPath.Contains('/') || nameOrPath.Contains('\\'))
+        {
+            var normalized = nameOrPath.Replace('\\', '/');
+            return _enginePathIndex.Contains(normalized) ? normalized : null;
+        }
+
+        if (_engineFileNameIndex.TryGetValue(nameOrPath, out var entries) && entries.Count == 1)
             return entries[0].RelativePath;
 
         return null;
@@ -198,6 +290,16 @@ public class AssetDatabase
     }
 
     /// <summary>
+    /// Returns true if the given filename maps to exactly one engine asset in the database.
+    /// </summary>
+    /// <param name="fileName">The bare filename to check.</param>
+    /// <returns>True if there is exactly one engine asset with that filename.</returns>
+    public bool IsEngineFileNameUnique(string fileName)
+    {
+        return _engineFileNameIndex.TryGetValue(fileName, out var entries) && entries.Count == 1;
+    }
+
+    /// <summary>
     /// Returns the shortest unambiguous name for an asset: just the filename if unique, or the full relative path if ambiguous.
     /// </summary>
     /// <param name="relativePath">The full relative path of the asset.</param>
@@ -206,6 +308,18 @@ public class AssetDatabase
     {
         var fileName = Path.GetFileName(relativePath);
         return IsFileNameUnique(fileName) ? fileName : relativePath.Replace('\\', '/');
+    }
+
+    /// <summary>
+    /// Returns the shortest unambiguous name for an engine asset, prefixed with <c>engine:</c>.
+    /// </summary>
+    /// <param name="relativePath">The engine-relative path of the asset (without <c>engine:</c> prefix).</param>
+    /// <returns>The canonical name with <c>engine:</c> prefix.</returns>
+    public string GetEngineCanonicalName(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath);
+        var name = IsEngineFileNameUnique(fileName) ? fileName : relativePath.Replace('\\', '/');
+        return AssetReference.EnginePrefix + name;
     }
 
     /// <summary>
@@ -227,5 +341,10 @@ public class AssetDatabase
         _pathIndex.Clear();
         _fileNameIndex.Clear();
         _assetsPath = string.Empty;
+
+        _engineAssets.Clear();
+        _enginePathIndex.Clear();
+        _engineFileNameIndex.Clear();
+        _engineContentPath = string.Empty;
     }
 }

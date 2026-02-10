@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Content Include="..\..\Shaders\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="Shaders" />
+    <Content Include="..\..\EngineContent\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="EngineContent" Condition="Exists('..\..\EngineContent')" />
     <Content Include="..\..\EditorAssets\Fonts\JetBrains_Mono\static\JetBrainsMono-Regular.ttf"
              CopyToOutputDirectory="PreserveNewest"
              Link="EditorAssets\Fonts\JetBrains_Mono\static\JetBrainsMono-Regular.ttf"
