@@ -752,6 +752,7 @@ public class EditorApplication
         // Re-serialize and deserialize current scene to refresh component instances
         if (CurrentScene != null)
         {
+            var savedSelection = _selectedEntities.Select(e => e.Id).ToHashSet();
             var snapshot = SceneSerializer.SerializeToString(CurrentScene);
             var refreshed = SceneSerializer.DeserializeFromString(snapshot);
             if (refreshed != null)
@@ -760,7 +761,12 @@ public class EditorApplication
                 refreshed.FilePath = CurrentScene.FilePath;
                 CurrentScene = refreshed;
                 SceneManager.Instance.SetActiveScene(refreshed);
-                ClearSelection();
+                _selectedEntities.Clear();
+                foreach (var entity in refreshed.Entities)
+                {
+                    if (savedSelection.Contains(entity.Id))
+                        _selectedEntities.Add(entity);
+                }
             }
             UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
         }
