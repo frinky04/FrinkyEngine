@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -839,8 +840,8 @@ public static class ComponentDrawerRegistry
         var app = EditorApplication.Instance;
         var db = AssetDatabase.Instance;
 
-        string preview = current.IsEmpty ? "(None)" : current.Path;
-        bool isBroken = !current.IsEmpty && !db.AssetExists(current.Path);
+        string preview = current.IsEmpty ? "(None)" : Path.GetFileName(current.Path);
+        bool isBroken = !current.IsEmpty && !db.AssetExistsByName(current.Path);
 
         var filterId = $"AssetRef_{label}";
 
@@ -893,13 +894,18 @@ public static class ComponentDrawerRegistry
 
                 ImGui.PushID(asset.RelativePath);
 
-                // Draw asset icon + label
-                if (AssetSelectable(asset.Type, asset.RelativePath))
+                // Draw asset icon + label (show filename; tooltip shows full path if ambiguous)
+                var displayName = db.IsFileNameUnique(asset.FileName)
+                    ? asset.FileName
+                    : asset.RelativePath;
+                if (AssetSelectable(asset.Type, displayName))
                 {
                     app.RecordUndo();
-                    setter(new AssetReference(asset.RelativePath));
+                    setter(new AssetReference(db.GetCanonicalName(asset.RelativePath)));
                     app.RefreshUndoBaseline();
                 }
+                if (!db.IsFileNameUnique(asset.FileName) && ImGui.IsItemHovered())
+                    ImGui.SetTooltip(asset.RelativePath);
 
                 // Draw tag chips on the same line
                 if (tags is { Count: > 0 })
@@ -908,7 +914,7 @@ public static class ComponentDrawerRegistry
                     foreach (var tag in tags)
                     {
                         ImGui.SameLine();
-                        ImGui.TextDisabled($"[{tag.Name}]");
+                        ImGui.TextColored(ParseHexColor(tag.Color), $"[{tag.Name}]");
                     }
                 }
 
@@ -921,6 +927,11 @@ public static class ComponentDrawerRegistry
         {
             if (isBroken)
                 ImGui.PopStyleColor();
+            if (!current.IsEmpty && ImGui.IsItemHovered())
+            {
+                var resolvedPath = db.ResolveAssetPath(current.Path) ?? current.Path;
+                ImGui.SetTooltip(resolvedPath);
+            }
             _assetRefFilters[filterId] = "";
         }
 
@@ -939,7 +950,7 @@ public static class ComponentDrawerRegistry
                     if (draggedAsset != null && (filter == AssetType.Unknown || draggedAsset.Type == filter))
                     {
                         app.RecordUndo();
-                        setter(new AssetReference(draggedPath));
+                        setter(new AssetReference(db.GetCanonicalName(draggedPath)));
                         app.RefreshUndoBaseline();
                     }
                 }
@@ -1393,4 +1404,21 @@ public static class ComponentDrawerRegistry
 
     private static Color Vec4ToColor(Vector4 v) =>
         new((byte)(v.X * 255), (byte)(v.Y * 255), (byte)(v.Z * 255), (byte)(v.W * 255));
+
+    private static Vector4 ParseHexColor(string hex)
+    {
+        if (string.IsNullOrEmpty(hex))
+            return new Vector4(1, 1, 1, 1);
+
+        hex = hex.TrimStart('#');
+        if (hex.Length >= 6 &&
+            int.TryParse(hex[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int r) &&
+            int.TryParse(hex[2..4], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int g) &&
+            int.TryParse(hex[4..6], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int b))
+        {
+            return new Vector4(r / 255f, g / 255f, b / 255f, 1f);
+        }
+
+        return new Vector4(1, 1, 1, 1);
+    }
 }

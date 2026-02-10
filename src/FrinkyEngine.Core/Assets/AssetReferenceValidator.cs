@@ -47,7 +47,7 @@ public static class AssetReferenceValidator
             if (prop.PropertyType == typeof(AssetReference))
             {
                 var value = (AssetReference)prop.GetValue(component)!;
-                if (!value.IsEmpty && !db.AssetExists(value.Path))
+                if (!value.IsEmpty && !db.AssetExistsByName(value.Path))
                 {
                     FrinkyLog.Warning(
                         $"Broken asset reference: '{value.Path}' on {entity.Name}.{type.Name}.{prop.Name}");
@@ -84,7 +84,7 @@ public static class AssetReferenceValidator
             foreach (var prop in assetRefProps)
             {
                 var value = (AssetReference)prop.GetValue(item)!;
-                if (!value.IsEmpty && !db.AssetExists(value.Path))
+                if (!value.IsEmpty && !db.AssetExistsByName(value.Path))
                 {
                     FrinkyLog.Warning(
                         $"Broken asset reference: '{value.Path}' on {entity.Name}.{componentType.Name}.{listProp.Name}[{i}].{prop.Name}");

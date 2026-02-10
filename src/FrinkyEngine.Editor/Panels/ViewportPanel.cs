@@ -417,7 +417,7 @@ public class ViewportPanel
                 var name = Path.GetFileNameWithoutExtension(asset.FileName);
                 var entity = _app.CurrentScene.CreateEntity(name);
                 var meshRenderer = entity.AddComponent<MeshRendererComponent>();
-                meshRenderer.ModelPath = asset.RelativePath;
+                meshRenderer.ModelPath = AssetDatabase.Instance.GetCanonicalName(asset.RelativePath);
                 entity.Transform.LocalPosition = dropPos;
                 _app.SetSingleSelection(entity);
                 _app.RefreshUndoBaseline();

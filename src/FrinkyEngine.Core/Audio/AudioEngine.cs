@@ -559,6 +559,8 @@ public sealed class AudioEngine : IDisposable
     private static bool TryResolvePath(string rawPath, out string fullPath, out string normalizedPath)
     {
         normalizedPath = rawPath.Replace('\\', '/').Trim();
+        if (!Path.IsPathRooted(normalizedPath))
+            normalizedPath = AssetDatabase.Instance.ResolveAssetPath(normalizedPath) ?? normalizedPath;
         fullPath = Path.IsPathRooted(normalizedPath)
             ? normalizedPath
             : AssetManager.Instance.ResolvePath(normalizedPath);

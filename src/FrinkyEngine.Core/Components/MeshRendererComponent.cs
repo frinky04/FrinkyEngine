@@ -40,7 +40,8 @@ public class MeshRendererComponent : RenderableComponent
         var model = AssetManager.Instance.LoadModel(_modelPath.Path);
 
         // Skip material application for the error model — it has its own texture
-        if (File.Exists(AssetManager.Instance.ResolvePath(_modelPath.Path)))
+        var resolvedPath = AssetDatabase.Instance.ResolveAssetPath(_modelPath.Path) ?? _modelPath.Path;
+        if (File.Exists(AssetManager.Instance.ResolvePath(resolvedPath)))
         {
             // Extend material slots list to match model's material count
             while (MaterialSlots.Count < model.MaterialCount)

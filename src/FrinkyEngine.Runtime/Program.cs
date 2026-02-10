@@ -58,6 +58,7 @@ public static class Program
         var sceneRelativePath = settings.ResolveStartupScene(project.DefaultScene);
 
         AssetManager.Instance.AssetsPath = project.GetAbsoluteAssetsPath(projectDir);
+        AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
         PhysicsProjectSettings.ApplyFrom(settings.Runtime);
         AudioProjectSettings.ApplyFrom(settings.Runtime);
 
@@ -102,6 +103,7 @@ public static class Program
             var manifest = ExportManifest.FromJson(manifestJson);
 
             AssetManager.Instance.AssetsPath = Path.Combine(tempDir, "Assets");
+            AssetDatabase.Instance.Scan(AssetManager.Instance.AssetsPath);
             PhysicsProjectSettings.ApplyFrom(manifest);
             AudioProjectSettings.ApplyFrom(manifest);
 

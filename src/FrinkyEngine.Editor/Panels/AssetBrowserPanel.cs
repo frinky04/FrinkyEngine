@@ -523,7 +523,7 @@ public class AssetBrowserPanel
         if (mr == null)
             return;
 
-        mr.ModelPath = asset.RelativePath;
+        mr.ModelPath = AssetDatabase.Instance.GetCanonicalName(asset.RelativePath);
         FrinkyLog.Info($"Assigned model '{asset.FileName}' to {entity.Name}");
     }
 

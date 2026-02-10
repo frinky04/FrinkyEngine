@@ -50,6 +50,7 @@ public class AssetManager
     /// <returns>The loaded <see cref="Model"/>.</returns>
     public Model LoadModel(string relativePath)
     {
+        relativePath = ResolveViaDatabase(relativePath);
         var key = relativePath.Replace('\\', '/');
         if (_models.TryGetValue(key, out var cached))
             return cached;
@@ -70,6 +71,7 @@ public class AssetManager
     /// <returns>The loaded <see cref="Texture2D"/>.</returns>
     public Texture2D LoadTexture(string relativePath)
     {
+        relativePath = ResolveViaDatabase(relativePath);
         var key = relativePath.Replace('\\', '/');
         if (_textures.TryGetValue(key, out var cached))
             return cached;
@@ -90,6 +92,7 @@ public class AssetManager
     /// <returns>The loaded <see cref="Sound"/>.</returns>
     public Sound LoadAudioClip(string relativePath)
     {
+        relativePath = ResolveViaDatabase(relativePath);
         var key = relativePath.Replace('\\', '/');
         if (_audioClips.TryGetValue(key, out var cached))
             return cached;
@@ -107,6 +110,7 @@ public class AssetManager
     /// <returns>The loaded <see cref="Music"/> stream.</returns>
     public Music LoadAudioStream(string relativePath)
     {
+        relativePath = ResolveViaDatabase(relativePath);
         var key = relativePath.Replace('\\', '/');
         if (_audioStreams.TryGetValue(key, out var cached))
             return cached;
@@ -186,6 +190,11 @@ public class AssetManager
         foreach (var texture in _triplanarParamsTextures.Values)
             Raylib.UnloadTexture(texture);
         _triplanarParamsTextures.Clear();
+    }
+
+    private static string ResolveViaDatabase(string nameOrPath)
+    {
+        return AssetDatabase.Instance.ResolveAssetPath(nameOrPath) ?? nameOrPath;
     }
 
     private static int Quantize(float value) => (int)MathF.Round(value * 1000f);

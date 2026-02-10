@@ -33,6 +33,7 @@ public class AssetDatabase
 
     private List<AssetEntry> _assets = new();
     private HashSet<string> _pathIndex = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, List<AssetEntry>> _fileNameIndex = new(StringComparer.OrdinalIgnoreCase);
     private string _assetsPath = string.Empty;
 
     /// <summary>
@@ -54,6 +55,7 @@ public class AssetDatabase
         _assetsPath = assetsPath;
         _assets.Clear();
         _pathIndex.Clear();
+        _fileNameIndex.Clear();
 
         if (!Directory.Exists(assetsPath))
             return;
@@ -63,8 +65,16 @@ public class AssetDatabase
             var relativePath = Path.GetRelativePath(assetsPath, file).Replace('\\', '/');
             var ext = Path.GetExtension(file).ToLowerInvariant();
             var type = _extensionMap.TryGetValue(ext, out var t) ? t : AssetType.Unknown;
-            _assets.Add(new AssetEntry(relativePath, type));
+            var entry = new AssetEntry(relativePath, type);
+            _assets.Add(entry);
             _pathIndex.Add(relativePath);
+
+            if (!_fileNameIndex.TryGetValue(entry.FileName, out var list))
+            {
+                list = new List<AssetEntry>();
+                _fileNameIndex[entry.FileName] = list;
+            }
+            list.Add(entry);
         }
 
         _assets.Sort((a, b) => string.Compare(a.RelativePath, b.RelativePath, StringComparison.OrdinalIgnoreCase));
@@ -153,12 +163,69 @@ public class AssetDatabase
     }
 
     /// <summary>
+    /// Resolves a filename or relative path to a full relative path.
+    /// Bare filenames are resolved via the filename index; paths containing separators use the path index directly.
+    /// </summary>
+    /// <param name="nameOrPath">A bare filename (e.g. "player.glb") or relative path (e.g. "Models/player.glb").</param>
+    /// <returns>The full relative path if unambiguously resolved, or null.</returns>
+    public string? ResolveAssetPath(string nameOrPath)
+    {
+        if (string.IsNullOrEmpty(nameOrPath))
+            return null;
+
+        // If it contains a separator, treat as a full relative path
+        if (nameOrPath.Contains('/') || nameOrPath.Contains('\\'))
+        {
+            var normalized = nameOrPath.Replace('\\', '/');
+            return _pathIndex.Contains(normalized) ? normalized : null;
+        }
+
+        // Bare filename — look up in filename index
+        if (_fileNameIndex.TryGetValue(nameOrPath, out var entries) && entries.Count == 1)
+            return entries[0].RelativePath;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns true if the given filename maps to exactly one asset in the database.
+    /// </summary>
+    /// <param name="fileName">The bare filename to check.</param>
+    /// <returns>True if there is exactly one asset with that filename.</returns>
+    public bool IsFileNameUnique(string fileName)
+    {
+        return _fileNameIndex.TryGetValue(fileName, out var entries) && entries.Count == 1;
+    }
+
+    /// <summary>
+    /// Returns the shortest unambiguous name for an asset: just the filename if unique, or the full relative path if ambiguous.
+    /// </summary>
+    /// <param name="relativePath">The full relative path of the asset.</param>
+    /// <returns>The canonical name to store in references.</returns>
+    public string GetCanonicalName(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath);
+        return IsFileNameUnique(fileName) ? fileName : relativePath.Replace('\\', '/');
+    }
+
+    /// <summary>
+    /// Returns true if a filename or relative path can be resolved to an existing asset.
+    /// </summary>
+    /// <param name="nameOrPath">A bare filename or relative path.</param>
+    /// <returns>True if the asset can be resolved.</returns>
+    public bool AssetExistsByName(string nameOrPath)
+    {
+        return ResolveAssetPath(nameOrPath) != null;
+    }
+
+    /// <summary>
     /// Clears all cached asset entries and resets the scan path.
     /// </summary>
     public void Clear()
     {
         _assets.Clear();
         _pathIndex.Clear();
+        _fileNameIndex.Clear();
         _assetsPath = string.Empty;
     }
 }

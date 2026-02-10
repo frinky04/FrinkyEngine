@@ -572,13 +572,16 @@ public class EditorApplication
                     bool shouldInvalidate = false;
                     if (renderable is MeshRendererComponent meshRenderer)
                     {
-                        if (relativePaths.Contains(meshRenderer.ModelPath.Path))
+                        var resolvedModelPath = AssetDatabase.Instance.ResolveAssetPath(meshRenderer.ModelPath.Path);
+                        if (resolvedModelPath != null && relativePaths.Contains(resolvedModelPath))
                             shouldInvalidate = true;
                         else
                         {
                             foreach (var slot in meshRenderer.MaterialSlots)
                             {
-                                if (!slot.TexturePath.IsEmpty && relativePaths.Contains(slot.TexturePath.Path))
+                                if (slot.TexturePath.IsEmpty) continue;
+                                var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(slot.TexturePath.Path);
+                                if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
                                 {
                                     shouldInvalidate = true;
                                     break;
@@ -588,8 +591,12 @@ public class EditorApplication
                     }
                     else if (renderable is PrimitiveComponent primitive)
                     {
-                        if (!primitive.TexturePath.IsEmpty && relativePaths.Contains(primitive.TexturePath.Path))
-                            shouldInvalidate = true;
+                        if (!primitive.TexturePath.IsEmpty)
+                        {
+                            var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(primitive.TexturePath.Path);
+                            if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
+                                shouldInvalidate = true;
+                        }
                     }
 
                     if (shouldInvalidate)
