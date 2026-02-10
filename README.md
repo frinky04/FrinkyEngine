@@ -147,19 +147,19 @@ The template `.csproj` includes a placeholder comment for `FrinkyEngine.Core`. A
 
 Full engine documentation for game developers is available at [frinky04.github.io/FrinkyEngine](https://frinky04.github.io/FrinkyEngine/) and in the [`docs/`](docs/README.md) folder:
 
-- [Getting Started](docs/getting-started.md)
-- [Editor Guide](docs/editor-guide.md)
-- [Scripting](docs/scripting.md)
-- [Components Reference](docs/components.md)
-- [Physics](docs/physics.md)
-- [Audio](docs/audio.md)
-- [Rendering & Post-Processing](docs/rendering.md)
-- [Game UI](docs/ui.md)
-- [Prefabs & Entity References](docs/prefabs.md)
-- [Exporting & Packaging](docs/exporting.md)
-- [Project Settings](docs/project-settings.md)
-- [API Reference](docs/api/index.md) (auto-generated)
-- [Troubleshooting](docs/troubleshooting.md)
+- [Getting Started](https://frinky04.github.io/FrinkyEngine/getting-started)
+- [Editor Guide](https://frinky04.github.io/FrinkyEngine/editor-guide)
+- [Scripting](https://frinky04.github.io/FrinkyEngine/scripting)
+- [Components Reference](https://frinky04.github.io/FrinkyEngine/components)
+- [Physics](https://frinky04.github.io/FrinkyEngine/physics)
+- [Audio](https://frinky04.github.io/FrinkyEngine/audio)
+- [Rendering & Post-Processing](https://frinky04.github.io/FrinkyEngine/rendering)
+- [Game UI](https://frinky04.github.io/FrinkyEngine/ui)
+- [Prefabs & Entity References](https://frinky04.github.io/FrinkyEngine/prefabs)
+- [Exporting & Packaging](https://frinky04.github.io/FrinkyEngine/exporting)
+- [Project Settings](https://frinky04.github.io/FrinkyEngine/project-settings)
+- [API Reference](https://frinky04.github.io/FrinkyEngine/api/) (auto-generated)
+- [Troubleshooting](https://frinky04.github.io/FrinkyEngine/troubleshooting)
 
 ## Repository Layout
 

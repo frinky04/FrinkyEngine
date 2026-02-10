@@ -92,6 +92,21 @@ jobs:
           artifacts/apidoc-stage/FrinkyEngine.Core.dll
           -o docs/api
           --github-pages
+
+      - name: Commit API docs to main
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git add --force docs/api
+          $status = git status --porcelain docs/api
+          if ($status) {
+            git commit -m "docs: Regenerate API reference for ${{ steps.meta.outputs.tag }}"
+            git push origin main
+          } else {
+            Write-Host "No API doc changes to commit."
+          }
         continue-on-error: true
 
       - name: Verify release publish outputs

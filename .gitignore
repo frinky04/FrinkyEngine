@@ -22,6 +22,9 @@ out/
 Thumbs.db
 .DS_Store
 
+## Generated docs
+docs/api/
+
 ## Project specific
 *.fproject.user
 imgui.ini
