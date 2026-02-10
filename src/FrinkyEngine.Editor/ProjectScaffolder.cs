@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
@@ -39,21 +41,13 @@ public static class ProjectScaffolder
         var editorSettings = EditorProjectSettings.GetDefault();
         editorSettings.Save(projectDir);
 
-        // 2. Create .csproj with FrinkyEngine.Core reference
-        var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
-        var coreRelativePath = FindCoreProjectPath(projectDir);
-        var csprojContent = coreRelativePath != null
-            ? GenerateCsprojWithProjectReference(coreRelativePath)
-            : GenerateCsprojWithAssemblyReference(PrepareLocalCoreAssemblyReference(projectDir));
-        File.WriteAllText(csprojPath, csprojContent);
+        // 2. Generate .csproj and .sln with absolute path to running editor's Core DLL
+        EnsureProjectFiles(projectDir, projectName);
 
-        // 3. Create .sln and restore NuGet packages
-        CreateSolutionAndRestore(projectDir, projectName);
-
-        // 4. Copy template content (scenes, scripts, etc.)
+        // 3. Copy template content (scenes, scripts, etc.)
         CopyTemplateContent(template.ContentDirectory, projectDir, template.SourceName, projectName);
 
-        // 5. Write .gitignore and initialize git repo
+        // 4. Write .gitignore and initialize git repo
         var gitignorePath = Path.Combine(projectDir, ".gitignore");
         File.WriteAllText(gitignorePath, GenerateGitignore());
         InitializeGitRepo(projectDir);
@@ -70,6 +64,173 @@ public static class ProjectScaffolder
             ?? ProjectTemplateRegistry.Templates.FirstOrDefault()
             ?? throw new InvalidOperationException("No project templates found. Ensure ProjectTemplateRegistry.Discover() has been called.");
         return CreateProject(parentDirectory, projectName, template);
+    }
+
+    /// <summary>
+    /// Generates (or regenerates) the .csproj and .sln for a game project.
+    /// Uses an absolute HintPath to the running editor's FrinkyEngine.Core.dll.
+    /// Only writes files and runs restore if content actually changed.
+    /// </summary>
+    public static void EnsureProjectFiles(string projectDir, string projectName)
+    {
+        try
+        {
+            var coreAssemblyPath = typeof(Component).Assembly.Location;
+            if (string.IsNullOrEmpty(coreAssemblyPath) || !File.Exists(coreAssemblyPath))
+            {
+                FrinkyLog.Warning("Cannot locate FrinkyEngine.Core.dll — skipping project file generation.");
+                return;
+            }
+
+            var csprojPath = Path.Combine(projectDir, $"{projectName}.csproj");
+            var slnPath = Path.Combine(projectDir, $"{projectName}.sln");
+
+            var csprojContent = GenerateCsproj(coreAssemblyPath);
+            var slnContent = GenerateSln(projectName);
+
+            var csprojChanged = WriteIfChanged(csprojPath, csprojContent);
+            var slnChanged = WriteIfChanged(slnPath, slnContent);
+
+            if (csprojChanged || slnChanged)
+            {
+                FrinkyLog.Info("Project files regenerated — running dotnet restore...");
+                RunDotnetRestore(projectDir);
+            }
+            else
+            {
+                FrinkyLog.Info("Project files are up to date.");
+            }
+
+            EnsureGitignoreEntries(projectDir);
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Could not generate project files: {ex.Message}");
+        }
+    }
+
+    private static string GenerateCsproj(string coreAssemblyAbsolutePath)
+    {
+        // Use forward slashes for .csproj compatibility
+        var normalizedPath = coreAssemblyAbsolutePath.Replace('\\', '/');
+        return $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <TargetFramework>net8.0</TargetFramework>
+                <Nullable>enable</Nullable>
+                <LangVersion>12</LangVersion>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <OutputType>Library</OutputType>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Raylib-cs" Version="7.0.2" />
+                <Reference Include="FrinkyEngine.Core">
+                  <HintPath>{normalizedPath}</HintPath>
+                  <Private>false</Private>
+                </Reference>
+              </ItemGroup>
+
+            </Project>
+            """;
+    }
+
+    private static string GenerateSln(string projectName)
+    {
+        // Deterministic project GUID from project name
+        var nameBytes = Encoding.UTF8.GetBytes(projectName);
+        var hashBytes = MD5.HashData(nameBytes);
+        var projectGuid = new Guid(hashBytes).ToString("B").ToUpperInvariant();
+
+        // Fixed type GUID for C# projects
+        const string csharpTypeGuid = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}";
+
+        return $"""
+
+            Microsoft Visual Studio Solution File, Format Version 12.00
+            # Visual Studio Version 17
+            VisualStudioVersion = 17.0.31903.59
+            MinimumVisualStudioVersion = 10.0.40219.1
+            Project("{csharpTypeGuid}") = "{projectName}", "{projectName}.csproj", "{projectGuid}"
+            EndProject
+            Global
+            	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+            		Debug|Any CPU = Debug|Any CPU
+            		Release|Any CPU = Release|Any CPU
+            	EndGlobalSection
+            	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+            		{projectGuid}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+            		{projectGuid}.Debug|Any CPU.Build.0 = Debug|Any CPU
+            		{projectGuid}.Release|Any CPU.ActiveCfg = Release|Any CPU
+            		{projectGuid}.Release|Any CPU.Build.0 = Release|Any CPU
+            	EndGlobalSection
+            EndGlobal
+            """;
+    }
+
+    /// <summary>
+    /// Writes content to a file only if it differs from the existing content.
+    /// Returns true if the file was written.
+    /// </summary>
+    private static bool WriteIfChanged(string path, string newContent)
+    {
+        if (File.Exists(path))
+        {
+            var existing = File.ReadAllText(path);
+            if (existing == newContent)
+                return false;
+        }
+
+        File.WriteAllText(path, newContent);
+        return true;
+    }
+
+    private static void RunDotnetRestore(string projectDir)
+    {
+        try
+        {
+            RunDotnet(projectDir, "restore");
+            FrinkyLog.Info("dotnet restore completed.");
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"dotnet restore failed (dotnet SDK may not be installed): {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Appends *.csproj and *.sln to an existing .gitignore if those entries are missing.
+    /// Handles migration of existing projects to the new generated-project-files workflow.
+    /// </summary>
+    private static void EnsureGitignoreEntries(string projectDir)
+    {
+        var gitignorePath = Path.Combine(projectDir, ".gitignore");
+        if (!File.Exists(gitignorePath))
+            return;
+
+        var content = File.ReadAllText(gitignorePath);
+        var entries = new List<string>();
+
+        if (!content.Contains("*.csproj", StringComparison.Ordinal))
+            entries.Add("*.csproj");
+        if (!content.Contains("*.sln", StringComparison.Ordinal))
+            entries.Add("*.sln");
+
+        if (entries.Count == 0)
+            return;
+
+        var sb = new StringBuilder(content);
+        if (!content.EndsWith('\n'))
+            sb.AppendLine();
+
+        sb.AppendLine();
+        sb.AppendLine("## Generated project files");
+        foreach (var entry in entries)
+            sb.AppendLine(entry);
+
+        File.WriteAllText(gitignorePath, sb.ToString());
+        FrinkyLog.Info("Updated .gitignore with *.csproj and *.sln entries.");
     }
 
     private static void CopyTemplateContent(string contentDir, string projectDir, string sourceName, string projectName)
@@ -92,6 +253,10 @@ public static class ProjectScaffolder
                     continue;
             }
 
+            // Skip .frinky/engine/ directory (no longer needed)
+            if (relativePath.Replace('\\', '/').StartsWith(".frinky/engine", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var targetPath = Path.Combine(projectDir, relativePath);
             var targetDirectory = Path.GetDirectoryName(targetPath)!;
             Directory.CreateDirectory(targetDirectory);
@@ -111,145 +276,6 @@ public static class ProjectScaffolder
         }
 
         FrinkyLog.Info($"Scaffold: copied template content from {contentDir}");
-    }
-
-    private static string? FindCoreProjectPath(string projectDir)
-    {
-        // Walk up from the editor's base directory looking for FrinkyEngine.sln
-        var dir = AppContext.BaseDirectory;
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir, "FrinkyEngine.sln")))
-            {
-                var coreAbsolute = Path.Combine(dir, "src", "FrinkyEngine.Core", "FrinkyEngine.Core.csproj");
-                if (File.Exists(coreAbsolute))
-                {
-                    return Path.GetRelativePath(projectDir, coreAbsolute);
-                }
-            }
-            dir = Path.GetDirectoryName(dir);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Copies FrinkyEngine.Core DLL (and PDB/XML if present) into the given engine directory.
-    /// Skips copy if the target DLL is already up to date.
-    /// Returns true if files were copied, false if source doesn't exist or target is already current.
-    /// </summary>
-    internal static bool CopyCoreAssemblyFiles(string engineDir)
-    {
-        var sourceDll = typeof(Component).Assembly.Location;
-        if (string.IsNullOrEmpty(sourceDll) || !File.Exists(sourceDll))
-            return false;
-
-        Directory.CreateDirectory(engineDir);
-
-        var targetDll = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
-        if (File.Exists(targetDll) &&
-            File.GetLastWriteTimeUtc(targetDll) >= File.GetLastWriteTimeUtc(sourceDll))
-        {
-            return false;
-        }
-
-        File.Copy(sourceDll, targetDll, overwrite: true);
-
-        var sourcePdb = Path.ChangeExtension(sourceDll, ".pdb");
-        if (File.Exists(sourcePdb))
-            File.Copy(sourcePdb, Path.Combine(engineDir, "FrinkyEngine.Core.pdb"), overwrite: true);
-
-        var sourceXml = Path.ChangeExtension(sourceDll, ".xml");
-        if (File.Exists(sourceXml))
-            File.Copy(sourceXml, Path.Combine(engineDir, "FrinkyEngine.Core.xml"), overwrite: true);
-
-        return true;
-    }
-
-    /// <summary>
-    /// Updates .frinky/engine/ assemblies if the editor ships a newer Core DLL.
-    /// Safe to call on any project — returns silently if the directory doesn't exist
-    /// (i.e. the project uses a ProjectReference to engine source).
-    /// </summary>
-    public static void UpdateCoreAssemblyIfNeeded(string projectDir)
-    {
-        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
-        if (!Directory.Exists(engineDir))
-            return;
-
-        try
-        {
-            if (CopyCoreAssemblyFiles(engineDir))
-                FrinkyLog.Info("Updated .frinky/engine/ assemblies to match current editor.");
-            else
-                FrinkyLog.Info(".frinky/engine/ assemblies are up to date.");
-        }
-        catch (Exception ex)
-        {
-            FrinkyLog.Warning($"Could not update .frinky/engine/ assemblies: {ex.Message}");
-        }
-    }
-
-    private static string PrepareLocalCoreAssemblyReference(string projectDir)
-    {
-        var engineDir = Path.Combine(projectDir, ".frinky", "engine");
-        CopyCoreAssemblyFiles(engineDir);
-
-        var targetCoreAssembly = Path.Combine(engineDir, "FrinkyEngine.Core.dll");
-        if (!File.Exists(targetCoreAssembly))
-            throw new FileNotFoundException("Could not locate FrinkyEngine.Core.dll for project scaffolding.", targetCoreAssembly);
-
-        FrinkyLog.Info("Scaffold: using local FrinkyEngine.Core assembly reference.");
-        return Path.GetRelativePath(projectDir, targetCoreAssembly).Replace('\\', '/');
-    }
-
-    private static string GenerateCsprojWithProjectReference(string coreRelativePath)
-    {
-        // Normalize to forward slashes for cross-platform .csproj compatibility
-        var normalizedPath = coreRelativePath.Replace('\\', '/');
-        return $"""
-            <Project Sdk="Microsoft.NET.Sdk">
-
-              <PropertyGroup>
-                <TargetFramework>net8.0</TargetFramework>
-                <Nullable>enable</Nullable>
-                <LangVersion>12</LangVersion>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <OutputType>Library</OutputType>
-              </PropertyGroup>
-
-              <ItemGroup>
-                <PackageReference Include="Raylib-cs" Version="7.0.2" />
-                <ProjectReference Include="{normalizedPath}" />
-              </ItemGroup>
-
-            </Project>
-            """;
-    }
-
-    private static string GenerateCsprojWithAssemblyReference(string coreHintPath)
-    {
-        return $"""
-            <Project Sdk="Microsoft.NET.Sdk">
-
-              <PropertyGroup>
-                <TargetFramework>net8.0</TargetFramework>
-                <Nullable>enable</Nullable>
-                <LangVersion>12</LangVersion>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <OutputType>Library</OutputType>
-              </PropertyGroup>
-
-              <ItemGroup>
-                <PackageReference Include="Raylib-cs" Version="7.0.2" />
-                <Reference Include="FrinkyEngine.Core">
-                  <HintPath>{coreHintPath}</HintPath>
-                  <Private>false</Private>
-                </Reference>
-              </ItemGroup>
-
-            </Project>
-            """;
     }
 
     private static string GenerateGitignore()
@@ -280,22 +306,11 @@ public static class ProjectScaffolder
             .frinky/
             *.fproject.user
             imgui.ini
-            """;
-    }
 
-    private static void CreateSolutionAndRestore(string projectDir, string projectName)
-    {
-        try
-        {
-            RunDotnet(projectDir, $"new sln -n \"{projectName}\"");
-            RunDotnet(projectDir, $"sln \"{projectName}.sln\" add \"{projectName}.csproj\"");
-            RunDotnet(projectDir, "restore");
-            FrinkyLog.Info("Scaffold: created solution and restored packages.");
-        }
-        catch (Exception ex)
-        {
-            FrinkyLog.Warning($"Scaffold: could not create solution or restore packages (dotnet SDK may not be installed): {ex.Message}");
-        }
+            ## Generated project files
+            *.csproj
+            *.sln
+            """;
     }
 
     private static void InitializeGitRepo(string projectDir)

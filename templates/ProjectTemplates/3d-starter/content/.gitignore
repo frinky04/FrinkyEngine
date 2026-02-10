@@ -23,3 +23,7 @@ Thumbs.db
 .frinky/
 *.fproject.user
 imgui.ini
+
+## Generated project files
+*.csproj
+*.sln
