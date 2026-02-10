@@ -56,7 +56,7 @@ public class SimplePlayerInputComponent : Component
     private float _currentCrouchCameraBlend;
     private float _cachedStandingCapsuleLength = -1f;
     private float _supportGracePeriod = 0f;
-    private const float SupportGraceDuration = 0.0333;
+    private const float SupportGraceDuration = 0.0333f;
 
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
