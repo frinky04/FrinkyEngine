@@ -23,6 +23,7 @@ public class AudioSourceComponent : Component
     /// Asset-relative or absolute path to the sound file.
     /// </summary>
     [AssetFilter(AssetType.Audio)]
+    [InspectorLabel("Sound")]
     public AssetReference SoundPath
     {
         get => _soundPath;
@@ -62,6 +63,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Per-source volume multiplier.
     /// </summary>
+    [InspectorRange(0f, 2f, 0.01f)]
     public float Volume
     {
         get => _volume;
@@ -71,6 +73,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Per-source pitch multiplier.
     /// </summary>
+    [InspectorRange(0.01f, 3f, 0.01f)]
     public float Pitch
     {
         get => _pitch;
@@ -80,6 +83,8 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Start offset in seconds for streamed clips.
     /// </summary>
+    [InspectorLabel("Start Time (s)")]
+    [InspectorRange(0f, 3600f, 0.01f)]
     public float StartTimeSeconds
     {
         get => _startTimeSeconds;
@@ -99,6 +104,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Priority used by voice stealing.
     /// </summary>
+    [InspectorRange(0, 1000, 1)]
     public int Priority
     {
         get => _priority;
@@ -108,6 +114,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Spatial attenuation settings.
     /// </summary>
+    [InspectorSection("Attenuation")]
     public AudioAttenuationSettings Attenuation
     {
         get => _attenuation;

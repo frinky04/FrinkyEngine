@@ -31,23 +31,36 @@ public enum LightType
 [ComponentCategory("Rendering")]
 public class LightComponent : Component
 {
+    private float _range = 10f;
+
     /// <summary>
     /// The type of light (directional, point, or skylight).
     /// </summary>
+    [InspectorLabel("Type")]
     public LightType LightType { get; set; } = LightType.Directional;
 
     /// <summary>
     /// The color of the emitted light (defaults to white).
     /// </summary>
+    [InspectorLabel("Color")]
     public Color LightColor { get; set; } = new(255, 255, 255, 255);
 
     /// <summary>
     /// Brightness multiplier applied to the light color (defaults to 1).
     /// </summary>
+    [InspectorRange(0f, 10f, 0.05f)]
+    [InspectorTooltip("Brightness multiplier")]
     public float Intensity { get; set; } = 1.0f;
 
     /// <summary>
     /// Maximum distance for point light attenuation, in world units (defaults to 10).
     /// </summary>
-    public float Range { get; set; } = 10.0f;
+    [InspectorVisibleIfEnum(nameof(LightType), nameof(LightType.Point))]
+    [InspectorRange(0f, 100f, 0.1f)]
+    [InspectorTooltip("Maximum distance for point light attenuation")]
+    public float Range
+    {
+        get => _range;
+        set => _range = float.IsFinite(value) ? MathF.Max(value, 0f) : 10f;
+    }
 }

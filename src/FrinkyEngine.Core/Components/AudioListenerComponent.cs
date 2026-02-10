@@ -13,11 +13,14 @@ public class AudioListenerComponent : Component
     /// <summary>
     /// When true, this listener is preferred over others in the scene.
     /// </summary>
+    [InspectorLabel("Is Primary")]
     public bool IsPrimary { get; set; } = true;
 
     /// <summary>
     /// Per-listener volume scale applied after bus gains.
     /// </summary>
+    [InspectorLabel("Master Volume Scale")]
+    [InspectorRange(0f, 2f, 0.01f)]
     public float MasterVolumeScale
     {
         get => _masterVolumeScale;

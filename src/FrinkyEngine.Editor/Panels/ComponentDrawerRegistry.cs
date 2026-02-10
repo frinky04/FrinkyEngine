@@ -22,18 +22,8 @@ public static class ComponentDrawerRegistry
     static ComponentDrawerRegistry()
     {
         Register<TransformComponent>(DrawTransform);
-        Register<CameraComponent>(DrawCamera);
-        Register<LightComponent>(DrawLight);
-        Register<AudioListenerComponent>(DrawAudioListener);
-        Register<AudioSourceComponent>(DrawAudioSource);
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
-        Register<RigidbodyComponent>(DrawRigidbody);
-        Register<CharacterControllerComponent>(DrawCharacterController);
-        Register<SimplePlayerInputComponent>(DrawSimplePlayerInput);
-        Register<BoxColliderComponent>(DrawBoxCollider);
-        Register<SphereColliderComponent>(DrawSphereCollider);
-        Register<CapsuleColliderComponent>(DrawCapsuleCollider);
         Register<PostProcessStackComponent>(DrawPostProcessStack);
     }
 
@@ -158,148 +148,6 @@ public static class ComponentDrawerRegistry
         ImGui.Columns(1);
         ImGui.PopID();
         return changed;
-    }
-
-    private static void DrawCamera(Component c)
-    {
-        var cam = (CameraComponent)c;
-
-        float fov = cam.FieldOfView;
-        DrawDragFloat("Field of View", ref fov, 0.5f, 1f, 179f);
-        cam.FieldOfView = fov;
-
-        float near = cam.NearPlane;
-        DrawDragFloat("Near Plane", ref near, 0.01f, 0.001f, 100f);
-        cam.NearPlane = near;
-
-        float far = cam.FarPlane;
-        DrawDragFloat("Far Plane", ref far, 1f, 1f, 10000f);
-        cam.FarPlane = far;
-
-        DrawEnumCombo("Projection", cam.Projection, v => cam.Projection = v);
-        DrawColorEdit4("Clear Color", cam.ClearColor, v => cam.ClearColor = v);
-        DrawCheckbox("Is Main", cam.IsMain, v => cam.IsMain = v);
-    }
-
-    private static void DrawLight(Component c)
-    {
-        var light = (LightComponent)c;
-
-        DrawEnumCombo("Type", light.LightType, v => light.LightType = v);
-        DrawColorEdit4("Color", light.LightColor, v => light.LightColor = v);
-
-        float intensity = light.Intensity;
-        DrawDragFloat("Intensity", ref intensity, 0.05f, 0f, 10f);
-        light.Intensity = intensity;
-
-        if (light.LightType == LightType.Point)
-        {
-            float range = light.Range;
-            DrawDragFloat("Range", ref range, 0.1f, 0f, 100f);
-            light.Range = range;
-        }
-    }
-
-    private static void DrawAudioListener(Component c)
-    {
-        var listener = (AudioListenerComponent)c;
-
-        DrawCheckbox("Is Primary", listener.IsPrimary, v => listener.IsPrimary = v);
-
-        float masterScale = listener.MasterVolumeScale;
-        DrawDragFloat("Master Volume Scale", ref masterScale, 0.01f, 0f, 2f);
-        listener.MasterVolumeScale = masterScale;
-    }
-
-    private static void DrawAudioSource(Component c)
-    {
-        var source = (AudioSourceComponent)c;
-        var app = EditorApplication.Instance;
-
-        DrawAssetReference("Sound", source.SoundPath, AssetType.Audio, v => source.SoundPath = v);
-
-        DrawCheckbox("Play On Start", source.PlayOnStart, v => source.PlayOnStart = v);
-        DrawCheckbox("Spatialized", source.Spatialized, v => source.Spatialized = v);
-        DrawCheckbox("Looping", source.Looping, v => source.Looping = v);
-        DrawCheckbox("Auto Destroy On Finish", source.AutoDestroyOnFinish, v => source.AutoDestroyOnFinish = v);
-        DrawCheckbox("Auto Resume On Enable", source.AutoResumeOnEnable, v => source.AutoResumeOnEnable = v);
-        DrawEnumCombo("Bus", source.Bus, v => source.Bus = v);
-
-        float volume = source.Volume;
-        DrawDragFloat("Volume", ref volume, 0.01f, 0f, 2f);
-        source.Volume = volume;
-
-        float pitch = source.Pitch;
-        DrawDragFloat("Pitch", ref pitch, 0.01f, 0.01f, 3f);
-        source.Pitch = pitch;
-
-        float startTime = source.StartTimeSeconds;
-        DrawDragFloat("Start Time (s)", ref startTime, 0.01f, 0f, 3600f);
-        source.StartTimeSeconds = startTime;
-
-        int priority = source.Priority;
-        if (ImGui.DragInt("Priority", ref priority, 1f, 0, 1000))
-            source.Priority = priority;
-        TrackContinuousUndo(app);
-
-        DrawCheckbox("Mute", source.Mute, v => source.Mute = v);
-        DrawCheckbox("Paused", source.Paused, v => source.Paused = v);
-
-        if (source.Spatialized)
-        {
-            DrawSection("Attenuation");
-            var attenuation = source.Attenuation;
-
-            float minDistance = attenuation.MinDistance;
-            DrawDragFloat("Min Distance", ref minDistance, 0.1f, 0f, 10000f);
-            attenuation.MinDistance = minDistance;
-
-            float maxDistance = attenuation.MaxDistance;
-            DrawDragFloat("Max Distance", ref maxDistance, 0.1f, 0f, 10000f);
-            attenuation.MaxDistance = maxDistance;
-
-            var rolloff = attenuation.Rolloff;
-            DrawEnumCombo("Rolloff", rolloff, v => rolloff = v);
-            attenuation.Rolloff = rolloff;
-
-            float spatialBlend = attenuation.SpatialBlend;
-            DrawDragFloat("Spatial Blend", ref spatialBlend, 0.01f, 0f, 1f);
-            attenuation.SpatialBlend = spatialBlend;
-
-            source.Attenuation = attenuation;
-        }
-        else
-        {
-            var attenuation = source.Attenuation;
-            float pan = attenuation.PanStereo;
-            DrawDragFloat("Stereo Pan", ref pan, 0.01f, -1f, 1f);
-            attenuation.PanStereo = pan;
-            source.Attenuation = attenuation;
-        }
-
-        if (app.IsInRuntimeMode)
-        {
-            ImGui.Separator();
-
-            if (ImGui.Button("Play##AudioSource"))
-                source.Play();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Pause##AudioSource"))
-                source.Pause();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Resume##AudioSource"))
-                source.Resume();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Stop##AudioSource"))
-                source.Stop();
-        }
-        else
-        {
-            ImGui.TextDisabled("Runtime controls available in Play/Simulate.");
-        }
     }
 
     private static void DrawMeshRenderer(Component c)
@@ -440,383 +288,189 @@ public static class ComponentDrawerRegistry
         DrawSubclassProperties(c);
     }
 
-    private static void DrawRigidbody(Component c)
-    {
-        var rb = (RigidbodyComponent)c;
-
-        DrawEnumCombo("Motion Type", rb.MotionType, v => rb.MotionType = v);
-
-        if (rb.MotionType == BodyMotionType.Dynamic)
-        {
-            float mass = rb.Mass;
-            DrawDragFloat("Mass", ref mass, 0.05f, 0.0001f, 100000f);
-            rb.Mass = mass;
-        }
-        else
-        {
-            ImGui.TextDisabled("Mass is used for Dynamic bodies only.");
-        }
-
-        float linearDamping = rb.LinearDamping;
-        DrawDragFloat("Linear Damping", ref linearDamping, 0.005f, 0f, 1f);
-        rb.LinearDamping = linearDamping;
-
-        float angularDamping = rb.AngularDamping;
-        DrawDragFloat("Angular Damping", ref angularDamping, 0.005f, 0f, 1f);
-        rb.AngularDamping = angularDamping;
-
-        DrawCheckbox("Continuous Detection", rb.ContinuousDetection, v => rb.ContinuousDetection = v);
-        DrawEnumCombo("Interpolation", rb.InterpolationMode, v => rb.InterpolationMode = v);
-
-        DrawSection("Axis Locks");
-        DrawCheckbox("Lock Position X", rb.LockPositionX, v => rb.LockPositionX = v);
-        DrawCheckbox("Lock Position Y", rb.LockPositionY, v => rb.LockPositionY = v);
-        DrawCheckbox("Lock Position Z", rb.LockPositionZ, v => rb.LockPositionZ = v);
-        DrawCheckbox("Lock Rotation X", rb.LockRotationX, v => rb.LockRotationX = v);
-        DrawCheckbox("Lock Rotation Y", rb.LockRotationY, v => rb.LockRotationY = v);
-        DrawCheckbox("Lock Rotation Z", rb.LockRotationZ, v => rb.LockRotationZ = v);
-
-        bool hasCollider = rb.Entity.Components.Any(component => component is ColliderComponent collider && collider.Enabled);
-        if (!hasCollider)
-        {
-            ImGui.Spacing();
-            DrawWarning("Rigidbody is ignored until an enabled collider component is added.");
-        }
-
-        if (rb.Entity.Transform.Parent != null)
-            DrawWarning("Parented rigidbodies are not simulated.");
-    }
-
-    private static void DrawCharacterController(Component c)
-    {
-        var controller = (CharacterControllerComponent)c;
-
-        // ── Movement ──
-        DrawSection("Movement");
-        float moveSpeed = controller.MoveSpeed;
-        DrawDragFloat("Move Speed", ref moveSpeed, 0.05f, 0f, 1000f);
-        controller.MoveSpeed = moveSpeed;
-
-        float jumpVelocity = controller.JumpVelocity;
-        DrawDragFloat("Jump Velocity", ref jumpVelocity, 0.05f, 0f, 1000f);
-        controller.JumpVelocity = jumpVelocity;
-
-        float maxSlope = controller.MaxSlopeDegrees;
-        DrawDragFloat("Max Slope (deg)", ref maxSlope, 0.25f, 0f, 89f);
-        controller.MaxSlopeDegrees = maxSlope;
-
-        // ── Crouching ──
-        DrawSection("Crouching");
-        float crouchHeightScale = controller.CrouchHeightScale;
-        DrawDragFloat("Height Scale", ref crouchHeightScale, 0.01f, 0.1f, 1.0f);
-        controller.CrouchHeightScale = crouchHeightScale;
-
-        float crouchSpeedScale = controller.CrouchSpeedScale;
-        DrawDragFloat("Speed Scale##crouch", ref crouchSpeedScale, 0.01f, 0.0f, 1.0f);
-        controller.CrouchSpeedScale = crouchSpeedScale;
-
-        // ── Forces ──
-        DrawSection("Forces");
-        float maxHForce = controller.MaximumHorizontalForce;
-        DrawDragFloat("Max Horizontal Force", ref maxHForce, 0.25f, 0f, 100000f);
-        controller.MaximumHorizontalForce = maxHForce;
-
-        float maxVForce = controller.MaximumVerticalForce;
-        DrawDragFloat("Max Vertical Force", ref maxVForce, 0.25f, 0f, 100000f);
-        controller.MaximumVerticalForce = maxVForce;
-
-        // ── Air Control ──
-        DrawSection("Air Control");
-        float airForce = controller.AirControlForceScale;
-        DrawDragFloat("Force Scale##air", ref airForce, 0.01f, 0f, 10f);
-        controller.AirControlForceScale = airForce;
-
-        float airSpeed = controller.AirControlSpeedScale;
-        DrawDragFloat("Speed Scale##air", ref airSpeed, 0.01f, 0f, 10f);
-        controller.AirControlSpeedScale = airSpeed;
-
-        // ── View Direction ──
-        DrawSection("View Direction");
-        DrawCheckbox("Use Entity Forward", controller.UseEntityForwardAsViewDirection,
-            v => controller.UseEntityForwardAsViewDirection = v);
-
-        if (!controller.UseEntityForwardAsViewDirection)
-        {
-            var viewDir = controller.ViewDirectionOverride;
-            if (DrawColoredVector3("View Override", ref viewDir, 0.05f))
-                controller.ViewDirectionOverride = viewDir;
-        }
-
-        // ── Debug Info ──
-        DrawSection("Debug Info");
-        DrawReadOnlyText("Supported", controller.Supported ? "Yes" : "No");
-        DrawReadOnlyText("Is Crouching", controller.IsCrouching ? "Yes" : "No");
-        var target = controller.LastComputedTargetVelocity;
-        DrawReadOnlyText("Target Velocity", $"{target.X:0.00}, {target.Y:0.00}, {target.Z:0.00}");
-
-        // ── Warnings ──
-        var entity = controller.Entity;
-        var rigidbody = entity.GetComponent<RigidbodyComponent>();
-        var capsule = entity.GetComponent<CapsuleColliderComponent>();
-
-        if (rigidbody == null || !rigidbody.Enabled)
-            DrawWarning("Character controller requires an enabled RigidbodyComponent.");
-        else if (rigidbody.MotionType != BodyMotionType.Dynamic)
-            DrawWarning("Character controller requires Rigidbody Motion Type = Dynamic.");
-
-        if (capsule == null || !capsule.Enabled)
-        {
-            DrawWarning("Character controller requires an enabled CapsuleColliderComponent.");
-        }
-        else
-        {
-            var primaryCollider = entity.Components
-                .OfType<ColliderComponent>()
-                .FirstOrDefault(col => col.Enabled);
-            if (!ReferenceEquals(primaryCollider, capsule))
-                DrawWarning("The capsule must be the first enabled collider on the entity.");
-        }
-
-        if (entity.Transform.Parent != null)
-            DrawWarning("Parented character controllers are not simulated.");
-    }
-
-    private static void DrawSimplePlayerInput(Component c)
-    {
-        var input = (SimplePlayerInputComponent)c;
-
-        // ── Key Bindings ──
-        DrawSection("Key Bindings");
-        DrawSearchableEnumCombo("Forward##key", input.MoveForwardKey, v => input.MoveForwardKey = v);
-        DrawSearchableEnumCombo("Backward##key", input.MoveBackwardKey, v => input.MoveBackwardKey = v);
-        DrawSearchableEnumCombo("Left##key", input.MoveLeftKey, v => input.MoveLeftKey = v);
-        DrawSearchableEnumCombo("Right##key", input.MoveRightKey, v => input.MoveRightKey = v);
-        DrawSearchableEnumCombo("Jump##key", input.JumpKey, v => input.JumpKey = v);
-        DrawSearchableEnumCombo("Crouch##key", input.CrouchKey, v => input.CrouchKey = v);
-
-        // ── Mouse Look ──
-        DrawSection("Mouse Look");
-        DrawCheckbox("Enable Mouse Look", input.EnableMouseLook, v => input.EnableMouseLook = v);
-
-        if (input.EnableMouseLook)
-        {
-            DrawCheckbox("Require Mouse Button", input.RequireLookMouseButton, v => input.RequireLookMouseButton = v);
-            if (input.RequireLookMouseButton)
-                DrawEnumCombo("Look Mouse Button", input.LookMouseButton, v => input.LookMouseButton = v);
-
-            DrawCheckbox("Rotate Pitch", input.RotatePitch, v => input.RotatePitch = v);
-            DrawCheckbox("Use View Override", input.UseViewDirectionOverrideForCharacterLook, v => input.UseViewDirectionOverrideForCharacterLook = v);
-            DrawCheckbox("Apply Pitch To Body", input.ApplyPitchToCharacterBody, v => input.ApplyPitchToCharacterBody = v);
-            DrawCheckbox("Invert X", input.InvertMouseX, v => input.InvertMouseX = v);
-            DrawCheckbox("Invert Y", input.InvertMouseY, v => input.InvertMouseY = v);
-
-            float sensitivity = input.MouseSensitivity;
-            DrawDragFloat("Sensitivity", ref sensitivity, 0.005f, 0f, 10f);
-            input.MouseSensitivity = sensitivity;
-
-            float minPitch = input.MinPitchDegrees;
-            DrawDragFloat("Min Pitch", ref minPitch, 0.5f, -89f, 89f);
-            input.MinPitchDegrees = minPitch;
-
-            float maxPitch = input.MaxPitchDegrees;
-            DrawDragFloat("Max Pitch", ref maxPitch, 0.5f, -89f, 89f);
-            input.MaxPitchDegrees = maxPitch;
-        }
-
-        // ── Character Controller ──
-        DrawSection("Character Controller");
-        DrawCheckbox("Use Character Controller", input.UseCharacterController, v => input.UseCharacterController = v);
-        DrawCheckbox("Allow Jump", input.AllowJump, v => input.AllowJump = v);
-
-        // ── Fallback Motion ──
-        if (!input.UseCharacterController)
-        {
-            DrawSection("Fallback Motion");
-            float fallbackSpeed = input.FallbackMoveSpeed;
-            DrawDragFloat("Move Speed##fallback", ref fallbackSpeed, 0.05f, 0f, 1000f);
-            input.FallbackMoveSpeed = fallbackSpeed;
-
-            float fallbackJump = input.FallbackJumpImpulse;
-            DrawDragFloat("Jump Impulse##fallback", ref fallbackJump, 0.05f, 0f, 1000f);
-            input.FallbackJumpImpulse = fallbackJump;
-        }
-
-        // ── Attached Camera ──
-        DrawSection("Attached Camera");
-        DrawCheckbox("Drive Attached Camera", input.DriveAttachedCamera, v => input.DriveAttachedCamera = v);
-
-        if (input.DriveAttachedCamera)
-        {
-            var cameraProp = typeof(SimplePlayerInputComponent).GetProperty(nameof(SimplePlayerInputComponent.CameraEntity))!;
-            DrawEntityReference("Camera Entity", input, cameraProp);
-
-            var offset = input.AttachedCameraLocalOffset;
-            if (DrawColoredVector3("Local Offset", ref offset, 0.05f))
-                input.AttachedCameraLocalOffset = offset;
-
-            float backDist = input.AttachedCameraBackDistance;
-            DrawDragFloat("Back Distance", ref backDist, 0.05f, 0f, 100f);
-            input.AttachedCameraBackDistance = backDist;
-
-            DrawCheckbox("Adjust Camera On Crouch", input.AdjustCameraOnCrouch, v => input.AdjustCameraOnCrouch = v);
-
-            if (input.AdjustCameraOnCrouch)
-            {
-                float standingHeight = input.StandingHeadHeight;
-                DrawDragFloat("Standing Head Height", ref standingHeight, 0.05f, 0.1f, 10f);
-                input.StandingHeadHeight = standingHeight;
-
-                float lerpSpeed = input.CameraOffsetLerpSpeed;
-                DrawDragFloat("Camera Lerp Speed", ref lerpSpeed, 0.1f, 0.1f, 100f);
-                input.CameraOffsetLerpSpeed = lerpSpeed;
-            }
-        }
-    }
-
-    private static void DrawBoxCollider(Component c)
-    {
-        var collider = (BoxColliderComponent)c;
-        DrawColliderCommon(collider);
-
-        var size = collider.Size;
-        if (ImGui.DragFloat3("Size", ref size, 0.05f, 0.001f, 10000f))
-            collider.Size = size;
-        TrackContinuousUndo(EditorApplication.Instance);
-    }
-
-    private static void DrawSphereCollider(Component c)
-    {
-        var collider = (SphereColliderComponent)c;
-        DrawColliderCommon(collider);
-
-        float radius = collider.Radius;
-        if (ImGui.DragFloat("Radius", ref radius, 0.05f, 0.001f, 10000f))
-            collider.Radius = radius;
-        TrackContinuousUndo(EditorApplication.Instance);
-    }
-
-    private static void DrawCapsuleCollider(Component c)
-    {
-        var collider = (CapsuleColliderComponent)c;
-        DrawColliderCommon(collider);
-
-        float radius = collider.Radius;
-        if (ImGui.DragFloat("Radius", ref radius, 0.05f, 0.001f, 10000f))
-            collider.Radius = radius;
-        TrackContinuousUndo(EditorApplication.Instance);
-
-        float length = collider.Length;
-        if (ImGui.DragFloat("Length", ref length, 0.05f, 0.001f, 10000f))
-            collider.Length = length;
-        TrackContinuousUndo(EditorApplication.Instance);
-    }
-
-    private static void DrawColliderCommon(ColliderComponent collider)
-    {
-        float friction = collider.Friction;
-        DrawDragFloat("Friction", ref friction, 0.01f, 0f, 10f);
-        collider.Friction = friction;
-
-        float restitution = collider.Restitution;
-        DrawDragFloat("Restitution", ref restitution, 0.01f, 0f, 1f);
-        collider.Restitution = restitution;
-
-        var center = collider.Center;
-        if (DrawColoredVector3("Center", ref center, 0.05f))
-            collider.Center = center;
-
-        int colliderCount = collider.Entity.Components.Count(component => component is ColliderComponent enabledCollider && enabledCollider.Enabled);
-        if (colliderCount > 1)
-            DrawWarning("Multiple enabled colliders are present. Only the first enabled collider is used.");
-    }
-
     private static void DrawSubclassProperties(Component component)
     {
+        string? lastSection = null;
+        string? lastHeader = null;
         var type = component.GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
+            ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
             DrawProperty(component, prop);
         }
     }
 
     public static void DrawReflection(Component component)
     {
+        string? lastSection = null;
+        string? lastHeader = null;
         var type = component.GetType();
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (!prop.CanRead || !prop.CanWrite) continue;
-            if (prop.Name is "Entity" or "HasStarted" or "Enabled") continue;
-            if (prop.Name is "RenderModel") continue;
+            if (!IsInspectableProperty(prop))
+                continue;
+            if (!IsPropertyVisible(component, prop))
+                continue;
 
+            ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
             DrawProperty(component, prop);
+        }
+
+        DrawReflectionExtensions(component);
+    }
+
+    private static void ApplyLayoutAttributes(PropertyInfo prop, ref string? lastSection, ref string? lastHeader)
+    {
+        // Space
+        var spaceAttr = prop.GetCustomAttribute<InspectorSpaceAttribute>();
+        if (spaceAttr != null)
+            ImGui.Dummy(new Vector2(0, spaceAttr.Height));
+
+        // Section (separator text)
+        var section = prop.GetCustomAttribute<InspectorSectionAttribute>()?.Title;
+        if (!string.IsNullOrWhiteSpace(section) && !string.Equals(section, lastSection, StringComparison.Ordinal))
+        {
+            DrawSection(section!);
+            lastSection = section;
+        }
+
+        // Header (collapsing header style, but just text for now)
+        var headerAttr = prop.GetCustomAttribute<InspectorHeaderAttribute>();
+        if (headerAttr != null && !string.Equals(headerAttr.Title, lastHeader, StringComparison.Ordinal))
+        {
+            ImGui.TextDisabled(headerAttr.Title);
+            lastHeader = headerAttr.Title;
+        }
+
+        // Indent
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Indent(indentAttr.Levels * 16f);
+    }
+
+    private static void DrawPropertyWithTooltip(PropertyInfo prop, Action drawAction)
+    {
+        var tooltipAttr = prop.GetCustomAttribute<InspectorTooltipAttribute>();
+        if (tooltipAttr != null)
+            ImGui.BeginGroup();
+
+        drawAction();
+
+        if (tooltipAttr != null)
+        {
+            ImGui.EndGroup();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(tooltipAttr.Tooltip);
         }
     }
 
     private static void DrawProperty(Component component, PropertyInfo prop)
     {
         var propType = prop.PropertyType;
-        var label = NiceLabel(prop.Name);
+        var label = GetInspectorLabel(prop);
         var app = EditorApplication.Instance;
+        var isReadOnly = !prop.CanWrite || prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+
+        if (isReadOnly)
+        {
+            DrawReadOnlyValue(component, prop, label);
+            EndLayoutAttributes(prop);
+            return;
+        }
+
+        var rangeAttr = prop.GetCustomAttribute<InspectorRangeAttribute>();
 
         if (propType == typeof(float))
         {
             float val = (float)prop.GetValue(component)!;
-            if (ImGui.DragFloat(label, ref val, 0.1f))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            float speed = rangeAttr?.Speed ?? 0.1f;
+            float min = rangeAttr?.Min ?? float.MinValue;
+            float max = rangeAttr?.Max ?? float.MaxValue;
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragFloat(label, ref val, speed, min, max))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(int))
         {
             int val = (int)prop.GetValue(component)!;
-            if (ImGui.DragInt(label, ref val))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            float speed = rangeAttr?.Speed ?? 1f;
+            int min = (int)(rangeAttr?.Min ?? int.MinValue);
+            int max = (int)(rangeAttr?.Max ?? int.MaxValue);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragInt(label, ref val, speed, min, max))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(bool))
         {
-            DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v));
+            DrawPropertyWithTooltip(prop, () =>
+                DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v)));
         }
         else if (propType == typeof(string))
         {
             string val = (string)(prop.GetValue(component) ?? "");
-            if (ImGui.InputText(label, ref val, 256))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.InputText(label, ref val, 256))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(Vector3))
         {
             var val = (Vector3)prop.GetValue(component)!;
-            if (DrawColoredVector3(label, ref val, 0.1f))
-                prop.SetValue(component, val);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (DrawColoredVector3(label, ref val, 0.1f))
+                    prop.SetValue(component, val);
+            });
         }
         else if (propType == typeof(Vector2))
         {
             var val = (Vector2)prop.GetValue(component)!;
-            if (ImGui.DragFloat2(label, ref val, 0.1f))
-                prop.SetValue(component, val);
-            TrackContinuousUndo(app);
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (ImGui.DragFloat2(label, ref val, 0.1f))
+                    prop.SetValue(component, val);
+                TrackContinuousUndo(app);
+            });
         }
         else if (propType == typeof(Quaternion))
         {
             var q = (Quaternion)prop.GetValue(component)!;
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
-            if (DrawColoredVector3(label, ref euler, 0.5f))
-                prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+            DrawPropertyWithTooltip(prop, () =>
+            {
+                if (DrawColoredVector3(label, ref euler, 0.5f))
+                    prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+            });
         }
         else if (propType == typeof(Color))
         {
-            DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v));
+            DrawPropertyWithTooltip(prop, () =>
+                DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v)));
         }
         else if (propType.IsEnum)
         {
             object currentValue = prop.GetValue(component) ?? Enum.GetValues(propType).GetValue(0)!;
-            if (ComboEnumHelper.Combo(label, propType, ref currentValue))
+            DrawPropertyWithTooltip(prop, () =>
             {
-                app.RecordUndo();
-                prop.SetValue(component, currentValue);
-                app.RefreshUndoBaseline();
-            }
+                bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
+                    ? DrawSearchableEnumCombo(label, propType, ref currentValue)
+                    : ComboEnumHelper.Combo(label, propType, ref currentValue);
+                if (changed)
+                {
+                    app.RecordUndo();
+                    prop.SetValue(component, currentValue);
+                    app.RefreshUndoBaseline();
+                }
+            });
         }
         else if (propType == typeof(EntityReference))
         {
@@ -832,9 +486,248 @@ public static class ComponentDrawerRegistry
                 prop.SetValue(component, v);
             });
         }
+        else if (propType == typeof(AudioAttenuationSettings))
+        {
+            if (component is AudioSourceComponent source)
+                DrawAudioSourceAttenuation(source, prop);
+            else
+                ImGui.LabelText(label, propType.Name);
+        }
         else
         {
             ImGui.LabelText(label, propType.Name);
+        }
+
+        EndLayoutAttributes(prop);
+    }
+
+    private static void EndLayoutAttributes(PropertyInfo prop)
+    {
+        var indentAttr = prop.GetCustomAttribute<InspectorIndentAttribute>();
+        if (indentAttr != null)
+            ImGui.Unindent(indentAttr.Levels * 16f);
+    }
+
+    private static void DrawAudioSourceAttenuation(AudioSourceComponent source, PropertyInfo prop)
+    {
+        var app = EditorApplication.Instance;
+        var attenuation = source.Attenuation;
+        bool changed = false;
+
+        if (source.Spatialized)
+        {
+            float minDistance = attenuation.MinDistance;
+            if (ImGui.DragFloat("Min Distance", ref minDistance, 0.1f, 0f, 10000f))
+            {
+                attenuation.MinDistance = minDistance;
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+
+            float maxDistance = attenuation.MaxDistance;
+            if (ImGui.DragFloat("Max Distance", ref maxDistance, 0.1f, 0f, 10000f))
+            {
+                attenuation.MaxDistance = maxDistance;
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+
+            var rolloff = attenuation.Rolloff;
+            if (ComboEnumHelper<AudioRolloffMode>.Combo("Rolloff", ref rolloff))
+            {
+                app.RecordUndo();
+                attenuation.Rolloff = rolloff;
+                changed = true;
+                app.RefreshUndoBaseline();
+            }
+
+            float spatialBlend = attenuation.SpatialBlend;
+            if (ImGui.DragFloat("Spatial Blend", ref spatialBlend, 0.01f, 0f, 1f))
+            {
+                attenuation.SpatialBlend = spatialBlend;
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+        }
+        else
+        {
+            float pan = attenuation.PanStereo;
+            if (ImGui.DragFloat("Stereo Pan", ref pan, 0.01f, -1f, 1f))
+            {
+                attenuation.PanStereo = pan;
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+        }
+
+        if (changed)
+            prop.SetValue(source, attenuation);
+    }
+
+    private static bool IsInspectableProperty(PropertyInfo prop)
+    {
+        if (!prop.CanRead)
+            return false;
+        if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "RenderModel")
+            return false;
+        if (prop.CanWrite)
+            return true;
+        return prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+    }
+
+    private static bool IsPropertyVisible(Component component, PropertyInfo prop)
+    {
+        foreach (var visibleIf in prop.GetCustomAttributes<InspectorVisibleIfAttribute>())
+        {
+            var condition = component.GetType().GetProperty(visibleIf.PropertyName, BindingFlags.Public | BindingFlags.Instance);
+            if (condition == null || !condition.CanRead || condition.PropertyType != typeof(bool))
+                return false;
+
+            var current = (bool?)condition.GetValue(component) ?? false;
+            if (current != visibleIf.ExpectedValue)
+                return false;
+        }
+
+        foreach (var visibleIfEnum in prop.GetCustomAttributes<InspectorVisibleIfEnumAttribute>())
+        {
+            var condition = component.GetType().GetProperty(visibleIfEnum.PropertyName, BindingFlags.Public | BindingFlags.Instance);
+            if (condition == null || !condition.CanRead || !condition.PropertyType.IsEnum)
+                return false;
+
+            var value = condition.GetValue(component);
+            if (value is not Enum enumValue)
+                return false;
+            if (!string.Equals(enumValue.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string GetInspectorLabel(PropertyInfo prop)
+    {
+        var attrLabel = prop.GetCustomAttribute<InspectorLabelAttribute>()?.Label;
+        if (!string.IsNullOrWhiteSpace(attrLabel))
+            return attrLabel;
+        return NiceLabel(prop.Name);
+    }
+
+    private static void DrawReadOnlyValue(Component component, PropertyInfo prop, string label)
+    {
+        var value = prop.GetValue(component);
+        switch (value)
+        {
+            case null:
+                DrawReadOnlyText(label, "(null)");
+                break;
+            case bool b:
+                DrawReadOnlyText(label, b ? "Yes" : "No");
+                break;
+            case float f:
+                DrawReadOnlyText(label, $"{f:0.###}");
+                break;
+            case double d:
+                DrawReadOnlyText(label, $"{d:0.###}");
+                break;
+            case Vector2 v2:
+                DrawReadOnlyText(label, $"{v2.X:0.00}, {v2.Y:0.00}");
+                break;
+            case Vector3 v3:
+                DrawReadOnlyText(label, $"{v3.X:0.00}, {v3.Y:0.00}, {v3.Z:0.00}");
+                break;
+            case Quaternion q:
+                var euler = Core.FrinkyMath.QuaternionToEuler(q);
+                DrawReadOnlyText(label, $"{euler.X:0.00}, {euler.Y:0.00}, {euler.Z:0.00}");
+                break;
+            default:
+                DrawReadOnlyText(label, value.ToString() ?? "(null)");
+                break;
+        }
+    }
+
+    private static void DrawReflectionExtensions(Component component)
+    {
+        DrawReflectionWarnings(component);
+        if (component is AudioSourceComponent source)
+            DrawAudioSourceRuntimeControls(source);
+    }
+
+    private static void DrawAudioSourceRuntimeControls(AudioSourceComponent source)
+    {
+        var app = EditorApplication.Instance;
+        ImGui.Separator();
+
+        if (app.IsInRuntimeMode)
+        {
+            if (ImGui.Button("Play##AudioSource"))
+                source.Play();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Pause##AudioSource"))
+                source.Pause();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Resume##AudioSource"))
+                source.Resume();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Stop##AudioSource"))
+                source.Stop();
+        }
+        else
+        {
+            ImGui.TextDisabled("Runtime controls available in Play/Simulate.");
+        }
+    }
+
+    private static void DrawReflectionWarnings(Component component)
+    {
+        switch (component)
+        {
+            case RigidbodyComponent rb:
+                bool hasCollider = rb.Entity.Components.Any(c => c is ColliderComponent collider && collider.Enabled);
+                if (!hasCollider)
+                {
+                    ImGui.Spacing();
+                    DrawWarning("Rigidbody is ignored until an enabled collider component is added.");
+                }
+
+                if (rb.Entity.Transform.Parent != null)
+                    DrawWarning("Parented rigidbodies are not simulated.");
+                break;
+
+            case CharacterControllerComponent controller:
+                var entity = controller.Entity;
+                var rigidbody = entity.GetComponent<RigidbodyComponent>();
+                var capsule = entity.GetComponent<CapsuleColliderComponent>();
+
+                if (rigidbody == null || !rigidbody.Enabled)
+                    DrawWarning("Character controller requires an enabled RigidbodyComponent.");
+                else if (rigidbody.MotionType != BodyMotionType.Dynamic)
+                    DrawWarning("Character controller requires Rigidbody Motion Type = Dynamic.");
+
+                if (capsule == null || !capsule.Enabled)
+                {
+                    DrawWarning("Character controller requires an enabled CapsuleColliderComponent.");
+                }
+                else
+                {
+                    var primaryCollider = entity.Components
+                        .OfType<ColliderComponent>()
+                        .FirstOrDefault(col => col.Enabled);
+                    if (!ReferenceEquals(primaryCollider, capsule))
+                        DrawWarning("The capsule must be the first enabled collider on the entity.");
+                }
+
+                if (entity.Transform.Parent != null)
+                    DrawWarning("Parented character controllers are not simulated.");
+                break;
+
+            case ColliderComponent collider:
+                int colliderCount = collider.Entity.Components.Count(c => c is ColliderComponent enabledCollider && enabledCollider.Enabled);
+                if (colliderCount > 1)
+                    DrawWarning("Multiple enabled colliders are present. Only the first enabled collider is used.");
+                break;
         }
     }
 
@@ -1430,6 +1323,51 @@ public static class ComponentDrawerRegistry
         {
             _searchFilters[filterId] = "";
         }
+    }
+
+    private static bool DrawSearchableEnumCombo(string label, Type enumType, ref object currentValue)
+    {
+        if (!enumType.IsEnum)
+            return false;
+
+        var filterId = $"{label}_{enumType.FullName}";
+        if (!_searchFilters.ContainsKey(filterId))
+            _searchFilters[filterId] = "";
+
+        var preview = currentValue?.ToString() ?? "(None)";
+        bool changed = false;
+        if (ImGui.BeginCombo(label, preview))
+        {
+            var filter = _searchFilters[filterId];
+            ImGui.InputTextWithHint("##filter", "Search...", ref filter, 64);
+            _searchFilters[filterId] = filter;
+
+            var filterLower = filter.ToLowerInvariant();
+            foreach (var value in Enum.GetValues(enumType))
+            {
+                var name = value.ToString() ?? string.Empty;
+                if (filter.Length > 0 && !name.ToLowerInvariant().Contains(filterLower))
+                    continue;
+
+                bool isSelected = Equals(value, currentValue);
+                if (ImGui.Selectable(name, isSelected))
+                {
+                    currentValue = value;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui.SetItemDefaultFocus();
+            }
+
+            ImGui.EndCombo();
+        }
+        else
+        {
+            _searchFilters[filterId] = "";
+        }
+
+        return changed;
     }
 
     private static void DrawColorEdit4(string label, Color currentValue, Action<Color> setter)

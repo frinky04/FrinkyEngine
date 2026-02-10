@@ -29,6 +29,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// How the body should be simulated.
     /// </summary>
+    [InspectorLabel("Motion Type")]
     public BodyMotionType MotionType
     {
         get => _motionType;
@@ -45,6 +46,8 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Body mass used when <see cref="MotionType"/> is <see cref="BodyMotionType.Dynamic"/>.
     /// </summary>
+    [InspectorVisibleIfEnum(nameof(MotionType), nameof(BodyMotionType.Dynamic))]
+    [InspectorRange(0.0001f, 100000f, 0.05f)]
     public float Mass
     {
         get => _mass;
@@ -62,6 +65,8 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Fraction of linear velocity removed per second in range [0, 1].
     /// </summary>
+    [InspectorLabel("Linear Damping")]
+    [InspectorRange(0f, 1f, 0.005f)]
     public float LinearDamping
     {
         get => _linearDamping;
@@ -79,6 +84,8 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Fraction of angular velocity removed per second in range [0, 1].
     /// </summary>
+    [InspectorLabel("Angular Damping")]
+    [InspectorRange(0f, 1f, 0.005f)]
     public float AngularDamping
     {
         get => _angularDamping;
@@ -96,6 +103,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Enables continuous collision detection for the body collidable.
     /// </summary>
+    [InspectorLabel("Continuous Detection")]
     public bool ContinuousDetection
     {
         get => _continuousDetection;
@@ -112,6 +120,8 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks translation on world X.
     /// </summary>
+    [InspectorSection("Axis Locks")]
+    [InspectorLabel("Lock Position X")]
     public bool LockPositionX
     {
         get => _lockPositionX;
@@ -127,6 +137,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks translation on world Y.
     /// </summary>
+    [InspectorLabel("Lock Position Y")]
     public bool LockPositionY
     {
         get => _lockPositionY;
@@ -142,6 +153,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks translation on world Z.
     /// </summary>
+    [InspectorLabel("Lock Position Z")]
     public bool LockPositionZ
     {
         get => _lockPositionZ;
@@ -157,6 +169,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks rotation around world X.
     /// </summary>
+    [InspectorLabel("Lock Rotation X")]
     public bool LockRotationX
     {
         get => _lockRotationX;
@@ -172,6 +185,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks rotation around world Y.
     /// </summary>
+    [InspectorLabel("Lock Rotation Y")]
     public bool LockRotationY
     {
         get => _lockRotationY;
@@ -187,6 +201,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Locks rotation around world Z.
     /// </summary>
+    [InspectorLabel("Lock Rotation Z")]
     public bool LockRotationZ
     {
         get => _lockRotationZ;
@@ -202,6 +217,7 @@ public class RigidbodyComponent : Component
     /// <summary>
     /// Controls render interpolation behavior for this body.
     /// </summary>
+    [InspectorLabel("Interpolation")]
     public RigidbodyInterpolationMode InterpolationMode
     {
         get => _interpolationMode;
