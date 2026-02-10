@@ -12,30 +12,16 @@ on:
       - "Directory.Build.props"
       - "FrinkyEngine.sln"
       - ".github/workflows/**"
-  push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "templates/**"
-      - "Shaders/**"
-      - "EditorAssets/**"
-      - "Directory.Build.props"
-      - "FrinkyEngine.sln"
-      - ".github/workflows/**"
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-sln:
-    name: build-sln (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
-          - macos-latest
+    name: build-sln
+    runs-on: windows-latest
 
     steps:
       - name: Checkout

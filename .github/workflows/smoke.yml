@@ -1,20 +1,26 @@
 name: Smoke
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    types:
-      - completed
+  push:
     branches:
       - main
+    paths:
+      - "src/**"
+      - "templates/**"
+      - "Shaders/**"
+      - "EditorAssets/**"
+      - "Directory.Build.props"
+      - "FrinkyEngine.sln"
   workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   runtime-smoke-win:
     name: runtime-smoke-win
     runs-on: windows-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
@@ -72,7 +78,6 @@ jobs:
   editor-smoke-win:
     name: editor-smoke-win
     runs-on: windows-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
