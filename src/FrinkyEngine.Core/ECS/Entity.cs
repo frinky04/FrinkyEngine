@@ -1,5 +1,6 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Prefabs;
+using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.ECS;
 
@@ -45,6 +46,12 @@ public class Entity
     /// All components currently attached to this entity, including the <see cref="Transform"/>.
     /// </summary>
     public IReadOnlyList<Component> Components => _components;
+
+    /// <summary>
+    /// Component data that could not be resolved to a type during deserialization.
+    /// Preserved so that saving the scene does not lose data for unloaded assemblies.
+    /// </summary>
+    internal List<ComponentData> UnresolvedComponents { get; } = new();
 
     /// <summary>
     /// Creates a new entity with the specified name and a default <see cref="TransformComponent"/>.

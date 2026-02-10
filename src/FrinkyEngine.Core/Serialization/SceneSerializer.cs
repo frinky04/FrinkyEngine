@@ -6,6 +6,7 @@ using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Physics;
 using FrinkyEngine.Core.Prefabs;
+using FrinkyEngine.Core.Rendering;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Serialization;
@@ -115,6 +116,11 @@ public static class SceneSerializer
         foreach (var component in entity.Components)
         {
             data.Components.Add(SerializeComponent(component));
+        }
+
+        foreach (var unresolved in entity.UnresolvedComponents)
+        {
+            data.Components.Add(unresolved);
         }
 
         foreach (var child in entity.Transform.Children)
@@ -290,7 +296,12 @@ public static class SceneSerializer
     private static void DeserializeComponent(Entity entity, ComponentData data)
     {
         var type = ComponentTypeResolver.Resolve(data.Type);
-        if (type == null) return;
+        if (type == null)
+        {
+            entity.UnresolvedComponents.Add(data);
+            FrinkyLog.Warning($"Unresolved component type '{data.Type}' on entity '{entity.Name}' — data preserved");
+            return;
+        }
 
         Component component;
         if (type == typeof(TransformComponent))

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Prefabs;
+using FrinkyEngine.Core.Rendering;
 
 namespace FrinkyEngine.Core.Serialization;
 
@@ -100,6 +101,17 @@ public static class PrefabSerializer
         foreach (var component in entity.Components)
             node.Components.Add(SerializeComponent(component));
 
+        foreach (var unresolved in entity.UnresolvedComponents)
+        {
+            node.Components.Add(new PrefabComponentData
+            {
+                Type = unresolved.Type,
+                Enabled = unresolved.Enabled,
+                EditorOnly = unresolved.EditorOnly,
+                Properties = new Dictionary<string, JsonElement>(unresolved.Properties)
+            });
+        }
+
         foreach (var child in entity.Transform.Children)
             node.Children.Add(SerializeNode(child.Entity, preserveStableIds, isSerializationRoot: false, usedStableIds, entityIdToStableId));
 
@@ -183,7 +195,17 @@ public static class PrefabSerializer
     {
         var type = ComponentTypeResolver.Resolve(data.Type);
         if (type == null)
+        {
+            entity.UnresolvedComponents.Add(new ComponentData
+            {
+                Type = data.Type,
+                Enabled = data.Enabled,
+                EditorOnly = data.EditorOnly,
+                Properties = new Dictionary<string, JsonElement>(data.Properties)
+            });
+            FrinkyLog.Warning($"Unresolved component type '{data.Type}' on entity '{entity.Name}' — data preserved");
             return false;
+        }
 
         Component component;
         if (type == typeof(Components.TransformComponent))
