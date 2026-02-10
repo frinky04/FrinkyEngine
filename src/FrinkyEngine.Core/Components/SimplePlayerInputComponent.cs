@@ -19,6 +19,7 @@ public class SimplePlayerInputComponent : Component
     private KeyboardKey _moveLeftKey = KeyboardKey.A;
     private KeyboardKey _moveRightKey = KeyboardKey.D;
     private KeyboardKey _jumpKey = KeyboardKey.Space;
+    private KeyboardKey _crouchKey = KeyboardKey.LeftControl;
 
     private bool _enableMouseLook = true;
     private bool _requireLookMouseButton;
@@ -41,10 +42,21 @@ public class SimplePlayerInputComponent : Component
     private float _attachedCameraBackDistance = 0f;
     private EntityReference _cameraEntity;
 
+    private bool _adjustCameraOnCrouch = true;
+    private float _cameraOffsetLerpSpeed = 5f;
+    private float _standingHeadHeight = 1.6f;
+
     private TransformComponent? _attachedCameraTransform;
     private float _lookYawDegrees;
     private float _lookPitchDegrees;
     private bool _lookInitialized;
+
+    private Vector3 _originalCameraOffset;
+    private bool _cameraOffsetCached;
+    private float _currentCrouchCameraBlend;
+    private float _cachedStandingCapsuleLength = -1f;
+    private float _supportGracePeriod = 0f;
+    private const float SupportGraceDuration = 0.1f; // 100ms grace period
 
     /// <summary>
     /// Key used to move forward. Defaults to <see cref="KeyboardKey.W"/>.
@@ -322,11 +334,60 @@ public class SimplePlayerInputComponent : Component
         set => _cameraEntity = value;
     }
 
+    /// <summary>
+    /// Key used to crouch. Defaults to <see cref="KeyboardKey.LeftControl"/>.
+    /// </summary>
+    public KeyboardKey CrouchKey
+    {
+        get => _crouchKey;
+        set => _crouchKey = value;
+    }
+
+    /// <summary>
+    /// If true, automatically adjusts <see cref="AttachedCameraLocalOffset"/> when crouching.
+    /// </summary>
+    public bool AdjustCameraOnCrouch
+    {
+        get => _adjustCameraOnCrouch;
+        set => _adjustCameraOnCrouch = value;
+    }
+
+    /// <summary>
+    /// Speed of camera offset interpolation during crouch transitions.
+    /// Higher values = faster transition. Default is 5.0.
+    /// </summary>
+    public float CameraOffsetLerpSpeed
+    {
+        get => _cameraOffsetLerpSpeed;
+        set => _cameraOffsetLerpSpeed = MathF.Max(0.1f, value);
+    }
+
+    /// <summary>
+    /// Camera height from feet when standing (in meters).
+    /// Crouching height is automatically calculated using the character controller's crouch scale.
+    /// Default is 1.6.
+    /// </summary>
+    public float StandingHeadHeight
+    {
+        get => _standingHeadHeight;
+        set => _standingHeadHeight = MathF.Max(0.1f, value);
+    }
+
     /// <inheritdoc />
     public override void Start()
     {
         InitializeLookState();
         ResolveAttachedCamera();
+
+        // Cache original camera offset for crouch adjustments
+        if (!_cameraOffsetCached)
+        {
+            _originalCameraOffset = _attachedCameraLocalOffset;
+            _cameraOffsetCached = true;
+        }
+
+        // Reset cached capsule length when component starts
+        _cachedStandingCapsuleLength = -1f;
     }
 
     /// <inheritdoc />
@@ -348,7 +409,27 @@ public class SimplePlayerInputComponent : Component
         }
 
         ApplyMouseLook(controller, blockMouseLook);
+
+        // Handle crouch input
+        if (!blockKeyboardInput && controller != null)
+        {
+            bool crouchKeyDown = FrinkyInput.IsKeyDown(CrouchKey);
+            controller.SetCrouching(crouchKeyDown);
+        }
+
+        // Apply camera offset adjustments for crouch
+        if (AdjustCameraOnCrouch && controller != null)
+        {
+            UpdateCrouchCameraBlend(controller, dt);
+        }
+
         UpdateAttachedCamera(controller);
+
+        // Update support grace period for camera smoothing
+        if (controller != null)
+        {
+            UpdateSupportGracePeriod(controller, dt);
+        }
 
         var moveInput = blockKeyboardInput ? Vector2.Zero : ReadMoveInput();
 
@@ -566,5 +647,104 @@ public class SimplePlayerInputComponent : Component
         if (wrapped < -180f)
             wrapped += 360f;
         return wrapped;
+    }
+
+    private void UpdateCrouchCameraBlend(CharacterControllerComponent controller, float dt)
+    {
+        if (!_cameraOffsetCached)
+            return;
+
+        var capsule = Entity.GetComponent<CapsuleColliderComponent>();
+        if (capsule == null || !capsule.Enabled)
+            return;
+
+        // Cache standing capsule length on first use
+        if (_cachedStandingCapsuleLength < 0f && !controller.IsCrouching)
+        {
+            _cachedStandingCapsuleLength = capsule.Length;
+        }
+
+        // If we haven't cached yet (started crouched), use current length as estimate
+        if (_cachedStandingCapsuleLength < 0f)
+        {
+            _cachedStandingCapsuleLength = capsule.Length / controller.CrouchHeightScale;
+        }
+
+        // Interpolate crouch blend
+        float targetBlend = controller.IsCrouching ? 1.0f : 0.0f;
+        if (MathF.Abs(_currentCrouchCameraBlend - targetBlend) > 0.001f)
+        {
+            _currentCrouchCameraBlend = Lerp(_currentCrouchCameraBlend, targetBlend, _cameraOffsetLerpSpeed * dt);
+        }
+        else
+        {
+            _currentCrouchCameraBlend = targetBlend;
+        }
+
+        float capsuleRadius = capsule.Radius;
+
+        // Use blended capsule length only when in air (not supported)
+        // When grounded, the position compensation in ApplyCrouchToCapsule handles smoothing
+        float capsuleLength;
+        if (IsEffectivelyGrounded(controller))
+        {
+            // Grounded: use actual capsule length (position compensation handles smoothing)
+            capsuleLength = capsule.Length;
+        }
+        else
+        {
+            // In air: use virtual blended length to prevent snap
+            float crouchedCapsuleLength = _cachedStandingCapsuleLength * controller.CrouchHeightScale;
+            capsuleLength = Lerp(_cachedStandingCapsuleLength, crouchedCapsuleLength, _currentCrouchCameraBlend);
+        }
+
+        // Calculate camera position
+        float capsuleBottom = -(capsuleLength * 0.5f + capsuleRadius);
+
+        // Calculate crouching head height using controller's crouch scale
+        float crouchingHeadHeight = _standingHeadHeight * controller.CrouchHeightScale;
+
+        // Lerp head height based on crouch blend
+        float headHeight = Lerp(_standingHeadHeight, crouchingHeadHeight, _currentCrouchCameraBlend);
+
+        float cameraY = capsuleBottom + headHeight;
+
+        _attachedCameraLocalOffset = new Vector3(
+            _originalCameraOffset.X,
+            cameraY,
+            _originalCameraOffset.Z
+        );
+    }
+
+    private static float Lerp(float a, float b, float t)
+    {
+        return a + (b - a) * Math.Clamp(t, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Updates the support grace period timer for camera smoothing.
+    /// Grace period prevents camera jitter from 1-frame support losses during crouch transitions.
+    /// </summary>
+    private void UpdateSupportGracePeriod(CharacterControllerComponent controller, float dt)
+    {
+        if (controller.Supported)
+        {
+            // Reset grace period when truly supported
+            _supportGracePeriod = 0f;
+        }
+        else if (_supportGracePeriod < SupportGraceDuration)
+        {
+            // Count up grace period while unsupported
+            _supportGracePeriod += dt;
+        }
+    }
+
+    /// <summary>
+    /// Determines if the character should be treated as grounded for camera calculations.
+    /// Returns true if truly supported, or within grace period after losing support.
+    /// </summary>
+    private bool IsEffectivelyGrounded(CharacterControllerComponent controller)
+    {
+        return controller.Supported || _supportGracePeriod < SupportGraceDuration;
     }
 }

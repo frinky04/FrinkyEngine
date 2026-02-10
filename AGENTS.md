@@ -54,3 +54,18 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **Hexa.NET.ImGui.Widgets** — `ComboEnumHelper<T>.Combo()` / `ComboEnumHelper.Combo()` for enum combos, `MessageBoxes.Show()` / `MessageBoxes.Draw()` for modal dialogs
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
 - **Raylib cursor** — `DisableCursor()`/`EnableCursor()` re-center mouse; only call on state transitions
+
+## Editor Keybinds
+
+When adding new keybinds to the `EditorAction` enum and `KeybindManager`, decide whether the action should be available in **Play mode**.
+
+By default, keybinds are **disabled in Play mode**. Only explicitly whitelisted actions work during gameplay:
+
+- `PlayStop`, `SimulateStop` — stop the running game
+- `ToggleGameView` — switch between game/editor view
+- `TogglePlayModeCursorLock` — lock/unlock mouse cursor
+- `FrameSelected` — camera focus on selection
+- `DeselectEntity` — clear selection (Escape)
+- `TogglePhysicsHitboxPreview` — show physics colliders
+
+To allow a new keybind in Play mode, add it to the whitelist in `KeybindManager.CanProcessActionInCurrentMode()`.

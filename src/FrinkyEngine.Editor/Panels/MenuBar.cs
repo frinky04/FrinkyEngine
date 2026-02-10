@@ -56,6 +56,8 @@ public class MenuBar
                     OpenSceneDialog();
                 }
 
+                var canSaveScene = _app.Mode == EditorMode.Edit;
+                ImGui.BeginDisabled(!canSaveScene);
                 if (ImGui.MenuItem("Save Scene", KeybindManager.Instance.GetShortcutText(EditorAction.SaveScene)))
                 {
                     if (_app.CurrentScene != null)
@@ -75,6 +77,7 @@ public class MenuBar
                 {
                     SaveSceneAs();
                 }
+                ImGui.EndDisabled();
 
                 ImGui.Separator();
 

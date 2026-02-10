@@ -182,13 +182,13 @@ Awake → Start → Update / LateUpdate → OnDestroy
 | `BoxColliderComponent` | `Size` (1,1,1), `Center`, `IsTrigger` |
 | `SphereColliderComponent` | `Radius` (0.5), `Center`, `IsTrigger` |
 | `CapsuleColliderComponent` | `Radius` (0.5), `Length` (1.0), `Center`, `IsTrigger` |
-| `CharacterControllerComponent` | `MoveSpeed` (4), `JumpVelocity` (6), `MaxSlopeDegrees` (45), air control settings |
+| `CharacterControllerComponent` | `MoveSpeed` (4), `JumpVelocity` (6), `MaxSlopeDegrees` (45), `CrouchHeightScale` (0.5), `CrouchSpeedScale` (0.5), air control settings |
 
 #### Input
 
 | Component | Key Properties |
 |---|---|
-| `SimplePlayerInputComponent` | Movement keys, mouse look, `CameraEntity` (EntityReference), `UseCharacterController` |
+| `SimplePlayerInputComponent` | Movement keys, mouse look, `CrouchKey` (LeftControl), `AdjustCameraOnCrouch`, `CameraEntity` (EntityReference), `UseCharacterController` |
 
 #### Audio
 
@@ -289,8 +289,11 @@ Script-side input methods:
 - `AddMovementInput(direction)` / `Jump()` — Unreal-style
 - `SetMoveInput(Vector2)` — direct planar input
 - `MoveAndSlide(desiredVelocity, requestJump)` — Godot-style convenience
+- `Crouch()` / `Stand()` / `SetCrouching(bool)` — crouch control
 
-Or use `SimplePlayerInputComponent` for built-in WASD + mouse look with configurable keys.
+Crouching shrinks the capsule height by `CrouchHeightScale` (default 50%) and reduces move speed by `CrouchSpeedScale` (default 50%). The entity position is adjusted to keep feet on the ground when supported. Velocity is preserved through the physics body rebuild that occurs during capsule resizing.
+
+Or use `SimplePlayerInputComponent` for built-in WASD + mouse look + crouch (Left Ctrl) with configurable keys and automatic camera height blending.
 
 ## Audio
 

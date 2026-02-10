@@ -297,6 +297,7 @@ public class EditorApplication
         _runtimeModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
         CurrentScene.Start();
         Mode = targetMode;
+        SceneManager.Instance.IsSaveDisabled = true;
 
         if (targetMode == EditorMode.Play)
         {
@@ -345,6 +346,7 @@ public class EditorApplication
 
         ClearSelection();
         Mode = EditorMode.Edit;
+        SceneManager.Instance.IsSaveDisabled = false;
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());
         var label = exitingMode == EditorMode.Play ? "Play" : "Simulate";
         FrinkyLog.Info($"Exited {label} mode.");

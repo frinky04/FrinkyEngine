@@ -158,6 +158,7 @@ internal sealed class CharacterControllerBridge
             forward = BuildPerpendicular(up);
 
         Vector3 desired;
+        var effectiveSpeed = controller.GetEffectiveMoveSpeed();
 
         if (input.HasSlideVelocity)
         {
@@ -170,8 +171,8 @@ internal sealed class CharacterControllerBridge
             if (magnitude > 1f)
                 planar /= magnitude;
 
-            desired = right * (planar.X * controller.MoveSpeed) +
-                      forward * (planar.Y * controller.MoveSpeed);
+            desired = right * (planar.X * effectiveSpeed) +
+                      forward * (planar.Y * effectiveSpeed);
         }
         else
         {
@@ -180,7 +181,7 @@ internal sealed class CharacterControllerBridge
             if (movementMagnitude > 1f)
                 movement /= movementMagnitude;
 
-            desired = movement * controller.MoveSpeed;
+            desired = movement * effectiveSpeed;
         }
 
         desired -= up * Vector3.Dot(desired, up);
