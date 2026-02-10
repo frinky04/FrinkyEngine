@@ -325,12 +325,14 @@ public class MenuBar
             var simulateShortcut = KeybindManager.Instance.GetShortcutText(EditorAction.SimulateStop);
             if (_app.Mode == EditorMode.Edit)
             {
+                ImGui.BeginDisabled(ScriptBuilder.IsBuilding);
                 if (ImGui.MenuItem("Play", playShortcut))
                     _app.EnterPlayMode();
 
                 ImGui.SameLine();
                 if (ImGui.MenuItem("Simulate", simulateShortcut))
                     _app.EnterSimulateMode();
+                ImGui.EndDisabled();
             }
             else
             {
@@ -464,7 +466,7 @@ public class MenuBar
         ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
         ImGui.SetNextWindowSize(new Vector2(600, 0), ImGuiCond.Appearing);
 
-        if (ImGui.BeginPopupModal("New Project", ImGuiWindowFlags.AlwaysAutoResize))
+        if (ImGui.BeginPopupModal("New Project", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove))
         {
             // --- Template selection ---
             if (_cachedTemplates.Length > 0)

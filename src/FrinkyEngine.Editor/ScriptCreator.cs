@@ -40,10 +40,12 @@ public static class ScriptCreator
             {
                 public override void Start()
                 {
+                    base.Start();
                 }
 
                 public override void Update(float dt)
                 {
+                    base.Update(dt);
                 }
             }
             """;

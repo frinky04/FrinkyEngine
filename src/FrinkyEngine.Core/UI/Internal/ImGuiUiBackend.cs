@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Rendering;
 using Hexa.NET.ImGui;
 using Raylib_cs;
@@ -10,7 +11,7 @@ namespace FrinkyEngine.Core.UI.Internal;
 internal sealed unsafe class ImGuiUiBackend : IUiBackend
 {
     private const float DefaultUiFontPixelSize = 16f;
-    private const string DefaultUiFontRelativePath = "EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf";
+    private const string DefaultUiFontRelativePath = "EngineContent/Fonts/JetBrainsMono-Regular.ttf";
 
     private ImGuiContextPtr _context;
 
@@ -706,7 +707,8 @@ internal sealed unsafe class ImGuiUiBackend : IUiBackend
         var candidates = new[]
         {
             Normalize(DefaultUiFontRelativePath),
-            Path.Combine(AppContext.BaseDirectory, Normalize(DefaultUiFontRelativePath))
+            Path.Combine(AppContext.BaseDirectory, Normalize(DefaultUiFontRelativePath)),
+            Path.Combine(AssetManager.Instance.EngineContentPath, "Fonts", "JetBrainsMono-Regular.ttf")
         };
 
         foreach (var candidate in candidates)

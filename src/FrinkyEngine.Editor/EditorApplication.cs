@@ -65,6 +65,7 @@ public class EditorApplication
     public bool IsCursorLocked => _cursorLockedByPlayMode || EditorCamera.IsCursorDisabled;
 
     private string? _runtimeModeSnapshot;
+    private List<Guid>? _runtimeModeSelectionSnapshot;
     private bool _cursorLockedByPlayMode;
     private System.Numerics.Vector2 _savedPlayModeCursorPos;
     private Task<bool>? _buildTask;
@@ -302,6 +303,7 @@ public class EditorApplication
         }
 
         UI.ClearFrame();
+        _runtimeModeSelectionSnapshot = _selectedEntities.Select(e => e.Id).ToList();
         _runtimeModeSnapshot = SceneSerializer.SerializeToString(CurrentScene);
         CurrentScene.Start();
         Mode = targetMode;
@@ -352,7 +354,17 @@ public class EditorApplication
             _cursorLockedByPlayMode = false;
         }
 
-        ClearSelection();
+        _selectedEntities.Clear();
+        if (_runtimeModeSelectionSnapshot != null && CurrentScene != null)
+        {
+            var savedIds = new HashSet<Guid>(_runtimeModeSelectionSnapshot);
+            foreach (var entity in CurrentScene.Entities)
+            {
+                if (savedIds.Contains(entity.Id))
+                    _selectedEntities.Add(entity);
+            }
+            _runtimeModeSelectionSnapshot = null;
+        }
         Mode = EditorMode.Edit;
         SceneManager.Instance.IsSaveDisabled = false;
         UndoRedo.SetBaseline(CurrentScene, GetSelectedEntityIds(), SerializeCurrentHierarchyState());

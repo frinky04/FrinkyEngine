@@ -37,7 +37,7 @@ public static class Program
         var io = ImGui.GetIO();
         unsafe
         {
-            var fontPath = "EditorAssets/Fonts/JetBrains_Mono/static/JetBrainsMono-Regular.ttf";
+            var fontPath = "EngineContent/Fonts/JetBrainsMono-Regular.ttf";
             if (File.Exists(fontPath))
             {
                 io.Fonts.AddFontFromFileTTF(fontPath, 16.0f);
