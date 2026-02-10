@@ -1,3 +1,4 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -12,6 +13,6 @@
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
     <!-- Reference FrinkyEngine.Core either as a project reference or NuGet package -->
     <!-- <ProjectReference Include="path/to/FrinkyEngine.Core.csproj" /> -->
-  </ItemGroup>
+  <Reference Include="FrinkyEngine.Core"><HintPath>.frinky/engine/FrinkyEngine.Core.dll</HintPath><Private>false</Private></Reference></ItemGroup>
 
 </Project>

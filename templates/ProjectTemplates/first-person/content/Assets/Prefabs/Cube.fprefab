@@ -1,0 +1,84 @@
+{
+  "name": "Physics Cube",
+  "sourcePrefab": "",
+  "root": {
+    "stableId": "1943363c63ab41c7af5f3055498925a3",
+    "name": "Physics Cube",
+    "active": true,
+    "components": [
+      {
+        "type": "FrinkyEngine.Core.Components.TransformComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {}
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.CubePrimitive",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "Width": 1,
+          "Height": 1,
+          "Depth": 1,
+          "MaterialType": "Textured",
+          "TexturePath": "engine:Grid.PNG",
+          "TriplanarScale": 1,
+          "TriplanarBlendSharpness": 4,
+          "TriplanarUseWorldSpace": true,
+          "Tint": {
+            "r": 255,
+            "g": 0,
+            "b": 0,
+            "a": 255
+          }
+        }
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.BoxColliderComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "Size": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          },
+          "Friction": 1.5,
+          "Restitution": 0,
+          "Center": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          }
+        }
+      },
+      {
+        "type": "FrinkyEngine.Core.Components.RigidbodyComponent",
+        "enabled": true,
+        "editorOnly": false,
+        "properties": {
+          "MotionType": "Dynamic",
+          "Mass": 3,
+          "LinearDamping": 0.03,
+          "AngularDamping": 0.03,
+          "ContinuousDetection": false,
+          "LockPositionX": false,
+          "LockPositionY": false,
+          "LockPositionZ": false,
+          "LockRotationX": false,
+          "LockRotationY": false,
+          "LockRotationZ": false,
+          "InterpolationMode": "Inherit"
+        }
+      }
+    ],
+    "children": []
+  },
+  "variantOverrides": {
+    "propertyOverrides": [],
+    "addedComponents": [],
+    "removedComponents": [],
+    "addedChildren": [],
+    "removedChildren": []
+  }
+}
