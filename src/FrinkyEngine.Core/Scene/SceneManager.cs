@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Core.Scene;
@@ -61,6 +62,27 @@ public class SceneManager
 
         ActiveScene.FilePath = path;
         SceneSerializer.Save(ActiveScene, path);
+    }
+
+    /// <summary>
+    /// Resolves a scene name or path via <see cref="AssetDatabase"/> and loads the scene.
+    /// Accepts a bare name (e.g. "Level"), a name with extension ("Level.fscene"),
+    /// or a full/relative file path as a fallback.
+    /// </summary>
+    /// <param name="nameOrPath">Scene name, relative asset path, or absolute file path.</param>
+    /// <returns>The loaded scene, or <c>null</c> if resolution or loading failed.</returns>
+    public Scene? LoadSceneByName(string nameOrPath)
+    {
+        var db = AssetDatabase.Instance;
+        var relativePath = db.ResolveAssetPath(nameOrPath);
+        if (relativePath == null && !nameOrPath.EndsWith(".fscene", StringComparison.OrdinalIgnoreCase))
+            relativePath = db.ResolveAssetPath(nameOrPath + ".fscene");
+
+        var resolvedPath = relativePath != null
+            ? AssetManager.Instance.ResolvePath(relativePath)
+            : nameOrPath;
+
+        return LoadScene(resolvedPath);
     }
 
     /// <summary>

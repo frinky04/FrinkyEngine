@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Audio;
 using AudioApi = FrinkyEngine.Core.Audio.Audio;
 using FrinkyEngine.Core.Physics;
@@ -1043,21 +1044,36 @@ public static unsafe class EngineOverlays
                 return new ConsoleExecutionResult(true, new[] { "Quitting..." });
             });
 
-        ConsoleBackend.RegisterCommand("open_scene", "open_scene <path>", "Load a .fscene file by path.",
+        ConsoleBackend.RegisterCommand("open_scene", "open_scene <name|path>", "Load a .fscene file by name or path.",
             args =>
             {
                 if (args.Count == 0)
-                    return new ConsoleExecutionResult(false, new[] { "Usage: open_scene <path>" });
+                    return new ConsoleExecutionResult(false, new[] { "Usage: open_scene <name|path>" });
 
-                var path = string.Join(' ', args);
-                if (!File.Exists(path))
-                    return new ConsoleExecutionResult(false, new[] { $"File not found: {path}" });
-
-                var scene = SceneManager.Instance.LoadScene(path);
+                var input = string.Join(' ', args);
+                var scene = SceneManager.Instance.LoadSceneByName(input);
                 return scene != null
-                    ? new ConsoleExecutionResult(true, new[] { $"Loaded scene: {path}" })
-                    : new ConsoleExecutionResult(false, new[] { $"Failed to load scene: {path}" });
+                    ? new ConsoleExecutionResult(true, new[] { $"Loaded scene: {scene.FilePath}" })
+                    : new ConsoleExecutionResult(false, new[] { $"Failed to load scene: {input}" });
             });
+
+        // Register per-scene shortcut commands (open_scene.<SceneName>)
+        foreach (var sceneAsset in AssetDatabase.Instance.GetAssets(AssetType.Scene))
+        {
+            var sceneName = Path.GetFileNameWithoutExtension(sceneAsset.FileName);
+            var sceneRelPath = sceneAsset.RelativePath;
+            ConsoleBackend.RegisterCommand(
+                $"open_scene.{sceneName}",
+                $"open_scene.{sceneName}",
+                $"Load scene: {sceneRelPath}",
+                _ =>
+                {
+                    var scene = SceneManager.Instance.LoadSceneByName(sceneRelPath);
+                    return scene != null
+                        ? new ConsoleExecutionResult(true, new[] { $"Loaded scene: {scene.FilePath}" })
+                        : new ConsoleExecutionResult(false, new[] { $"Failed to load scene: {sceneRelPath}" });
+                });
+        }
 
         ConsoleBackend.RegisterCommand("restart_scene", "restart_scene", "Reload the current scene from disk.",
             _ =>
