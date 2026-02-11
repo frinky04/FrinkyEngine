@@ -12,7 +12,6 @@ namespace FrinkyEngine.Core.Components;
 public class MeshRendererComponent : RenderableComponent
 {
     private AssetReference _modelPath = new("");
-    private int _lastMaterialHash;
 
     /// <summary>
     /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
@@ -26,7 +25,6 @@ public class MeshRendererComponent : RenderableComponent
             if (_modelPath.Path == value.Path) return;
             _modelPath = value;
             RenderModel = null;
-            _lastMaterialHash = 0;
         }
     }
 
@@ -58,14 +56,13 @@ public class MeshRendererComponent : RenderableComponent
             RenderModel = model;
         }
 
-        // Re-apply materials when any slot changed (model is shared via cache)
-        var currentHash = ComputeMaterialSlotsHash();
-        if (currentHash != _lastMaterialHash && RenderModel.HasValue)
+        // Model assets are shared via AssetManager cache, so material state on the underlying
+        // Raylib model must be reapplied per renderer to avoid cross-instance bleed-through.
+        if (RenderModel.HasValue)
         {
             var model = RenderModel.Value;
             for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
                 MaterialApplicator.ApplyToModel(model, i, MaterialSlots[i]);
-            _lastMaterialHash = currentHash;
         }
     }
 
@@ -75,15 +72,6 @@ public class MeshRendererComponent : RenderableComponent
     public void RefreshMaterials()
     {
         RenderModel = null;
-        _lastMaterialHash = 0;
-    }
-
-    private int ComputeMaterialSlotsHash()
-    {
-        var hash = new HashCode();
-        foreach (var slot in MaterialSlots)
-            hash.Add(slot.GetConfigurationHash());
-        return hash.ToHashCode();
     }
 
     /// <inheritdoc />
