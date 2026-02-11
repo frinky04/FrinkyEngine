@@ -143,23 +143,26 @@ public class PrefabService
         return true;
     }
 
-    public bool RevertPrefab(Entity? selectedEntity)
+    public bool RevertPrefab(Entity? selectedEntity, bool skipUndo = false)
     {
         var root = GetPrefabRoot(selectedEntity);
         if (root?.Prefab == null)
             return false;
 
-        _app.RecordUndo();
+        if (!skipUndo) _app.RecordUndo();
         var reverted = ReplacePrefabRoot(root, new PrefabOverridesData());
         if (reverted == null)
             return false;
 
-        _app.SetSingleSelection(reverted);
-        _app.RefreshUndoBaseline();
+        if (!skipUndo)
+        {
+            _app.SetSingleSelection(reverted);
+            _app.RefreshUndoBaseline();
+        }
         return true;
     }
 
-    public bool MakeUnique(Entity? selectedEntity)
+    public bool MakeUnique(Entity? selectedEntity, bool skipUndo = false)
     {
         var root = GetPrefabRoot(selectedEntity);
         if (root == null)
@@ -172,26 +175,26 @@ public class PrefabService
         if (!PrefabDatabase.Instance.Save(newPath, prefab))
             return false;
 
-        _app.RecordUndo();
+        if (!skipUndo) _app.RecordUndo();
         BindMetadataToTree(root, prefab.Root, newPath, isRoot: true, new PrefabOverridesData());
         RecalculateOverridesForRoot(root);
-        _app.RefreshUndoBaseline();
+        if (!skipUndo) _app.RefreshUndoBaseline();
 
         AssetDatabase.Instance.Refresh();
         NotificationManager.Instance.Post($"Prefab made unique: {newPath}", NotificationType.Success);
         return true;
     }
 
-    public bool UnpackPrefab(Entity? selectedEntity)
+    public bool UnpackPrefab(Entity? selectedEntity, bool skipUndo = false)
     {
         var root = GetPrefabRoot(selectedEntity);
         if (root == null)
             return false;
 
-        _app.RecordUndo();
+        if (!skipUndo) _app.RecordUndo();
         foreach (var entity in EnumerateEntityTree(root))
             entity.Prefab = null;
-        _app.RefreshUndoBaseline();
+        if (!skipUndo) _app.RefreshUndoBaseline();
         return true;
     }
 

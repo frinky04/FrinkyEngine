@@ -78,16 +78,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/5] Generating API documentation...
-set FRINKY_NO_PAUSE=1
-call generate-api-docs.bat
-if errorlevel 1 (
-    echo [WARNING] API doc generation failed, continuing release...
-)
-set FRINKY_NO_PAUSE=%FRINKY_NO_PAUSE_PREV%
-
-echo.
-echo [3/5] Publishing Editor and Runtime...
+echo [2/4] Publishing Editor and Runtime...
 set FRINKY_NO_PAUSE=1
 call publish-editor.bat %RID% artifacts\release\editor\%RID%
 if errorlevel 1 exit /b 1
@@ -97,7 +88,7 @@ if errorlevel 1 exit /b 1
 set FRINKY_NO_PAUSE=%FRINKY_NO_PAUSE_PREV%
 
 echo.
-echo [4/5] Packing template...
+echo [3/4] Packing template...
 dotnet pack templates\FrinkyEngine.Templates\FrinkyEngine.Templates.csproj -c Release -o artifacts\templates
 if errorlevel 1 (
     echo [ERROR] Template pack failed.
@@ -106,7 +97,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/5] Creating release zip files...
+echo [4/4] Creating release zip files...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='Stop';" ^
   "$version='%VERSION%';" ^
