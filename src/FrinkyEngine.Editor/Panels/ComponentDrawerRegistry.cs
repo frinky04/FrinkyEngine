@@ -1126,9 +1126,7 @@ public static class ComponentDrawerRegistry
 
             if (open)
             {
-                ImGui.Indent();
-                DrawObjectProperties(effect, EffectExcludedProperties);
-                ImGui.Unindent();
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(effect, EffectExcludedProperties));
             }
 
             ImGui.PopID();
@@ -1420,7 +1418,18 @@ public static class ComponentDrawerRegistry
 
         ImGui.PushID(prop.Name);
 
-        if (ImGui.BeginCombo(label, preview))
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap
+                  | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (current == null)
+            flags |= ImGuiTreeNodeFlags.Leaf;
+
+        bool open = ImGui.TreeNodeEx(label, flags);
+
+        // Type dropdown overlaid on the right (same pattern as PostProcess header buttons)
+        float comboWidth = ImGui.GetContentRegionAvail().X * 0.55f;
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - comboWidth + ImGui.GetCursorPosX());
+        ImGui.SetNextItemWidth(comboWidth);
+        if (ImGui.BeginCombo("##type", preview))
         {
             if (ImGui.Selectable("(None)", current == null))
             {
@@ -1452,11 +1461,13 @@ public static class ComponentDrawerRegistry
             ImGui.EndCombo();
         }
 
-        if (current != null)
+        if (open)
         {
-            ImGui.Indent();
-            DrawObjectProperties(current, FObjectExcludedProperties);
-            ImGui.Unindent();
+            if (current != null)
+            {
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties));
+            }
+            ImGui.TreePop();
         }
 
         ImGui.PopID();
@@ -1474,6 +1485,23 @@ public static class ComponentDrawerRegistry
 
         ImGui.PushID(prop.Name);
 
+        var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
+        var listFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (list.Count == 0) listFlags |= ImGuiTreeNodeFlags.Leaf;
+
+        bool listOpen = ImGui.TreeNodeEx(listLabel, listFlags);
+
+        if (listOpen)
+        {
+            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, prop.Name, elementType, app));
+            ImGui.TreePop();
+        }
+
+        ImGui.PopID();
+    }
+
+    private static void DrawFObjectListContents(System.Collections.IList list, string propName, Type elementType, EditorApplication app)
+    {
         int? removeIndex = null;
         int? moveUpIndex = null;
         int? moveDownIndex = null;
@@ -1485,43 +1513,54 @@ public static class ComponentDrawerRegistry
 
             ImGui.PushID(i);
 
-            bool open = ImGui.CollapsingHeader(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+            bool open = ImGui.TreeNodeEx(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding);
 
-            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
-            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+            float buttonSize = ImGui.GetFrameHeight();
+            float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
             ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+            var transparent = new Vector4(0, 0, 0, 0);
+            ImGui.PushStyleColor(ImGuiCol.Button, transparent);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
 
             if (i > 0)
             {
-                if (ImGui.SmallButton("^")) moveUpIndex = i;
+                if (ImGui.Button("^", new Vector2(buttonSize, buttonSize))) moveUpIndex = i;
             }
             else
             {
                 ImGui.BeginDisabled();
-                ImGui.SmallButton("^");
+                ImGui.Button("^", new Vector2(buttonSize, buttonSize));
                 ImGui.EndDisabled();
             }
             ImGui.SameLine();
 
             if (i < list.Count - 1)
             {
-                if (ImGui.SmallButton("v")) moveDownIndex = i;
+                if (ImGui.Button("v", new Vector2(buttonSize, buttonSize))) moveDownIndex = i;
             }
             else
             {
                 ImGui.BeginDisabled();
-                ImGui.SmallButton("v");
+                ImGui.Button("v", new Vector2(buttonSize, buttonSize));
                 ImGui.EndDisabled();
             }
             ImGui.SameLine();
 
-            if (ImGui.SmallButton("X")) removeIndex = i;
+            ImGui.PopStyleColor(); // pop TextDisabled text
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+            ImGui.PopStyleColor(2); // pop HeaderHovered, HeaderActive
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
+            if (ImGui.Button("X", new Vector2(buttonSize, buttonSize))) removeIndex = i;
+            ImGui.PopStyleColor(4); // pop remaining 4 (transparent Button, red Hovered, red Active, Text)
 
             if (open)
             {
-                ImGui.Indent();
-                DrawObjectProperties(item, FObjectExcludedProperties);
-                ImGui.Unindent();
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(item, FObjectExcludedProperties));
+                ImGui.TreePop();
             }
 
             ImGui.PopID();
@@ -1550,10 +1589,8 @@ public static class ComponentDrawerRegistry
         }
 
         ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
 
-        var popupId = $"AddFObject_{prop.Name}";
+        var popupId = $"AddFObject_{propName}";
         float availWidth = ImGui.GetContentRegionAvail().X;
         float buttonWidthAdd = MathF.Min(200f, availWidth);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
@@ -1590,8 +1627,6 @@ public static class ComponentDrawerRegistry
             }
             ImGui.EndPopup();
         }
-
-        ImGui.PopID();
     }
 
     private static void DrawInlineFObjectProperty(string label, object owner, PropertyInfo prop, Type propType)
@@ -1604,7 +1639,18 @@ public static class ComponentDrawerRegistry
 
         ImGui.PushID(prop.Name);
 
-        if (ImGui.BeginCombo(label, preview))
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap
+                  | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (current == null)
+            flags |= ImGuiTreeNodeFlags.Leaf;
+
+        bool open = ImGui.TreeNodeEx(label, flags);
+
+        // Type dropdown overlaid on the right (same pattern as PostProcess header buttons)
+        float comboWidth = ImGui.GetContentRegionAvail().X * 0.55f;
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - comboWidth + ImGui.GetCursorPosX());
+        ImGui.SetNextItemWidth(comboWidth);
+        if (ImGui.BeginCombo("##type", preview))
         {
             if (ImGui.Selectable("(None)", current == null))
             {
@@ -1636,11 +1682,13 @@ public static class ComponentDrawerRegistry
             ImGui.EndCombo();
         }
 
-        if (current != null)
+        if (open)
         {
-            ImGui.Indent();
-            DrawObjectProperties(current, FObjectExcludedProperties);
-            ImGui.Unindent();
+            if (current != null)
+            {
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties));
+            }
+            ImGui.TreePop();
         }
 
         ImGui.PopID();
@@ -1658,127 +1706,48 @@ public static class ComponentDrawerRegistry
 
         ImGui.PushID(prop.Name);
 
-        int? removeIndex = null;
-        int? moveUpIndex = null;
-        int? moveDownIndex = null;
+        var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
+        var listFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (list.Count == 0) listFlags |= ImGuiTreeNodeFlags.Leaf;
 
-        for (int i = 0; i < list.Count; i++)
+        bool listOpen = ImGui.TreeNodeEx(listLabel, listFlags);
+
+        if (listOpen)
         {
-            var item = list[i] as FObject;
-            if (item == null) continue;
-
-            ImGui.PushID(i);
-
-            bool open = ImGui.CollapsingHeader(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
-
-            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
-            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
-            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
-
-            if (i > 0)
-            {
-                if (ImGui.SmallButton("^")) moveUpIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.SmallButton("^");
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            if (i < list.Count - 1)
-            {
-                if (ImGui.SmallButton("v")) moveDownIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.SmallButton("v");
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            if (ImGui.SmallButton("X")) removeIndex = i;
-
-            if (open)
-            {
-                ImGui.Indent();
-                DrawObjectProperties(item, FObjectExcludedProperties);
-                ImGui.Unindent();
-            }
-
-            ImGui.PopID();
-            ImGui.Spacing();
-        }
-
-        if (removeIndex.HasValue)
-        {
-            app.RecordUndo();
-            list.RemoveAt(removeIndex.Value);
-            app.RefreshUndoBaseline();
-        }
-        else if (moveUpIndex.HasValue)
-        {
-            app.RecordUndo();
-            int idx = moveUpIndex.Value;
-            (list[idx], list[idx - 1]) = (list[idx - 1], list[idx]);
-            app.RefreshUndoBaseline();
-        }
-        else if (moveDownIndex.HasValue)
-        {
-            app.RecordUndo();
-            int idx = moveDownIndex.Value;
-            (list[idx], list[idx + 1]) = (list[idx + 1], list[idx]);
-            app.RefreshUndoBaseline();
-        }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        var popupId = $"AddFObject_{prop.Name}_inline";
-        float availWidth = ImGui.GetContentRegionAvail().X;
-        float buttonWidthAdd = MathF.Min(200f, availWidth);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
-        if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidthAdd, 0)))
-            ImGui.OpenPopup(popupId);
-
-        if (ImGui.BeginPopup(popupId))
-        {
-            var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(elementType).ToList();
-            if (candidateTypes.Count == 0)
-            {
-                ImGui.TextDisabled("No types available");
-            }
-            else
-            {
-                foreach (var type in candidateTypes)
-                {
-                    var displayName = FObjectTypeResolver.GetDisplayName(type);
-                    var source = FObjectTypeResolver.GetAssemblySource(type);
-                    var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
-
-                    if (ImGui.Selectable(itemLabel))
-                    {
-                        try
-                        {
-                            var newObj = (FObject)Activator.CreateInstance(type)!;
-                            app.RecordUndo();
-                            list.Add(newObj);
-                            app.RefreshUndoBaseline();
-                        }
-                        catch { }
-                    }
-                }
-            }
-            ImGui.EndPopup();
+            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, $"{prop.Name}_inline", elementType, app));
+            ImGui.TreePop();
         }
 
         ImGui.PopID();
     }
 
     // ─── Reusable helpers ───────────────────────────────────────────────
+
+    private static readonly Vector4 AccentBarColor = new(0.35f, 0.55f, 0.75f, 0.45f);
+
+    private static void DrawIndentedWithAccentBar(Action drawContent)
+    {
+        float indentSpacing = ImGui.GetStyle().IndentSpacing;
+        ImGui.Indent();
+
+        var startPos = ImGui.GetCursorScreenPos();
+        float startY = startPos.Y;
+
+        drawContent();
+
+        float endY = ImGui.GetCursorScreenPos().Y;
+        ImGui.Unindent();
+
+        if (endY > startY)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            float barX = startPos.X - indentSpacing + 4f;
+            drawList.AddRectFilled(
+                new Vector2(barX, startY),
+                new Vector2(barX + 2f, endY),
+                ImGui.GetColorU32(AccentBarColor));
+        }
+    }
 
     private static readonly Vector4 WarningColor = new(1f, 0.55f, 0.25f, 1f);
 
