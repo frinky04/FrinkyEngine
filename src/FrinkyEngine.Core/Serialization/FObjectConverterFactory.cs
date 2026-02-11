@@ -19,6 +19,12 @@ public class FObjectConverterFactory : JsonConverterFactory
         nameof(FObject.DisplayName)
     };
 
+    private static bool IsPublicReadWriteProperty(PropertyInfo prop)
+    {
+        return prop.GetMethod?.IsPublic == true
+               && prop.SetMethod?.IsPublic == true;
+    }
+
     public override bool CanConvert(Type typeToConvert)
     {
         if (typeof(FObject).IsAssignableFrom(typeToConvert))
@@ -159,7 +165,7 @@ public class FObjectConverterFactory : JsonConverterFactory
             foreach (var jsonProp in propsElement.EnumerateObject())
             {
                 var prop = objectType.GetProperty(jsonProp.Name, BindingFlags.Public | BindingFlags.Instance);
-                if (prop == null || !prop.CanWrite) continue;
+                if (prop == null || !IsPublicReadWriteProperty(prop)) continue;
                 if (ExcludedProperties.Contains(prop.Name)) continue;
 
                 try
@@ -189,7 +195,7 @@ public class FObjectConverterFactory : JsonConverterFactory
 
         foreach (var prop in objectType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (!prop.CanRead || !prop.CanWrite) continue;
+            if (!IsPublicReadWriteProperty(prop)) continue;
             if (ExcludedProperties.Contains(prop.Name)) continue;
 
             try

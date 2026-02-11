@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.ECS;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Rendering.PostProcessing;
@@ -6,12 +7,12 @@ namespace FrinkyEngine.Core.Rendering.PostProcessing;
 /// Abstract base class for all post-processing effects.
 /// Subclass this to create custom effects — public read/write properties are auto-serialized and drawn in the inspector.
 /// </summary>
-public abstract class PostProcessEffect
+public abstract class PostProcessEffect : FObject, IDisposable
 {
     /// <summary>
     /// Human-readable name shown in the editor UI.
     /// </summary>
-    public abstract string DisplayName { get; }
+    public abstract override string DisplayName { get; }
 
     /// <summary>
     /// Whether this effect is active. Disabled effects are skipped during rendering.

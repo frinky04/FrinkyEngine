@@ -47,6 +47,8 @@ public class FogEffect : PostProcessEffect
     private int _fogModeLoc = -1;
     private int _nearPlaneLoc = -1;
     private int _farPlaneLoc = -1;
+    private int _tanHalfFovLoc = -1;
+    private int _aspectRatioLoc = -1;
     private int _depthTexLoc = -1;
 
     /// <inheritdoc/>
@@ -65,6 +67,8 @@ public class FogEffect : PostProcessEffect
         _fogModeLoc = Raylib.GetShaderLocation(_shader, "fogMode");
         _nearPlaneLoc = Raylib.GetShaderLocation(_shader, "nearPlane");
         _farPlaneLoc = Raylib.GetShaderLocation(_shader, "farPlane");
+        _tanHalfFovLoc = Raylib.GetShaderLocation(_shader, "tanHalfFov");
+        _aspectRatioLoc = Raylib.GetShaderLocation(_shader, "aspectRatio");
         _depthTexLoc = Raylib.GetShaderLocation(_shader, "depthTex");
 
         IsInitialized = true;
@@ -76,6 +80,12 @@ public class FogEffect : PostProcessEffect
         if (!IsInitialized) return;
 
         // Set uniforms
+        float tanHalfFov = MathF.Tan(context.FieldOfViewDegrees * 0.5f * (MathF.PI / 180f));
+        if (_tanHalfFovLoc >= 0)
+            Raylib.SetShaderValue(_shader, _tanHalfFovLoc, tanHalfFov, ShaderUniformDataType.Float);
+        if (_aspectRatioLoc >= 0)
+            Raylib.SetShaderValue(_shader, _aspectRatioLoc, context.AspectRatio, ShaderUniformDataType.Float);
+
         float[] fogColor = { FogColor.R / 255f, FogColor.G / 255f, FogColor.B / 255f };
         if (_fogColorLoc >= 0)
             Raylib.SetShaderValue(_shader, _fogColorLoc, fogColor, ShaderUniformDataType.Vec3);

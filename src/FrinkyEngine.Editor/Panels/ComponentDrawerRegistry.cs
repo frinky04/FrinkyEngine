@@ -7,7 +7,6 @@ using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
-using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Serialization;
 using Hexa.NET.ImGui;
@@ -26,7 +25,6 @@ public static class ComponentDrawerRegistry
         Register<TransformComponent>(DrawTransform);
         Register<MeshRendererComponent>(DrawMeshRenderer);
         Register<PrimitiveComponent>(DrawPrimitive);
-        Register<PostProcessStackComponent>(DrawPostProcessStack);
     }
 
     public static void Register<T>(Action<Component> drawer) where T : Component
@@ -1057,150 +1055,10 @@ public static class ComponentDrawerRegistry
         return size;
     }
 
-    private static readonly HashSet<string> EffectExcludedProperties = new()
+    private static bool IsPublicReadWriteProperty(PropertyInfo prop)
     {
-        nameof(PostProcessEffect.DisplayName),
-        nameof(PostProcessEffect.Enabled),
-        nameof(PostProcessEffect.IsInitialized),
-        nameof(PostProcessEffect.NeedsDepth)
-    };
-
-    private static void DrawPostProcessStack(Component c)
-    {
-        var stack = (PostProcessStackComponent)c;
-        var app = EditorApplication.Instance;
-
-        DrawCheckbox("Post Processing Enabled", stack.PostProcessingEnabled, v => stack.PostProcessingEnabled = v);
-        ImGui.Spacing();
-
-        int? removeIndex = null;
-        int? moveUpIndex = null;
-        int? moveDownIndex = null;
-
-        for (int i = 0; i < stack.Effects.Count; i++)
-        {
-            var effect = stack.Effects[i];
-            ImGui.PushID(i);
-
-            bool enabled = effect.Enabled;
-            if (ImGui.Checkbox("##enabled", ref enabled))
-            {
-                app.RecordUndo();
-                effect.Enabled = enabled;
-                app.RefreshUndoBaseline();
-            }
-            ImGui.SameLine();
-
-            bool open = ImGui.CollapsingHeader(effect.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
-
-            // Reorder/remove buttons on the same line as the header
-            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
-            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
-            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
-
-            if (i > 0)
-            {
-                if (ImGui.SmallButton("^")) moveUpIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.SmallButton("^");
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            if (i < stack.Effects.Count - 1)
-            {
-                if (ImGui.SmallButton("v")) moveDownIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.SmallButton("v");
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            if (ImGui.SmallButton("X")) removeIndex = i;
-
-            if (open)
-            {
-                DrawIndentedWithAccentBar(() => DrawObjectProperties(effect, EffectExcludedProperties));
-            }
-
-            ImGui.PopID();
-            ImGui.Spacing();
-        }
-
-        // Apply modifications
-        if (removeIndex.HasValue)
-        {
-            app.RecordUndo();
-            var removed = stack.Effects[removeIndex.Value];
-            removed.Dispose();
-            stack.Effects.RemoveAt(removeIndex.Value);
-            app.RefreshUndoBaseline();
-        }
-        else if (moveUpIndex.HasValue)
-        {
-            app.RecordUndo();
-            int idx = moveUpIndex.Value;
-            (stack.Effects[idx], stack.Effects[idx - 1]) = (stack.Effects[idx - 1], stack.Effects[idx]);
-            app.RefreshUndoBaseline();
-        }
-        else if (moveDownIndex.HasValue)
-        {
-            app.RecordUndo();
-            int idx = moveDownIndex.Value;
-            (stack.Effects[idx], stack.Effects[idx + 1]) = (stack.Effects[idx + 1], stack.Effects[idx]);
-            app.RefreshUndoBaseline();
-        }
-
-        // Add Effect button
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        float availWidth = ImGui.GetContentRegionAvail().X;
-        float buttonWidthAdd = MathF.Min(200f, availWidth);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
-        if (ImGui.Button("Add Effect", new Vector2(buttonWidthAdd, 0)))
-            ImGui.OpenPopup("AddEffectPopup");
-
-        if (ImGui.BeginPopup("AddEffectPopup"))
-        {
-            var effectTypes = PostProcessEffectResolver.GetAllEffectTypes().ToList();
-            if (effectTypes.Count == 0)
-            {
-                ImGui.TextDisabled("No effects available");
-            }
-            else
-            {
-                foreach (var effectType in effectTypes)
-                {
-                    var displayName = PostProcessEffectResolver.GetDisplayName(effectType);
-                    var source = PostProcessEffectResolver.GetAssemblySource(effectType);
-                    var label = source == "Engine" ? displayName : $"{displayName} ({source})";
-
-                    if (ImGui.Selectable(label))
-                    {
-                        try
-                        {
-                            var newEffect = (PostProcessEffect)Activator.CreateInstance(effectType)!;
-                            app.RecordUndo();
-                            stack.Effects.Add(newEffect);
-                            app.RefreshUndoBaseline();
-                        }
-                        catch
-                        {
-                            // Failed to create effect instance
-                        }
-                    }
-                }
-            }
-            ImGui.EndPopup();
-        }
+        return prop.GetMethod?.IsPublic == true
+               && prop.SetMethod?.IsPublic == true;
     }
 
     private static void DrawObjectProperties(object obj, HashSet<string> excluded)
@@ -1210,7 +1068,7 @@ public static class ComponentDrawerRegistry
 
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (!prop.CanRead || !prop.CanWrite) continue;
+            if (!IsPublicReadWriteProperty(prop)) continue;
             if (excluded.Contains(prop.Name)) continue;
 
             var propType = prop.PropertyType;
@@ -1434,6 +1292,7 @@ public static class ComponentDrawerRegistry
             if (ImGui.Selectable("(None)", current == null))
             {
                 app.RecordUndo();
+                DisposeIfNeeded(current);
                 prop.SetValue(component, null);
                 app.RefreshUndoBaseline();
             }
@@ -1451,6 +1310,7 @@ public static class ComponentDrawerRegistry
                     {
                         var newObj = (FObject)Activator.CreateInstance(type)!;
                         app.RecordUndo();
+                        DisposeIfNeeded(current);
                         prop.SetValue(component, newObj);
                         app.RefreshUndoBaseline();
                     }
@@ -1570,6 +1430,7 @@ public static class ComponentDrawerRegistry
         if (removeIndex.HasValue)
         {
             app.RecordUndo();
+            DisposeIfNeeded(list[removeIndex.Value]);
             list.RemoveAt(removeIndex.Value);
             app.RefreshUndoBaseline();
         }
@@ -1655,6 +1516,7 @@ public static class ComponentDrawerRegistry
             if (ImGui.Selectable("(None)", current == null))
             {
                 app.RecordUndo();
+                DisposeIfNeeded(current);
                 prop.SetValue(owner, null);
                 app.RefreshUndoBaseline();
             }
@@ -1672,6 +1534,7 @@ public static class ComponentDrawerRegistry
                     {
                         var newObj = (FObject)Activator.CreateInstance(type)!;
                         app.RecordUndo();
+                        DisposeIfNeeded(current);
                         prop.SetValue(owner, newObj);
                         app.RefreshUndoBaseline();
                     }
@@ -1719,6 +1582,15 @@ public static class ComponentDrawerRegistry
         }
 
         ImGui.PopID();
+    }
+
+    private static void DisposeIfNeeded(object? value)
+    {
+        if (value is not IDisposable disposable)
+            return;
+
+        try { disposable.Dispose(); }
+        catch { }
     }
 
     // ─── Reusable helpers ───────────────────────────────────────────────

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
-using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
@@ -542,10 +541,6 @@ public class InspectorPanel
         else if (propType == typeof(AudioAttenuationSettings))
         {
             DrawMultiAudioAttenuation(components, prop, label);
-        }
-        else if (propType == typeof(List<PostProcessEffect>))
-        {
-            ImGui.LabelText(label, "(edit individually)");
         }
         else if (typeof(FObject).IsAssignableFrom(propType))
         {

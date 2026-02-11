@@ -11,6 +11,8 @@ uniform float fogDensity;
 uniform int fogMode;           // 0 = linear, 1 = exp, 2 = exp2
 uniform float nearPlane;
 uniform float farPlane;
+uniform float tanHalfFov;
+uniform float aspectRatio;
 
 out vec4 finalColor;
 
@@ -22,20 +24,26 @@ void main()
     // Reconstruct linear depth in world units
     float linearDepth = normalizedDepth * (farPlane - nearPlane) + nearPlane;
 
+    // Convert linear Z-depth to radial (Euclidean) distance for spherical fog
+    vec2 ndc = fragTexCoord * 2.0 - 1.0;
+    float viewX = ndc.x * aspectRatio * tanHalfFov;
+    float viewY = ndc.y * tanHalfFov;
+    float radialDistance = linearDepth * sqrt(viewX * viewX + viewY * viewY + 1.0);
+
     float fogFactor = 0.0;
 
     if (fogMode == 0) // Linear
     {
-        fogFactor = clamp((fogEnd - linearDepth) / (fogEnd - fogStart), 0.0, 1.0);
+        fogFactor = clamp((fogEnd - radialDistance) / (fogEnd - fogStart), 0.0, 1.0);
     }
     else if (fogMode == 1) // Exponential
     {
-        fogFactor = exp(-fogDensity * linearDepth);
+        fogFactor = exp(-fogDensity * radialDistance);
         fogFactor = clamp(fogFactor, 0.0, 1.0);
     }
     else // Exponential squared
     {
-        float f = fogDensity * linearDepth;
+        float f = fogDensity * radialDistance;
         fogFactor = exp(-f * f);
         fogFactor = clamp(fogFactor, 0.0, 1.0);
     }

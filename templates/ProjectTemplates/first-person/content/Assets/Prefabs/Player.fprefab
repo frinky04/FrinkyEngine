@@ -165,8 +165,8 @@
               "Effects": [
                 {
                   "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.AmbientOcclusionEffect",
-                  "enabled": true,
                   "properties": {
+                    "Enabled": true,
                     "Radius": 20,
                     "Intensity": 0.6,
                     "Bias": 1,
@@ -176,8 +176,8 @@
                 },
                 {
                   "$type": "FrinkyEngine.Core.Rendering.PostProcessing.Effects.FogEffect",
-                  "enabled": true,
                   "properties": {
+                    "Enabled": true,
                     "FogColor": {
                       "r": 145,
                       "g": 145,

@@ -28,9 +28,8 @@ public class MenuBar
 
     // Create Script modal state
     private string _newScriptName = string.Empty;
-    private int _selectedBaseClassIndex;
-    private string[] _baseClassOptions = Array.Empty<string>();
-    private Type[] _baseClassTypes = Array.Empty<Type>();
+    private Type _selectedBaseClassType = typeof(Component);
+    private string _scriptBaseClassSearch = string.Empty;
 
     // Keybind editor state
     private bool _isCapturingKeybind;
@@ -258,8 +257,8 @@ public class MenuBar
                 {
                     _openCreateScript = true;
                     _newScriptName = string.Empty;
-                    _selectedBaseClassIndex = 0;
-                    RefreshBaseClassOptions();
+                    _selectedBaseClassType = typeof(Component);
+                    _scriptBaseClassSearch = string.Empty;
                 }
                 ImGui.EndDisabled();
 
@@ -372,26 +371,6 @@ public class MenuBar
         DrawCreateScriptPopup();
         DrawProjectSettingsPopup();
         DrawKeybindEditorPopup();
-    }
-
-    private void RefreshBaseClassOptions()
-    {
-        var types = new List<Type> { typeof(Component) };
-        foreach (var type in ComponentTypeResolver.GetAllComponentTypes())
-        {
-            if (type != typeof(Core.Components.TransformComponent) && !type.IsAbstract)
-                types.Add(type);
-        }
-
-        types.Add(typeof(FObject));
-        foreach (var type in FObjectTypeResolver.GetAllTypes())
-        {
-            if (!type.IsAbstract)
-                types.Add(type);
-        }
-
-        _baseClassTypes = types.ToArray();
-        _baseClassOptions = types.Select(t => t.Name).ToArray();
     }
 
     private void OpenSceneDialog()
@@ -655,12 +634,154 @@ public class MenuBar
 
         if (ImGui.BeginPopupModal("CreateScript", ImGuiWindowFlags.AlwaysAutoResize))
         {
-            ImGui.InputText("Script Name", ref _newScriptName, 256);
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##scriptName", "Script Name", ref _newScriptName, 256);
 
-            if (_baseClassOptions.Length > 0)
+            ImGui.Spacing();
+
+            // Show selected base class label
+            var selectedDisplayName = GetBaseClassDisplayName(_selectedBaseClassType);
+            ImGui.TextUnformatted($"Base Class: {selectedDisplayName}");
+
+            ImGui.Spacing();
+
+            // Search bar with auto-focus on open
+            if (ImGui.IsWindowAppearing())
+                ImGui.SetKeyboardFocusHere();
+
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##baseClassSearch", "Search...", ref _scriptBaseClassSearch, 256);
+            ImGui.Separator();
+
+            // Gather types
+            var componentTypes = ComponentTypeResolver.GetAllComponentTypes()
+                .Where(t => t != typeof(Core.Components.TransformComponent) && !t.IsAbstract)
+                .ToList();
+            var fobjectTypes = FObjectTypeResolver.GetAllTypes()
+                .Where(t => !t.IsAbstract)
+                .ToList();
+
+            var isSearching = !string.IsNullOrWhiteSpace(_scriptBaseClassSearch);
+            float maxHeight = viewport.Size.Y * 0.5f;
+            ImGui.BeginChild("##base_class_list", new Vector2(0, maxHeight), ImGuiChildFlags.None, ImGuiWindowFlags.None);
+
+            if (isSearching)
             {
-                ImGui.Combo("Base Class", ref _selectedBaseClassIndex, _baseClassOptions, _baseClassOptions.Length);
+                var search = _scriptBaseClassSearch.Trim();
+
+                // Search components
+                foreach (var type in componentTypes)
+                {
+                    var displayName = ComponentTypeResolver.GetDisplayName(type);
+                    if (!displayName.Contains(search, StringComparison.OrdinalIgnoreCase) &&
+                        !type.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var source = ComponentTypeResolver.GetAssemblySource(type);
+                    var isSelected = _selectedBaseClassType == type;
+                    if (ImGui.Selectable($"{displayName}  [{source}]", isSelected))
+                        _selectedBaseClassType = type;
+                    DrawScriptBaseClassTooltip(type, typeof(Component));
+                }
+
+                // Search FObjects
+                foreach (var type in fobjectTypes)
+                {
+                    var displayName = FObjectTypeResolver.GetDisplayName(type);
+                    if (!displayName.Contains(search, StringComparison.OrdinalIgnoreCase) &&
+                        !type.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var source = FObjectTypeResolver.GetAssemblySource(type);
+                    var isSelected = _selectedBaseClassType == type;
+                    if (ImGui.Selectable($"{displayName}  [{source}]", isSelected))
+                        _selectedBaseClassType = type;
+                    DrawScriptBaseClassTooltip(type, typeof(FObject));
+                }
+
+                // Also match "Component" and "FObject" base entries in search
+                if ("Component".Contains(search, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (ImGui.Selectable("Component (base)", _selectedBaseClassType == typeof(Component)))
+                        _selectedBaseClassType = typeof(Component);
+                }
+                if ("Data Object".Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    "FObject".Contains(search, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (ImGui.Selectable("Data Object (base)", _selectedBaseClassType == typeof(FObject)))
+                        _selectedBaseClassType = typeof(FObject);
+                }
             }
+            else
+            {
+                // Browse mode: categorized tree
+                var engineComponents = componentTypes.Where(t => ComponentTypeResolver.GetAssemblySource(t) == "Engine").ToList();
+                var gameComponents = componentTypes.Where(t => ComponentTypeResolver.GetAssemblySource(t) != "Engine").ToList();
+                var engineFObjects = fobjectTypes.Where(t => FObjectTypeResolver.GetAssemblySource(t) == "Engine").ToList();
+                var gameFObjects = fobjectTypes.Where(t => FObjectTypeResolver.GetAssemblySource(t) != "Engine").ToList();
+
+                // Components section
+                if (ImGui.CollapsingHeader("Components", ImGuiTreeNodeFlags.DefaultOpen))
+                {
+                    // Base Component entry
+                    ImGui.PushID("ComponentBase");
+                    if (ImGui.Selectable("  Component (base)", _selectedBaseClassType == typeof(Component)))
+                        _selectedBaseClassType = typeof(Component);
+                    ImGui.PopID();
+
+                    if (engineComponents.Count > 0)
+                    {
+                        if (ImGui.TreeNode("Engine##comp"))
+                        {
+                            var tree = BuildCategoryTree(engineComponents, true);
+                            DrawScriptCategoryNode(tree, true);
+                            ImGui.TreePop();
+                        }
+                    }
+
+                    if (gameComponents.Count > 0)
+                    {
+                        if (ImGui.TreeNode("Game##comp"))
+                        {
+                            var tree = BuildCategoryTree(gameComponents, true);
+                            DrawScriptCategoryNode(tree, true);
+                            ImGui.TreePop();
+                        }
+                    }
+                }
+
+                // Data Objects section
+                if (ImGui.CollapsingHeader("Data Objects", ImGuiTreeNodeFlags.DefaultOpen))
+                {
+                    // Base FObject entry
+                    ImGui.PushID("FObjectBase");
+                    if (ImGui.Selectable("  Data Object (base)", _selectedBaseClassType == typeof(FObject)))
+                        _selectedBaseClassType = typeof(FObject);
+                    ImGui.PopID();
+
+                    if (engineFObjects.Count > 0)
+                    {
+                        if (ImGui.TreeNode("Engine##fobj"))
+                        {
+                            var tree = BuildCategoryTree(engineFObjects, false);
+                            DrawScriptCategoryNode(tree, false);
+                            ImGui.TreePop();
+                        }
+                    }
+
+                    if (gameFObjects.Count > 0)
+                    {
+                        if (ImGui.TreeNode("Game##fobj"))
+                        {
+                            var tree = BuildCategoryTree(gameFObjects, false);
+                            DrawScriptCategoryNode(tree, false);
+                            ImGui.TreePop();
+                        }
+                    }
+                }
+            }
+
+            ImGui.EndChild();
 
             // File path preview
             var nameValid = ScriptCreator.IsValidClassName(_newScriptName);
@@ -688,12 +809,24 @@ public class MenuBar
                 && _app.ProjectDirectory != null
                 && !File.Exists(Path.Combine(_app.ProjectDirectory, "Assets", "Scripts", $"{_newScriptName}.cs"));
 
+            ImGui.Spacing();
+
+            // Right-align buttons
+            var style = ImGui.GetStyle();
+            var createBtnWidth = ImGui.CalcTextSize("Create").X + style.FramePadding.X * 2 + 16;
+            var cancelBtnWidth = ImGui.CalcTextSize("Cancel").X + style.FramePadding.X * 2 + 16;
+            var totalWidth = cancelBtnWidth + style.ItemSpacing.X + createBtnWidth;
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - totalWidth);
+
+            if (ImGui.Button("Cancel", new Vector2(cancelBtnWidth, 0)))
+                ImGui.CloseCurrentPopup();
+
+            ImGui.SameLine();
+
             ImGui.BeginDisabled(!canCreate);
-            if (ImGui.Button("Create"))
+            if (ImGui.Button("Create", new Vector2(createBtnWidth, 0)))
             {
-                var baseType = _selectedBaseClassIndex < _baseClassTypes.Length
-                    ? _baseClassTypes[_selectedBaseClassIndex]
-                    : typeof(Component);
+                var baseType = _selectedBaseClassType;
 
                 var namespaceName = _app.ProjectFile?.ProjectName ?? "Game";
                 var scriptsDir = Path.Combine(_app.ProjectDirectory!, "Assets", "Scripts");
@@ -710,11 +843,78 @@ public class MenuBar
             }
             ImGui.EndDisabled();
 
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel"))
-                ImGui.CloseCurrentPopup();
-
             ImGui.EndPopup();
+        }
+    }
+
+    private static string GetBaseClassDisplayName(Type type)
+    {
+        if (type == typeof(Component)) return "Component";
+        if (type == typeof(FObject)) return "Data Object";
+        if (type.IsSubclassOf(typeof(Component))) return ComponentTypeResolver.GetDisplayName(type);
+        if (type.IsSubclassOf(typeof(FObject))) return FObjectTypeResolver.GetDisplayName(type);
+        return type.Name;
+    }
+
+    private class ScriptCategoryNode
+    {
+        public Dictionary<string, ScriptCategoryNode> Children { get; } = new();
+        public List<Type> Types { get; } = new();
+    }
+
+    private static ScriptCategoryNode BuildCategoryTree(List<Type> types, bool isComponent)
+    {
+        var root = new ScriptCategoryNode();
+        foreach (var type in types)
+        {
+            var category = isComponent ? ComponentTypeResolver.GetCategory(type) : null;
+            var target = root;
+            if (!string.IsNullOrEmpty(category))
+            {
+                var segments = category.Split('/');
+                foreach (var segment in segments)
+                {
+                    if (!target.Children.TryGetValue(segment, out var child))
+                    {
+                        child = new ScriptCategoryNode();
+                        target.Children[segment] = child;
+                    }
+                    target = child;
+                }
+            }
+            target.Types.Add(type);
+        }
+        return root;
+    }
+
+    private void DrawScriptCategoryNode(ScriptCategoryNode node, bool isComponent)
+    {
+        foreach (var type in node.Types)
+        {
+            var displayName = isComponent
+                ? ComponentTypeResolver.GetDisplayName(type)
+                : FObjectTypeResolver.GetDisplayName(type);
+            var isSelected = _selectedBaseClassType == type;
+            if (ImGui.Selectable($"  {displayName}", isSelected))
+                _selectedBaseClassType = type;
+            DrawScriptBaseClassTooltip(type, isComponent ? typeof(Component) : typeof(FObject));
+        }
+
+        foreach (var (categoryName, child) in node.Children.OrderBy(kv => kv.Key))
+        {
+            if (ImGui.TreeNode(categoryName))
+            {
+                DrawScriptCategoryNode(child, isComponent);
+                ImGui.TreePop();
+            }
+        }
+    }
+
+    private static void DrawScriptBaseClassTooltip(Type type, Type directBase)
+    {
+        if (ImGui.IsItemHovered() && type.BaseType != null && type.BaseType != directBase)
+        {
+            ImGui.SetTooltip($"Extends {type.BaseType.Name}");
         }
     }
 

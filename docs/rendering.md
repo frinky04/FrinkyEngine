@@ -118,27 +118,28 @@ Screen-space ambient occlusion with bilateral blur (requires depth).
 
 ### Writing Custom Effects
 
-Subclass `PostProcessEffect` and override `Execute`:
+Subclass `PostProcessEffect` (an `FObject`) and override `Render`:
 
 ```csharp
-using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.PostProcessing;
+using Raylib_cs;
 
 public class MyEffect : PostProcessEffect
 {
-    public override string Name => "My Effect";
+    public override string DisplayName => "My Effect";
     public override bool NeedsDepth => false;
 
     public float Strength { get; set; } = 1.0f;
 
-    public override void Execute(PostProcessContext ctx)
+    public override void Render(Texture2D source, RenderTexture2D destination, PostProcessContext context)
     {
-        // Load and use a custom fragment shader
-        // ctx.Blit(source, destination, shader) for fullscreen passes
+        // Use PostProcessContext.Blit(...) for fullscreen passes.
+        PostProcessContext.Blit(source, destination);
     }
 }
 ```
 
-Custom effects are discovered automatically via `PostProcessEffectResolver` when loaded through a game assembly.
+Custom effects are discovered automatically via `FObjectTypeResolver` when loaded through a game assembly.
 
 ### Runtime CVar
 
