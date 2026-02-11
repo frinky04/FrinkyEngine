@@ -96,9 +96,19 @@ jobs:
       - name: Commit API docs to main
         shell: pwsh
         run: |
+          # Save generated docs to temp location
+          Copy-Item -Path docs/api -Destination $env:RUNNER_TEMP/api-docs -Recurse
+
+          # Fetch and checkout main
+          git fetch origin main
+          git checkout main
+
+          # Copy generated docs into the working tree
+          if (Test-Path docs/api) { Remove-Item -Recurse -Force docs/api }
+          Copy-Item -Path $env:RUNNER_TEMP/api-docs -Destination docs/api -Recurse
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout main
           git add --force docs/api
           $status = git status --porcelain docs/api
           if ($status) {
