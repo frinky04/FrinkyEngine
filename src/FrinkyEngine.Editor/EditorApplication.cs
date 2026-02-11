@@ -1011,8 +1011,14 @@ public class EditorApplication
 
         RecordUndo();
         int applied = 0;
+        var seenAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var root in prefabRoots)
+        {
+            var assetPath = root.Prefab?.AssetPath.Path;
+            if (assetPath == null || !seenAssets.Add(assetPath))
+                continue;
             if (Prefabs.ApplyPrefab(root)) applied++;
+        }
         if (applied > 0)
         {
             RefreshUndoBaseline();
