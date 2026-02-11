@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
-using FrinkyEngine.Core.Audio;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Serialization;
@@ -111,8 +111,7 @@ public class InspectorPanel
             if (opened)
             {
                 ImGui.PushID(componentType.Name);
-                if (!ComponentDrawerRegistry.Draw(component))
-                    ComponentDrawerRegistry.DrawReflection(component);
+                ComponentDrawerRegistry.DrawReflection(component);
                 ImGui.PopID();
             }
         }
@@ -249,8 +248,7 @@ public class InspectorPanel
                 continue;
 
             ImGui.PushID(componentType.FullName);
-            if (!DrawMultiBuiltInComponent(componentType, components))
-                DrawMultiReflection(components);
+            DrawMultiReflection(components);
             ImGui.PopID();
         }
 
@@ -283,42 +281,6 @@ public class InspectorPanel
         }
 
         return orderedTypes;
-    }
-
-    private bool DrawMultiBuiltInComponent(Type componentType, IReadOnlyList<Component> components)
-    {
-        if (componentType == typeof(TransformComponent))
-        {
-            var transforms = components.Cast<TransformComponent>().ToList();
-            DrawMultiTransform(transforms);
-            return true;
-        }
-
-        return false;
-    }
-
-    private void DrawMultiTransform(IReadOnlyList<TransformComponent> transforms)
-    {
-        var localPositions = transforms.Select(t => t.LocalPosition).ToList();
-        if (DrawMixedVector3("Position", localPositions[0], localPositions.Any(v => v != localPositions[0]), 0.1f, out var newPosition))
-        {
-            foreach (var transform in transforms)
-                transform.LocalPosition = newPosition;
-        }
-
-        var eulerRotations = transforms.Select(t => t.EulerAngles).ToList();
-        if (DrawMixedVector3("Rotation", eulerRotations[0], eulerRotations.Any(v => v != eulerRotations[0]), 0.5f, out var newEuler))
-        {
-            foreach (var transform in transforms)
-                transform.EulerAngles = newEuler;
-        }
-
-        var scales = transforms.Select(t => t.LocalScale).ToList();
-        if (DrawMixedVector3("Scale", scales[0], scales.Any(v => v != scales[0]), 0.05f, out var newScale))
-        {
-            foreach (var transform in transforms)
-                transform.LocalScale = newScale;
-        }
     }
 
     private string? _lastMultiHeader;
@@ -404,6 +366,14 @@ public class InspectorPanel
         }
 
         var rangeAttr = prop.GetCustomAttribute<InspectorRangeAttribute>();
+        void SetAll(object? value)
+        {
+            foreach (var component in components)
+            {
+                prop.SetValue(component, value);
+                ComponentDrawerRegistry.InvokeOnChangedCallbacks(component, prop);
+            }
+        }
 
         if (propType == typeof(float))
         {
@@ -414,10 +384,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedDragFloat(label, ref val, mixed, speed, min, max))
-                {
-                    foreach (var component in components)
-                        prop.SetValue(component, val);
-                }
+                    SetAll(val);
             });
         }
         else if (propType == typeof(int))
@@ -429,10 +396,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedDragInt(label, ref val, mixed, speed, min, max))
-                {
-                    foreach (var component in components)
-                        prop.SetValue(component, val);
-                }
+                    SetAll(val);
             });
         }
         else if (propType == typeof(bool))
@@ -443,8 +407,7 @@ public class InspectorPanel
                 if (ImGui.Checkbox(GetMixedLabel(label, mixed), ref val))
                 {
                     _app.RecordUndo();
-                    foreach (var component in components)
-                        prop.SetValue(component, val);
+                    SetAll(val);
                     _app.RefreshUndoBaseline();
                 }
             });
@@ -455,10 +418,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedInputText(label, ref val, mixed, 256))
-                {
-                    foreach (var component in components)
-                        prop.SetValue(component, val);
-                }
+                    SetAll(val);
             });
         }
         else if (propType == typeof(Vector3))
@@ -467,10 +427,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedVector3(label, val, mixed, 0.1f, out var updated))
-                {
-                    foreach (var component in components)
-                        prop.SetValue(component, updated);
-                }
+                    SetAll(updated);
             });
         }
         else if (propType == typeof(Vector2))
@@ -479,10 +436,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedVector2(label, val, mixed, 0.1f, out var updated))
-                {
-                    foreach (var component in components)
-                        prop.SetValue(component, updated);
-                }
+                    SetAll(updated);
             });
         }
         else if (propType == typeof(Quaternion))
@@ -494,8 +448,7 @@ public class InspectorPanel
                 if (DrawMixedVector3(label, euler, mixed, 0.5f, out var updatedEuler))
                 {
                     var updatedQuaternion = Core.FrinkyMath.EulerToQuaternion(updatedEuler);
-                    foreach (var component in components)
-                        prop.SetValue(component, updatedQuaternion);
+                    SetAll(updatedQuaternion);
                 }
             });
         }
@@ -506,11 +459,7 @@ public class InspectorPanel
             DrawMultiPropertyWithTooltip(prop, () =>
             {
                 if (DrawMixedColor4(label, vec4, mixed, out var updatedColor))
-                {
-                    var resolvedColor = Vec4ToColor(updatedColor);
-                    foreach (var component in components)
-                        prop.SetValue(component, resolvedColor);
-                }
+                    SetAll(Vec4ToColor(updatedColor));
             });
         }
         else if (propType.IsEnum)
@@ -524,8 +473,7 @@ public class InspectorPanel
                 if (changed)
                 {
                     _app.RecordUndo();
-                    foreach (var component in components)
-                        prop.SetValue(component, currentValue);
+                    SetAll(currentValue);
                     _app.RefreshUndoBaseline();
                 }
             });
@@ -538,108 +486,17 @@ public class InspectorPanel
             string preview = mixed ? "(Mixed)" : (!entityRef.IsValid ? "(None)" : (resolved?.Name ?? "(Missing)"));
             ImGui.LabelText(label, preview);
         }
-        else if (propType == typeof(AudioAttenuationSettings))
-        {
-            DrawMultiAudioAttenuation(components, prop, label);
-        }
-        else if (typeof(FObject).IsAssignableFrom(propType))
-        {
-            ImGui.LabelText(label, "(edit individually)");
-        }
-        else if (IsFObjectListType(propType))
+        else if (propType == typeof(AssetReference)
+                 || typeof(FObject).IsAssignableFrom(propType)
+                 || IsFObjectListType(propType)
+                 || IsListType(propType)
+                 || IsInlineObjectType(propType))
         {
             ImGui.LabelText(label, "(edit individually)");
         }
         else
         {
             ImGui.LabelText(label, propType.Name);
-        }
-    }
-
-    private void DrawMultiAudioAttenuation(IReadOnlyList<Component> components, PropertyInfo prop, string label)
-    {
-        if (!components.All(c => c is AudioSourceComponent))
-        {
-            ImGui.LabelText(label, "(unsupported multi edit)");
-            return;
-        }
-
-        var sources = components.Cast<AudioSourceComponent>().ToList();
-        bool spatialized = sources[0].Spatialized;
-        bool mixedSpatialized = sources.Skip(1).Any(s => s.Spatialized != spatialized);
-        if (mixedSpatialized)
-        {
-            ImGui.LabelText(label, "(Mixed Spatialized mode)");
-            return;
-        }
-
-        if (spatialized)
-        {
-            var minValues = sources.Select(s => s.Attenuation.MinDistance).ToList();
-            float minDistance = minValues[0];
-            if (DrawMixedDragFloat("Min Distance", ref minDistance, minValues.Any(v => v != minValues[0]), 0.1f))
-            {
-                foreach (var source in sources)
-                {
-                    var attenuation = source.Attenuation;
-                    attenuation.MinDistance = minDistance;
-                    prop.SetValue(source, attenuation);
-                }
-            }
-
-            var maxValues = sources.Select(s => s.Attenuation.MaxDistance).ToList();
-            float maxDistance = maxValues[0];
-            if (DrawMixedDragFloat("Max Distance", ref maxDistance, maxValues.Any(v => v != maxValues[0]), 0.1f))
-            {
-                foreach (var source in sources)
-                {
-                    var attenuation = source.Attenuation;
-                    attenuation.MaxDistance = maxDistance;
-                    prop.SetValue(source, attenuation);
-                }
-            }
-
-            var firstRolloff = sources[0].Attenuation.Rolloff;
-            bool mixedRolloff = sources.Skip(1).Any(s => s.Attenuation.Rolloff != firstRolloff);
-            object rolloffValue = firstRolloff;
-            if (ComboEnumHelper.Combo(GetMixedLabel("Rolloff", mixedRolloff), typeof(AudioRolloffMode), ref rolloffValue))
-            {
-                _app.RecordUndo();
-                var rolloff = (AudioRolloffMode)rolloffValue;
-                foreach (var source in sources)
-                {
-                    var attenuation = source.Attenuation;
-                    attenuation.Rolloff = rolloff;
-                    prop.SetValue(source, attenuation);
-                }
-                _app.RefreshUndoBaseline();
-            }
-
-            var blendValues = sources.Select(s => s.Attenuation.SpatialBlend).ToList();
-            float spatialBlend = blendValues[0];
-            if (DrawMixedDragFloat("Spatial Blend", ref spatialBlend, blendValues.Any(v => v != blendValues[0]), 0.01f))
-            {
-                foreach (var source in sources)
-                {
-                    var attenuation = source.Attenuation;
-                    attenuation.SpatialBlend = spatialBlend;
-                    prop.SetValue(source, attenuation);
-                }
-            }
-
-            return;
-        }
-
-        var panValues = sources.Select(s => s.Attenuation.PanStereo).ToList();
-        float panStereo = panValues[0];
-        if (DrawMixedDragFloat("Stereo Pan", ref panStereo, panValues.Any(v => v != panValues[0]), 0.01f))
-        {
-            foreach (var source in sources)
-            {
-                var attenuation = source.Attenuation;
-                attenuation.PanStereo = panStereo;
-                prop.SetValue(source, attenuation);
-            }
         }
     }
 
@@ -653,45 +510,50 @@ public class InspectorPanel
         return false;
     }
 
+    private static bool IsListType(Type type)
+    {
+        return InspectorReflectionHelpers.IsListType(type);
+    }
+
+    private static bool IsInlineObjectType(Type type)
+    {
+        return InspectorReflectionHelpers.IsInlineObjectType(type);
+    }
+
     private static bool IsInspectableProperty(PropertyInfo prop)
     {
-        if (!prop.CanRead)
-            return false;
-        if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "RenderModel")
-            return false;
-        if (prop.CanWrite)
-            return true;
-        return prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+        return InspectorReflectionHelpers.IsInspectableComponentProperty(prop);
     }
 
     private static bool IsPropertyVisibleForAll(IReadOnlyList<Component> components, PropertyInfo prop)
     {
         foreach (var visibleIf in prop.GetCustomAttributes<InspectorVisibleIfAttribute>())
         {
-            var condition = components[0].GetType().GetProperty(visibleIf.PropertyName, BindingFlags.Public | BindingFlags.Instance);
-            if (condition == null || !condition.CanRead || condition.PropertyType != typeof(bool))
+            if (!InspectorReflectionHelpers.TryEvaluateBoolMember(components[0], visibleIf.PropertyName, out var firstValue))
+                return false;
+            if (firstValue != visibleIf.ExpectedValue)
                 return false;
 
             foreach (var component in components)
             {
-                var current = (bool?)condition.GetValue(component) ?? false;
-                if (current != visibleIf.ExpectedValue)
+                if (!InspectorReflectionHelpers.TryEvaluateBoolMember(component, visibleIf.PropertyName, out var current)
+                    || current != visibleIf.ExpectedValue)
                     return false;
             }
         }
 
         foreach (var visibleIfEnum in prop.GetCustomAttributes<InspectorVisibleIfEnumAttribute>())
         {
-            var condition = components[0].GetType().GetProperty(visibleIfEnum.PropertyName, BindingFlags.Public | BindingFlags.Instance);
-            if (condition == null || !condition.CanRead || !condition.PropertyType.IsEnum)
+            if (!InspectorReflectionHelpers.TryEvaluateEnumMember(components[0], visibleIfEnum.PropertyName, out var firstValue))
+                return false;
+            if (!string.Equals(firstValue?.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
                 return false;
 
             foreach (var component in components)
             {
-                var value = condition.GetValue(component);
-                if (value is not Enum enumValue)
+                if (!InspectorReflectionHelpers.TryEvaluateEnumMember(component, visibleIfEnum.PropertyName, out var enumValue))
                     return false;
-                if (!string.Equals(enumValue.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
+                if (!string.Equals(enumValue?.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
                     return false;
             }
         }

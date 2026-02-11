@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Linq;
 using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Components;
@@ -8,6 +9,11 @@ namespace FrinkyEngine.Core.Components;
 /// Requires an enabled <see cref="RigidbodyComponent"/> and <see cref="CapsuleColliderComponent"/> on the same entity.
 /// </summary>
 [ComponentCategory("Physics")]
+[InspectorMessageIf(nameof(ShowMissingRigidbodyWarning), "Character controller requires an enabled RigidbodyComponent.", Severity = InspectorMessageSeverity.Warning, Order = 0)]
+[InspectorMessageIf(nameof(ShowInvalidMotionTypeWarning), "Character controller requires Rigidbody Motion Type = Dynamic.", Severity = InspectorMessageSeverity.Warning, Order = 1)]
+[InspectorMessageIf(nameof(ShowMissingCapsuleWarning), "Character controller requires an enabled CapsuleColliderComponent.", Severity = InspectorMessageSeverity.Warning, Order = 2)]
+[InspectorMessageIf(nameof(ShowCapsuleNotPrimaryWarning), "The capsule must be the first enabled collider on the entity.", Severity = InspectorMessageSeverity.Warning, Order = 3)]
+[InspectorMessageIf(nameof(ShowParentedControllerWarning), "Parented character controllers are not simulated.", Severity = InspectorMessageSeverity.Warning, Order = 4)]
 public class CharacterControllerComponent : Component
 {
     private float _moveSpeed = 4f;
@@ -478,6 +484,41 @@ public class CharacterControllerComponent : Component
     private static bool IsFinite(Vector3 value)
     {
         return float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
+    }
+
+    private bool ShowMissingRigidbodyWarning()
+    {
+        var rigidbody = Entity.GetComponent<RigidbodyComponent>();
+        return rigidbody == null || !rigidbody.Enabled;
+    }
+
+    private bool ShowInvalidMotionTypeWarning()
+    {
+        var rigidbody = Entity.GetComponent<RigidbodyComponent>();
+        return rigidbody != null && rigidbody.Enabled && rigidbody.MotionType != BodyMotionType.Dynamic;
+    }
+
+    private bool ShowMissingCapsuleWarning()
+    {
+        var capsule = Entity.GetComponent<CapsuleColliderComponent>();
+        return capsule == null || !capsule.Enabled;
+    }
+
+    private bool ShowCapsuleNotPrimaryWarning()
+    {
+        var capsule = Entity.GetComponent<CapsuleColliderComponent>();
+        if (capsule == null || !capsule.Enabled)
+            return false;
+
+        var primaryCollider = Entity.Components
+            .OfType<ColliderComponent>()
+            .FirstOrDefault(collider => collider.Enabled);
+        return !ReferenceEquals(primaryCollider, capsule);
+    }
+
+    private bool ShowParentedControllerWarning()
+    {
+        return Entity.Transform.Parent != null;
     }
 }
 

@@ -70,11 +70,17 @@ Customize how properties appear in the editor inspector:
 | `[InspectorHeader("Title")]` | Insert a header label before the property |
 | `[InspectorTooltip("Text")]` | Show a tooltip on hover |
 | `[InspectorReadOnly]` | Display value without allowing edits |
+| `[InspectorHidden]` | Hide a public property from inspector drawing while keeping serialization |
 | `[InspectorSpace(height)]` | Insert vertical spacing (default: 8px) |
 | `[InspectorIndent(levels)]` | Indent the property (default: 1 level) |
-| `[InspectorVisibleIf("Property", expectedValue)]` | Show only when a bool property matches (stackable) |
-| `[InspectorVisibleIfEnum("Property", "MemberName")]` | Show only when an enum property matches (stackable) |
+| `[InspectorVisibleIf("Member", expectedValue)]` | Show only when a bool member (property/field/method) matches (stackable) |
+| `[InspectorVisibleIfEnum("Member", "EnumValue")]` | Show only when an enum member (property/field/method) matches (stackable) |
 | `[InspectorSearchableEnum]` | Use a searchable picker for enum properties |
+| `[InspectorVector3Style(...)]` | Customize `Vector3` controls (for example colored XYZ reset buttons and reset defaults) |
+| `[InspectorOnChanged("MethodName")]` | Invoke a parameterless method after inspector edits to that property |
+| `[InspectorListFactory("MethodName")]` | Use a parameterless factory method when adding new `List<T>` items |
+| `[InspectorButton("Label", ...)]` | Render a parameterless `void`/`bool` method as a clickable inspector button |
+| `[InspectorMessageIf("Condition", "Text", ...)]` | Show class-level info/warning/error text when a bool member evaluates true |
 | `[ComponentCategory("Path")]` | Set category in Add Component menu (slash-separated, e.g. `"Physics/Colliders"`) |
 | `[ComponentDisplayName("Name")]` | Override component name in the editor |
 | `[AssetFilter(AssetType)]` | Restrict `AssetReference` to a specific asset type |
@@ -99,6 +105,22 @@ public class WeaponComponent : Component
     public float AltFireDamage { get; set; } = 25f;
 }
 ```
+
+`InspectorButton` notes:
+
+- Methods must be parameterless and return `void` or `bool`
+- `Mode` supports `Always`, `EditorOnly`, `RuntimeOnly`
+- `DisableWhen` can reference a bool property/field/method
+
+`InspectorMessageIf` notes:
+
+- Targets classes (including script components)
+- Condition member can be a bool property/field/method
+- `Severity` supports `Info`, `Warning`, `Error`
+
+The inspector also reflects nested classes/structs and `List<T>` properties (with add/remove/reorder and recursive editing), so script data models can use the same workflows as built-in engine components.
+
+`InspectorOnChanged` callbacks must be parameterless and return `void`.
 
 ## FObjects — Polymorphic Data Objects
 

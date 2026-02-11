@@ -138,6 +138,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Starts playback using current source settings.
     /// </summary>
+    [InspectorButton("Play", Section = "Runtime Controls", Mode = InspectorUiMode.RuntimeOnly, DisableWhen = nameof(DisablePlayButton), Order = 0)]
     public void Play()
     {
         if (SoundPath.IsEmpty)
@@ -185,6 +186,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Pauses playback.
     /// </summary>
+    [InspectorButton("Pause", Section = "Runtime Controls", Mode = InspectorUiMode.RuntimeOnly, DisableWhen = nameof(DisablePauseButton), Order = 1)]
     public void Pause()
     {
         Paused = true;
@@ -195,6 +197,7 @@ public class AudioSourceComponent : Component
     /// <summary>
     /// Resumes playback.
     /// </summary>
+    [InspectorButton("Resume", Section = "Runtime Controls", Mode = InspectorUiMode.RuntimeOnly, DisableWhen = nameof(DisableResumeButton), Order = 2)]
     public void Resume()
     {
         Paused = false;
@@ -293,5 +296,31 @@ public class AudioSourceComponent : Component
 
         if (Spatialized)
             AudioApi.SetWorldPosition(_currentHandle, Entity.Transform.WorldPosition);
+    }
+
+    private bool DisablePlayButton()
+    {
+        return SoundPath.IsEmpty;
+    }
+
+    private bool DisablePauseButton()
+    {
+        return !_currentHandle.IsValid || Paused;
+    }
+
+    private bool DisableResumeButton()
+    {
+        return !_currentHandle.IsValid || !Paused;
+    }
+
+    private bool DisableStopButton()
+    {
+        return !_currentHandle.IsValid;
+    }
+
+    [InspectorButton("Stop", Section = "Runtime Controls", Mode = InspectorUiMode.RuntimeOnly, DisableWhen = nameof(DisableStopButton), Order = 3)]
+    private void StopInspectorButton()
+    {
+        Stop();
     }
 }

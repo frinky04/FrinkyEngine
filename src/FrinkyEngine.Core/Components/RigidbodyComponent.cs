@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Linq;
 using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Components;
@@ -7,6 +8,8 @@ namespace FrinkyEngine.Core.Components;
 /// Physics body component used by the scene physics system.
 /// </summary>
 [ComponentCategory("Physics")]
+[InspectorMessageIf(nameof(ShowNoEnabledColliderWarning), "Rigidbody is ignored until an enabled collider component is added.", Severity = InspectorMessageSeverity.Warning, Order = 0)]
+[InspectorMessageIf(nameof(ShowParentedWarning), "Parented rigidbodies are not simulated.", Severity = InspectorMessageSeverity.Warning, Order = 1)]
 public class RigidbodyComponent : Component
 {
     private BodyMotionType _motionType = BodyMotionType.Dynamic;
@@ -320,5 +323,15 @@ public class RigidbodyComponent : Component
     private void NotifyPhysicsChanged()
     {
         Entity.Scene?.NotifyPhysicsStateChanged();
+    }
+
+    private bool ShowNoEnabledColliderWarning()
+    {
+        return !Entity.Components.Any(component => component is ColliderComponent collider && collider.Enabled);
+    }
+
+    private bool ShowParentedWarning()
+    {
+        return Entity.Transform.Parent != null;
     }
 }

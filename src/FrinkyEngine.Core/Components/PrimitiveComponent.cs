@@ -1,4 +1,5 @@
 using FrinkyEngine.Core.Assets;
+using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using Raylib_cs;
 
@@ -20,6 +21,7 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// <summary>
     /// Which material mapping mode the primitive uses (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
     /// </summary>
+    [InspectorLabel("Material Type")]
     public MaterialType MaterialType
     {
         get => _materialType;
@@ -35,6 +37,8 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// Asset-relative path to the texture file, used when <see cref="MaterialType"/> is
     /// <see cref="Rendering.MaterialType.Textured"/> or <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
+    [InspectorLabel("Texture Path")]
+    [InspectorVisibleIf(nameof(UsesTexturedMaterial))]
     [AssetFilter(AssetType.Texture)]
     public AssetReference TexturePath
     {
@@ -50,6 +54,8 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// <summary>
     /// Triplanar projection scale, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
+    [InspectorVisibleIf(nameof(UsesTriplanarMaterial))]
+    [InspectorRange(0.01f, 512f, 0.05f)]
     public float TriplanarScale
     {
         get => _triplanarScale;
@@ -64,6 +70,9 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// <summary>
     /// Triplanar axis blend sharpness, used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
+    [InspectorLabel("Blend Sharpness")]
+    [InspectorVisibleIf(nameof(UsesTriplanarMaterial))]
+    [InspectorRange(0.01f, 64f, 0.05f)]
     public float TriplanarBlendSharpness
     {
         get => _triplanarBlendSharpness;
@@ -79,6 +88,8 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// Whether triplanar projection uses world-space coordinates (<c>true</c>) or object-space coordinates (<c>false</c>).
     /// Used when <see cref="MaterialType"/> is <see cref="Rendering.MaterialType.TriplanarTexture"/>.
     /// </summary>
+    [InspectorLabel("Use World Space")]
+    [InspectorVisibleIf(nameof(UsesTriplanarMaterial))]
     public bool TriplanarUseWorldSpace
     {
         get => _triplanarUseWorldSpace;
@@ -104,6 +115,16 @@ public abstract class PrimitiveComponent : RenderableComponent
     /// </summary>
     /// <returns>The generated <see cref="Mesh"/>.</returns>
     protected abstract Mesh CreateMesh();
+
+    private bool UsesTexturedMaterial()
+    {
+        return _materialType is MaterialType.Textured or MaterialType.TriplanarTexture;
+    }
+
+    private bool UsesTriplanarMaterial()
+    {
+        return _materialType == MaterialType.TriplanarTexture;
+    }
 
     /// <summary>
     /// Flags the mesh as needing a rebuild, triggering regeneration on the next frame.

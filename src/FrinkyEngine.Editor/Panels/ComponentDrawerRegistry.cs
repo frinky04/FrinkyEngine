@@ -18,35 +18,6 @@ namespace FrinkyEngine.Editor.Panels;
 
 public static class ComponentDrawerRegistry
 {
-    private static readonly Dictionary<Type, Action<Component>> _drawers = new();
-
-    static ComponentDrawerRegistry()
-    {
-        Register<TransformComponent>(DrawTransform);
-        Register<MeshRendererComponent>(DrawMeshRenderer);
-        Register<PrimitiveComponent>(DrawPrimitive);
-    }
-
-    public static void Register<T>(Action<Component> drawer) where T : Component
-    {
-        _drawers[typeof(T)] = drawer;
-    }
-
-    public static bool Draw(Component component)
-    {
-        var type = component.GetType();
-        while (type != null && type != typeof(Component))
-        {
-            if (_drawers.TryGetValue(type, out var drawer))
-            {
-                drawer(component);
-                return true;
-            }
-            type = type.BaseType;
-        }
-        return false;
-    }
-
     private static readonly Vector4 ColorRed = new(0.867f, 0.2f, 0.267f, 1f);    // #DD3344
     private static readonly Vector4 ColorRedHover = new(0.933f, 0.3f, 0.367f, 1f);
     private static readonly Vector4 ColorGreen = new(0.267f, 0.733f, 0.267f, 1f);  // #44BB44
@@ -54,23 +25,17 @@ public static class ComponentDrawerRegistry
     private static readonly Vector4 ColorBlue = new(0.267f, 0.533f, 0.867f, 1f);   // #4488DD
     private static readonly Vector4 ColorBlueHover = new(0.367f, 0.633f, 0.933f, 1f);
 
-    private static void DrawTransform(Component c)
+    private static bool DrawColoredVector3(string label, ref Vector3 value, float speed)
     {
-        var t = (TransformComponent)c;
-        var pos = t.LocalPosition;
-        if (DrawColoredVector3("Position", ref pos, 0.1f))
-            t.LocalPosition = pos;
-
-        var euler = t.EulerAngles;
-        if (DrawColoredVector3("Rotation", ref euler, 0.5f))
-            t.EulerAngles = euler;
-
-        var scale = t.LocalScale;
-        if (DrawColoredVector3("Scale", ref scale, 0.05f, 1f))
-            t.LocalScale = scale;
+        return DrawColoredVector3(label, ref value, speed, Vector3.Zero);
     }
 
-    private static bool DrawColoredVector3(string label, ref Vector3 value, float speed, float resetValue = 0f)
+    private static bool DrawColoredVector3(string label, ref Vector3 value, float speed, float resetValue)
+    {
+        return DrawColoredVector3(label, ref value, speed, new Vector3(resetValue));
+    }
+
+    private static bool DrawColoredVector3(string label, ref Vector3 value, float speed, Vector3 resetValue)
     {
         bool changed = false;
         var app = EditorApplication.Instance;
@@ -94,7 +59,7 @@ public static class ComponentDrawerRegistry
         if (ImGui.Button("X", buttonSize))
         {
             app.RecordUndo();
-            value.X = resetValue;
+            value.X = resetValue.X;
             changed = true;
             app.RefreshUndoBaseline();
         }
@@ -114,7 +79,7 @@ public static class ComponentDrawerRegistry
         if (ImGui.Button("Y", buttonSize))
         {
             app.RecordUndo();
-            value.Y = resetValue;
+            value.Y = resetValue.Y;
             changed = true;
             app.RefreshUndoBaseline();
         }
@@ -134,7 +99,7 @@ public static class ComponentDrawerRegistry
         if (ImGui.Button("Z", buttonSize))
         {
             app.RecordUndo();
-            value.Z = resetValue;
+            value.Z = resetValue.Z;
             changed = true;
             app.RefreshUndoBaseline();
         }
@@ -150,159 +115,11 @@ public static class ComponentDrawerRegistry
         return changed;
     }
 
-    private static void DrawMeshRenderer(Component c)
-    {
-        var mr = (MeshRendererComponent)c;
-        var app = EditorApplication.Instance;
-
-        DrawAssetReference("Model Path", mr.ModelPath, AssetType.Model, v => mr.ModelPath = v);
-
-        ImGui.Spacing();
-
-        var tint = ColorToVec4(mr.Tint);
-        if (ImGui.ColorEdit4("Tint", ref tint))
-            mr.Tint = Vec4ToColor(tint);
-        TrackContinuousUndo(app);
-
-        // Material Slots
-        if (mr.MaterialSlots.Count > 0)
-        {
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text("Material Slots");
-            ImGui.Spacing();
-
-            bool slotsChanged = false;
-            for (int i = 0; i < mr.MaterialSlots.Count; i++)
-            {
-                var slot = mr.MaterialSlots[i];
-                ImGui.PushID(i);
-
-                if (ImGui.TreeNode($"Slot {i}"))
-                {
-                    var matType = slot.MaterialType;
-                    if (ComboEnumHelper<MaterialType>.Combo("Type", ref matType))
-                    {
-                        app.RecordUndo();
-                        slot.MaterialType = matType;
-                        slotsChanged = true;
-                        app.RefreshUndoBaseline();
-                    }
-
-                    if (slot.MaterialType is MaterialType.Textured or MaterialType.TriplanarTexture)
-                    {
-                        DrawAssetReference("Texture", slot.TexturePath, AssetType.Texture, v =>
-                        {
-                            slot.TexturePath = v;
-                            slotsChanged = true;
-                        });
-                    }
-
-                    if (slot.MaterialType == MaterialType.TriplanarTexture)
-                    {
-                        float scale = slot.TriplanarScale;
-                        if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
-                        {
-                            slot.TriplanarScale = scale;
-                            slotsChanged = true;
-                        }
-                        TrackContinuousUndo(app);
-
-                        float sharpness = slot.TriplanarBlendSharpness;
-                        if (ImGui.DragFloat("Blend Sharpness", ref sharpness, 0.05f, 0.01f, 64f))
-                        {
-                            slot.TriplanarBlendSharpness = sharpness;
-                            slotsChanged = true;
-                        }
-                        TrackContinuousUndo(app);
-
-                        bool useWorldSpace = slot.TriplanarUseWorldSpace;
-                        if (ImGui.Checkbox("Use World Space", ref useWorldSpace))
-                        {
-                            app.RecordUndo();
-                            slot.TriplanarUseWorldSpace = useWorldSpace;
-                            slotsChanged = true;
-                            app.RefreshUndoBaseline();
-                        }
-                    }
-
-                    ImGui.TreePop();
-                }
-
-                ImGui.PopID();
-            }
-
-            if (slotsChanged)
-                mr.RefreshMaterials();
-        }
-    }
-
-    private static void DrawPrimitive(Component c)
-    {
-        var prim = (PrimitiveComponent)c;
-        var app = EditorApplication.Instance;
-
-        var matType = prim.MaterialType;
-        if (ComboEnumHelper<MaterialType>.Combo("Material Type", ref matType))
-        {
-            app.RecordUndo();
-            prim.MaterialType = matType;
-            app.RefreshUndoBaseline();
-        }
-
-        var tint = ColorToVec4(prim.Tint);
-        if (ImGui.ColorEdit4("Tint", ref tint))
-            prim.Tint = Vec4ToColor(tint);
-        TrackContinuousUndo(app);
-
-        if (prim.MaterialType is MaterialType.Textured or MaterialType.TriplanarTexture)
-        {
-            DrawAssetReference("Texture Path", prim.TexturePath, AssetType.Texture, v => prim.TexturePath = v);
-        }
-
-        if (prim.MaterialType == MaterialType.TriplanarTexture)
-        {
-            float scale = prim.TriplanarScale;
-            if (ImGui.DragFloat("Triplanar Scale", ref scale, 0.05f, 0.01f, 512f))
-                prim.TriplanarScale = scale;
-            TrackContinuousUndo(app);
-
-            float sharpness = prim.TriplanarBlendSharpness;
-            if (ImGui.DragFloat("Blend Sharpness", ref sharpness, 0.05f, 0.01f, 64f))
-                prim.TriplanarBlendSharpness = sharpness;
-            TrackContinuousUndo(app);
-
-            bool useWorldSpace = prim.TriplanarUseWorldSpace;
-            if (ImGui.Checkbox("Use World Space", ref useWorldSpace))
-            {
-                app.RecordUndo();
-                prim.TriplanarUseWorldSpace = useWorldSpace;
-                app.RefreshUndoBaseline();
-            }
-        }
-
-        ImGui.Separator();
-        ImGui.Text("Shape Properties");
-        ImGui.Spacing();
-
-        DrawSubclassProperties(c);
-    }
-
-    private static void DrawSubclassProperties(Component component)
-    {
-        string? lastSection = null;
-        string? lastHeader = null;
-        var type = component.GetType();
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-        {
-            if (!prop.CanRead || !prop.CanWrite) continue;
-            ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
-            DrawProperty(component, prop);
-        }
-    }
 
     public static void DrawReflection(Component component)
     {
+        SyncInspectorCachesForScene();
+
         string? lastSection = null;
         string? lastHeader = null;
         var type = component.GetType();
@@ -317,7 +134,9 @@ public static class ComponentDrawerRegistry
             DrawProperty(component, prop);
         }
 
-        DrawReflectionExtensions(component);
+        DrawInspectorMessages(component);
+        DrawInspectorButtons(component);
+        DrawTransientMessages(component);
     }
 
     private static void ApplyLayoutAttributes(PropertyInfo prop, ref string? lastSection, ref string? lastHeader)
@@ -371,6 +190,7 @@ public static class ComponentDrawerRegistry
         var label = GetInspectorLabel(prop);
         var app = EditorApplication.Instance;
         var isReadOnly = !prop.CanWrite || prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+        void NotifyPropertyChanged() => InvokeOnChangedCallbacks(component, prop);
 
         if (isReadOnly)
         {
@@ -390,7 +210,10 @@ public static class ComponentDrawerRegistry
             DrawPropertyWithTooltip(prop, () =>
             {
                 if (ImGui.DragFloat(label, ref val, speed, min, max))
+                {
                     prop.SetValue(component, val);
+                    NotifyPropertyChanged();
+                }
                 TrackContinuousUndo(app);
             });
         }
@@ -403,14 +226,21 @@ public static class ComponentDrawerRegistry
             DrawPropertyWithTooltip(prop, () =>
             {
                 if (ImGui.DragInt(label, ref val, speed, min, max))
+                {
                     prop.SetValue(component, val);
+                    NotifyPropertyChanged();
+                }
                 TrackContinuousUndo(app);
             });
         }
         else if (propType == typeof(bool))
         {
             DrawPropertyWithTooltip(prop, () =>
-                DrawCheckbox(label, (bool)prop.GetValue(component)!, v => prop.SetValue(component, v)));
+                DrawCheckbox(label, (bool)prop.GetValue(component)!, v =>
+                {
+                    prop.SetValue(component, v);
+                    NotifyPropertyChanged();
+                }));
         }
         else if (propType == typeof(string))
         {
@@ -418,17 +248,38 @@ public static class ComponentDrawerRegistry
             DrawPropertyWithTooltip(prop, () =>
             {
                 if (ImGui.InputText(label, ref val, 256))
+                {
                     prop.SetValue(component, val);
+                    NotifyPropertyChanged();
+                }
                 TrackContinuousUndo(app);
             });
         }
         else if (propType == typeof(Vector3))
         {
             var val = (Vector3)prop.GetValue(component)!;
+            var styleAttr = prop.GetCustomAttribute<InspectorVector3StyleAttribute>();
+            var reset = styleAttr != null
+                ? new Vector3(styleAttr.ResetX, styleAttr.ResetY, styleAttr.ResetZ)
+                : Vector3.Zero;
+            bool useColoredVector =
+                styleAttr == null
+                || styleAttr.Style == InspectorVector3Style.ColoredAxisReset;
+
             DrawPropertyWithTooltip(prop, () =>
             {
-                if (DrawColoredVector3(label, ref val, 0.1f))
+                bool changed = useColoredVector
+                    ? DrawColoredVector3(label, ref val, 0.1f, reset)
+                    : ImGui.DragFloat3(label, ref val, 0.1f);
+
+                if (changed)
+                {
                     prop.SetValue(component, val);
+                    NotifyPropertyChanged();
+                }
+
+                if (!useColoredVector)
+                    TrackContinuousUndo(app);
             });
         }
         else if (propType == typeof(Vector2))
@@ -437,7 +288,10 @@ public static class ComponentDrawerRegistry
             DrawPropertyWithTooltip(prop, () =>
             {
                 if (ImGui.DragFloat2(label, ref val, 0.1f))
+                {
                     prop.SetValue(component, val);
+                    NotifyPropertyChanged();
+                }
                 TrackContinuousUndo(app);
             });
         }
@@ -447,14 +301,21 @@ public static class ComponentDrawerRegistry
             var euler = Core.FrinkyMath.QuaternionToEuler(q);
             DrawPropertyWithTooltip(prop, () =>
             {
-                if (DrawColoredVector3(label, ref euler, 0.5f))
+                if (DrawColoredVector3(label, ref euler, 0.5f, Vector3.Zero))
+                {
                     prop.SetValue(component, Core.FrinkyMath.EulerToQuaternion(euler));
+                    NotifyPropertyChanged();
+                }
             });
         }
         else if (propType == typeof(Color))
         {
             DrawPropertyWithTooltip(prop, () =>
-                DrawColorEdit4(label, (Color)prop.GetValue(component)!, v => prop.SetValue(component, v)));
+                DrawColorEdit4(label, (Color)prop.GetValue(component)!, v =>
+                {
+                    prop.SetValue(component, v);
+                    NotifyPropertyChanged();
+                }));
         }
         else if (propType.IsEnum)
         {
@@ -469,12 +330,14 @@ public static class ComponentDrawerRegistry
                     app.RecordUndo();
                     prop.SetValue(component, currentValue);
                     app.RefreshUndoBaseline();
+                    NotifyPropertyChanged();
                 }
             });
         }
         else if (propType == typeof(EntityReference))
         {
-            DrawEntityReference(label, component, prop);
+            if (DrawEntityReference(label, component, prop))
+                NotifyPropertyChanged();
         }
         else if (propType == typeof(AssetReference))
         {
@@ -484,22 +347,28 @@ public static class ComponentDrawerRegistry
             DrawAssetReference(label, assetRef, assetFilter, v =>
             {
                 prop.SetValue(component, v);
+                NotifyPropertyChanged();
             });
         }
-        else if (propType == typeof(AudioAttenuationSettings))
+        else if (propType == typeof(AudioAttenuationSettings) && component is AudioSourceComponent audioSource)
         {
-            if (component is AudioSourceComponent source)
-                DrawAudioSourceAttenuation(source, prop);
-            else
-                ImGui.LabelText(label, propType.Name);
+            DrawAudioAttenuationSettings(audioSource, prop, NotifyPropertyChanged);
         }
         else if (typeof(FObject).IsAssignableFrom(propType))
         {
-            DrawFObjectProperty(label, component, prop, propType);
+            DrawFObjectProperty(label, component, prop, propType, NotifyPropertyChanged);
         }
         else if (IsFObjectListType(propType, out var fobjectElementType))
         {
-            DrawFObjectListProperty(label, component, prop, fobjectElementType!);
+            DrawFObjectListProperty(label, component, prop, fobjectElementType!, NotifyPropertyChanged);
+        }
+        else if (IsListType(propType, out var listElementType))
+        {
+            DrawInlineListProperty(label, component, prop, listElementType!, NotifyPropertyChanged);
+        }
+        else if (IsInlineObjectType(propType))
+        {
+            DrawInlineObjectProperty(label, component, prop, propType, NotifyPropertyChanged);
         }
         else
         {
@@ -516,7 +385,7 @@ public static class ComponentDrawerRegistry
             ImGui.Unindent(indentAttr.Levels * 16f);
     }
 
-    private static void DrawAudioSourceAttenuation(AudioSourceComponent source, PropertyInfo prop)
+    private static void DrawAudioAttenuationSettings(AudioSourceComponent source, PropertyInfo prop, Action notifyPropertyChanged)
     {
         var app = EditorApplication.Instance;
         var attenuation = source.Attenuation;
@@ -540,11 +409,11 @@ public static class ComponentDrawerRegistry
             }
             TrackContinuousUndo(app);
 
-            var rolloff = attenuation.Rolloff;
-            if (ComboEnumHelper<AudioRolloffMode>.Combo("Rolloff", ref rolloff))
+            object rolloffValue = attenuation.Rolloff;
+            if (ComboEnumHelper.Combo("Rolloff", typeof(AudioRolloffMode), ref rolloffValue))
             {
                 app.RecordUndo();
-                attenuation.Rolloff = rolloff;
+                attenuation.Rolloff = (AudioRolloffMode)rolloffValue;
                 changed = true;
                 app.RefreshUndoBaseline();
             }
@@ -568,49 +437,50 @@ public static class ComponentDrawerRegistry
             TrackContinuousUndo(app);
         }
 
-        if (changed)
-            prop.SetValue(source, attenuation);
+        if (!changed)
+            return;
+
+        prop.SetValue(source, attenuation);
+        notifyPropertyChanged();
     }
 
     private static bool IsInspectableProperty(PropertyInfo prop)
     {
+        return InspectorReflectionHelpers.IsInspectableComponentProperty(prop);
+    }
+
+    private static bool IsInspectableObjectProperty(PropertyInfo prop)
+    {
         if (!prop.CanRead)
             return false;
-        if (prop.Name is "Entity" or "HasStarted" or "Enabled" or "RenderModel")
+        if (prop.GetCustomAttribute<InspectorHiddenAttribute>() != null)
             return false;
         if (prop.CanWrite)
             return true;
         return prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
     }
 
-    private static bool IsPropertyVisible(Component component, PropertyInfo prop)
+    private static bool IsPropertyVisible(object owner, PropertyInfo prop)
     {
         foreach (var visibleIf in prop.GetCustomAttributes<InspectorVisibleIfAttribute>())
         {
-            var condition = component.GetType().GetProperty(visibleIf.PropertyName, BindingFlags.Public | BindingFlags.Instance);
-            if (condition == null || !condition.CanRead || condition.PropertyType != typeof(bool))
+            if (!InspectorReflectionHelpers.TryEvaluateBoolMember(owner, visibleIf.PropertyName, out var current))
                 return false;
-
-            var current = (bool?)condition.GetValue(component) ?? false;
             if (current != visibleIf.ExpectedValue)
                 return false;
         }
 
         foreach (var visibleIfEnum in prop.GetCustomAttributes<InspectorVisibleIfEnumAttribute>())
         {
-            var condition = component.GetType().GetProperty(visibleIfEnum.PropertyName, BindingFlags.Public | BindingFlags.Instance);
-            if (condition == null || !condition.CanRead || !condition.PropertyType.IsEnum)
+            if (!InspectorReflectionHelpers.TryEvaluateEnumMember(owner, visibleIfEnum.PropertyName, out var enumValue))
                 return false;
-
-            var value = condition.GetValue(component);
-            if (value is not Enum enumValue)
-                return false;
-            if (!string.Equals(enumValue.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
+            if (!string.Equals(enumValue?.ToString(), visibleIfEnum.ExpectedMemberName, StringComparison.Ordinal))
                 return false;
         }
 
         return true;
     }
+
 
     private static string GetInspectorLabel(PropertyInfo prop)
     {
@@ -620,9 +490,9 @@ public static class ComponentDrawerRegistry
         return NiceLabel(prop.Name);
     }
 
-    private static void DrawReadOnlyValue(Component component, PropertyInfo prop, string label)
+    private static void DrawReadOnlyValue(object owner, PropertyInfo prop, string label)
     {
-        var value = prop.GetValue(component);
+        var value = prop.GetValue(owner);
         switch (value)
         {
             case null:
@@ -653,99 +523,241 @@ public static class ComponentDrawerRegistry
         }
     }
 
-    private static void DrawReflectionExtensions(Component component)
+    private static void DrawInspectorMessages(Component component)
     {
-        DrawReflectionWarnings(component);
-        if (component is AudioSourceComponent source)
-            DrawAudioSourceRuntimeControls(source);
+        var type = component.GetType();
+        var messages = type
+            .GetCustomAttributes<InspectorMessageIfAttribute>(inherit: true)
+            .OrderBy(attribute => attribute.Order)
+            .ToList();
+
+        if (messages.Count == 0)
+            return;
+
+        foreach (var messageAttr in messages)
+        {
+            if (!IsModeVisible(messageAttr.Mode))
+                continue;
+            if (!InspectorReflectionHelpers.TryEvaluateBoolMember(component, messageAttr.ConditionMember, out var show) || !show)
+                continue;
+
+            ImGui.Spacing();
+            DrawMessage(messageAttr.Message, messageAttr.Severity);
+        }
     }
 
-    private static void DrawAudioSourceRuntimeControls(AudioSourceComponent source)
+    private static void DrawInspectorButtons(Component component)
+    {
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+        var methods = component
+            .GetType()
+            .GetMethods(flags)
+            .Select(method => new
+            {
+                Method = method,
+                Attribute = method.GetCustomAttribute<InspectorButtonAttribute>(inherit: true)
+            })
+            .Where(item => item.Attribute != null)
+            .Select(item => new InspectorButtonEntry(item.Method, item.Attribute!))
+            .Where(entry => entry.Method.GetParameters().Length == 0)
+            .Where(entry => entry.Method.ReturnType == typeof(void) || entry.Method.ReturnType == typeof(bool))
+            .Where(entry => IsModeVisible(entry.Attribute.Mode))
+            .OrderBy(entry => entry.Attribute.Order)
+            .ThenBy(entry => entry.Method.MetadataToken)
+            .ToList();
+
+        if (methods.Count == 0)
+            return;
+
+        ImGui.Spacing();
+        string? lastSection = null;
+        foreach (var entry in methods)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.Attribute.Section)
+                && !string.Equals(lastSection, entry.Attribute.Section, StringComparison.Ordinal))
+            {
+                DrawSection(entry.Attribute.Section!);
+                lastSection = entry.Attribute.Section;
+            }
+
+            bool disable = false;
+            if (!string.IsNullOrWhiteSpace(entry.Attribute.DisableWhen))
+            {
+                if (InspectorReflectionHelpers.TryEvaluateBoolMember(component, entry.Attribute.DisableWhen!, out var disableState))
+                    disable = disableState;
+            }
+
+            ImGui.BeginDisabled(disable);
+            bool clicked = ImGui.Button(entry.Attribute.Label);
+            ImGui.EndDisabled();
+            if (!clicked)
+                continue;
+
+            bool shouldTrackUndo = EditorApplication.Instance.CanEditScene;
+            if (shouldTrackUndo)
+                EditorApplication.Instance.RecordUndo();
+
+            try
+            {
+                object? result = entry.Method.Invoke(component, null);
+
+                if (entry.Method.ReturnType == typeof(bool) && result is bool ok && !ok)
+                    EnqueueTransientMessage(component, $"'{entry.Attribute.Label}' returned false.", InspectorMessageSeverity.Info);
+            }
+            catch (Exception ex)
+            {
+                FrinkyLog.Error($"InspectorButton '{entry.Attribute.Label}' failed on {component.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
+            }
+            finally
+            {
+                if (shouldTrackUndo)
+                    EditorApplication.Instance.RefreshUndoBaseline();
+            }
+        }
+    }
+
+    public static void InvokeOnChangedCallbacks(Component component, PropertyInfo prop)
+    {
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+        foreach (var callback in prop.GetCustomAttributes<InspectorOnChangedAttribute>(inherit: true))
+        {
+            var callbackKey = $"{component.GetType().FullName}:{prop.Name}:{callback.MethodName}";
+            var method = component.GetType().GetMethod(callback.MethodName, flags, binder: null, types: Type.EmptyTypes, modifiers: null);
+            if (method == null)
+            {
+                if (_loggedOnChangedIssues.Add($"{callbackKey}:missing"))
+                    FrinkyLog.Warning($"InspectorOnChanged method '{callback.MethodName}' was not found on {component.GetType().Name} for property '{prop.Name}'.");
+                continue;
+            }
+
+            if (method.ReturnType != typeof(void))
+            {
+                if (_loggedOnChangedIssues.Add($"{callbackKey}:return"))
+                    FrinkyLog.Warning($"InspectorOnChanged method '{callback.MethodName}' on {component.GetType().Name} must return void.");
+                continue;
+            }
+
+            try
+            {
+                method.Invoke(component, null);
+            }
+            catch (Exception ex)
+            {
+                FrinkyLog.Error($"InspectorOnChanged callback '{callback.MethodName}' failed on {component.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
+
+    private static bool IsModeVisible(InspectorUiMode mode)
     {
         var app = EditorApplication.Instance;
-        ImGui.Separator();
-
-        if (app.IsInRuntimeMode)
+        return mode switch
         {
-            if (ImGui.Button("Play##AudioSource"))
-                source.Play();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Pause##AudioSource"))
-                source.Pause();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Resume##AudioSource"))
-                source.Resume();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Stop##AudioSource"))
-                source.Stop();
-        }
-        else
-        {
-            ImGui.TextDisabled("Runtime controls available in Play/Simulate.");
-        }
+            InspectorUiMode.Always => true,
+            InspectorUiMode.EditorOnly => app.CanEditScene,
+            InspectorUiMode.RuntimeOnly => app.IsInRuntimeMode,
+            _ => true
+        };
     }
 
-    private static void DrawReflectionWarnings(Component component)
+    private static void DrawMessage(string message, InspectorMessageSeverity severity)
     {
-        switch (component)
+        switch (severity)
         {
-            case RigidbodyComponent rb:
-                bool hasCollider = rb.Entity.Components.Any(c => c is ColliderComponent collider && collider.Enabled);
-                if (!hasCollider)
-                {
-                    ImGui.Spacing();
-                    DrawWarning("Rigidbody is ignored until an enabled collider component is added.");
-                }
-
-                if (rb.Entity.Transform.Parent != null)
-                    DrawWarning("Parented rigidbodies are not simulated.");
+            case InspectorMessageSeverity.Info:
+                ImGui.TextDisabled(message);
                 break;
 
-            case CharacterControllerComponent controller:
-                var entity = controller.Entity;
-                var rigidbody = entity.GetComponent<RigidbodyComponent>();
-                var capsule = entity.GetComponent<CapsuleColliderComponent>();
-
-                if (rigidbody == null || !rigidbody.Enabled)
-                    DrawWarning("Character controller requires an enabled RigidbodyComponent.");
-                else if (rigidbody.MotionType != BodyMotionType.Dynamic)
-                    DrawWarning("Character controller requires Rigidbody Motion Type = Dynamic.");
-
-                if (capsule == null || !capsule.Enabled)
-                {
-                    DrawWarning("Character controller requires an enabled CapsuleColliderComponent.");
-                }
-                else
-                {
-                    var primaryCollider = entity.Components
-                        .OfType<ColliderComponent>()
-                        .FirstOrDefault(col => col.Enabled);
-                    if (!ReferenceEquals(primaryCollider, capsule))
-                        DrawWarning("The capsule must be the first enabled collider on the entity.");
-                }
-
-                if (entity.Transform.Parent != null)
-                    DrawWarning("Parented character controllers are not simulated.");
+            case InspectorMessageSeverity.Warning:
+                DrawWarning(message);
                 break;
 
-            case ColliderComponent collider:
-                int colliderCount = collider.Entity.Components.Count(c => c is ColliderComponent enabledCollider && enabledCollider.Enabled);
-                if (colliderCount > 1)
-                    DrawWarning("Multiple enabled colliders are present. Only the first enabled collider is used.");
+            case InspectorMessageSeverity.Error:
+                ImGui.PushStyleColor(ImGuiCol.Text, ErrorColor);
+                ImGui.TextWrapped(message);
+                ImGui.PopStyleColor();
                 break;
         }
     }
+
+    private static void EnqueueTransientMessage(Component component, string message, InspectorMessageSeverity severity)
+    {
+        var key = GetComponentKey(component);
+        if (!_transientMessagesByComponentKey.TryGetValue(key, out var list))
+        {
+            list = new List<TransientInspectorMessage>();
+            _transientMessagesByComponentKey[key] = list;
+        }
+
+        list.Add(new TransientInspectorMessage(message, severity, ImGui.GetTime() + 2.0));
+    }
+
+    private static void DrawTransientMessages(Component component)
+    {
+        var key = GetComponentKey(component);
+        if (!_transientMessagesByComponentKey.TryGetValue(key, out var list) || list.Count == 0)
+            return;
+
+        double now = ImGui.GetTime();
+        list.RemoveAll(entry => entry.ExpiresAt <= now);
+        if (list.Count == 0)
+            return;
+
+        foreach (var entry in list)
+            DrawMessage(entry.Message, entry.Severity);
+    }
+
+    private static string GetComponentKey(Component component)
+    {
+        var entityId = component.Entity != null ? component.Entity.Id.ToString("N") : "no-entity";
+        return $"{entityId}:{component.GetType().FullName}";
+    }
+
+    private static void SyncInspectorCachesForScene()
+    {
+        var currentScene = EditorApplication.Instance.CurrentScene;
+        if (!ReferenceEquals(currentScene, _lastSceneForInspectorCaches))
+        {
+            _lastSceneForInspectorCaches = currentScene;
+            _transientMessagesByComponentKey.Clear();
+            _loggedOnChangedIssues.Clear();
+            return;
+        }
+
+        PruneExpiredTransientMessages(ImGui.GetTime());
+    }
+
+    private static void PruneExpiredTransientMessages(double now)
+    {
+        if (_transientMessagesByComponentKey.Count == 0)
+            return;
+
+        var keysToRemove = new List<string>();
+        foreach (var (key, entries) in _transientMessagesByComponentKey)
+        {
+            entries.RemoveAll(entry => entry.ExpiresAt <= now);
+            if (entries.Count == 0)
+                keysToRemove.Add(key);
+        }
+
+        foreach (var key in keysToRemove)
+            _transientMessagesByComponentKey.Remove(key);
+    }
+
+    private readonly record struct InspectorButtonEntry(MethodInfo Method, InspectorButtonAttribute Attribute);
+    private readonly record struct TransientInspectorMessage(string Message, InspectorMessageSeverity Severity, double ExpiresAt);
+    private static readonly Dictionary<string, List<TransientInspectorMessage>> _transientMessagesByComponentKey = new();
+    private static readonly HashSet<string> _loggedOnChangedIssues = new();
+    private static Scene? _lastSceneForInspectorCaches;
 
     private static readonly Dictionary<string, string> _entityRefFilters = new();
 
-    private static unsafe void DrawEntityReference(string label, Component component, PropertyInfo prop)
+    private static unsafe bool DrawEntityReference(string label, Component component, PropertyInfo prop)
     {
         var app = EditorApplication.Instance;
         var scene = app.CurrentScene;
         var entityRef = (EntityReference)(prop.GetValue(component) ?? EntityReference.None);
+        bool changed = false;
 
         Entity? resolved = null;
         string preview;
@@ -785,6 +797,7 @@ public static class ComponentDrawerRegistry
                 app.RecordUndo();
                 prop.SetValue(component, EntityReference.None);
                 app.RefreshUndoBaseline();
+                changed = true;
             }
 
             if (scene != null)
@@ -800,6 +813,7 @@ public static class ComponentDrawerRegistry
                         app.RecordUndo();
                         prop.SetValue(component, new EntityReference(entity));
                         app.RefreshUndoBaseline();
+                        changed = true;
                     }
                 }
             }
@@ -823,6 +837,7 @@ public static class ComponentDrawerRegistry
                     app.RecordUndo();
                     prop.SetValue(component, new EntityReference(draggedEntity));
                     app.RefreshUndoBaseline();
+                    changed = true;
                 }
             }
             ImGui.EndDragDropTarget();
@@ -834,10 +849,12 @@ public static class ComponentDrawerRegistry
             app.RecordUndo();
             prop.SetValue(component, EntityReference.None);
             app.RefreshUndoBaseline();
+            changed = true;
         }
 
         ImGui.Columns(1);
         ImGui.PopID();
+        return changed;
     }
 
     private static readonly Dictionary<string, string> _assetRefFilters = new();
@@ -1061,103 +1078,251 @@ public static class ComponentDrawerRegistry
                && prop.SetMethod?.IsPublic == true;
     }
 
-    private static void DrawObjectProperties(object obj, HashSet<string> excluded)
+    private const int MaxNestedObjectDepth = 16;
+    private static int _nestedObjectDrawDepth;
+
+    private static bool DrawObjectProperties(object obj, HashSet<string> excluded, Action? onChanged = null)
     {
-        var type = obj.GetType();
-        var app = EditorApplication.Instance;
-
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        if (_nestedObjectDrawDepth >= MaxNestedObjectDepth)
         {
-            if (!IsPublicReadWriteProperty(prop)) continue;
-            if (excluded.Contains(prop.Name)) continue;
+            DrawWarning($"Maximum inspector nesting depth ({MaxNestedObjectDepth}) reached. Recursive object graph truncated.");
+            return false;
+        }
 
-            var propType = prop.PropertyType;
-            var label = NiceLabel(prop.Name);
+        _nestedObjectDrawDepth++;
+        try
+        {
+            bool anyChanged = false;
+            var app = EditorApplication.Instance;
+            string? lastSection = null;
+            string? lastHeader = null;
 
-            if (propType == typeof(float))
+            foreach (var prop in obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                float val = (float)prop.GetValue(obj)!;
-                if (ImGui.DragFloat(label, ref val, 0.05f))
-                    prop.SetValue(obj, val);
-                TrackContinuousUndo(app);
-            }
-            else if (propType == typeof(int))
-            {
-                int val = (int)prop.GetValue(obj)!;
-                if (ImGui.DragInt(label, ref val))
-                    prop.SetValue(obj, val);
-                TrackContinuousUndo(app);
-            }
-            else if (propType == typeof(bool))
-            {
-                bool val = (bool)prop.GetValue(obj)!;
-                if (ImGui.Checkbox(label, ref val))
+                if (!IsInspectableObjectProperty(prop))
+                    continue;
+                if (excluded.Contains(prop.Name))
+                    continue;
+                if (!IsPropertyVisible(obj, prop))
+                    continue;
+
+                var propType = prop.PropertyType;
+                var label = GetInspectorLabel(prop);
+                bool isReadOnly = !prop.CanWrite || prop.GetCustomAttribute<InspectorReadOnlyAttribute>() != null;
+
+                ApplyLayoutAttributes(prop, ref lastSection, ref lastHeader);
+
+                if (isReadOnly)
                 {
-                    app.RecordUndo();
-                    prop.SetValue(obj, val);
-                    app.RefreshUndoBaseline();
+                    DrawReadOnlyValue(obj, prop, label);
+                    EndLayoutAttributes(prop);
+                    continue;
                 }
-            }
-            else if (propType == typeof(string))
-            {
-                string val = (string)(prop.GetValue(obj) ?? "");
-                if (ImGui.InputText(label, ref val, 256))
-                    prop.SetValue(obj, val);
-                TrackContinuousUndo(app);
-            }
-            else if (propType == typeof(Vector3))
-            {
-                var val = (Vector3)prop.GetValue(obj)!;
-                if (DrawColoredVector3(label, ref val, 0.1f))
-                    prop.SetValue(obj, val);
-            }
-            else if (propType == typeof(Vector2))
-            {
-                var val = (Vector2)prop.GetValue(obj)!;
-                if (ImGui.DragFloat2(label, ref val, 0.1f))
-                    prop.SetValue(obj, val);
-                TrackContinuousUndo(app);
-            }
-            else if (propType == typeof(Color))
-            {
-                DrawColorEdit4(label, (Color)prop.GetValue(obj)!, v => prop.SetValue(obj, v));
-            }
-            else if (propType.IsEnum)
-            {
-                object currentValue = prop.GetValue(obj) ?? Enum.GetValues(propType).GetValue(0)!;
-                if (ComboEnumHelper.Combo(label, propType, ref currentValue))
+
+                var rangeAttr = prop.GetCustomAttribute<InspectorRangeAttribute>();
+
+                if (propType == typeof(float))
                 {
-                    app.RecordUndo();
-                    prop.SetValue(obj, currentValue);
-                    app.RefreshUndoBaseline();
+                    float val = (float)prop.GetValue(obj)!;
+                    float speed = rangeAttr?.Speed ?? 0.1f;
+                    float min = rangeAttr?.Min ?? float.MinValue;
+                    float max = rangeAttr?.Max ?? float.MaxValue;
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        if (ImGui.DragFloat(label, ref val, speed, min, max))
+                        {
+                            prop.SetValue(obj, val);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+                    });
                 }
-            }
-            else if (propType == typeof(EntityReference))
-            {
-                DrawFObjectEntityReference(label, obj, prop);
-            }
-            else if (propType == typeof(AssetReference))
-            {
-                var assetRef = (AssetReference)prop.GetValue(obj)!;
-                var filterAttr = prop.GetCustomAttribute<AssetFilterAttribute>();
-                var assetFilter = filterAttr?.Filter ?? AssetType.Unknown;
-                DrawAssetReference(label, assetRef, assetFilter, v =>
+                else if (propType == typeof(int))
                 {
-                    prop.SetValue(obj, v);
-                });
+                    int val = (int)prop.GetValue(obj)!;
+                    float speed = rangeAttr?.Speed ?? 1f;
+                    int min = (int)(rangeAttr?.Min ?? int.MinValue);
+                    int max = (int)(rangeAttr?.Max ?? int.MaxValue);
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        if (ImGui.DragInt(label, ref val, speed, min, max))
+                        {
+                            prop.SetValue(obj, val);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+                    });
+                }
+                else if (propType == typeof(bool))
+                {
+                    DrawPropertyWithTooltip(prop, () =>
+                        DrawCheckbox(label, (bool)prop.GetValue(obj)!, v =>
+                        {
+                            prop.SetValue(obj, v);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }));
+                }
+                else if (propType == typeof(string))
+                {
+                    string val = (string)(prop.GetValue(obj) ?? "");
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        if (ImGui.InputText(label, ref val, 256))
+                        {
+                            prop.SetValue(obj, val);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+                    });
+                }
+                else if (propType == typeof(Vector3))
+                {
+                    var val = (Vector3)prop.GetValue(obj)!;
+                    var styleAttr = prop.GetCustomAttribute<InspectorVector3StyleAttribute>();
+                    var reset = styleAttr != null
+                        ? new Vector3(styleAttr.ResetX, styleAttr.ResetY, styleAttr.ResetZ)
+                        : Vector3.Zero;
+                    bool useColoredVector =
+                        styleAttr == null
+                        || styleAttr.Style == InspectorVector3Style.ColoredAxisReset;
+
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        bool changed = useColoredVector
+                            ? DrawColoredVector3(label, ref val, 0.1f, reset)
+                            : ImGui.DragFloat3(label, ref val, 0.1f);
+
+                        if (changed)
+                        {
+                            prop.SetValue(obj, val);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+
+                        if (!useColoredVector)
+                            TrackContinuousUndo(app);
+                    });
+                }
+                else if (propType == typeof(Vector2))
+                {
+                    var val = (Vector2)prop.GetValue(obj)!;
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        if (ImGui.DragFloat2(label, ref val, 0.1f))
+                        {
+                            prop.SetValue(obj, val);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                        TrackContinuousUndo(app);
+                    });
+                }
+                else if (propType == typeof(Quaternion))
+                {
+                    var q = (Quaternion)prop.GetValue(obj)!;
+                    var euler = Core.FrinkyMath.QuaternionToEuler(q);
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        if (DrawColoredVector3(label, ref euler, 0.5f, Vector3.Zero))
+                        {
+                            prop.SetValue(obj, Core.FrinkyMath.EulerToQuaternion(euler));
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                    });
+                }
+                else if (propType == typeof(Color))
+                {
+                    DrawPropertyWithTooltip(prop, () =>
+                        DrawColorEdit4(label, (Color)prop.GetValue(obj)!, v =>
+                        {
+                            prop.SetValue(obj, v);
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }));
+                }
+                else if (propType.IsEnum)
+                {
+                    object currentValue = prop.GetValue(obj) ?? Enum.GetValues(propType).GetValue(0)!;
+                    DrawPropertyWithTooltip(prop, () =>
+                    {
+                        bool changed = prop.GetCustomAttribute<InspectorSearchableEnumAttribute>() != null
+                            ? DrawSearchableEnumCombo(label, propType, ref currentValue)
+                            : ComboEnumHelper.Combo(label, propType, ref currentValue);
+
+                        if (changed)
+                        {
+                            app.RecordUndo();
+                            prop.SetValue(obj, currentValue);
+                            app.RefreshUndoBaseline();
+                            onChanged?.Invoke();
+                            anyChanged = true;
+                        }
+                    });
+                }
+                else if (propType == typeof(EntityReference))
+                {
+                    if (DrawFObjectEntityReference(label, obj, prop))
+                    {
+                        onChanged?.Invoke();
+                        anyChanged = true;
+                    }
+                }
+                else if (propType == typeof(AssetReference))
+                {
+                    var assetRef = (AssetReference)prop.GetValue(obj)!;
+                    var filterAttr = prop.GetCustomAttribute<AssetFilterAttribute>();
+                    var assetFilter = filterAttr?.Filter ?? AssetType.Unknown;
+                    DrawAssetReference(label, assetRef, assetFilter, v =>
+                    {
+                        prop.SetValue(obj, v);
+                        onChanged?.Invoke();
+                        anyChanged = true;
+                    });
+                }
+                else if (typeof(FObject).IsAssignableFrom(propType))
+                {
+                    DrawInlineFObjectProperty(label, obj, prop, propType, () =>
+                    {
+                        onChanged?.Invoke();
+                        anyChanged = true;
+                    });
+                }
+                else if (IsFObjectListType(propType, out var fobjectElementType))
+                {
+                    DrawInlineFObjectListProperty(label, obj, prop, fobjectElementType!, () =>
+                    {
+                        onChanged?.Invoke();
+                        anyChanged = true;
+                    });
+                }
+                else if (IsListType(propType, out var listElementType))
+                {
+                    if (DrawInlineListProperty(label, obj, prop, listElementType!, onChanged))
+                        anyChanged = true;
+                }
+                else if (IsInlineObjectType(propType))
+                {
+                    if (DrawInlineObjectProperty(label, obj, prop, propType, onChanged))
+                        anyChanged = true;
+                }
+                else
+                {
+                    ImGui.LabelText(label, propType.Name);
+                }
+
+                EndLayoutAttributes(prop);
             }
-            else if (typeof(FObject).IsAssignableFrom(propType))
-            {
-                DrawInlineFObjectProperty(label, obj, prop, propType);
-            }
-            else if (IsFObjectListType(propType, out var elementType))
-            {
-                DrawInlineFObjectListProperty(label, obj, prop, elementType!);
-            }
-            else
-            {
-                ImGui.LabelText(label, propType.Name);
-            }
+
+            return anyChanged;
+        }
+        finally
+        {
+            _nestedObjectDrawDepth--;
         }
     }
 
@@ -1166,11 +1331,12 @@ public static class ComponentDrawerRegistry
         nameof(FObject.DisplayName)
     };
 
-    private static unsafe void DrawFObjectEntityReference(string label, object obj, PropertyInfo prop)
+    private static unsafe bool DrawFObjectEntityReference(string label, object obj, PropertyInfo prop)
     {
         var app = EditorApplication.Instance;
         var scene = app.CurrentScene;
         var entityRef = (EntityReference)(prop.GetValue(obj) ?? EntityReference.None);
+        bool changed = false;
 
         Entity? resolved = null;
         string preview;
@@ -1202,6 +1368,7 @@ public static class ComponentDrawerRegistry
                 app.RecordUndo();
                 prop.SetValue(obj, EntityReference.None);
                 app.RefreshUndoBaseline();
+                changed = true;
             }
 
             if (scene != null)
@@ -1214,6 +1381,7 @@ public static class ComponentDrawerRegistry
                         app.RecordUndo();
                         prop.SetValue(obj, new EntityReference(entity));
                         app.RefreshUndoBaseline();
+                        changed = true;
                     }
                 }
             }
@@ -1232,6 +1400,7 @@ public static class ComponentDrawerRegistry
                     app.RecordUndo();
                     prop.SetValue(obj, new EntityReference(draggedEntity));
                     app.RefreshUndoBaseline();
+                    changed = true;
                 }
             }
             ImGui.EndDragDropTarget();
@@ -1243,10 +1412,12 @@ public static class ComponentDrawerRegistry
             app.RecordUndo();
             prop.SetValue(obj, EntityReference.None);
             app.RefreshUndoBaseline();
+            changed = true;
         }
 
         ImGui.Columns(1);
         ImGui.PopID();
+        return changed;
     }
 
     // ─── FObject helpers ──────────────────────────────────────────────
@@ -1266,7 +1437,22 @@ public static class ComponentDrawerRegistry
         return false;
     }
 
-    private static void DrawFObjectProperty(string label, Component component, PropertyInfo prop, Type propType)
+    private static bool IsListType(Type type, out Type? elementType)
+    {
+        elementType = null;
+        if (!InspectorReflectionHelpers.IsListType(type))
+            return false;
+
+        elementType = type.GetGenericArguments()[0];
+        return true;
+    }
+
+    private static bool IsInlineObjectType(Type type)
+    {
+        return InspectorReflectionHelpers.IsInlineObjectType(type);
+    }
+
+    private static void DrawFObjectProperty(string label, Component component, PropertyInfo prop, Type propType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
         var current = prop.GetValue(component) as FObject;
@@ -1295,6 +1481,7 @@ public static class ComponentDrawerRegistry
                 DisposeIfNeeded(current);
                 prop.SetValue(component, null);
                 app.RefreshUndoBaseline();
+                onChanged?.Invoke();
             }
 
             foreach (var type in candidateTypes)
@@ -1313,6 +1500,7 @@ public static class ComponentDrawerRegistry
                         DisposeIfNeeded(current);
                         prop.SetValue(component, newObj);
                         app.RefreshUndoBaseline();
+                        onChanged?.Invoke();
                     }
                     catch { }
                 }
@@ -1325,7 +1513,7 @@ public static class ComponentDrawerRegistry
         {
             if (current != null)
             {
-                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties));
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties, onChanged));
             }
             ImGui.TreePop();
         }
@@ -1333,7 +1521,7 @@ public static class ComponentDrawerRegistry
         ImGui.PopID();
     }
 
-    private static void DrawFObjectListProperty(string label, Component component, PropertyInfo prop, Type elementType)
+    private static void DrawFObjectListProperty(string label, Component component, PropertyInfo prop, Type elementType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
         var list = prop.GetValue(component) as System.Collections.IList;
@@ -1347,20 +1535,19 @@ public static class ComponentDrawerRegistry
 
         var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
         var listFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
-        if (list.Count == 0) listFlags |= ImGuiTreeNodeFlags.Leaf;
 
         bool listOpen = ImGui.TreeNodeEx(listLabel, listFlags);
 
         if (listOpen)
         {
-            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, prop.Name, elementType, app));
+            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, prop.Name, elementType, app, onChanged));
             ImGui.TreePop();
         }
 
         ImGui.PopID();
     }
 
-    private static void DrawFObjectListContents(System.Collections.IList list, string propName, Type elementType, EditorApplication app)
+    private static void DrawFObjectListContents(System.Collections.IList list, string propName, Type elementType, EditorApplication app, Action? onChanged)
     {
         int? removeIndex = null;
         int? moveUpIndex = null;
@@ -1419,7 +1606,7 @@ public static class ComponentDrawerRegistry
 
             if (open)
             {
-                DrawIndentedWithAccentBar(() => DrawObjectProperties(item, FObjectExcludedProperties));
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(item, FObjectExcludedProperties, onChanged));
                 ImGui.TreePop();
             }
 
@@ -1433,6 +1620,7 @@ public static class ComponentDrawerRegistry
             DisposeIfNeeded(list[removeIndex.Value]);
             list.RemoveAt(removeIndex.Value);
             app.RefreshUndoBaseline();
+            onChanged?.Invoke();
         }
         else if (moveUpIndex.HasValue)
         {
@@ -1440,6 +1628,7 @@ public static class ComponentDrawerRegistry
             int idx = moveUpIndex.Value;
             (list[idx], list[idx - 1]) = (list[idx - 1], list[idx]);
             app.RefreshUndoBaseline();
+            onChanged?.Invoke();
         }
         else if (moveDownIndex.HasValue)
         {
@@ -1447,6 +1636,7 @@ public static class ComponentDrawerRegistry
             int idx = moveDownIndex.Value;
             (list[idx], list[idx + 1]) = (list[idx + 1], list[idx]);
             app.RefreshUndoBaseline();
+            onChanged?.Invoke();
         }
 
         ImGui.Spacing();
@@ -1481,6 +1671,7 @@ public static class ComponentDrawerRegistry
                             app.RecordUndo();
                             list.Add(newObj);
                             app.RefreshUndoBaseline();
+                            onChanged?.Invoke();
                         }
                         catch { }
                     }
@@ -1490,7 +1681,7 @@ public static class ComponentDrawerRegistry
         }
     }
 
-    private static void DrawInlineFObjectProperty(string label, object owner, PropertyInfo prop, Type propType)
+    private static void DrawInlineFObjectProperty(string label, object owner, PropertyInfo prop, Type propType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
         var current = prop.GetValue(owner) as FObject;
@@ -1519,6 +1710,7 @@ public static class ComponentDrawerRegistry
                 DisposeIfNeeded(current);
                 prop.SetValue(owner, null);
                 app.RefreshUndoBaseline();
+                onChanged?.Invoke();
             }
 
             foreach (var type in candidateTypes)
@@ -1537,6 +1729,7 @@ public static class ComponentDrawerRegistry
                         DisposeIfNeeded(current);
                         prop.SetValue(owner, newObj);
                         app.RefreshUndoBaseline();
+                        onChanged?.Invoke();
                     }
                     catch { }
                 }
@@ -1549,7 +1742,7 @@ public static class ComponentDrawerRegistry
         {
             if (current != null)
             {
-                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties));
+                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties, onChanged));
             }
             ImGui.TreePop();
         }
@@ -1557,7 +1750,7 @@ public static class ComponentDrawerRegistry
         ImGui.PopID();
     }
 
-    private static void DrawInlineFObjectListProperty(string label, object owner, PropertyInfo prop, Type elementType)
+    private static void DrawInlineFObjectListProperty(string label, object owner, PropertyInfo prop, Type elementType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
         var list = prop.GetValue(owner) as System.Collections.IList;
@@ -1571,17 +1764,502 @@ public static class ComponentDrawerRegistry
 
         var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
         var listFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
-        if (list.Count == 0) listFlags |= ImGuiTreeNodeFlags.Leaf;
 
         bool listOpen = ImGui.TreeNodeEx(listLabel, listFlags);
 
         if (listOpen)
         {
-            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, $"{prop.Name}_inline", elementType, app));
+            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, $"{prop.Name}_inline", elementType, app, onChanged));
             ImGui.TreePop();
         }
 
         ImGui.PopID();
+    }
+
+    private static readonly HashSet<string> NoExcludedProperties = new();
+
+    private static bool DrawInlineObjectProperty(string label, object owner, PropertyInfo prop, Type propType, Action? onChanged)
+    {
+        bool changed = false;
+        var app = EditorApplication.Instance;
+        var current = prop.GetValue(owner);
+
+        ImGui.PushID(prop.Name);
+
+        if (!propType.IsValueType && current == null)
+        {
+            ImGui.LabelText(label, "(null)");
+            if (TryCreateInlineObject(propType, out var created) && ImGui.Button("Create"))
+            {
+                app.RecordUndo();
+                prop.SetValue(owner, created);
+                app.RefreshUndoBaseline();
+                onChanged?.Invoke();
+                changed = true;
+            }
+
+            ImGui.PopID();
+            return changed;
+        }
+
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        bool open = ImGui.TreeNodeEx(label, flags);
+        if (open)
+        {
+            DrawIndentedWithAccentBar(() =>
+            {
+                if (propType.IsValueType)
+                {
+                    var boxed = current ?? Activator.CreateInstance(propType)!;
+                    if (DrawObjectProperties(boxed, NoExcludedProperties))
+                    {
+                        prop.SetValue(owner, boxed);
+                        onChanged?.Invoke();
+                        changed = true;
+                    }
+                }
+                else if (current != null)
+                {
+                    if (DrawObjectProperties(current, NoExcludedProperties, onChanged))
+                        changed = true;
+                }
+            });
+            ImGui.TreePop();
+        }
+
+        ImGui.PopID();
+        return changed;
+    }
+
+    private static bool DrawInlineListProperty(string label, object owner, PropertyInfo prop, Type elementType, Action? onChanged)
+    {
+        bool changed = false;
+        var app = EditorApplication.Instance;
+        if (prop.GetValue(owner) is not System.Collections.IList list)
+        {
+            ImGui.LabelText(label, "(null)");
+            return false;
+        }
+
+        ImGui.PushID(prop.Name);
+
+        var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+
+        bool open = ImGui.TreeNodeEx(listLabel, flags);
+        if (open)
+        {
+            DrawIndentedWithAccentBar(() =>
+            {
+                int? removeIndex = null;
+                int? moveUpIndex = null;
+                int? moveDownIndex = null;
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    ImGui.PushID(i);
+                    var itemLabel = $"Element {i}";
+                    bool itemOpen = ImGui.TreeNodeEx(
+                        itemLabel,
+                        ImGuiTreeNodeFlags.DefaultOpen
+                        | ImGuiTreeNodeFlags.AllowOverlap
+                        | ImGuiTreeNodeFlags.SpanAvailWidth
+                        | ImGuiTreeNodeFlags.FramePadding);
+
+                    float buttonSize = ImGui.GetFrameHeight();
+                    float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+                    ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+                    var transparent = new Vector4(0, 0, 0, 0);
+                    ImGui.PushStyleColor(ImGuiCol.Button, transparent);
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
+
+                    if (i > 0)
+                    {
+                        if (ImGui.Button("^", new Vector2(buttonSize, buttonSize)))
+                            moveUpIndex = i;
+                    }
+                    else
+                    {
+                        ImGui.BeginDisabled();
+                        ImGui.Button("^", new Vector2(buttonSize, buttonSize));
+                        ImGui.EndDisabled();
+                    }
+
+                    ImGui.SameLine();
+                    if (i < list.Count - 1)
+                    {
+                        if (ImGui.Button("v", new Vector2(buttonSize, buttonSize)))
+                            moveDownIndex = i;
+                    }
+                    else
+                    {
+                        ImGui.BeginDisabled();
+                        ImGui.Button("v", new Vector2(buttonSize, buttonSize));
+                        ImGui.EndDisabled();
+                    }
+
+                    ImGui.SameLine();
+                    ImGui.PopStyleColor();
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+                    ImGui.PopStyleColor(2);
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
+                    if (ImGui.Button("X", new Vector2(buttonSize, buttonSize)))
+                        removeIndex = i;
+                    ImGui.PopStyleColor(4);
+
+                    if (itemOpen)
+                    {
+                        DrawIndentedWithAccentBar(() =>
+                        {
+                            if (DrawListElement(list, i, elementType, onChanged))
+                                changed = true;
+                        });
+                        ImGui.TreePop();
+                    }
+
+                    ImGui.PopID();
+                    ImGui.Spacing();
+                }
+
+                if (removeIndex.HasValue)
+                {
+                    app.RecordUndo();
+                    DisposeIfNeeded(list[removeIndex.Value]);
+                    list.RemoveAt(removeIndex.Value);
+                    app.RefreshUndoBaseline();
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+                else if (moveUpIndex.HasValue)
+                {
+                    app.RecordUndo();
+                    int idx = moveUpIndex.Value;
+                    (list[idx], list[idx - 1]) = (list[idx - 1], list[idx]);
+                    app.RefreshUndoBaseline();
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+                else if (moveDownIndex.HasValue)
+                {
+                    app.RecordUndo();
+                    int idx = moveDownIndex.Value;
+                    (list[idx], list[idx + 1]) = (list[idx + 1], list[idx]);
+                    app.RefreshUndoBaseline();
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+
+                ImGui.Spacing();
+                float availWidth = ImGui.GetContentRegionAvail().X;
+                float buttonWidth = MathF.Min(200f, availWidth);
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidth) * 0.5f);
+                bool canCreate = CanCreateListItem(owner, prop, elementType);
+                ImGui.BeginDisabled(!canCreate);
+                if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidth, 0))
+                    && canCreate
+                    && TryCreateListItem(owner, prop, elementType, out var item))
+                {
+                    app.RecordUndo();
+                    list.Add(item!);
+                    app.RefreshUndoBaseline();
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+                ImGui.EndDisabled();
+            });
+
+            ImGui.TreePop();
+        }
+
+        ImGui.PopID();
+        return changed;
+    }
+
+    private static bool DrawListElement(System.Collections.IList list, int index, Type elementType, Action? onChanged)
+    {
+        bool changed = false;
+        var app = EditorApplication.Instance;
+        var current = list[index];
+
+        if (elementType == typeof(float))
+        {
+            float value = current is float f ? f : 0f;
+            if (ImGui.DragFloat("Value", ref value, 0.1f))
+            {
+                list[index] = value;
+                onChanged?.Invoke();
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+            return changed;
+        }
+
+        if (elementType == typeof(int))
+        {
+            int value = current is int i ? i : 0;
+            if (ImGui.DragInt("Value", ref value, 1f))
+            {
+                list[index] = value;
+                onChanged?.Invoke();
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+            return changed;
+        }
+
+        if (elementType == typeof(bool))
+        {
+            bool value = current is bool b && b;
+            if (ImGui.Checkbox("Value", ref value))
+            {
+                app.RecordUndo();
+                list[index] = value;
+                app.RefreshUndoBaseline();
+                onChanged?.Invoke();
+                changed = true;
+            }
+            return changed;
+        }
+
+        if (elementType == typeof(string))
+        {
+            string value = current as string ?? string.Empty;
+            if (ImGui.InputText("Value", ref value, 256))
+            {
+                list[index] = value;
+                onChanged?.Invoke();
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+            return changed;
+        }
+
+        if (elementType == typeof(Vector2))
+        {
+            var value = current is Vector2 v2 ? v2 : Vector2.Zero;
+            if (ImGui.DragFloat2("Value", ref value, 0.1f))
+            {
+                list[index] = value;
+                onChanged?.Invoke();
+                changed = true;
+            }
+            TrackContinuousUndo(app);
+            return changed;
+        }
+
+        if (elementType == typeof(Vector3))
+        {
+            var value = current is Vector3 v3 ? v3 : Vector3.Zero;
+            if (DrawColoredVector3("Value", ref value, 0.1f, Vector3.Zero))
+            {
+                list[index] = value;
+                onChanged?.Invoke();
+                changed = true;
+            }
+            return changed;
+        }
+
+        if (elementType == typeof(Quaternion))
+        {
+            var value = current is Quaternion q ? q : Quaternion.Identity;
+            var euler = Core.FrinkyMath.QuaternionToEuler(value);
+            if (DrawColoredVector3("Value", ref euler, 0.5f, Vector3.Zero))
+            {
+                list[index] = Core.FrinkyMath.EulerToQuaternion(euler);
+                onChanged?.Invoke();
+                changed = true;
+            }
+            return changed;
+        }
+
+        if (elementType == typeof(Color))
+        {
+            var value = current is Color color ? color : new Color(255, 255, 255, 255);
+            DrawColorEdit4("Value", value, updated =>
+            {
+                list[index] = updated;
+                onChanged?.Invoke();
+                changed = true;
+            });
+            return changed;
+        }
+
+        if (elementType.IsEnum)
+        {
+            object value = current ?? Enum.GetValues(elementType).GetValue(0)!;
+            if (ComboEnumHelper.Combo("Value", elementType, ref value))
+            {
+                app.RecordUndo();
+                list[index] = value;
+                app.RefreshUndoBaseline();
+                onChanged?.Invoke();
+                changed = true;
+            }
+            return changed;
+        }
+
+        if (elementType == typeof(AssetReference))
+        {
+            var assetRef = current is AssetReference reference ? reference : new AssetReference("");
+            DrawAssetReference("Value", assetRef, AssetType.Unknown, updated =>
+            {
+                list[index] = updated;
+                onChanged?.Invoke();
+                changed = true;
+            });
+            return changed;
+        }
+
+        if (elementType == typeof(EntityReference))
+        {
+            var fakeProperty = new ListElementPropertyBridge(list, index);
+            if (DrawFObjectEntityReference("Value", fakeProperty, ListElementPropertyBridge.ValueProperty))
+            {
+                onChanged?.Invoke();
+                changed = true;
+            }
+            return changed;
+        }
+
+        if (IsInlineObjectType(elementType))
+        {
+            if (!elementType.IsValueType && current == null)
+            {
+                ImGui.LabelText("Value", "(null)");
+                if (TryCreateInlineObject(elementType, out var created) && ImGui.Button("Create"))
+                {
+                    app.RecordUndo();
+                    list[index] = created;
+                    app.RefreshUndoBaseline();
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+
+                return changed;
+            }
+
+            if (elementType.IsValueType)
+            {
+                var boxed = current ?? Activator.CreateInstance(elementType)!;
+                if (DrawObjectProperties(boxed, NoExcludedProperties))
+                {
+                    list[index] = boxed;
+                    onChanged?.Invoke();
+                    changed = true;
+                }
+            }
+            else if (current != null && DrawObjectProperties(current, NoExcludedProperties, onChanged))
+            {
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        ImGui.LabelText("Value", elementType.Name);
+        return false;
+    }
+
+    private static bool CanCreateListItem(object owner, PropertyInfo prop, Type elementType)
+    {
+        var listFactory = prop.GetCustomAttribute<InspectorListFactoryAttribute>();
+        if (listFactory != null)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            var method = owner.GetType().GetMethod(listFactory.MethodName, flags, binder: null, types: Type.EmptyTypes, modifiers: null);
+            return method != null && elementType.IsAssignableFrom(method.ReturnType);
+        }
+
+        if (elementType == typeof(string))
+            return true;
+        if (elementType.IsValueType)
+            return true;
+
+        return elementType.GetConstructor(Type.EmptyTypes) != null;
+    }
+
+    private static bool TryCreateListItem(object owner, PropertyInfo prop, Type elementType, out object? value)
+    {
+        value = null;
+        var listFactory = prop.GetCustomAttribute<InspectorListFactoryAttribute>();
+        if (listFactory != null && TryInvokeFactory(owner, listFactory.MethodName, elementType, out value))
+            return true;
+
+        if (elementType == typeof(string))
+        {
+            value = string.Empty;
+            return true;
+        }
+
+        if (elementType.IsValueType)
+        {
+            value = Activator.CreateInstance(elementType);
+            return value != null;
+        }
+
+        var ctor = elementType.GetConstructor(Type.EmptyTypes);
+        if (ctor == null)
+            return false;
+
+        value = Activator.CreateInstance(elementType);
+        return value != null;
+    }
+
+    private static bool TryInvokeFactory(object owner, string methodName, Type elementType, out object? value)
+    {
+        value = null;
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+        var method = owner.GetType().GetMethod(methodName, flags, binder: null, types: Type.EmptyTypes, modifiers: null);
+        if (method == null)
+            return false;
+
+        try
+        {
+            var result = method.Invoke(owner, null);
+            if (result == null || !elementType.IsAssignableFrom(result.GetType()))
+                return false;
+
+            value = result;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Error($"InspectorListFactory '{methodName}' failed on {owner.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool TryCreateInlineObject(Type objectType, out object? value)
+    {
+        value = null;
+        if (objectType.IsValueType)
+        {
+            value = Activator.CreateInstance(objectType);
+            return value != null;
+        }
+
+        var ctor = objectType.GetConstructor(Type.EmptyTypes);
+        if (ctor == null)
+            return false;
+
+        value = Activator.CreateInstance(objectType);
+        return value != null;
+    }
+
+    private sealed class ListElementPropertyBridge(System.Collections.IList list, int index)
+    {
+        public static readonly PropertyInfo ValueProperty = typeof(ListElementPropertyBridge)
+            .GetProperty(nameof(Value), BindingFlags.Public | BindingFlags.Instance)!;
+
+        public EntityReference Value
+        {
+            get => list[index] is EntityReference entityReference ? entityReference : EntityReference.None;
+            set => list[index] = value;
+        }
     }
 
     private static void DisposeIfNeeded(object? value)
@@ -1622,6 +2300,7 @@ public static class ComponentDrawerRegistry
     }
 
     private static readonly Vector4 WarningColor = new(1f, 0.55f, 0.25f, 1f);
+    private static readonly Vector4 ErrorColor = new(1f, 0.3f, 0.3f, 1f);
 
     private static readonly Regex PascalCaseRegex = new(@"(?<=[a-z0-9])([A-Z])|(?<=[A-Z])([A-Z][a-z])", RegexOptions.Compiled);
 

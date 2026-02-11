@@ -24,6 +24,8 @@ public class TransformComponent : Component
     /// <summary>
     /// Position relative to the parent transform (or world origin if no parent).
     /// </summary>
+    [InspectorLabel("Position")]
+    [InspectorVector3Style(InspectorVector3Style.ColoredAxisReset, 0f, 0f, 0f)]
     public Vector3 LocalPosition
     {
         get => _localPosition;
@@ -33,6 +35,7 @@ public class TransformComponent : Component
     /// <summary>
     /// Rotation relative to the parent transform as a quaternion.
     /// </summary>
+    [InspectorHidden]
     public Quaternion LocalRotation
     {
         get => _localRotation;
@@ -46,6 +49,8 @@ public class TransformComponent : Component
     /// <summary>
     /// Scale relative to the parent transform (defaults to <c>(1, 1, 1)</c>).
     /// </summary>
+    [InspectorLabel("Scale")]
+    [InspectorVector3Style(InspectorVector3Style.ColoredAxisReset, 1f, 1f, 1f)]
     public Vector3 LocalScale
     {
         get => _localScale;
@@ -55,6 +60,8 @@ public class TransformComponent : Component
     /// <summary>
     /// Local rotation expressed as Euler angles in degrees (X = pitch, Y = yaw, Z = roll).
     /// </summary>
+    [InspectorLabel("Rotation")]
+    [InspectorVector3Style(InspectorVector3Style.ColoredAxisReset, 0f, 0f, 0f)]
     public Vector3 EulerAngles
     {
         get
@@ -87,6 +94,7 @@ public class TransformComponent : Component
     /// <summary>
     /// The position in world space, computed from the full hierarchy.
     /// </summary>
+    [InspectorHidden]
     public Vector3 WorldPosition
     {
         get
@@ -181,6 +189,7 @@ public class TransformComponent : Component
     /// <summary>
     /// The rotation in world space, combining local rotation with all parent rotations.
     /// </summary>
+    [InspectorHidden]
     public Quaternion WorldRotation
     {
         get

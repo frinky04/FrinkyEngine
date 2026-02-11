@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Linq;
 using FrinkyEngine.Core.ECS;
 
 namespace FrinkyEngine.Core.Components;
@@ -6,6 +7,7 @@ namespace FrinkyEngine.Core.Components;
 /// <summary>
 /// Base component for all physics collider shapes.
 /// </summary>
+[InspectorMessageIf(nameof(ShowMultipleEnabledColliderWarning), "Multiple enabled colliders are present. Only the first enabled collider is used.", Severity = InspectorMessageSeverity.Warning)]
 public abstract class ColliderComponent : Component
 {
     private float _friction = 0.8f;
@@ -89,5 +91,10 @@ public abstract class ColliderComponent : Component
     private void NotifyPhysicsChanged()
     {
         Entity.Scene?.NotifyPhysicsStateChanged();
+    }
+
+    private bool ShowMultipleEnabledColliderWarning()
+    {
+        return Entity.Components.Count(component => component is ColliderComponent collider && collider.Enabled) > 1;
     }
 }

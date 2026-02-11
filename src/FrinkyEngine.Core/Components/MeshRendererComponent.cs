@@ -31,6 +31,7 @@ public class MeshRendererComponent : RenderableComponent
     /// <summary>
     /// Per-material configurations for this model. Slots are auto-created to match the model's material count.
     /// </summary>
+    [InspectorOnChanged(nameof(RefreshMaterials))]
     public List<MaterialSlot> MaterialSlots { get; set; } = new();
 
     internal override void EnsureModelReady()
