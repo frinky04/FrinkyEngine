@@ -832,7 +832,10 @@ public class EditorApplication
 
         km.RegisterAction(EditorAction.DeleteEntity, () =>
         {
-            DeleteSelectedEntities();
+            if (AssetBrowserPanel.IsWindowFocused)
+                AssetBrowserPanel.DeleteSelectedAssets();
+            else
+                DeleteSelectedEntities();
         });
 
         km.RegisterAction(EditorAction.DuplicateEntity, () =>

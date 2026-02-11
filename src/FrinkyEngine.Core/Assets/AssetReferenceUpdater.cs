@@ -108,6 +108,43 @@ public static class AssetReferenceUpdater
         return !path.Contains('/') && !path.Contains('\\');
     }
 
+    /// <summary>
+    /// Scans all <c>.fscene</c> and <c>.fprefab</c> files under the project directory,
+    /// returning the relative paths of files that contain references to the given asset path.
+    /// </summary>
+    public static List<string> FindReferencesOnDisk(string assetsDirectory, string assetPath)
+    {
+        var results = new List<string>();
+        var projectDir = Directory.GetParent(assetsDirectory)?.FullName ?? assetsDirectory;
+        var patterns = new[] { "*.fscene", "*.fprefab" };
+
+        // Build search strings: JSON-quoted full path + bare filename
+        var searchStrings = new List<string>();
+        var normalized = assetPath.Replace('\\', '/');
+        searchStrings.Add($"\"{normalized}\"");
+        var fileName = Path.GetFileName(assetPath);
+        if (!string.Equals(fileName, normalized, StringComparison.Ordinal))
+            searchStrings.Add($"\"{fileName}\"");
+
+        foreach (var pattern in patterns)
+        {
+            foreach (var file in Directory.EnumerateFiles(projectDir, pattern, SearchOption.AllDirectories))
+            {
+                var text = File.ReadAllText(file);
+                foreach (var search in searchStrings)
+                {
+                    if (text.Contains(search, StringComparison.Ordinal))
+                    {
+                        results.Add(Path.GetRelativePath(projectDir, file).Replace('\\', '/'));
+                        break;
+                    }
+                }
+            }
+        }
+
+        return results;
+    }
+
     private static List<(string search, string replace)> BuildReplacementPairs(string oldPath, string newPath)
     {
         var pairs = new List<(string, string)>();

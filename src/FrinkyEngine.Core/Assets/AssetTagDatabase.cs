@@ -213,6 +213,12 @@ public class AssetTagDatabase
         return tags.Any(t => string.Equals(t, tagName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>Removes all tag assignments for a deleted asset.</summary>
+    public void RemoveAssetPath(string relativePath)
+    {
+        _data.AssetTags.Remove(relativePath);
+    }
+
     /// <summary>Updates the key for an asset's tag assignments when the asset is renamed.</summary>
     public void RenameAssetPath(string oldPath, string newPath)
     {
