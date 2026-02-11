@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Numerics;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
+using BepuPhysics.Trees;
 using BepuUtilities.Memory;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -93,6 +95,17 @@ internal sealed class PhysicsSystem : IDisposable
     private readonly HashSet<Guid> _warnedKinematicDiscontinuity = new();
     private readonly CharacterControllerBridge _characterBridge = new();
 
+    // Handle-to-entity reverse mapping
+    private readonly Dictionary<int, Guid> _bodyHandleToEntityId = new();
+    private readonly Dictionary<int, Guid> _staticHandleToEntityId = new();
+
+    // Trigger tracking
+    private readonly HashSet<int> _triggerBodyHandles = new();
+    private readonly HashSet<int> _triggerStaticHandles = new();
+    private readonly ConcurrentBag<(CollidableReference A, CollidableReference B)> _narrowPhaseTriggerPairs = new();
+    private HashSet<(Guid, Guid)> _previousTriggerPairs = new();
+    private HashSet<(Guid, Guid)> _currentTriggerPairs = new();
+
     private Simulation? _simulation;
     private CharacterControllers? _characterControllers;
     private float _accumulator;
@@ -129,7 +142,10 @@ internal sealed class PhysicsSystem : IDisposable
             projSettings.DefaultFriction,
             projSettings.DefaultRestitution,
             _materialTable,
-            _characterControllers);
+            _characterControllers,
+            _triggerBodyHandles,
+            _triggerStaticHandles,
+            _narrowPhaseTriggerPairs);
         var poseCallbacks = new PhysicsPoseIntegratorCallbacks(_scene.PhysicsSettings.Gravity);
         var solveDescription = new SolveDescription(projSettings.SolverVelocityIterations, projSettings.SolverSubsteps);
 
@@ -166,6 +182,7 @@ internal sealed class PhysicsSystem : IDisposable
             ApplyPendingForces(fixedDt);
             ApplyCharacterGoalsForStep(fixedDt, allowJump: steps == 0);
             _simulation.Timestep(fixedDt);
+            AccumulateTriggerPairs();
             ApplyPostStepBodyModifiers(fixedDt);
             SyncDynamicTransformsFromPhysics();
             SyncCharacterRuntimeState();
@@ -175,7 +192,10 @@ internal sealed class PhysicsSystem : IDisposable
         }
 
         if (steps > 0)
+        {
             _characterBridge.ConsumeFrameInput(_characterStates.Values);
+            ProcessTriggerEvents();
+        }
 
         if (steps >= maxSubsteps && _accumulator >= fixedDt)
             _accumulator = 0f;
@@ -742,6 +762,9 @@ internal sealed class PhysicsSystem : IDisposable
                 var description = BodyDescription.CreateDynamic(pose, velocity, dynamicInertia, collidable, activity);
                 bodyHandle = _simulation.Bodies.Add(description);
                 _materialTable.Set(bodyHandle.Value, material);
+                _bodyHandleToEntityId[bodyHandle.Value.Value] = entity.Id;
+                if (collider.IsTrigger)
+                    _triggerBodyHandles.Add(bodyHandle.Value.Value);
                 break;
             }
             case BodyMotionType.Kinematic:
@@ -751,6 +774,9 @@ internal sealed class PhysicsSystem : IDisposable
                 var description = BodyDescription.CreateKinematic(pose, velocity, collidable, activity);
                 bodyHandle = _simulation.Bodies.Add(description);
                 _materialTable.Set(bodyHandle.Value, material);
+                _bodyHandleToEntityId[bodyHandle.Value.Value] = entity.Id;
+                if (collider.IsTrigger)
+                    _triggerBodyHandles.Add(bodyHandle.Value.Value);
                 break;
             }
             case BodyMotionType.Static:
@@ -758,6 +784,9 @@ internal sealed class PhysicsSystem : IDisposable
                 var description = new StaticDescription(pose, shapeResult.ShapeIndex, continuity);
                 staticHandle = _simulation.Statics.Add(description);
                 _materialTable.Set(staticHandle.Value, material);
+                _staticHandleToEntityId[staticHandle.Value.Value] = entity.Id;
+                if (collider.IsTrigger)
+                    _triggerStaticHandles.Add(staticHandle.Value.Value);
                 break;
             }
             default:
@@ -806,6 +835,8 @@ internal sealed class PhysicsSystem : IDisposable
         {
             RemoveCharacterStateByBodyHandle(bodyHandle);
             _materialTable.Remove(bodyHandle);
+            _bodyHandleToEntityId.Remove(bodyHandle.Value);
+            _triggerBodyHandles.Remove(bodyHandle.Value);
             if (_simulation.Bodies.BodyExists(bodyHandle))
                 _simulation.Bodies.Remove(bodyHandle);
         }
@@ -813,6 +844,8 @@ internal sealed class PhysicsSystem : IDisposable
         if (state.StaticHandle is StaticHandle staticHandle)
         {
             _materialTable.Remove(staticHandle);
+            _staticHandleToEntityId.Remove(staticHandle.Value);
+            _triggerStaticHandles.Remove(staticHandle.Value);
             if (_simulation.Statics.StaticExists(staticHandle))
                 _simulation.Statics.Remove(staticHandle);
         }
@@ -1145,6 +1178,7 @@ internal sealed class PhysicsSystem : IDisposable
         hash.Add(collider.SettingsVersion);
         hash.Add((int)rigidbody.MotionType);
         hash.Add(collider.GetType());
+        hash.Add(collider.IsTrigger);
         hash.Add(entity.Transform.LocalScale.X);
         hash.Add(entity.Transform.LocalScale.Y);
         hash.Add(entity.Transform.LocalScale.Z);
@@ -1411,6 +1445,284 @@ internal sealed class PhysicsSystem : IDisposable
             state.SuppressInterpolationForFrame = true;
     }
 
+    // --- Trigger event processing ---
+
+    private Entity? ResolveCollidableToEntity(CollidableReference collidable)
+    {
+        Guid entityId;
+        switch (collidable.Mobility)
+        {
+            case CollidableMobility.Static:
+                if (!_staticHandleToEntityId.TryGetValue(collidable.StaticHandle.Value, out entityId))
+                    return null;
+                break;
+            default:
+                if (!_bodyHandleToEntityId.TryGetValue(collidable.BodyHandle.Value, out entityId))
+                    return null;
+                break;
+        }
+
+        return _scene.FindEntityById(entityId);
+    }
+
+    private static (Guid, Guid) CanonicalPair(Guid a, Guid b)
+    {
+        return a.CompareTo(b) <= 0 ? (a, b) : (b, a);
+    }
+
+    private void AccumulateTriggerPairs()
+    {
+        while (_narrowPhaseTriggerPairs.TryTake(out var pair))
+        {
+            Guid idA, idB;
+
+            switch (pair.A.Mobility)
+            {
+                case CollidableMobility.Static:
+                    if (!_staticHandleToEntityId.TryGetValue(pair.A.StaticHandle.Value, out idA))
+                        continue;
+                    break;
+                default:
+                    if (!_bodyHandleToEntityId.TryGetValue(pair.A.BodyHandle.Value, out idA))
+                        continue;
+                    break;
+            }
+
+            switch (pair.B.Mobility)
+            {
+                case CollidableMobility.Static:
+                    if (!_staticHandleToEntityId.TryGetValue(pair.B.StaticHandle.Value, out idB))
+                        continue;
+                    break;
+                default:
+                    if (!_bodyHandleToEntityId.TryGetValue(pair.B.BodyHandle.Value, out idB))
+                        continue;
+                    break;
+            }
+
+            if (idA == idB)
+                continue;
+
+            _currentTriggerPairs.Add(CanonicalPair(idA, idB));
+        }
+    }
+
+    private void ProcessTriggerEvents()
+    {
+        // Enter: in current but not previous
+        foreach (var pair in _currentTriggerPairs)
+        {
+            if (!_previousTriggerPairs.Contains(pair))
+                DispatchTriggerCallback(pair.Item1, pair.Item2, TriggerEventType.Enter);
+            else
+                DispatchTriggerCallback(pair.Item1, pair.Item2, TriggerEventType.Stay);
+        }
+
+        // Exit: in previous but not current
+        foreach (var pair in _previousTriggerPairs)
+        {
+            if (!_currentTriggerPairs.Contains(pair))
+                DispatchTriggerCallback(pair.Item1, pair.Item2, TriggerEventType.Exit);
+        }
+
+        // Swap buffers
+        (_previousTriggerPairs, _currentTriggerPairs) = (_currentTriggerPairs, _previousTriggerPairs);
+        _currentTriggerPairs.Clear();
+    }
+
+    private enum TriggerEventType { Enter, Stay, Exit }
+
+    private void DispatchTriggerCallback(Guid entityIdA, Guid entityIdB, TriggerEventType eventType)
+    {
+        var entityA = _scene.FindEntityById(entityIdA);
+        var entityB = _scene.FindEntityById(entityIdB);
+        if (entityA == null || entityB == null)
+            return;
+
+        // Snapshot component lists — user scripts may add/remove components during callbacks.
+        foreach (var component in entityA.Components.ToList())
+        {
+            if (!component.Enabled)
+                continue;
+            switch (eventType)
+            {
+                case TriggerEventType.Enter: component.OnTriggerEnter(entityB); break;
+                case TriggerEventType.Stay: component.OnTriggerStay(entityB); break;
+                case TriggerEventType.Exit: component.OnTriggerExit(entityB); break;
+            }
+        }
+
+        foreach (var component in entityB.Components.ToList())
+        {
+            if (!component.Enabled)
+                continue;
+            switch (eventType)
+            {
+                case TriggerEventType.Enter: component.OnTriggerEnter(entityA); break;
+                case TriggerEventType.Stay: component.OnTriggerStay(entityA); break;
+                case TriggerEventType.Exit: component.OnTriggerExit(entityA); break;
+            }
+        }
+    }
+
+    // --- Raycast ---
+
+    private struct ClosestHitHandler : IRayHitHandler
+    {
+        public float ClosestT;
+        public Vector3 ClosestNormal;
+        public CollidableReference ClosestCollidable;
+        public bool HasHit;
+        public bool IncludeTriggers;
+        public HashSet<int> TriggerBodyHandles;
+        public HashSet<int> TriggerStaticHandles;
+
+        public bool AllowTest(CollidableReference collidable)
+        {
+            if (!IncludeTriggers)
+            {
+                if (collidable.Mobility == CollidableMobility.Static)
+                {
+                    if (TriggerStaticHandles.Contains(collidable.StaticHandle.Value))
+                        return false;
+                }
+                else
+                {
+                    if (TriggerBodyHandles.Contains(collidable.BodyHandle.Value))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool AllowTest(CollidableReference collidable, int childIndex) => true;
+
+        public void OnRayHit(in RayData ray, ref float maximumT, float t, in Vector3 normal, CollidableReference collidable, int childIndex)
+        {
+            if (t < ClosestT || !HasHit)
+            {
+                ClosestT = t;
+                ClosestNormal = normal;
+                ClosestCollidable = collidable;
+                HasHit = true;
+                maximumT = t;
+            }
+        }
+    }
+
+    private struct AllHitsHandler : IRayHitHandler
+    {
+        public List<(float T, Vector3 Normal, CollidableReference Collidable)> Hits;
+        public bool IncludeTriggers;
+        public HashSet<int> TriggerBodyHandles;
+        public HashSet<int> TriggerStaticHandles;
+
+        public bool AllowTest(CollidableReference collidable)
+        {
+            if (!IncludeTriggers)
+            {
+                if (collidable.Mobility == CollidableMobility.Static)
+                {
+                    if (TriggerStaticHandles.Contains(collidable.StaticHandle.Value))
+                        return false;
+                }
+                else
+                {
+                    if (TriggerBodyHandles.Contains(collidable.BodyHandle.Value))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool AllowTest(CollidableReference collidable, int childIndex) => true;
+
+        public void OnRayHit(in RayData ray, ref float maximumT, float t, in Vector3 normal, CollidableReference collidable, int childIndex)
+        {
+            Hits.Add((t, normal, collidable));
+        }
+    }
+
+    internal bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out RaycastHit hit, bool includeTriggers = false)
+    {
+        hit = default;
+        if (_simulation == null)
+            return false;
+
+        var dirLength = direction.Length();
+        if (dirLength < 1e-8f)
+            return false;
+
+        var normalizedDir = direction / dirLength;
+        var handler = new ClosestHitHandler
+        {
+            ClosestT = float.MaxValue,
+            HasHit = false,
+            IncludeTriggers = includeTriggers,
+            TriggerBodyHandles = _triggerBodyHandles,
+            TriggerStaticHandles = _triggerStaticHandles,
+        };
+
+        _simulation.RayCast(origin, normalizedDir, maxDistance, ref handler);
+
+        if (!handler.HasHit)
+            return false;
+
+        var entity = ResolveCollidableToEntity(handler.ClosestCollidable);
+        if (entity == null)
+            return false;
+
+        hit = new RaycastHit
+        {
+            Entity = entity,
+            Point = origin + normalizedDir * handler.ClosestT,
+            Normal = handler.ClosestNormal,
+            Distance = handler.ClosestT,
+        };
+        return true;
+    }
+
+    internal List<RaycastHit> RaycastAll(Vector3 origin, Vector3 direction, float maxDistance, bool includeTriggers = false)
+    {
+        var results = new List<RaycastHit>();
+        if (_simulation == null)
+            return results;
+
+        var dirLength = direction.Length();
+        if (dirLength < 1e-8f)
+            return results;
+
+        var normalizedDir = direction / dirLength;
+        var handler = new AllHitsHandler
+        {
+            Hits = new List<(float, Vector3, CollidableReference)>(),
+            IncludeTriggers = includeTriggers,
+            TriggerBodyHandles = _triggerBodyHandles,
+            TriggerStaticHandles = _triggerStaticHandles,
+        };
+
+        _simulation.RayCast(origin, normalizedDir, maxDistance, ref handler);
+
+        foreach (var (t, normal, collidable) in handler.Hits)
+        {
+            var entity = ResolveCollidableToEntity(collidable);
+            if (entity == null)
+                continue;
+
+            results.Add(new RaycastHit
+            {
+                Entity = entity,
+                Point = origin + normalizedDir * t,
+                Normal = normal,
+                Distance = t,
+            });
+        }
+
+        return results;
+    }
+
     private readonly struct ShapeCreationResult
     {
         public required TypedIndex ShapeIndex { get; init; }
@@ -1429,6 +1741,12 @@ internal sealed class PhysicsSystem : IDisposable
         _characterStates.Clear();
         _materialTable.Clear();
         _shapeCache.Clear();
+        _bodyHandleToEntityId.Clear();
+        _staticHandleToEntityId.Clear();
+        _triggerBodyHandles.Clear();
+        _triggerStaticHandles.Clear();
+        _previousTriggerPairs.Clear();
+        _currentTriggerPairs.Clear();
         _warnedNoCollider.Clear();
         _warnedParented.Clear();
         _warnedMultipleColliders.Clear();

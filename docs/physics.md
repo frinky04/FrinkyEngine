@@ -30,6 +30,75 @@ All colliders support:
 - **Center** offset from the entity origin
 - **IsTrigger** mode for overlap detection without physical response
 
+## Triggers
+
+Set `IsTrigger = true` on any collider to make it a trigger volume. Trigger colliders detect overlaps but do not produce a physical response — objects pass through them.
+
+### Trigger Callbacks
+
+Override the trigger callbacks in your component to respond to overlaps:
+
+```csharp
+public class PickupZone : Component
+{
+    public override void OnTriggerEnter(Entity other)
+    {
+        // Called once when another entity first overlaps this trigger
+        FrinkyLog.Info($"{other.Name} entered the zone!");
+    }
+
+    public override void OnTriggerStay(Entity other)
+    {
+        // Called each frame while the overlap persists
+    }
+
+    public override void OnTriggerExit(Entity other)
+    {
+        // Called once when the overlap ends
+        FrinkyLog.Info($"{other.Name} left the zone!");
+    }
+}
+```
+
+Both entities in the overlap receive callbacks. At least one of the two colliders must have `IsTrigger` enabled.
+
+## Raycasting
+
+Cast rays into the physics world to detect colliders:
+
+```csharp
+using FrinkyEngine.Core.Physics;
+
+// Closest hit
+if (Physics.Raycast(origin, direction, 100f, out var hit))
+{
+    FrinkyLog.Info($"Hit {hit.Entity.Name} at {hit.Point}, distance {hit.Distance}");
+    // hit.Normal is the surface normal at the impact point
+}
+
+// All hits
+var hits = Physics.RaycastAll(origin, direction, 100f);
+foreach (var h in hits)
+{
+    FrinkyLog.Info($"Hit {h.Entity.Name} at distance {h.Distance}");
+}
+```
+
+`RaycastHit` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Entity` | `Entity` | The entity whose collider was hit |
+| `Point` | `Vector3` | World-space impact point |
+| `Normal` | `Vector3` | Surface normal at impact |
+| `Distance` | `float` | Distance from ray origin to hit |
+
+Trigger colliders are **skipped** by default. Pass `includeTriggers: true` to include them:
+
+```csharp
+Physics.Raycast(origin, direction, 100f, out var hit, includeTriggers: true);
+```
+
 ## Character Controller
 
 A dynamic character controller backed by BEPU support constraints. Minimum setup on one entity:

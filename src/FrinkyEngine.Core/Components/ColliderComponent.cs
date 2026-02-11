@@ -13,6 +13,7 @@ public abstract class ColliderComponent : Component
     private float _friction = 0.8f;
     private float _restitution = 0.0f;
     private Vector3 _center = Vector3.Zero;
+    private bool _isTrigger;
     private int _settingsVersion;
 
     /// <summary>
@@ -45,6 +46,22 @@ public abstract class ColliderComponent : Component
                 return;
 
             _restitution = clamped;
+            MarkColliderDirty();
+        }
+    }
+
+    /// <summary>
+    /// When <c>true</c>, this collider acts as a trigger volume: overlap events fire but no physical response occurs.
+    /// </summary>
+    public bool IsTrigger
+    {
+        get => _isTrigger;
+        set
+        {
+            if (_isTrigger == value)
+                return;
+
+            _isTrigger = value;
             MarkColliderDirty();
         }
     }

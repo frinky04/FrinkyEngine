@@ -190,6 +190,8 @@ public class Scene : IDisposable
         if (_started)
             return;
 
+        Physics.Physics.CurrentScene = this;
+
         PhysicsSettings.Normalize();
         PhysicsSystem ??= new PhysicsSystem(this);
         PhysicsSystem.Initialize();
@@ -210,6 +212,7 @@ public class Scene : IDisposable
     /// <param name="dt">Time elapsed since the previous frame, in seconds.</param>
     public void Update(float dt)
     {
+        Physics.Physics.CurrentScene = this;
         dt *= TimeScale;
 
         using (FrameProfiler.Scope(ProfileCategory.Game))

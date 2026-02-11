@@ -78,4 +78,22 @@ public abstract class Component
     /// Called when the component transitions from enabled to disabled.
     /// </summary>
     public virtual void OnDisable() { }
+
+    /// <summary>
+    /// Called when a trigger collider on this entity first overlaps another entity.
+    /// </summary>
+    /// <param name="other">The other entity involved in the trigger overlap.</param>
+    public virtual void OnTriggerEnter(Entity other) { }
+
+    /// <summary>
+    /// Called each frame while a trigger collider on this entity continues to overlap another entity.
+    /// </summary>
+    /// <param name="other">The other entity involved in the trigger overlap.</param>
+    public virtual void OnTriggerStay(Entity other) { }
+
+    /// <summary>
+    /// Called when a trigger collider on this entity stops overlapping another entity.
+    /// </summary>
+    /// <param name="other">The other entity involved in the trigger overlap.</param>
+    public virtual void OnTriggerExit(Entity other) { }
 }

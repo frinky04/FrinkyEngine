@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using BepuPhysics;
 using BepuPhysics.Collidables;
@@ -15,6 +16,9 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     public float DefaultRestitution;
     public PhysicsMaterialTable MaterialTable;
     public CharacterControllers? Characters;
+    public HashSet<int>? TriggerBodyHandles;
+    public HashSet<int>? TriggerStaticHandles;
+    public ConcurrentBag<(CollidableReference A, CollidableReference B)>? TriggerPairSink;
 
     public PhysicsNarrowPhaseCallbacks(
         SpringSettings contactSpringiness,
@@ -22,7 +26,10 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         float defaultFriction,
         float defaultRestitution,
         PhysicsMaterialTable materialTable,
-        CharacterControllers? characters)
+        CharacterControllers? characters,
+        HashSet<int>? triggerBodyHandles,
+        HashSet<int>? triggerStaticHandles,
+        ConcurrentBag<(CollidableReference A, CollidableReference B)>? triggerPairSink)
     {
         ContactSpringiness = contactSpringiness;
         MaximumRecoveryVelocity = maximumRecoveryVelocity;
@@ -30,6 +37,9 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         DefaultRestitution = defaultRestitution;
         MaterialTable = materialTable;
         Characters = characters;
+        TriggerBodyHandles = triggerBodyHandles;
+        TriggerStaticHandles = triggerStaticHandles;
+        TriggerPairSink = triggerPairSink;
     }
 
     public void Initialize(Simulation simulation)
@@ -41,8 +51,23 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsTrigger(CollidableReference collidable)
+    {
+        return collidable.Mobility switch
+        {
+            CollidableMobility.Static => TriggerStaticHandles != null && TriggerStaticHandles.Contains(collidable.StaticHandle.Value),
+            _ => TriggerBodyHandles != null && TriggerBodyHandles.Contains(collidable.BodyHandle.Value),
+        };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
     {
+        // Allow contact generation for triggers so we can detect overlaps,
+        // and for the normal dynamic requirement.
+        if (IsTrigger(a) || IsTrigger(b))
+            return true;
+
         return a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic;
     }
 
@@ -59,6 +84,14 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         ref TManifold manifold,
         out PairMaterialProperties pairMaterial) where TManifold : unmanaged, IContactManifold<TManifold>
     {
+        // If either collidable is a trigger, record the pair and suppress physics response.
+        if (IsTrigger(pair.A) || IsTrigger(pair.B))
+        {
+            TriggerPairSink?.Add((pair.A, pair.B));
+            pairMaterial = default;
+            return false;
+        }
+
         var materialA = MaterialTable.Get(pair.A, DefaultFriction, DefaultRestitution);
         var materialB = MaterialTable.Get(pair.B, DefaultFriction, DefaultRestitution);
         var friction = MathF.Sqrt(MathF.Max(0f, materialA.Friction * materialB.Friction));
@@ -87,4 +120,3 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     {
     }
 }
-

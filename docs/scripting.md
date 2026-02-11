@@ -7,6 +7,7 @@ FrinkyEngine uses a composition-based entity model. An `Entity` holds a flat lis
 ```
 Awake → Start → Update / LateUpdate → OnDestroy
                  OnEnable / OnDisable
+                 OnTriggerEnter / OnTriggerStay / OnTriggerExit
 ```
 
 - **Awake** — called once when the component is created
@@ -16,6 +17,9 @@ Awake → Start → Update / LateUpdate → OnDestroy
 - **OnEnable** — called when the component or entity becomes active
 - **OnDisable** — called when the component or entity becomes inactive
 - **OnDestroy** — called when the entity is destroyed
+- **OnTriggerEnter(Entity other)** — called when a trigger overlap begins
+- **OnTriggerStay(Entity other)** — called each frame while a trigger overlap persists
+- **OnTriggerExit(Entity other)** — called when a trigger overlap ends
 
 ## Writing a Custom Component
 
