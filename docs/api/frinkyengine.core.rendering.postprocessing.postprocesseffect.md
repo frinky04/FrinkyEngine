@@ -6,10 +6,11 @@ Abstract base class for all post-processing effects.
  Subclass this to create custom effects — public read/write properties are auto-serialized and drawn in the inspector.
 
 ```csharp
-public abstract class PostProcessEffect
+public abstract class PostProcessEffect : FrinkyEngine.Core.ECS.FObject, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect)<br>
+Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties

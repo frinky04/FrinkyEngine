@@ -7,10 +7,11 @@ Screen-space ambient occlusion (SSAO) effect that darkens creases and corners.
  separable bilateral blur weighted by depth for smooth, edge-preserving results.
 
 ```csharp
-public class AmbientOcclusionEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect
+public class AmbientOcclusionEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [AmbientOcclusionEffect](./frinkyengine.core.rendering.postprocessing.effects.ambientocclusioneffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [AmbientOcclusionEffect](./frinkyengine.core.rendering.postprocessing.effects.ambientocclusioneffect)<br>
+Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties

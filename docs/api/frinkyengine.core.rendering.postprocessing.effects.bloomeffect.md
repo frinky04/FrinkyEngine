@@ -6,10 +6,11 @@ Multi-pass bloom effect: threshold extraction, iterative downsample/upsample, an
  Creates a glow around bright areas of the image.
 
 ```csharp
-public class BloomEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect
+public class BloomEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [BloomEffect](./frinkyengine.core.rendering.postprocessing.effects.bloomeffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [BloomEffect](./frinkyengine.core.rendering.postprocessing.effects.bloomeffect)<br>
+Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties

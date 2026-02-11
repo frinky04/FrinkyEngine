@@ -217,6 +217,32 @@ public bool AssetHasTag(string relativePath, string tagName)
 
 [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
 
+### **RemoveAssetPath(String)**
+
+Removes all tag assignments for a deleted asset.
+
+```csharp
+public void RemoveAssetPath(string relativePath)
+```
+
+#### Parameters
+
+`relativePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+
+### **RenameAssetPath(String, String)**
+
+Updates the key for an asset's tag assignments when the asset is renamed.
+
+```csharp
+public void RenameAssetPath(string oldPath, string newPath)
+```
+
+#### Parameters
+
+`oldPath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+
+`newPath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+
 ### **CleanupStaleEntries(IReadOnlySet&lt;String&gt;)**
 
 Removes tag assignments for assets that no longer exist.

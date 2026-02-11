@@ -16,6 +16,8 @@
 
 [AssetReference](./frinkyengine.core.assets.assetreference)
 
+[AssetReferenceUpdater](./frinkyengine.core.assets.assetreferenceupdater)
+
 [AssetReferenceValidator](./frinkyengine.core.assets.assetreferencevalidator)
 
 [AssetTag](./frinkyengine.core.assets.assettag)
@@ -132,6 +134,8 @@
 
 [EntityReference](./frinkyengine.core.ecs.entityreference)
 
+[FObject](./frinkyengine.core.ecs.fobject)
+
 [InspectorHeaderAttribute](./frinkyengine.core.ecs.inspectorheaderattribute)
 
 [InspectorIndentAttribute](./frinkyengine.core.ecs.inspectorindentattribute)
@@ -240,8 +244,6 @@
 
 [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect)
 
-[PostProcessEffectResolver](./frinkyengine.core.rendering.postprocessing.postprocesseffectresolver)
-
 [PostProcessPipeline](./frinkyengine.core.rendering.postprocessing.postprocesspipeline)
 
 ## FrinkyEngine.Core.Rendering.PostProcessing.Effects
@@ -294,7 +296,9 @@
 
 [EntityReferenceConverter](./frinkyengine.core.serialization.entityreferenceconverter)
 
-[PostProcessEffectListConverter](./frinkyengine.core.serialization.postprocesseffectlistconverter)
+[FObjectConverterFactory](./frinkyengine.core.serialization.fobjectconverterfactory)
+
+[FObjectTypeResolver](./frinkyengine.core.serialization.fobjecttyperesolver)
 
 [PrefabSerializer](./frinkyengine.core.serialization.prefabserializer)
 

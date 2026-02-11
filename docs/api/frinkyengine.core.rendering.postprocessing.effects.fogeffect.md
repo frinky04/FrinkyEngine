@@ -6,10 +6,11 @@ Distance-based fog effect that blends scene color toward a fog color based on de
  Supports linear, exponential, and exponential-squared falloff modes.
 
 ```csharp
-public class FogEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect
+public class FogEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [FogEffect](./frinkyengine.core.rendering.postprocessing.effects.fogeffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [FogEffect](./frinkyengine.core.rendering.postprocessing.effects.fogeffect)<br>
+Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties
