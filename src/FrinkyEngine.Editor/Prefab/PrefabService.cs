@@ -195,6 +195,28 @@ public class PrefabService
         return true;
     }
 
+    /// <summary>
+    /// Unpacks all prefab instances whose asset path matches any of the given deleted paths.
+    /// Caller is responsible for undo recording.
+    /// </summary>
+    public int UnpackByAssetPaths(IReadOnlySet<string> deletedPrefabPaths)
+    {
+        if (_app.CurrentScene == null)
+            return 0;
+
+        var roots = _app.CurrentScene.Entities
+            .Where(e => IsPrefabRoot(e) && deletedPrefabPaths.Contains(NormalizePath(e.Prefab!.AssetPath.Path)))
+            .ToList();
+
+        foreach (var root in roots)
+        {
+            foreach (var entity in EnumerateEntityTree(root))
+                entity.Prefab = null;
+        }
+
+        return roots.Count;
+    }
+
     public void RecalculateOverridesForScene()
     {
         if (_app.CurrentScene == null)

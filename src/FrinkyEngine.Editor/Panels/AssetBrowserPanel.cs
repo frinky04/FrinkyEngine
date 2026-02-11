@@ -650,6 +650,9 @@ public class AssetBrowserPanel
         if (!asset.IsEngineAsset && ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
             BeginRenameAsset(asset.RelativePath);
 
+        if (!asset.IsEngineAsset && ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
+            DeleteSelectedAssets();
+
         // Tags submenu
         var tagDb = _app.TagDatabase;
         if (tagDb != null && ImGui.BeginMenu("Tags"))
@@ -930,6 +933,128 @@ public class AssetBrowserPanel
         _renamingAssetPath = null;
         _renameBuffer = string.Empty;
         _focusRenameInput = false;
+    }
+
+    public void DeleteSelectedAssets()
+    {
+        // Filter out engine assets
+        var toDelete = _selectedAssets
+            .Where(id => !AssetReference.HasEnginePrefix(id))
+            .ToList();
+
+        if (toDelete.Count == 0)
+            return;
+
+        var assetsPath = AssetManager.Instance.AssetsPath;
+        if (string.IsNullOrEmpty(assetsPath))
+            return;
+
+        // Find references on disk
+        var referencingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var assetPath in toDelete)
+        {
+            foreach (var refFile in AssetReferenceUpdater.FindReferencesOnDisk(assetsPath, assetPath))
+                referencingFiles.Add(refFile);
+        }
+
+        var deleteList = toDelete.ToList(); // capture for closure
+
+        string subject = toDelete.Count == 1
+            ? $"Delete '{Path.GetFileName(toDelete[0])}'?"
+            : $"Delete {toDelete.Count} assets?";
+
+        string message;
+        if (referencingFiles.Count > 0)
+        {
+            var bulletList = string.Join("\n", referencingFiles.Order().Select(f => $"  \u2022 {f}"));
+            int shownCount = referencingFiles.Count;
+            const int maxShown = 8;
+            if (shownCount > maxShown)
+            {
+                var shown = referencingFiles.Order().Take(maxShown).Select(f => $"  \u2022 {f}");
+                bulletList = string.Join("\n", shown) + $"\n  ... and {shownCount - maxShown} more";
+            }
+
+            message = $"{subject}\n\nReferenced in:\n{bulletList}\n\nThese files will NOT be updated.";
+        }
+        else
+        {
+            message = toDelete.Count == 1
+                ? $"{subject}\n\nNo references found."
+                : $"{subject}";
+        }
+
+        MessageBoxes.Show(new MessageBox(
+            "Delete Assets",
+            message,
+            MessageBoxType.YesNo,
+            deleteList,
+            (mb, data) =>
+            {
+                if (mb.Result == MessageBoxResult.Yes && data is List<string> paths)
+                    PerformDelete(paths);
+            },
+            null!));
+    }
+
+    private void PerformDelete(List<string> assetPaths)
+    {
+        var assetsPath = AssetManager.Instance.AssetsPath;
+        if (string.IsNullOrEmpty(assetsPath))
+            return;
+
+        int deleted = 0;
+        foreach (var relPath in assetPaths)
+        {
+            var fullPath = Path.Combine(assetsPath, relPath.Replace('/', Path.DirectorySeparatorChar));
+            try
+            {
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    AssetManager.Instance.InvalidateAsset(relPath);
+                    _app.TagDatabase?.RemoveAssetPath(relPath);
+                    _selectedAssets.Remove(relPath);
+                    deleted++;
+                }
+            }
+            catch (Exception ex)
+            {
+                FrinkyLog.Warning($"Failed to delete '{relPath}': {ex.Message}");
+                NotificationManager.Instance.Post($"Failed to delete '{Path.GetFileName(relPath)}'.", NotificationType.Error);
+            }
+        }
+
+        if (deleted > 0)
+        {
+            // Auto-unpack prefab instances whose source asset was just deleted
+            var deletedPrefabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var relPath in assetPaths)
+            {
+                if (relPath.EndsWith(".fprefab", StringComparison.OrdinalIgnoreCase))
+                    deletedPrefabs.Add(relPath.Replace('\\', '/'));
+            }
+
+            if (deletedPrefabs.Count > 0 && _app.CurrentScene != null)
+            {
+                _app.RecordUndo();
+                int unpacked = _app.Prefabs.UnpackByAssetPaths(deletedPrefabs);
+                if (unpacked > 0)
+                {
+                    _app.RefreshUndoBaseline();
+                    FrinkyLog.Info($"Auto-unpacked {unpacked} orphaned prefab instance(s).");
+                }
+            }
+
+            AssetDatabase.Instance.Refresh();
+            _app.SaveTagDatabase();
+
+            var msg = deleted == 1
+                ? $"Deleted: {Path.GetFileName(assetPaths[0])}"
+                : $"Deleted {deleted} assets";
+            NotificationManager.Instance.Post(msg, NotificationType.Success);
+            FrinkyLog.Info($"Deleted {deleted} asset(s).");
+        }
     }
 
     private void CommitAssetRename()
