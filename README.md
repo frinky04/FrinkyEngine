@@ -133,7 +133,7 @@ The template `.csproj` includes a placeholder comment for `FrinkyEngine.Core`. A
 | **Viewport** | 3D scene rendering with transform gizmos (translate, rotate, scale) |
 | **Hierarchy** | Entity tree with drag-and-drop reordering and parenting |
 | **Inspector** | Component editing with attribute-driven reflection and targeted custom drawers for complex UIs |
-| **Assets** | File browser with drag-and-drop for models, prefabs, and scenes |
+| **Assets** | File browser with drag-and-drop, inline rename (F2) with automatic reference updating, and tag management |
 | **Console** | Log stream viewer |
 | **Performance** | Frame time and rendering statistics, including an `Ignore Editor` toggle for runtime-estimate CPU views |
 
@@ -158,7 +158,7 @@ Full engine documentation for game developers is available at [frinky04.github.i
 - [Prefabs & Entity References](https://frinky04.github.io/FrinkyEngine/prefabs)
 - [Exporting & Packaging](https://frinky04.github.io/FrinkyEngine/exporting)
 - [Project Settings](https://frinky04.github.io/FrinkyEngine/project-settings)
-- [API Reference](https://frinky04.github.io/FrinkyEngine/api/) (auto-generated)
+- [API Reference](https://frinky04.github.io/FrinkyEngine/api/index) (auto-generated)
 - [Troubleshooting](https://frinky04.github.io/FrinkyEngine/troubleshooting)
 
 ## Repository Layout

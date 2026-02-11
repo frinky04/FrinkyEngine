@@ -847,6 +847,8 @@ public class EditorApplication
 
             if (HierarchyPanel.IsWindowFocused)
                 HierarchyPanel.BeginRenameSelected();
+            else if (AssetBrowserPanel.IsWindowFocused)
+                AssetBrowserPanel.BeginRenameSelected();
             else if (SelectedEntities.Count == 1)
                 InspectorPanel.FocusNameField = true;
         });

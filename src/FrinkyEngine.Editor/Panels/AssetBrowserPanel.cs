@@ -38,8 +38,16 @@ public class AssetBrowserPanel
     private Vector3 _newTagColor = new(0.3f, 0.6f, 1.0f);
     private bool _openTagManager;
 
+    // Rename state
+    private string? _renamingAssetPath;
+    private string _renameBuffer = string.Empty;
+    private bool _focusRenameInput;
+
     // Cached item list for range selection
     private List<BrowserItem> _lastItems = new();
+
+    private bool _isWindowFocused;
+    public bool IsWindowFocused => _isWindowFocused;
 
     public AssetBrowserPanel(EditorApplication app)
     {
@@ -84,9 +92,13 @@ public class AssetBrowserPanel
             !ImGui.IsAnyItemHovered() &&
             ImGui.IsMouseClicked(ImGuiMouseButton.Left))
         {
+            if (_renamingAssetPath != null)
+                CancelAssetRename();
             _selectedAssets.Clear();
             _selectionAnchor = null;
         }
+
+        _isWindowFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows);
 
         DrawTagManagerModal();
         ImGui.End();
@@ -319,7 +331,26 @@ public class AssetBrowserPanel
 
         var drawList = ImGui.GetWindowDrawList();
         float textY = min.Y + Math.Max(0f, (rowHeight - ImGui.GetTextLineHeight()) * 0.5f);
-        drawList.AddText(new Vector2(min.X + iconSize + 9f, textY), ImGui.GetColorU32(ImGuiCol.Text), item.Label);
+
+        if (string.Equals(_renamingAssetPath, item.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            ImGui.SetCursorScreenPos(new Vector2(min.X + iconSize + 9f, textY));
+            ImGui.SetNextItemWidth(max.X - min.X - iconSize - 14f);
+            if (_focusRenameInput)
+            {
+                ImGui.SetKeyboardFocusHere();
+                _focusRenameInput = false;
+            }
+            bool submitted = ImGui.InputText("##rename", ref _renameBuffer, 256, ImGuiInputTextFlags.EnterReturnsTrue);
+            if (submitted)
+                CommitAssetRename();
+            else if (!ImGui.IsItemActive() && !_focusRenameInput && ImGui.IsItemDeactivated())
+                CancelAssetRename();
+        }
+        else
+        {
+            drawList.AddText(new Vector2(min.X + iconSize + 9f, textY), ImGui.GetColorU32(ImGuiCol.Text), item.Label);
+        }
 
         // Tag color ribbon at bottom of row
         if (hasTags)
@@ -385,17 +416,37 @@ public class AssetBrowserPanel
         float iconY = min.Y + 8f;
         DrawItemIcon(item, new Vector2(iconX, iconY), iconSize);
 
-        string clipped = ClipLabel(item.Label, tileWidth - 10f);
-        var textSize = ImGui.CalcTextSize(clipped);
-        float textX = min.X + Math.Max(5f, (tileWidth - textSize.X) * 0.5f);
         float textY = min.Y + tileHeight - ImGui.GetTextLineHeightWithSpacing() - 4f;
-        drawList.AddText(new Vector2(textX, textY), ImGui.GetColorU32(ImGuiCol.Text), clipped);
+
+        if (string.Equals(_renamingAssetPath, item.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            ImGui.SetCursorScreenPos(new Vector2(min.X + 4f, textY));
+            ImGui.SetNextItemWidth(tileWidth - 8f);
+            if (_focusRenameInput)
+            {
+                ImGui.SetKeyboardFocusHere();
+                _focusRenameInput = false;
+            }
+            bool submitted = ImGui.InputText("##rename", ref _renameBuffer, 256, ImGuiInputTextFlags.EnterReturnsTrue);
+            if (submitted)
+                CommitAssetRename();
+            else if (!ImGui.IsItemActive() && !_focusRenameInput && ImGui.IsItemDeactivated())
+                CancelAssetRename();
+        }
+        else
+        {
+            string clipped = ClipLabel(item.Label, tileWidth - 10f);
+            var textSize = ImGui.CalcTextSize(clipped);
+            float textX = min.X + Math.Max(5f, (tileWidth - textSize.X) * 0.5f);
+            drawList.AddText(new Vector2(textX, textY), ImGui.GetColorU32(ImGuiCol.Text), clipped);
+        }
 
         // Tag ribbon just above label text
         var tags = _app.TagDatabase?.GetTagsForAsset(item.Asset.RelativePath);
         if (tags != null && tags.Count > 0)
         {
-            float ribbonWidth = Math.Min(tileWidth - 16f, textSize.X + 12f);
+            var labelSize = ImGui.CalcTextSize(item.Label);
+            float ribbonWidth = Math.Min(tileWidth - 16f, labelSize.X + 12f);
             float ribbonX = min.X + (tileWidth - ribbonWidth) * 0.5f;
             float ribbonY = textY - ribbonHeight - 2f;
             DrawTagRibbon(drawList, new Vector2(ribbonX, ribbonY), ribbonWidth, ribbonHeight, tags);
@@ -595,6 +646,9 @@ public class AssetBrowserPanel
 
         if (ImGui.MenuItem("Copy Path"))
             ImGui.SetClipboardText(asset.RelativePath);
+
+        if (!asset.IsEngineAsset && ImGui.MenuItem("Rename", KeybindManager.Instance.GetShortcutText(EditorAction.RenameEntity)))
+            BeginRenameAsset(asset.RelativePath);
 
         // Tags submenu
         var tagDb = _app.TagDatabase;
@@ -852,5 +906,124 @@ public class AssetBrowserPanel
     private static uint ImGuiColorToU32(Vector4 color)
     {
         return ImGui.ColorConvertFloat4ToU32(color);
+    }
+
+    public void BeginRenameSelected()
+    {
+        if (_renamingAssetPath == null && _selectedAssets.Count == 1)
+        {
+            var path = _selectedAssets.First();
+            if (!AssetReference.HasEnginePrefix(path))
+                BeginRenameAsset(path);
+        }
+    }
+
+    private void BeginRenameAsset(string assetPath)
+    {
+        _renamingAssetPath = assetPath;
+        _renameBuffer = Path.GetFileNameWithoutExtension(assetPath);
+        _focusRenameInput = true;
+    }
+
+    private void CancelAssetRename()
+    {
+        _renamingAssetPath = null;
+        _renameBuffer = string.Empty;
+        _focusRenameInput = false;
+    }
+
+    private void CommitAssetRename()
+    {
+        if (_renamingAssetPath == null)
+            return;
+
+        var oldRelPath = _renamingAssetPath;
+        var newName = _renameBuffer.Trim();
+        CancelAssetRename();
+
+        // If user didn't include an extension, preserve the original one
+        if (!Path.HasExtension(newName))
+        {
+            var oldExt = Path.GetExtension(oldRelPath);
+            if (!string.IsNullOrEmpty(oldExt))
+                newName += oldExt;
+        }
+
+        var oldName = Path.GetFileName(oldRelPath);
+
+        // Validate
+        if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, oldName, StringComparison.Ordinal))
+            return;
+
+        if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            NotificationManager.Instance.Post("Invalid file name.", NotificationType.Warning);
+            return;
+        }
+
+        var assetsPath = AssetManager.Instance.AssetsPath;
+        if (string.IsNullOrEmpty(assetsPath))
+            return;
+
+        var oldFullPath = Path.Combine(assetsPath, oldRelPath.Replace('/', Path.DirectorySeparatorChar));
+        var dir = Path.GetDirectoryName(oldFullPath) ?? assetsPath;
+        var newFullPath = Path.Combine(dir, newName);
+
+        if (File.Exists(newFullPath))
+        {
+            NotificationManager.Instance.Post($"File '{newName}' already exists.", NotificationType.Warning);
+            return;
+        }
+
+        if (!File.Exists(oldFullPath))
+        {
+            NotificationManager.Instance.Post("Source file not found.", NotificationType.Warning);
+            return;
+        }
+
+        // Build new relative path
+        var oldDir = Path.GetDirectoryName(oldRelPath.Replace('\\', '/'))?.Replace('\\', '/') ?? "";
+        var newRelPath = string.IsNullOrEmpty(oldDir) ? newName : oldDir + "/" + newName;
+
+        // 1. Rename on disk
+        try
+        {
+            File.Move(oldFullPath, newFullPath);
+        }
+        catch (Exception ex)
+        {
+            NotificationManager.Instance.Post($"Rename failed: {ex.Message}", NotificationType.Error);
+            return;
+        }
+
+        // 2. Update references on disk
+        int filesUpdated = AssetReferenceUpdater.UpdateReferencesOnDisk(assetsPath, oldRelPath, newRelPath);
+
+        // 3. Update in-memory scene
+        if (_app.CurrentScene != null)
+            AssetReferenceUpdater.UpdateReferencesInScene(_app.CurrentScene, oldRelPath, newRelPath);
+
+        // 4. Invalidate old cached asset
+        AssetManager.Instance.InvalidateAsset(oldRelPath);
+
+        // 5. Re-index asset database
+        AssetDatabase.Instance.Refresh();
+
+        // 6. Update tag database
+        _app.TagDatabase?.RenameAssetPath(oldRelPath, newRelPath);
+        _app.SaveTagDatabase();
+
+        // 7. Update selection
+        if (_selectedAssets.Remove(oldRelPath))
+            _selectedAssets.Add(newRelPath);
+        if (string.Equals(_selectionAnchor, oldRelPath, StringComparison.OrdinalIgnoreCase))
+            _selectionAnchor = newRelPath;
+
+        var msg = filesUpdated > 0
+            ? $"Renamed: {oldName} -> {newName} ({filesUpdated} file(s) updated)"
+            : $"Renamed: {oldName} -> {newName}";
+        NotificationManager.Instance.Post(msg, NotificationType.Success);
+
+        FrinkyLog.Info($"Asset renamed: {oldRelPath} -> {newRelPath} ({filesUpdated} references updated on disk)");
     }
 }

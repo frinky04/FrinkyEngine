@@ -213,6 +213,15 @@ public class AssetTagDatabase
         return tags.Any(t => string.Equals(t, tagName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>Updates the key for an asset's tag assignments when the asset is renamed.</summary>
+    public void RenameAssetPath(string oldPath, string newPath)
+    {
+        if (!_data.AssetTags.Remove(oldPath, out var tags))
+            return;
+
+        _data.AssetTags[newPath] = tags;
+    }
+
     /// <summary>Removes tag assignments for assets that no longer exist.</summary>
     public void CleanupStaleEntries(IReadOnlySet<string> existingAssetPaths)
     {
