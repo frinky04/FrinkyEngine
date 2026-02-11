@@ -8,7 +8,8 @@ Base component for all physics collider shapes.
 public abstract class ColliderComponent : FrinkyEngine.Core.ECS.Component
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [ColliderComponent](./frinkyengine.core.components.collidercomponent)
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [ColliderComponent](./frinkyengine.core.components.collidercomponent)<br>
+Attributes [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute)
 
 ## Properties
 

@@ -9,7 +9,7 @@ public class SphereColliderComponent : ColliderComponent
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [ColliderComponent](./frinkyengine.core.components.collidercomponent) → [SphereColliderComponent](./frinkyengine.core.components.spherecollidercomponent)<br>
-Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute)
+Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute)
 
 ## Properties
 

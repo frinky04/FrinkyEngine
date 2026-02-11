@@ -61,79 +61,17 @@ public int ResolutionZ { get; set; }
 
 [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
 
-### **MaterialType**
+### **Material**
 
-Which material mapping mode the primitive uses (defaults to [MaterialType.SolidColor](./frinkyengine.core.rendering.materialtype#solidcolor)).
+Material configuration for this primitive.
 
 ```csharp
-public MaterialType MaterialType { get; set; }
+public Material Material { get; set; }
 ```
 
 #### Property Value
 
-[MaterialType](./frinkyengine.core.rendering.materialtype)<br>
-
-### **TexturePath**
-
-Asset-relative path to the texture file, used when [PrimitiveComponent.MaterialType](./frinkyengine.core.components.primitivecomponent#materialtype) is
- [MaterialType.Textured](./frinkyengine.core.rendering.materialtype#textured) or [MaterialType.TriplanarTexture](./frinkyengine.core.rendering.materialtype#triplanartexture).
-
-```csharp
-public AssetReference TexturePath { get; set; }
-```
-
-#### Property Value
-
-[AssetReference](./frinkyengine.core.assets.assetreference)<br>
-
-### **TriplanarScale**
-
-Triplanar projection scale, used when [PrimitiveComponent.MaterialType](./frinkyengine.core.components.primitivecomponent#materialtype) is [MaterialType.TriplanarTexture](./frinkyengine.core.rendering.materialtype#triplanartexture).
-
-```csharp
-public float TriplanarScale { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **TriplanarBlendSharpness**
-
-Triplanar axis blend sharpness, used when [PrimitiveComponent.MaterialType](./frinkyengine.core.components.primitivecomponent#materialtype) is [MaterialType.TriplanarTexture](./frinkyengine.core.rendering.materialtype#triplanartexture).
-
-```csharp
-public float TriplanarBlendSharpness { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **TriplanarUseWorldSpace**
-
-Whether triplanar projection uses world-space coordinates (`true`) or object-space coordinates (`false`).
- Used when [PrimitiveComponent.MaterialType](./frinkyengine.core.components.primitivecomponent#materialtype) is [MaterialType.TriplanarTexture](./frinkyengine.core.rendering.materialtype#triplanartexture).
-
-```csharp
-public bool TriplanarUseWorldSpace { get; set; }
-```
-
-#### Property Value
-
-[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
-
-### **Tint**
-
-Color multiplier applied when drawing this renderable (defaults to white / fully opaque).
-
-```csharp
-public Color Tint { get; set; }
-```
-
-#### Property Value
-
-Color<br>
+[Material](./frinkyengine.core.components.material)<br>
 
 ### **Entity**
 

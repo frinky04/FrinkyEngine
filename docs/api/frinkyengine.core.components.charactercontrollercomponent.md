@@ -10,7 +10,7 @@ public class CharacterControllerComponent : FrinkyEngine.Core.ECS.Component
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [CharacterControllerComponent](./frinkyengine.core.components.charactercontrollercomponent)<br>
-Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute)
+Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute)
 
 ## Properties
 

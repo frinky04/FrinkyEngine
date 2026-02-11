@@ -9,7 +9,7 @@ public class CapsuleColliderComponent : ColliderComponent
 ```
 
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [ColliderComponent](./frinkyengine.core.components.collidercomponent) → [CapsuleColliderComponent](./frinkyengine.core.components.capsulecollidercomponent)<br>
-Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute)
+Attributes [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute), [InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute)
 
 ## Properties
 

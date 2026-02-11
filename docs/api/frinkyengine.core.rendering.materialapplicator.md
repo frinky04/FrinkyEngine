@@ -13,12 +13,12 @@ Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/ap
 
 ## Methods
 
-### **ApplyToModel(Model, Int32, MaterialType, String, Single, Single, Boolean)**
+### **ApplyToModel(Model, Int32, Material)**
 
-Applies material settings to the specified model material slot.
+Applies material settings from a [Material](./frinkyengine.core.components.material) to the specified model material slot.
 
 ```csharp
-public static void ApplyToModel(Model model, int materialIndex, MaterialType materialType, string texturePath, float triplanarScale, float triplanarBlendSharpness, bool triplanarUseWorldSpace)
+public static void ApplyToModel(Model model, int materialIndex, Material material)
 ```
 
 #### Parameters
@@ -29,17 +29,5 @@ Target model.
 `materialIndex` [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
 Material index in the model.
 
-`materialType` [MaterialType](./frinkyengine.core.rendering.materialtype)<br>
-Material mapping mode.
-
-`texturePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
-Asset-relative albedo texture path.
-
-`triplanarScale` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-Triplanar projection scale.
-
-`triplanarBlendSharpness` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-Triplanar axis blend sharpness.
-
-`triplanarUseWorldSpace` [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
-Whether triplanar uses world-space coordinates.
+`material` [Material](./frinkyengine.core.components.material)<br>
+Material configuration to apply.

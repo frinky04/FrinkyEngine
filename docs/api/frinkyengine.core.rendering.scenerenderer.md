@@ -48,6 +48,19 @@ public ForwardPlusFrameStats GetForwardPlusFrameStats()
 [ForwardPlusFrameStats](./frinkyengine.core.rendering.scenerenderer.forwardplusframestats)<br>
 A snapshot of the current frame's lighting statistics.
 
+### **GetAutoInstancingFrameStats()**
+
+Gets automatic instancing diagnostics from the most recent [SceneRenderer.Render(Scene, Camera3D, Nullable&lt;RenderTexture2D&gt;, Action, Boolean)](./frinkyengine.core.rendering.scenerenderer#renderscene-camera3d-nullablerendertexture2d-action-boolean) pass.
+
+```csharp
+public AutoInstancingFrameStats GetAutoInstancingFrameStats()
+```
+
+#### Returns
+
+[AutoInstancingFrameStats](./frinkyengine.core.rendering.scenerenderer.autoinstancingframestats)<br>
+A snapshot of batching and instanced submission counts for the frame.
+
 ### **ConfigureForwardPlus(ForwardPlusSettings)**
 
 Applies new Forward+ configuration settings, reallocating tile buffers if needed.

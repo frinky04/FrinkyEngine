@@ -13,6 +13,18 @@ Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/ap
 
 ## Properties
 
+### **AutoInstancingEnabled**
+
+Global auto-instancing toggle for model and primitive rendering.
+
+```csharp
+public static bool AutoInstancingEnabled { get; private set; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **PostProcessingEnabled**
 
 Global post-processing toggle used by standalone runtime and editor Play/Simulate rendering.
@@ -64,6 +76,37 @@ public static int TargetFps { get; set; }
 [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
 
 ## Methods
+
+### **GetAutoInstancingValue()**
+
+Gets the auto-instancing cvar value as "1" (enabled) or "0" (disabled).
+
+```csharp
+public static string GetAutoInstancingValue()
+```
+
+#### Returns
+
+[String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The current value string.
+
+### **TrySetAutoInstancing(String)**
+
+Attempts to parse and apply the auto-instancing cvar from "1" or "0".
+
+```csharp
+public static bool TrySetAutoInstancing(string value)
+```
+
+#### Parameters
+
+`value` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+User input value.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+`true` if the value was accepted; otherwise `false`.
 
 ### **GetPostProcessingValue()**
 

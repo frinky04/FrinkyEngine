@@ -15,7 +15,7 @@ Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/ap
 
 ### **PropertyName**
 
-Name of the sibling property used as the visibility condition source.
+Name of the sibling bool member (property/field/method) used as the visibility condition source.
 
 ```csharp
 public string PropertyName { get; }
@@ -54,11 +54,11 @@ public object TypeId { get; }
 Shows the annotated property only when another boolean property matches the expected value.
 
 ```csharp
-public InspectorVisibleIfAttribute(string propertyName, bool expectedValue)
+public InspectorVisibleIfAttribute(string memberName, bool expectedValue)
 ```
 
 #### Parameters
 
-`propertyName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+`memberName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
 
 `expectedValue` [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>

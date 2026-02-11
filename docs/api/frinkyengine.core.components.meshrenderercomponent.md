@@ -31,24 +31,12 @@ public AssetReference ModelPath { get; set; }
 Per-material configurations for this model. Slots are auto-created to match the model's material count.
 
 ```csharp
-public List<MaterialSlot> MaterialSlots { get; set; }
+public List<Material> MaterialSlots { get; set; }
 ```
 
 #### Property Value
 
-[List&lt;MaterialSlot&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
-
-### **Tint**
-
-Color multiplier applied when drawing this renderable (defaults to white / fully opaque).
-
-```csharp
-public Color Tint { get; set; }
-```
-
-#### Property Value
-
-Color<br>
+[List&lt;Material&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
 
 ### **Entity**
 

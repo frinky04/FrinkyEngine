@@ -96,7 +96,7 @@
 
 [LightType](./frinkyengine.core.components.lighttype)
 
-[MaterialSlot](./frinkyengine.core.components.materialslot)
+[Material](./frinkyengine.core.components.material)
 
 [MeshRendererComponent](./frinkyengine.core.components.meshrenderercomponent)
 
@@ -136,11 +136,27 @@
 
 [FObject](./frinkyengine.core.ecs.fobject)
 
+[InspectorButtonAttribute](./frinkyengine.core.ecs.inspectorbuttonattribute)
+
+[InspectorFixedListSizeAttribute](./frinkyengine.core.ecs.inspectorfixedlistsizeattribute)
+
 [InspectorHeaderAttribute](./frinkyengine.core.ecs.inspectorheaderattribute)
+
+[InspectorHiddenAttribute](./frinkyengine.core.ecs.inspectorhiddenattribute)
 
 [InspectorIndentAttribute](./frinkyengine.core.ecs.inspectorindentattribute)
 
+[InspectorInlineAttribute](./frinkyengine.core.ecs.inspectorinlineattribute)
+
 [InspectorLabelAttribute](./frinkyengine.core.ecs.inspectorlabelattribute)
+
+[InspectorListFactoryAttribute](./frinkyengine.core.ecs.inspectorlistfactoryattribute)
+
+[InspectorMessageIfAttribute](./frinkyengine.core.ecs.inspectormessageifattribute)
+
+[InspectorMessageSeverity](./frinkyengine.core.ecs.inspectormessageseverity)
+
+[InspectorOnChangedAttribute](./frinkyengine.core.ecs.inspectoronchangedattribute)
 
 [InspectorRangeAttribute](./frinkyengine.core.ecs.inspectorrangeattribute)
 
@@ -153,6 +169,12 @@
 [InspectorSpaceAttribute](./frinkyengine.core.ecs.inspectorspaceattribute)
 
 [InspectorTooltipAttribute](./frinkyengine.core.ecs.inspectortooltipattribute)
+
+[InspectorUiMode](./frinkyengine.core.ecs.inspectoruimode)
+
+[InspectorVector3Style](./frinkyengine.core.ecs.inspectorvector3style)
+
+[InspectorVector3StyleAttribute](./frinkyengine.core.ecs.inspectorvector3styleattribute)
 
 [InspectorVisibleIfAttribute](./frinkyengine.core.ecs.inspectorvisibleifattribute)
 

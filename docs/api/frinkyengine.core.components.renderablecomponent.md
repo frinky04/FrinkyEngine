@@ -3,7 +3,7 @@
 Namespace: FrinkyEngine.Core.Components
 
 Abstract base class for components that can be drawn by the [SceneRenderer](./frinkyengine.core.rendering.scenerenderer).
- Provides tint color, ray-collision testing, and world-space bounding box computation.
+ Provides ray-collision testing and world-space bounding box computation.
 
 ```csharp
 public abstract class RenderableComponent : FrinkyEngine.Core.ECS.Component
@@ -12,18 +12,6 @@ public abstract class RenderableComponent : FrinkyEngine.Core.ECS.Component
 Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [Component](./frinkyengine.core.ecs.component) → [RenderableComponent](./frinkyengine.core.components.renderablecomponent)
 
 ## Properties
-
-### **Tint**
-
-Color multiplier applied when drawing this renderable (defaults to white / fully opaque).
-
-```csharp
-public Color Tint { get; set; }
-```
-
-#### Property Value
-
-Color<br>
 
 ### **Entity**
 

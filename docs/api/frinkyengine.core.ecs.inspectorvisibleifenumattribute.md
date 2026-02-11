@@ -15,7 +15,7 @@ Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/ap
 
 ### **PropertyName**
 
-Name of the sibling enum property used as the visibility condition source.
+Name of the sibling enum member (property/field/method) used as the visibility condition source.
 
 ```csharp
 public string PropertyName { get; }
@@ -54,11 +54,11 @@ public object TypeId { get; }
 Shows the annotated property only when another enum property has a named value.
 
 ```csharp
-public InspectorVisibleIfEnumAttribute(string propertyName, string expectedMemberName)
+public InspectorVisibleIfEnumAttribute(string memberName, string expectedMemberName)
 ```
 
 #### Parameters
 
-`propertyName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+`memberName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
 
 `expectedMemberName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
