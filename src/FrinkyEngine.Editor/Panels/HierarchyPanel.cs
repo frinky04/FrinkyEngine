@@ -650,25 +650,19 @@ public class HierarchyPanel
 
         if (ImGui.BeginMenu("Move To Folder"))
         {
-            bool canAssign = entity.Transform.Parent == null;
+            var rootEntities = _app.SelectedEntities
+                .Where(e => e.Transform.Parent == null).ToList();
+            bool canAssign = rootEntities.Count > 0;
             ImGui.BeginDisabled(!canAssign);
 
-            if (ImGui.MenuItem("None", (string?)null, string.IsNullOrWhiteSpace(_app.GetRootEntityFolder(entity))))
-            {
-                _app.RecordUndo();
-                if (_app.SetRootEntityFolder(entity, null))
-                    _app.RefreshUndoBaseline();
-            }
+            if (ImGui.MenuItem("None", (string?)null, canAssign && rootEntities.All(e => string.IsNullOrWhiteSpace(_app.GetRootEntityFolder(e)))))
+                MoveEntitiesToFolder(rootEntities, null);
 
             foreach (var folder in state.Folders.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
             {
-                bool selected = string.Equals(_app.GetRootEntityFolder(entity), folder.Id, StringComparison.OrdinalIgnoreCase);
+                bool selected = canAssign && rootEntities.All(e => string.Equals(_app.GetRootEntityFolder(e), folder.Id, StringComparison.OrdinalIgnoreCase));
                 if (ImGui.MenuItem(folder.Name, (string?)null, selected))
-                {
-                    _app.RecordUndo();
-                    if (_app.SetRootEntityFolder(entity, folder.Id))
-                        _app.RefreshUndoBaseline();
-                }
+                    MoveEntitiesToFolder(rootEntities, folder.Id);
             }
 
             ImGui.EndDisabled();
@@ -701,16 +695,16 @@ public class HierarchyPanel
             _app.SetSingleSelection(prefabRoot);
 
         if (ImGui.MenuItem("Apply"))
-            ApplyPrefabFromContext(prefabRoot);
+            _app.ApplySelectedPrefab();
 
         if (ImGui.MenuItem("Revert"))
-            RevertPrefabFromContext(clickedEntity);
+            _app.RevertSelectedPrefab();
 
         if (ImGui.MenuItem("Make Unique"))
-            MakeUniquePrefabFromContext(clickedEntity);
+            _app.MakeUniqueSelectedPrefab();
 
         if (ImGui.MenuItem("Unpack"))
-            UnpackPrefabFromContext(clickedEntity);
+            _app.UnpackSelectedPrefab();
 
         ImGui.Separator();
 
@@ -721,33 +715,6 @@ public class HierarchyPanel
             RevealPrefabInExplorer(prefabRoot);
 
         ImGui.EndMenu();
-    }
-
-    private void ApplyPrefabFromContext(Entity prefabRoot)
-    {
-        _app.RecordUndo();
-        if (!_app.Prefabs.ApplyPrefab(prefabRoot))
-            return;
-
-        _app.RefreshUndoBaseline();
-        NotificationManager.Instance.Post("Prefab applied.", NotificationType.Success, 1.5f);
-    }
-
-    private void RevertPrefabFromContext(Entity contextEntity)
-    {
-        if (_app.Prefabs.RevertPrefab(contextEntity))
-            NotificationManager.Instance.Post("Prefab reverted.", NotificationType.Info, 1.5f);
-    }
-
-    private void MakeUniquePrefabFromContext(Entity contextEntity)
-    {
-        _app.Prefabs.MakeUnique(contextEntity);
-    }
-
-    private void UnpackPrefabFromContext(Entity contextEntity)
-    {
-        if (_app.Prefabs.UnpackPrefab(contextEntity))
-            NotificationManager.Instance.Post("Prefab unpacked.", NotificationType.Info, 1.5f);
     }
 
     private static string? GetPrefabAbsolutePath(Entity prefabRoot)
@@ -1024,16 +991,22 @@ public class HierarchyPanel
         ImGuiPayload* entityPayload2 = ImGui.AcceptDragDropPayload(EntityDragPayload);
         if (entityPayload2 != null && entityPayload2->Delivery != 0 && _draggedEntityId.HasValue)
         {
-            var draggedEntity = _app.FindEntityById(_draggedEntityId.Value);
-            if (draggedEntity != null && draggedEntity.Transform.Parent == null)
-            {
-                _app.RecordUndo();
-                if (_app.SetRootEntityFolder(draggedEntity, targetFolder.Id))
-                    _app.RefreshUndoBaseline();
-            }
+            var rootEntities = _app.SelectedEntities
+                .Where(e => e.Transform.Parent == null).ToList();
+            MoveEntitiesToFolder(rootEntities, targetFolder.Id);
         }
 
         ImGui.EndDragDropTarget();
+    }
+
+    private void MoveEntitiesToFolder(List<Entity> rootEntities, string? folderId)
+    {
+        if (rootEntities.Count == 0) return;
+        _app.RecordUndo();
+        bool any = false;
+        foreach (var e in rootEntities)
+            any |= _app.SetRootEntityFolder(e, folderId);
+        if (any) _app.RefreshUndoBaseline();
     }
 
     private void HandleKeyboardNavigation(List<Entity> visibleEntities)

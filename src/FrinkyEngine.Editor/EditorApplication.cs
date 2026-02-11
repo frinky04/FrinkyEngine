@@ -1003,41 +1003,72 @@ public class EditorApplication
 
     public void ApplySelectedPrefab()
     {
-        if (!CanEditScene || SelectedEntity == null)
-            return;
+        if (!CanEditScene) return;
+        var prefabRoots = GetSelectedPrefabRoots();
+        if (prefabRoots.Count == 0) return;
 
         RecordUndo();
-        if (!Prefabs.ApplyPrefab(SelectedEntity))
-            return;
-
-        RefreshUndoBaseline();
-        NotificationManager.Instance.Post("Prefab applied.", NotificationType.Success, 1.5f);
+        int applied = 0;
+        foreach (var root in prefabRoots)
+            if (Prefabs.ApplyPrefab(root)) applied++;
+        if (applied > 0)
+        {
+            RefreshUndoBaseline();
+            NotificationManager.Instance.Post(
+                applied == 1 ? "Prefab applied." : $"{applied} prefabs applied.",
+                NotificationType.Success, 1.5f);
+        }
     }
 
     public void RevertSelectedPrefab()
     {
-        if (!CanEditScene || SelectedEntity == null)
-            return;
+        if (!CanEditScene) return;
+        var prefabRoots = GetSelectedPrefabRoots();
+        if (prefabRoots.Count == 0) return;
 
-        if (Prefabs.RevertPrefab(SelectedEntity))
-            NotificationManager.Instance.Post("Prefab reverted.", NotificationType.Info, 1.5f);
+        int reverted = 0;
+        foreach (var root in prefabRoots)
+            if (Prefabs.RevertPrefab(root)) reverted++;
+        if (reverted > 0)
+            NotificationManager.Instance.Post(
+                reverted == 1 ? "Prefab reverted." : $"{reverted} prefabs reverted.",
+                NotificationType.Info, 1.5f);
     }
 
     public void MakeUniqueSelectedPrefab()
     {
-        if (!CanEditScene || SelectedEntity == null)
-            return;
-
-        Prefabs.MakeUnique(SelectedEntity);
+        if (!CanEditScene) return;
+        var prefabRoots = GetSelectedPrefabRoots();
+        foreach (var root in prefabRoots)
+            Prefabs.MakeUnique(root);
     }
 
     public void UnpackSelectedPrefab()
     {
-        if (!CanEditScene || SelectedEntity == null)
-            return;
+        if (!CanEditScene) return;
+        var prefabRoots = GetSelectedPrefabRoots();
+        if (prefabRoots.Count == 0) return;
 
-        if (Prefabs.UnpackPrefab(SelectedEntity))
-            NotificationManager.Instance.Post("Prefab unpacked.", NotificationType.Info, 1.5f);
+        int unpacked = 0;
+        foreach (var root in prefabRoots)
+            if (Prefabs.UnpackPrefab(root)) unpacked++;
+        if (unpacked > 0)
+            NotificationManager.Instance.Post(
+                unpacked == 1 ? "Prefab unpacked." : $"{unpacked} prefabs unpacked.",
+                NotificationType.Info, 1.5f);
+    }
+
+    private List<Entity> GetSelectedPrefabRoots()
+    {
+        var seen = new HashSet<Guid>();
+        var roots = new List<Entity>();
+        foreach (var entity in _selectedEntities)
+        {
+            var root = Prefabs.GetPrefabRoot(entity);
+            if (root != null && seen.Add(root.Id))
+                roots.Add(root);
+        }
+        return roots;
     }
 
     public bool IsSelected(Entity entity)
