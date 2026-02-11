@@ -257,7 +257,7 @@ public class SceneRenderer
             if (renderable.EditorOnly && !isEditorMode) continue;
             renderable.EnsureModelReady();
             if (!renderable.RenderModel.HasValue) continue;
-            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, renderable.Tint);
+            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, Color.White);
         }
 
         if (isEditorMode)
@@ -380,7 +380,7 @@ public class SceneRenderer
             if (renderable.EditorOnly && !isEditorMode) continue;
             renderable.EnsureModelReady();
             if (!renderable.RenderModel.HasValue) continue;
-            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, renderable.Tint);
+            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, Color.White);
         }
 
         Rlgl.DrawRenderBatchActive();

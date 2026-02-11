@@ -322,3 +322,15 @@ public sealed class InspectorListFactoryAttribute(string methodName) : Attribute
     /// </summary>
     public string MethodName { get; } = methodName;
 }
+
+/// <summary>
+/// Renders an inline object's sub-properties flat in the parent scope without a tree node wrapper.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, Inherited = true)]
+public sealed class InspectorInlineAttribute : Attribute;
+
+/// <summary>
+/// Prevents the inspector from showing Add/Remove/Reorder buttons on a list property.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, Inherited = true)]
+public sealed class InspectorFixedListSizeAttribute : Attribute;

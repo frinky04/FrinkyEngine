@@ -8,17 +8,17 @@ All built-in components and their key properties. For information on writing cus
 |-----------|---------------|
 | `CameraComponent` | `FieldOfView` (60), `NearPlane` (0.1), `FarPlane` (1000), `Projection` (Perspective/Orthographic), `ClearColor`, `IsMain` |
 | `LightComponent` | `LightType` (Directional/Point/Skylight), `LightColor`, `Intensity` (1.0), `Range` (10.0) |
-| `MeshRendererComponent` | `ModelPath`, `MaterialSlots`, `Tint`, `EditorOnly` |
+| `MeshRendererComponent` | `ModelPath`, `MaterialSlots` (list of `Material`), `Tint`, `EditorOnly` |
 | `PostProcessStackComponent` | `PostProcessingEnabled` (true), `Effects` (list of effects) |
 
 ## Primitives
 
 | Component | Key Properties |
 |-----------|---------------|
-| `CubePrimitive` | `Width` (1), `Height` (1), `Depth` (1) |
-| `SpherePrimitive` | `Radius` (0.5), `Rings` (16), `Slices` (16) |
-| `PlanePrimitive` | `Width` (10), `Depth` (10), `ResolutionX` (1), `ResolutionZ` (1) |
-| `CylinderPrimitive` | `Radius` (0.5), `Height` (2), `Slices` (16) |
+| `CubePrimitive` | `Width` (1), `Height` (1), `Depth` (1), `Material` |
+| `SpherePrimitive` | `Radius` (0.5), `Rings` (16), `Slices` (16), `Material` |
+| `PlanePrimitive` | `Width` (10), `Depth` (10), `ResolutionX` (1), `ResolutionZ` (1), `Material` |
+| `CylinderPrimitive` | `Radius` (0.5), `Height` (2), `Slices` (16), `Material` |
 
 ## Physics
 
@@ -45,7 +45,7 @@ All built-in components and their key properties. For information on writing cus
 
 ## Materials
 
-Each `MeshRendererComponent` has a list of `MaterialSlot` entries. Three material types are available:
+Both `MeshRendererComponent` (via `MaterialSlots` list) and primitive components (via a single `Material` property) use the `Material` class. Three material types are available:
 
 | Type | Description |
 |------|-------------|

@@ -1,16 +1,23 @@
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
+using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
 /// <summary>
-/// Configures the material for a single slot on a <see cref="MeshRendererComponent"/>.
+/// Configures the material for a mesh surface.
+/// Used by <see cref="MeshRendererComponent"/> (multiple slots) and <see cref="PrimitiveComponent"/> (single material).
 /// </summary>
-public class MaterialSlot
+public class Material
 {
     /// <summary>
-    /// Which material mapping mode this slot uses (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
+    /// Color multiplier applied to this material's surface (defaults to white / fully opaque).
+    /// </summary>
+    public Color Tint { get; set; } = new(255, 255, 255, 255);
+
+    /// <summary>
+    /// Which material mapping mode this material uses (defaults to <see cref="Rendering.MaterialType.SolidColor"/>).
     /// </summary>
     [InspectorLabel("Type")]
     public MaterialType MaterialType { get; set; } = MaterialType.SolidColor;
@@ -47,6 +54,12 @@ public class MaterialSlot
     [InspectorLabel("Use World Space")]
     [InspectorVisibleIf(nameof(UsesTriplanarMaterial))]
     public bool TriplanarUseWorldSpace { get; set; } = true;
+
+    /// <summary>
+    /// Returns a hash representing the current material configuration, useful for dirty detection.
+    /// </summary>
+    internal int GetConfigurationHash()
+        => HashCode.Combine(MaterialType, TexturePath.Path, TriplanarScale, TriplanarBlendSharpness, TriplanarUseWorldSpace, Tint);
 
     private bool UsesTexturedMaterial()
     {

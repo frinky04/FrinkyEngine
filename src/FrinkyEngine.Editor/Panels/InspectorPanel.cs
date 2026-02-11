@@ -78,7 +78,7 @@ public class InspectorPanel
         TrackContinuousUndo();
 
         bool active = entity.Active;
-        ImGui.SameLine();
+        ImGui.SameLine(0.0f, 8.0f);
         if (ImGui.Checkbox("Active", ref active))
         {
             _app.RecordUndo();

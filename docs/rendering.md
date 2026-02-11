@@ -58,7 +58,7 @@ Drag models from the asset browser into the viewport to create entities with `Me
 
 ## Materials
 
-Each `MeshRendererComponent` has a list of `MaterialSlot` entries. Three material types:
+Both `MeshRendererComponent` (via `MaterialSlots` list) and primitive components (via a single `Material` property) use the `Material` class. Three material types:
 
 | Type | Description |
 |------|-------------|

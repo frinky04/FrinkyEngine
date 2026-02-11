@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Prefabs;
 using FrinkyEngine.Core.Rendering;
@@ -305,6 +306,14 @@ public static class PrefabSerializer
         component.Enabled = data.Enabled;
         component.EditorOnly = data.EditorOnly;
 
+        // Migrate legacy flat material properties on PrimitiveComponent to nested Material
+        if (component is Components.PrimitiveComponent primitive
+            && data.Properties.ContainsKey("MaterialType")
+            && !data.Properties.ContainsKey("Material"))
+        {
+            MigrateLegacyPrimitiveMaterial(primitive, data.Properties);
+        }
+
         foreach (var (propName, jsonElement) in data.Properties)
         {
             var prop = type.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
@@ -322,7 +331,57 @@ public static class PrefabSerializer
             }
         }
 
+        // Migrate legacy component-level Tint into Material(s)
+        if (component is Components.RenderableComponent && data.Properties.TryGetValue("Tint", out var tintEl))
+        {
+            try
+            {
+                var tint = JsonSerializer.Deserialize<Raylib_cs.Color>(tintEl.GetRawText(), JsonOptions);
+                if (component is Components.PrimitiveComponent primTint)
+                    primTint.Material.Tint = tint;
+                else if (component is Components.MeshRendererComponent meshTint)
+                {
+                    foreach (var slot in meshTint.MaterialSlots)
+                        slot.Tint = tint;
+                }
+            }
+            catch { }
+        }
+
         return true;
+    }
+
+    private static void MigrateLegacyPrimitiveMaterial(Components.PrimitiveComponent primitive, Dictionary<string, JsonElement> properties)
+    {
+        var material = new Components.Material();
+
+        if (properties.TryGetValue("MaterialType", out var matTypeEl))
+        {
+            try { material.MaterialType = JsonSerializer.Deserialize<MaterialType>(matTypeEl.GetRawText(), JsonOptions); } catch { }
+            properties.Remove("MaterialType");
+        }
+        if (properties.TryGetValue("TexturePath", out var texEl))
+        {
+            try { material.TexturePath = JsonSerializer.Deserialize<AssetReference>(texEl.GetRawText(), JsonOptions); } catch { }
+            properties.Remove("TexturePath");
+        }
+        if (properties.TryGetValue("TriplanarScale", out var scaleEl))
+        {
+            try { material.TriplanarScale = scaleEl.GetSingle(); } catch { }
+            properties.Remove("TriplanarScale");
+        }
+        if (properties.TryGetValue("TriplanarBlendSharpness", out var sharpEl))
+        {
+            try { material.TriplanarBlendSharpness = sharpEl.GetSingle(); } catch { }
+            properties.Remove("TriplanarBlendSharpness");
+        }
+        if (properties.TryGetValue("TriplanarUseWorldSpace", out var wsEl))
+        {
+            try { material.TriplanarUseWorldSpace = wsEl.GetBoolean(); } catch { }
+            properties.Remove("TriplanarUseWorldSpace");
+        }
+
+        primitive.Material = material;
     }
 
     public static object? DeserializeValue(JsonElement value, Type targetType)

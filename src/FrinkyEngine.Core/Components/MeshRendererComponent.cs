@@ -12,6 +12,7 @@ namespace FrinkyEngine.Core.Components;
 public class MeshRendererComponent : RenderableComponent
 {
     private AssetReference _modelPath = new("");
+    private int _lastMaterialHash;
 
     /// <summary>
     /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
@@ -25,45 +26,47 @@ public class MeshRendererComponent : RenderableComponent
             if (_modelPath.Path == value.Path) return;
             _modelPath = value;
             RenderModel = null;
+            _lastMaterialHash = 0;
         }
     }
 
     /// <summary>
     /// Per-material configurations for this model. Slots are auto-created to match the model's material count.
     /// </summary>
-    [InspectorOnChanged(nameof(RefreshMaterials))]
-    public List<MaterialSlot> MaterialSlots { get; set; } = new();
+    [InspectorFixedListSize]
+    public List<Material> MaterialSlots { get; set; } = new();
 
     internal override void EnsureModelReady()
     {
-        if (RenderModel.HasValue || _modelPath.IsEmpty) return;
+        if (_modelPath.IsEmpty) return;
 
-        var model = AssetManager.Instance.LoadModel(_modelPath.Path);
-
-        // Skip material application for the error model — it has its own texture
-        var resolvedPath = AssetDatabase.Instance.ResolveAssetPath(_modelPath.Path) ?? _modelPath.Path;
-        if (File.Exists(AssetManager.Instance.ResolvePath(resolvedPath)))
+        // Load model once
+        if (!RenderModel.HasValue)
         {
-            // Extend material slots list to match model's material count
-            while (MaterialSlots.Count < model.MaterialCount)
-                MaterialSlots.Add(new MaterialSlot());
+            var model = AssetManager.Instance.LoadModel(_modelPath.Path);
 
-            // Apply material slots
-            for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
+            // Sync material slots to match model's material count (skip for error model)
+            var resolvedPath = AssetDatabase.Instance.ResolveAssetPath(_modelPath.Path) ?? _modelPath.Path;
+            if (File.Exists(AssetManager.Instance.ResolvePath(resolvedPath)))
             {
-                var slot = MaterialSlots[i];
-                MaterialApplicator.ApplyToModel(
-                    model,
-                    i,
-                    slot.MaterialType,
-                    slot.TexturePath.Path,
-                    slot.TriplanarScale,
-                    slot.TriplanarBlendSharpness,
-                    slot.TriplanarUseWorldSpace);
+                while (MaterialSlots.Count < model.MaterialCount)
+                    MaterialSlots.Add(new Material());
+                while (MaterialSlots.Count > model.MaterialCount && model.MaterialCount > 0)
+                    MaterialSlots.RemoveAt(MaterialSlots.Count - 1);
             }
+
+            RenderModel = model;
         }
 
-        RenderModel = model;
+        // Re-apply materials when any slot changed (model is shared via cache)
+        var currentHash = ComputeMaterialSlotsHash();
+        if (currentHash != _lastMaterialHash && RenderModel.HasValue)
+        {
+            var model = RenderModel.Value;
+            for (int i = 0; i < model.MaterialCount && i < MaterialSlots.Count; i++)
+                MaterialApplicator.ApplyToModel(model, i, MaterialSlots[i]);
+            _lastMaterialHash = currentHash;
+        }
     }
 
     /// <summary>
@@ -72,6 +75,15 @@ public class MeshRendererComponent : RenderableComponent
     public void RefreshMaterials()
     {
         RenderModel = null;
+        _lastMaterialHash = 0;
+    }
+
+    private int ComputeMaterialSlotsHash()
+    {
+        var hash = new HashCode();
+        foreach (var slot in MaterialSlots)
+            hash.Add(slot.GetConfigurationHash());
+        return hash.ToHashCode();
     }
 
     /// <inheritdoc />

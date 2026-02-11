@@ -627,9 +627,9 @@ public class EditorApplication
                     }
                     else if (renderable is PrimitiveComponent primitive)
                     {
-                        if (!primitive.TexturePath.IsEmpty)
+                        if (!primitive.Material.TexturePath.IsEmpty)
                         {
-                            var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(primitive.TexturePath.Path);
+                            var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(primitive.Material.TexturePath.Path);
                             if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
                                 shouldInvalidate = true;
                         }

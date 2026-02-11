@@ -9,6 +9,25 @@ namespace FrinkyEngine.Core.Rendering;
 public static class MaterialApplicator
 {
     /// <summary>
+    /// Applies material settings from a <see cref="Components.Material"/> to the specified model material slot.
+    /// </summary>
+    /// <param name="model">Target model.</param>
+    /// <param name="materialIndex">Material index in the model.</param>
+    /// <param name="material">Material configuration to apply.</param>
+    public static unsafe void ApplyToModel(Model model, int materialIndex, Components.Material material)
+    {
+        ApplyToModel(
+            model,
+            materialIndex,
+            material.MaterialType,
+            material.TexturePath.Path,
+            material.TriplanarScale,
+            material.TriplanarBlendSharpness,
+            material.TriplanarUseWorldSpace,
+            material.Tint);
+    }
+
+    /// <summary>
     /// Applies material settings to the specified model material slot.
     /// </summary>
     /// <param name="model">Target model.</param>
@@ -18,14 +37,16 @@ public static class MaterialApplicator
     /// <param name="triplanarScale">Triplanar projection scale.</param>
     /// <param name="triplanarBlendSharpness">Triplanar axis blend sharpness.</param>
     /// <param name="triplanarUseWorldSpace">Whether triplanar uses world-space coordinates.</param>
-    public static unsafe void ApplyToModel(
+    /// <param name="tint">Color multiplier applied to the albedo map.</param>
+    internal static unsafe void ApplyToModel(
         Model model,
         int materialIndex,
         MaterialType materialType,
         string texturePath,
         float triplanarScale,
         float triplanarBlendSharpness,
-        bool triplanarUseWorldSpace)
+        bool triplanarUseWorldSpace,
+        Color tint)
     {
         if (materialIndex < 0 || materialIndex >= model.MaterialCount)
             return;
@@ -39,7 +60,7 @@ public static class MaterialApplicator
             triplanarUseWorldSpace);
 
         model.Materials[materialIndex].Maps[(int)MaterialMapIndex.Albedo].Texture = albedo;
-        model.Materials[materialIndex].Maps[(int)MaterialMapIndex.Albedo].Color = new Color(255, 255, 255, 255);
+        model.Materials[materialIndex].Maps[(int)MaterialMapIndex.Albedo].Color = tint;
         model.Materials[materialIndex].Maps[(int)MaterialMapIndex.Brdf].Texture = triplanarParams;
     }
 

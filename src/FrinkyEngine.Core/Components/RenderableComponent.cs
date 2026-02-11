@@ -6,17 +6,12 @@ namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Abstract base class for components that can be drawn by the <see cref="Rendering.SceneRenderer"/>.
-/// Provides tint color, ray-collision testing, and world-space bounding box computation.
+/// Provides ray-collision testing and world-space bounding box computation.
 /// </summary>
 public abstract class RenderableComponent : Component
 {
     private const float HitDistanceEpsilon = 1e-5f;
     private const float FrontFaceDotThreshold = -1e-4f;
-
-    /// <summary>
-    /// Color multiplier applied when drawing this renderable (defaults to white / fully opaque).
-    /// </summary>
-    public Color Tint { get; set; } = new(255, 255, 255, 255);
 
     internal Model? RenderModel { get; set; }
 

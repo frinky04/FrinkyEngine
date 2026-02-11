@@ -366,6 +366,10 @@ public static class ComponentDrawerRegistry
         {
             DrawInlineListProperty(label, component, prop, listElementType!, NotifyPropertyChanged);
         }
+        else if (IsInlineObjectType(propType) && prop.GetCustomAttribute<InspectorInlineAttribute>() != null)
+        {
+            DrawInlineFlatProperties(component, prop, propType, NotifyPropertyChanged);
+        }
         else if (IsInlineObjectType(propType))
         {
             DrawInlineObjectProperty(label, component, prop, propType, NotifyPropertyChanged);
@@ -1305,6 +1309,11 @@ public static class ComponentDrawerRegistry
                     if (DrawInlineListProperty(label, obj, prop, listElementType!, onChanged))
                         anyChanged = true;
                 }
+                else if (IsInlineObjectType(propType) && prop.GetCustomAttribute<InspectorInlineAttribute>() != null)
+                {
+                    if (DrawInlineFlatProperties(obj, prop, propType, onChanged))
+                        anyChanged = true;
+                }
                 else if (IsInlineObjectType(propType))
                 {
                     if (DrawInlineObjectProperty(label, obj, prop, propType, onChanged))
@@ -1831,6 +1840,36 @@ public static class ComponentDrawerRegistry
         return changed;
     }
 
+    private static bool DrawInlineFlatProperties(object owner, PropertyInfo prop, Type propType, Action? onChanged)
+    {
+        bool changed = false;
+        var current = prop.GetValue(owner);
+
+        if (!propType.IsValueType && current == null)
+        {
+            ImGui.LabelText(prop.Name, "(null)");
+            return false;
+        }
+
+        if (propType.IsValueType)
+        {
+            var boxed = current ?? Activator.CreateInstance(propType)!;
+            if (DrawObjectProperties(boxed, NoExcludedProperties))
+            {
+                prop.SetValue(owner, boxed);
+                onChanged?.Invoke();
+                changed = true;
+            }
+        }
+        else if (current != null)
+        {
+            if (DrawObjectProperties(current, NoExcludedProperties, onChanged))
+                changed = true;
+        }
+
+        return changed;
+    }
+
     private static bool DrawInlineListProperty(string label, object owner, PropertyInfo prop, Type elementType, Action? onChanged)
     {
         bool changed = false;
@@ -1840,6 +1879,8 @@ public static class ComponentDrawerRegistry
             ImGui.LabelText(label, "(null)");
             return false;
         }
+
+        bool fixedSize = prop.GetCustomAttribute<InspectorFixedListSizeAttribute>() != null;
 
         ImGui.PushID(prop.Name);
 
@@ -1859,57 +1900,70 @@ public static class ComponentDrawerRegistry
                 {
                     ImGui.PushID(i);
                     var itemLabel = $"Element {i}";
-                    bool itemOpen = ImGui.TreeNodeEx(
-                        itemLabel,
-                        ImGuiTreeNodeFlags.DefaultOpen
-                        | ImGuiTreeNodeFlags.AllowOverlap
-                        | ImGuiTreeNodeFlags.SpanAvailWidth
-                        | ImGuiTreeNodeFlags.FramePadding);
+                    bool itemOpen;
 
-                    float buttonSize = ImGui.GetFrameHeight();
-                    float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
-                    ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
-
-                    var transparent = new Vector4(0, 0, 0, 0);
-                    ImGui.PushStyleColor(ImGuiCol.Button, transparent);
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-
-                    if (i > 0)
+                    if (!fixedSize)
                     {
-                        if (ImGui.Button("^", new Vector2(buttonSize, buttonSize)))
-                            moveUpIndex = i;
+                        itemOpen = ImGui.TreeNodeEx(
+                            itemLabel,
+                            ImGuiTreeNodeFlags.DefaultOpen
+                            | ImGuiTreeNodeFlags.AllowOverlap
+                            | ImGuiTreeNodeFlags.SpanAvailWidth
+                            | ImGuiTreeNodeFlags.FramePadding);
+
+                        float buttonSize = ImGui.GetFrameHeight();
+                        float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+                        ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+                        var transparent = new Vector4(0, 0, 0, 0);
+                        ImGui.PushStyleColor(ImGuiCol.Button, transparent);
+                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
+                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
+
+                        if (i > 0)
+                        {
+                            if (ImGui.Button("^", new Vector2(buttonSize, buttonSize)))
+                                moveUpIndex = i;
+                        }
+                        else
+                        {
+                            ImGui.BeginDisabled();
+                            ImGui.Button("^", new Vector2(buttonSize, buttonSize));
+                            ImGui.EndDisabled();
+                        }
+
+                        ImGui.SameLine();
+                        if (i < list.Count - 1)
+                        {
+                            if (ImGui.Button("v", new Vector2(buttonSize, buttonSize)))
+                                moveDownIndex = i;
+                        }
+                        else
+                        {
+                            ImGui.BeginDisabled();
+                            ImGui.Button("v", new Vector2(buttonSize, buttonSize));
+                            ImGui.EndDisabled();
+                        }
+
+                        ImGui.SameLine();
+                        ImGui.PopStyleColor();
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+                        ImGui.PopStyleColor(2);
+                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
+                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
+                        if (ImGui.Button("X", new Vector2(buttonSize, buttonSize)))
+                            removeIndex = i;
+                        ImGui.PopStyleColor(4);
                     }
                     else
                     {
-                        ImGui.BeginDisabled();
-                        ImGui.Button("^", new Vector2(buttonSize, buttonSize));
-                        ImGui.EndDisabled();
+                        itemOpen = ImGui.TreeNodeEx(
+                            itemLabel,
+                            ImGuiTreeNodeFlags.DefaultOpen
+                            | ImGuiTreeNodeFlags.SpanAvailWidth
+                            | ImGuiTreeNodeFlags.FramePadding);
                     }
-
-                    ImGui.SameLine();
-                    if (i < list.Count - 1)
-                    {
-                        if (ImGui.Button("v", new Vector2(buttonSize, buttonSize)))
-                            moveDownIndex = i;
-                    }
-                    else
-                    {
-                        ImGui.BeginDisabled();
-                        ImGui.Button("v", new Vector2(buttonSize, buttonSize));
-                        ImGui.EndDisabled();
-                    }
-
-                    ImGui.SameLine();
-                    ImGui.PopStyleColor();
-                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
-                    ImGui.PopStyleColor(2);
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
-                    if (ImGui.Button("X", new Vector2(buttonSize, buttonSize)))
-                        removeIndex = i;
-                    ImGui.PopStyleColor(4);
 
                     if (itemOpen)
                     {
@@ -1953,23 +2007,26 @@ public static class ComponentDrawerRegistry
                     changed = true;
                 }
 
-                ImGui.Spacing();
-                float availWidth = ImGui.GetContentRegionAvail().X;
-                float buttonWidth = MathF.Min(200f, availWidth);
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidth) * 0.5f);
-                bool canCreate = CanCreateListItem(owner, prop, elementType);
-                ImGui.BeginDisabled(!canCreate);
-                if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidth, 0))
-                    && canCreate
-                    && TryCreateListItem(owner, prop, elementType, out var item))
+                if (!fixedSize)
                 {
-                    app.RecordUndo();
-                    list.Add(item!);
-                    app.RefreshUndoBaseline();
-                    onChanged?.Invoke();
-                    changed = true;
+                    ImGui.Spacing();
+                    float availWidth = ImGui.GetContentRegionAvail().X;
+                    float buttonWidth = MathF.Min(200f, availWidth);
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidth) * 0.5f);
+                    bool canCreate = CanCreateListItem(owner, prop, elementType);
+                    ImGui.BeginDisabled(!canCreate);
+                    if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidth, 0))
+                        && canCreate
+                        && TryCreateListItem(owner, prop, elementType, out var item))
+                    {
+                        app.RecordUndo();
+                        list.Add(item!);
+                        app.RefreshUndoBaseline();
+                        onChanged?.Invoke();
+                        changed = true;
+                    }
+                    ImGui.EndDisabled();
                 }
-                ImGui.EndDisabled();
             });
 
             ImGui.TreePop();
