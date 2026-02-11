@@ -480,9 +480,15 @@ public class PerformancePanel
         if (ImGui.CollapsingHeader("GPU Stats"))
         {
             var latest = FrameProfiler.GetLatest();
+            var instancing = _app.SceneRenderer.GetAutoInstancingFrameStats();
             ImGui.Text($"GPU: {FrameProfiler.GpuRenderer}");
             ImGui.Text($"Vendor: {FrameProfiler.GpuVendor}");
             ImGui.Text($"Draw Calls: {_app.SceneRenderer.LastFrameDrawCallCount}");
+            ImGui.Text($"Auto-Instancing: {(instancing.Enabled ? "On" : "Off")}");
+            ImGui.Text($"Instanced Batches: {instancing.InstancedBatchCount}/{instancing.BatchCount}");
+            ImGui.Text($"Instanced Instances: {instancing.InstancedInstanceCount}");
+            ImGui.Text($"Instanced Mesh Draws: {instancing.InstancedMeshDrawCalls}");
+            ImGui.Text($"Fallback Singles: {instancing.FallbackDrawCount}");
             ImGui.Text($"PP Passes: {latest.GpuStats.PostProcessPasses}");
         }
     }

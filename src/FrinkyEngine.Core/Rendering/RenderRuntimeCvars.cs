@@ -8,6 +8,34 @@ namespace FrinkyEngine.Core.Rendering;
 public static class RenderRuntimeCvars
 {
     /// <summary>
+    /// Global auto-instancing toggle for model and primitive rendering.
+    /// </summary>
+    public static bool AutoInstancingEnabled { get; private set; } = true;
+
+    /// <summary>
+    /// Gets the auto-instancing cvar value as "1" (enabled) or "0" (disabled).
+    /// </summary>
+    /// <returns>The current value string.</returns>
+    public static string GetAutoInstancingValue()
+    {
+        return AutoInstancingEnabled ? "1" : "0";
+    }
+
+    /// <summary>
+    /// Attempts to parse and apply the auto-instancing cvar from "1" or "0".
+    /// </summary>
+    /// <param name="value">User input value.</param>
+    /// <returns><c>true</c> if the value was accepted; otherwise <c>false</c>.</returns>
+    public static bool TrySetAutoInstancing(string value)
+    {
+        if (!TryParseBool01(value, out var enabled))
+            return false;
+
+        AutoInstancingEnabled = enabled;
+        return true;
+    }
+
+    /// <summary>
     /// Global post-processing toggle used by standalone runtime and editor Play/Simulate rendering.
     /// </summary>
     public static bool PostProcessingEnabled { get; private set; } = true;

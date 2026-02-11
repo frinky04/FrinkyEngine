@@ -145,3 +145,5 @@ Custom effects are discovered automatically via `FObjectTypeResolver` when loade
 
 - `r_postprocess 0` — disable post-processing at runtime
 - `r_postprocess 1` — enable post-processing at runtime
+- `r_autoinstancing 0` — disable automatic batching/instanced rendering for models and primitives
+- `r_autoinstancing 1` — enable automatic batching/instanced rendering for models and primitives

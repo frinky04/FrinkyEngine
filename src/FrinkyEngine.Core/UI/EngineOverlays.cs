@@ -849,6 +849,13 @@ public static unsafe class EngineOverlays
             RenderRuntimeCvars.TrySetPostProcessing));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_autoinstancing",
+            "r_autoinstancing [0|1]",
+            "Enable or disable automatic model/primitive instancing (1=on, 0=off).",
+            RenderRuntimeCvars.GetAutoInstancingValue,
+            RenderRuntimeCvars.TrySetAutoInstancing));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_showstats",
             "r_showstats [0-3]",
             "Stats overlay mode (0=off, 1=fps, 2=advanced, 3=verbose).",

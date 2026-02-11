@@ -1,4 +1,5 @@
 using System.Numerics;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using Raylib_cs;
@@ -33,6 +34,7 @@ public class SceneRenderer
     private int _lightDataTexSizeLoc = -1;
     private int _tileHeaderTexSizeLoc = -1;
     private int _tileIndexTexSizeLoc = -1;
+    private int _lightingUseInstancingLoc = -1;
 
     private ForwardPlusSettings _forwardPlusSettings = ForwardPlusSettings.Default;
     private int _viewportWidth;
@@ -63,7 +65,16 @@ public class SceneRenderer
 
     private readonly List<PackedLight> _frameLights = new();
     private readonly List<PointLightCandidate> _pointCandidates = new();
+    private readonly Dictionary<RenderBatchKey, InstancedBatchBucket> _instancedBatches = new();
+    private readonly List<RenderableDrawItem> _instancingFallbackDraws = new();
+    private readonly Dictionary<uint, int> _useInstancingLocationCache = new();
+    private readonly Dictionary<uint, int> _instanceTransformAttribLocationCache = new();
     private int _frameDrawCallCount;
+    private int _lastAutoInstancingBatchCount;
+    private int _lastAutoInstancingInstancedBatchCount;
+    private int _lastAutoInstancingInstancedInstanceCount;
+    private int _lastAutoInstancingFallbackDrawCount;
+    private int _lastAutoInstancingInstancedMeshDrawCallCount;
     private int _forwardPlusDroppedTileLights;
     private int _forwardPlusClippedLights;
     private int _frameCounter;
@@ -80,6 +91,17 @@ public class SceneRenderer
     /// Number of draw calls issued in the most recent <see cref="Render"/> pass.
     /// </summary>
     public int LastFrameDrawCallCount { get; private set; }
+
+    /// <summary>
+    /// Diagnostic statistics from the most recent automatic instancing frame.
+    /// </summary>
+    public readonly record struct AutoInstancingFrameStats(
+        bool Enabled,
+        int BatchCount,
+        int InstancedBatchCount,
+        int InstancedInstanceCount,
+        int FallbackDrawCount,
+        int InstancedMeshDrawCalls);
 
     /// <summary>
     /// Diagnostic statistics from the most recent Forward+ frame.
@@ -128,6 +150,21 @@ public class SceneRenderer
     }
 
     /// <summary>
+    /// Gets automatic instancing diagnostics from the most recent <see cref="Render"/> pass.
+    /// </summary>
+    /// <returns>A snapshot of batching and instanced submission counts for the frame.</returns>
+    public AutoInstancingFrameStats GetAutoInstancingFrameStats()
+    {
+        return new AutoInstancingFrameStats(
+            RenderRuntimeCvars.AutoInstancingEnabled,
+            _lastAutoInstancingBatchCount,
+            _lastAutoInstancingInstancedBatchCount,
+            _lastAutoInstancingInstancedInstanceCount,
+            _lastAutoInstancingFallbackDrawCount,
+            _lastAutoInstancingInstancedMeshDrawCallCount);
+    }
+
+    /// <summary>
     /// Applies new Forward+ configuration settings, reallocating tile buffers if needed.
     /// </summary>
     /// <param name="settings">The new settings to apply (values will be normalized/clamped).</param>
@@ -167,6 +204,7 @@ public class SceneRenderer
         _lightDataTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "lightDataTexSize");
         _tileHeaderTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTexSize");
         _tileIndexTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTexSize");
+        _lightingUseInstancingLoc = Raylib.GetShaderLocation(_lightingShader, "useInstancing");
 
         // Map forward+ sampler uniforms to unused material map slots so DrawMesh
         // binds them reliably (SetShaderValueTexture uses activeTextureId which
@@ -186,6 +224,7 @@ public class SceneRenderer
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
 
         _shaderLoaded = true;
+        SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
 
         var shaderDir = Path.GetDirectoryName(vsPath) ?? "Shaders";
         var selectionMaskVsPath = Path.Combine(shaderDir, "selection_mask.vs");
@@ -216,6 +255,9 @@ public class SceneRenderer
             Raylib.UnloadShader(_selectionMaskShader);
             _selectionMaskShaderLoaded = false;
         }
+
+        _useInstancingLocationCache.Clear();
+        _instanceTransformAttribLocationCache.Clear();
     }
 
     /// <summary>
@@ -229,6 +271,11 @@ public class SceneRenderer
     public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null, bool isEditorMode = true)
     {
         _frameDrawCallCount = 0;
+        _lastAutoInstancingBatchCount = 0;
+        _lastAutoInstancingInstancedBatchCount = 0;
+        _lastAutoInstancingInstancedInstanceCount = 0;
+        _lastAutoInstancingFallbackDrawCount = 0;
+        _lastAutoInstancingInstancedMeshDrawCallCount = 0;
 
         if (renderTarget.HasValue)
             Raylib.BeginTextureMode(renderTarget.Value);
@@ -250,15 +297,7 @@ public class SceneRenderer
             BindForwardPlusShaderData(viewportWidth, viewportHeight);
         }
 
-        foreach (var renderable in scene.Renderables)
-        {
-            if (!renderable.Entity.Active) continue;
-            if (!renderable.Enabled) continue;
-            if (renderable.EditorOnly && !isEditorMode) continue;
-            renderable.EnsureModelReady();
-            if (!renderable.RenderModel.HasValue) continue;
-            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, Color.White);
-        }
+        DrawRenderables(scene.Renderables, isEditorMode, RenderPass.Main, depthShader: default);
 
         if (isEditorMode)
             DrawGrid(20, 1.0f);
@@ -294,15 +333,7 @@ public class SceneRenderer
         Raylib.ClearBackground(Color.White);
         Raylib.BeginMode3D(camera);
 
-        foreach (var renderable in scene.Renderables)
-        {
-            if (!renderable.Entity.Active) continue;
-            if (!renderable.Enabled) continue;
-            if (renderable.EditorOnly && !isEditorMode) continue;
-            renderable.EnsureModelReady();
-            if (!renderable.RenderModel.HasValue) continue;
-            DrawModelWithCustomShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, depthShader);
-        }
+        DrawRenderables(scene.Renderables, isEditorMode, RenderPass.Depth, depthShader);
 
         Raylib.EndMode3D();
         Raylib.EndTextureMode();
@@ -316,6 +347,7 @@ public class SceneRenderer
                 model.Materials[i].Shader = shader;
         }
 
+        SetShaderUseInstancing(shader, GetUseInstancingLocation(shader), false);
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, Color.White);
     }
@@ -324,6 +356,7 @@ public class SceneRenderer
     {
         if (_shaderLoaded)
         {
+            SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
             unsafe
             {
                 for (int i = 0; i < model.MaterialCount; i++)
@@ -339,6 +372,290 @@ public class SceneRenderer
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, tint);
         _frameDrawCallCount++;
+    }
+
+    private void DrawRenderables(
+        IReadOnlyList<RenderableComponent> renderables,
+        bool isEditorMode,
+        RenderPass pass,
+        Shader depthShader)
+    {
+        if (!RenderRuntimeCvars.AutoInstancingEnabled)
+        {
+            DrawRenderablesSequential(renderables, isEditorMode, pass, depthShader);
+            return;
+        }
+
+        DrawRenderablesAutoInstanced(renderables, isEditorMode, pass, depthShader);
+    }
+
+    private void DrawRenderablesSequential(
+        IReadOnlyList<RenderableComponent> renderables,
+        bool isEditorMode,
+        RenderPass pass,
+        Shader depthShader)
+    {
+        foreach (var renderable in renderables)
+        {
+            if (!ShouldDrawRenderable(renderable, isEditorMode))
+                continue;
+
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue)
+                continue;
+
+            var model = renderable.RenderModel.Value;
+            var worldMatrix = renderable.Entity.Transform.WorldMatrix;
+            if (pass == RenderPass.Main)
+                DrawModelWithShader(model, worldMatrix, Color.White);
+            else
+                DrawModelWithCustomShader(model, worldMatrix, depthShader);
+        }
+    }
+
+    private void DrawRenderablesAutoInstanced(
+        IReadOnlyList<RenderableComponent> renderables,
+        bool isEditorMode,
+        RenderPass pass,
+        Shader depthShader)
+    {
+        _instancedBatches.Clear();
+        _instancingFallbackDraws.Clear();
+
+        foreach (var renderable in renderables)
+        {
+            if (!ShouldDrawRenderable(renderable, isEditorMode))
+                continue;
+
+            renderable.EnsureModelReady();
+            if (!renderable.RenderModel.HasValue)
+                continue;
+
+            var model = renderable.RenderModel.Value;
+            var item = new RenderableDrawItem(renderable, renderable.Entity.Transform.WorldMatrix);
+            if (!TryCreateRenderBatchKey(renderable, model, out var key))
+            {
+                _instancingFallbackDraws.Add(item);
+                continue;
+            }
+
+            if (!_instancedBatches.TryGetValue(key, out var batch))
+            {
+                batch = new InstancedBatchBucket(item);
+                _instancedBatches.Add(key, batch);
+            }
+
+            batch.InstanceTransforms.Add(Matrix4x4.Transpose(item.WorldMatrix));
+        }
+
+        if (pass == RenderPass.Main)
+        {
+            _lastAutoInstancingBatchCount = _instancedBatches.Count;
+            _lastAutoInstancingFallbackDrawCount = _instancingFallbackDraws.Count;
+        }
+
+        foreach (var fallback in _instancingFallbackDraws)
+            DrawRenderableItem(fallback, pass, depthShader);
+
+        foreach (var batch in _instancedBatches.Values)
+        {
+            if (batch.InstanceTransforms.Count <= 1)
+            {
+                DrawRenderableItem(batch.Representative, pass, depthShader);
+                continue;
+            }
+
+            if (pass == RenderPass.Main)
+            {
+                _lastAutoInstancingInstancedBatchCount++;
+                _lastAutoInstancingInstancedInstanceCount += batch.InstanceTransforms.Count;
+            }
+
+            DrawInstancedBatch(batch, pass, depthShader);
+        }
+    }
+
+    private void DrawRenderableItem(RenderableDrawItem item, RenderPass pass, Shader depthShader)
+    {
+        item.Renderable.EnsureModelReady();
+        if (!item.Renderable.RenderModel.HasValue)
+            return;
+
+        var model = item.Renderable.RenderModel.Value;
+        if (pass == RenderPass.Main)
+            DrawModelWithShader(model, item.WorldMatrix, Color.White);
+        else
+            DrawModelWithCustomShader(model, item.WorldMatrix, depthShader);
+    }
+
+    private void DrawInstancedBatch(InstancedBatchBucket batch, RenderPass pass, Shader depthShader)
+    {
+        batch.Representative.Renderable.EnsureModelReady();
+        if (!batch.Representative.Renderable.RenderModel.HasValue)
+            return;
+
+        var model = batch.Representative.Renderable.RenderModel.Value;
+        if (model.MeshCount <= 0)
+            return;
+
+        var transforms = batch.InstanceTransforms.ToArray();
+        var activeShader = pass == RenderPass.Main ? _lightingShader : depthShader;
+        int useInstancingLoc = pass == RenderPass.Main
+            ? _lightingUseInstancingLoc
+            : GetUseInstancingLocation(depthShader);
+        int previousMatrixModelLoc = GetShaderLocationFromLocs(activeShader, ShaderLocationIndex.MatrixModel);
+        int instanceAttribLoc = GetInstanceTransformAttribLocation(activeShader);
+
+        if (instanceAttribLoc >= 0)
+            SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, instanceAttribLoc);
+        SetShaderUseInstancing(activeShader, useInstancingLoc, true);
+
+        unsafe
+        {
+            for (int meshIndex = 0; meshIndex < model.MeshCount; meshIndex++)
+            {
+                int materialIndex = model.MeshMaterial != null ? model.MeshMaterial[meshIndex] : 0;
+                if (materialIndex < 0 || materialIndex >= model.MaterialCount)
+                    continue;
+
+                var mesh = model.Meshes[meshIndex];
+                var material = model.Materials[materialIndex];
+                ConfigureMaterialForPass(ref material, pass, depthShader);
+                Raylib.DrawMeshInstanced(mesh, material, transforms, transforms.Length);
+                if (pass == RenderPass.Main)
+                {
+                    _frameDrawCallCount++;
+                    _lastAutoInstancingInstancedMeshDrawCallCount++;
+                }
+            }
+        }
+
+        SetShaderUseInstancing(activeShader, useInstancingLoc, false);
+        if (instanceAttribLoc >= 0)
+            SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, previousMatrixModelLoc);
+    }
+
+    private unsafe void ConfigureMaterialForPass(ref Raylib_cs.Material material, RenderPass pass, Shader depthShader)
+    {
+        if (pass == RenderPass.Depth)
+        {
+            material.Shader = depthShader;
+            return;
+        }
+
+        if (!_shaderLoaded)
+            return;
+
+        material.Shader = _lightingShader;
+        material.Maps[(int)MaterialMapIndex.Occlusion].Texture = _lightDataTexture;
+        material.Maps[(int)MaterialMapIndex.Emission].Texture = _tileHeaderTexture;
+        material.Maps[(int)MaterialMapIndex.Height].Texture = _tileIndexTexture;
+    }
+
+    private static bool ShouldDrawRenderable(RenderableComponent renderable, bool isEditorMode)
+    {
+        if (!renderable.Entity.Active)
+            return false;
+        if (!renderable.Enabled)
+            return false;
+        if (renderable.EditorOnly && !isEditorMode)
+            return false;
+        return true;
+    }
+
+    private static bool TryCreateRenderBatchKey(RenderableComponent renderable, Model model, out RenderBatchKey key)
+    {
+        if (renderable is MeshRendererComponent meshRenderer)
+        {
+            var path = ResolveMeshAssetKey(meshRenderer.ModelPath.Path);
+            if (string.IsNullOrEmpty(path))
+            {
+                key = default;
+                return false;
+            }
+
+            int materialHash = ComputeMeshRendererMaterialHash(meshRenderer, model.MaterialCount);
+            key = new RenderBatchKey(
+                RenderBatchKind.MeshRenderer,
+                path,
+                default,
+                0,
+                materialHash);
+            return true;
+        }
+
+        if (renderable is PrimitiveComponent primitive)
+        {
+            key = new RenderBatchKey(
+                RenderBatchKind.Primitive,
+                string.Empty,
+                primitive.GetType().TypeHandle,
+                ComputePrimitiveGeometryHash(primitive),
+                primitive.Material?.GetConfigurationHash() ?? 0);
+            return true;
+        }
+
+        key = default;
+        return false;
+    }
+
+    private static string ResolveMeshAssetKey(string modelPath)
+    {
+        if (string.IsNullOrWhiteSpace(modelPath))
+            return string.Empty;
+
+        var resolved = AssetDatabase.Instance.ResolveAssetPath(modelPath) ?? modelPath;
+        return resolved.Replace('\\', '/');
+    }
+
+    private static int ComputeMeshRendererMaterialHash(MeshRendererComponent meshRenderer, int materialCount)
+    {
+        var hash = new HashCode();
+        hash.Add(materialCount);
+
+        for (int i = 0; i < materialCount; i++)
+        {
+            int slotHash = i < meshRenderer.MaterialSlots.Count && meshRenderer.MaterialSlots[i] != null
+                ? meshRenderer.MaterialSlots[i].GetConfigurationHash()
+                : 0;
+            hash.Add(slotHash);
+        }
+
+        return hash.ToHashCode();
+    }
+
+    private static int ComputePrimitiveGeometryHash(PrimitiveComponent primitive)
+    {
+        var hash = new HashCode();
+
+        switch (primitive)
+        {
+            case CubePrimitive cube:
+                hash.Add(BitConverter.SingleToInt32Bits(cube.Width));
+                hash.Add(BitConverter.SingleToInt32Bits(cube.Height));
+                hash.Add(BitConverter.SingleToInt32Bits(cube.Depth));
+                break;
+            case SpherePrimitive sphere:
+                hash.Add(BitConverter.SingleToInt32Bits(sphere.Radius));
+                hash.Add(sphere.Rings);
+                hash.Add(sphere.Slices);
+                break;
+            case PlanePrimitive plane:
+                hash.Add(BitConverter.SingleToInt32Bits(plane.Width));
+                hash.Add(BitConverter.SingleToInt32Bits(plane.Depth));
+                hash.Add(plane.ResolutionX);
+                hash.Add(plane.ResolutionZ);
+                break;
+            case CylinderPrimitive cylinder:
+                hash.Add(BitConverter.SingleToInt32Bits(cylinder.Radius));
+                hash.Add(BitConverter.SingleToInt32Bits(cylinder.Height));
+                hash.Add(cylinder.Slices);
+                break;
+            default:
+                return 0;
+        }
+
+        return hash.ToHashCode();
     }
 
     /// <summary>
@@ -961,9 +1278,89 @@ public class SceneRenderer
         _tileIndexTexture = default;
     }
 
+    private int GetUseInstancingLocation(Shader shader)
+    {
+        if (shader.Id == 0)
+            return -1;
+
+        if (_useInstancingLocationCache.TryGetValue(shader.Id, out var cached))
+            return cached;
+
+        int loc = Raylib.GetShaderLocation(shader, "useInstancing");
+        _useInstancingLocationCache[shader.Id] = loc;
+        return loc;
+    }
+
+    private int GetInstanceTransformAttribLocation(Shader shader)
+    {
+        if (shader.Id == 0)
+            return -1;
+
+        if (_instanceTransformAttribLocationCache.TryGetValue(shader.Id, out var cached))
+            return cached;
+
+        int loc = Raylib.GetShaderLocationAttrib(shader, "instanceTransform");
+        _instanceTransformAttribLocationCache[shader.Id] = loc;
+        return loc;
+    }
+
+    private static unsafe int GetShaderLocationFromLocs(Shader shader, ShaderLocationIndex index)
+    {
+        if (shader.Locs == null)
+            return -1;
+
+        return shader.Locs[(int)index];
+    }
+
+    private static unsafe void SetShaderLocationInLocs(Shader shader, ShaderLocationIndex index, int location)
+    {
+        if (shader.Locs == null)
+            return;
+
+        shader.Locs[(int)index] = location;
+    }
+
+    private static void SetShaderUseInstancing(Shader shader, int location, bool enabled)
+    {
+        if (shader.Id == 0 || location < 0)
+            return;
+
+        int value = enabled ? 1 : 0;
+        Raylib.SetShaderValue(shader, location, value, ShaderUniformDataType.Int);
+    }
+
     private static void DrawGrid(int slices, float spacing)
     {
         Raylib.DrawGrid(slices, spacing);
+    }
+
+    private enum RenderPass
+    {
+        Main = 0,
+        Depth = 1
+    }
+
+    private enum RenderBatchKind
+    {
+        MeshRenderer = 0,
+        Primitive = 1
+    }
+
+    private readonly record struct RenderBatchKey(
+        RenderBatchKind Kind,
+        string ModelPath,
+        RuntimeTypeHandle PrimitiveType,
+        int GeometryHash,
+        int MaterialHash);
+
+    private readonly record struct RenderableDrawItem(
+        RenderableComponent Renderable,
+        Matrix4x4 WorldMatrix);
+
+    private sealed class InstancedBatchBucket(RenderableDrawItem representative)
+    {
+        public RenderableDrawItem Representative { get; } = representative;
+        public List<Matrix4x4> InstanceTransforms { get; } = new();
     }
 
     private enum PackedLightType
