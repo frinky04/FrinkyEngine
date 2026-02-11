@@ -9,6 +9,7 @@ using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Scene;
+using FrinkyEngine.Core.Serialization;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
 using Raylib_cs;
@@ -493,6 +494,14 @@ public static class ComponentDrawerRegistry
                 DrawAudioSourceAttenuation(source, prop);
             else
                 ImGui.LabelText(label, propType.Name);
+        }
+        else if (typeof(FObject).IsAssignableFrom(propType))
+        {
+            DrawFObjectProperty(label, component, prop, propType);
+        }
+        else if (IsFObjectListType(propType, out var fobjectElementType))
+        {
+            DrawFObjectListProperty(label, component, prop, fobjectElementType!);
         }
         else
         {
@@ -1118,7 +1127,7 @@ public static class ComponentDrawerRegistry
             if (open)
             {
                 ImGui.Indent();
-                DrawEffectProperties(effect);
+                DrawObjectProperties(effect, EffectExcludedProperties);
                 ImGui.Unindent();
             }
 
@@ -1196,92 +1205,577 @@ public static class ComponentDrawerRegistry
         }
     }
 
-    private static void DrawEffectProperties(PostProcessEffect effect)
+    private static void DrawObjectProperties(object obj, HashSet<string> excluded)
     {
-        var type = effect.GetType();
+        var type = obj.GetType();
         var app = EditorApplication.Instance;
 
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!prop.CanRead || !prop.CanWrite) continue;
-            if (EffectExcludedProperties.Contains(prop.Name)) continue;
+            if (excluded.Contains(prop.Name)) continue;
 
             var propType = prop.PropertyType;
             var label = NiceLabel(prop.Name);
 
             if (propType == typeof(float))
             {
-                float val = (float)prop.GetValue(effect)!;
+                float val = (float)prop.GetValue(obj)!;
                 if (ImGui.DragFloat(label, ref val, 0.05f))
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
                 TrackContinuousUndo(app);
             }
             else if (propType == typeof(int))
             {
-                int val = (int)prop.GetValue(effect)!;
+                int val = (int)prop.GetValue(obj)!;
                 if (ImGui.DragInt(label, ref val))
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
                 TrackContinuousUndo(app);
             }
             else if (propType == typeof(bool))
             {
-                bool val = (bool)prop.GetValue(effect)!;
+                bool val = (bool)prop.GetValue(obj)!;
                 if (ImGui.Checkbox(label, ref val))
                 {
                     app.RecordUndo();
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
                     app.RefreshUndoBaseline();
                 }
             }
             else if (propType == typeof(string))
             {
-                string val = (string)(prop.GetValue(effect) ?? "");
+                string val = (string)(prop.GetValue(obj) ?? "");
                 if (ImGui.InputText(label, ref val, 256))
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
                 TrackContinuousUndo(app);
             }
             else if (propType == typeof(Vector3))
             {
-                var val = (Vector3)prop.GetValue(effect)!;
+                var val = (Vector3)prop.GetValue(obj)!;
                 if (DrawColoredVector3(label, ref val, 0.1f))
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
             }
             else if (propType == typeof(Vector2))
             {
-                var val = (Vector2)prop.GetValue(effect)!;
+                var val = (Vector2)prop.GetValue(obj)!;
                 if (ImGui.DragFloat2(label, ref val, 0.1f))
-                    prop.SetValue(effect, val);
+                    prop.SetValue(obj, val);
                 TrackContinuousUndo(app);
             }
             else if (propType == typeof(Color))
             {
-                DrawColorEdit4(label, (Color)prop.GetValue(effect)!, v => prop.SetValue(effect, v));
+                DrawColorEdit4(label, (Color)prop.GetValue(obj)!, v => prop.SetValue(obj, v));
             }
             else if (propType.IsEnum)
             {
-                object currentValue = prop.GetValue(effect) ?? Enum.GetValues(propType).GetValue(0)!;
+                object currentValue = prop.GetValue(obj) ?? Enum.GetValues(propType).GetValue(0)!;
                 if (ComboEnumHelper.Combo(label, propType, ref currentValue))
                 {
                     app.RecordUndo();
-                    prop.SetValue(effect, currentValue);
+                    prop.SetValue(obj, currentValue);
                     app.RefreshUndoBaseline();
                 }
             }
+            else if (propType == typeof(EntityReference))
+            {
+                DrawFObjectEntityReference(label, obj, prop);
+            }
             else if (propType == typeof(AssetReference))
             {
-                var assetRef = (AssetReference)prop.GetValue(effect)!;
+                var assetRef = (AssetReference)prop.GetValue(obj)!;
                 var filterAttr = prop.GetCustomAttribute<AssetFilterAttribute>();
                 var assetFilter = filterAttr?.Filter ?? AssetType.Unknown;
                 DrawAssetReference(label, assetRef, assetFilter, v =>
                 {
-                    prop.SetValue(effect, v);
+                    prop.SetValue(obj, v);
                 });
+            }
+            else if (typeof(FObject).IsAssignableFrom(propType))
+            {
+                DrawInlineFObjectProperty(label, obj, prop, propType);
+            }
+            else if (IsFObjectListType(propType, out var elementType))
+            {
+                DrawInlineFObjectListProperty(label, obj, prop, elementType!);
             }
             else
             {
                 ImGui.LabelText(label, propType.Name);
             }
         }
+    }
+
+    private static readonly HashSet<string> FObjectExcludedProperties = new()
+    {
+        nameof(FObject.DisplayName)
+    };
+
+    private static unsafe void DrawFObjectEntityReference(string label, object obj, PropertyInfo prop)
+    {
+        var app = EditorApplication.Instance;
+        var scene = app.CurrentScene;
+        var entityRef = (EntityReference)(prop.GetValue(obj) ?? EntityReference.None);
+
+        Entity? resolved = null;
+        string preview;
+        if (!entityRef.IsValid)
+        {
+            preview = "(None)";
+        }
+        else
+        {
+            resolved = scene?.FindEntityById(entityRef.Id);
+            preview = resolved != null ? resolved.Name : "(Missing)";
+        }
+
+        ImGui.PushID(label);
+        ImGui.Columns(2, (string?)null, false);
+        ImGui.SetColumnWidth(0, 80);
+        ImGui.Text(label);
+        ImGui.NextColumn();
+
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float clearButtonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+        float comboWidth = availWidth - clearButtonWidth - ImGui.GetStyle().ItemSpacing.X;
+
+        ImGui.SetNextItemWidth(comboWidth);
+        if (ImGui.BeginCombo("##ref", preview))
+        {
+            if (ImGui.Selectable("(None)", !entityRef.IsValid))
+            {
+                app.RecordUndo();
+                prop.SetValue(obj, EntityReference.None);
+                app.RefreshUndoBaseline();
+            }
+
+            if (scene != null)
+            {
+                foreach (var entity in scene.Entities)
+                {
+                    bool isSelected = entityRef.IsValid && entity.Id == entityRef.Id;
+                    if (ImGui.Selectable(entity.Name + "##" + entity.Id.ToString("N"), isSelected))
+                    {
+                        app.RecordUndo();
+                        prop.SetValue(obj, new EntityReference(entity));
+                        app.RefreshUndoBaseline();
+                    }
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+
+        if (ImGui.BeginDragDropTarget())
+        {
+            ImGuiPayload* payload = ImGui.AcceptDragDropPayload("FRINKY_HIERARCHY_ENTITY");
+            if (payload != null && payload->Delivery != 0 && app.DraggedEntityId.HasValue)
+            {
+                var draggedEntity = app.FindEntityById(app.DraggedEntityId.Value);
+                if (draggedEntity != null)
+                {
+                    app.RecordUndo();
+                    prop.SetValue(obj, new EntityReference(draggedEntity));
+                    app.RefreshUndoBaseline();
+                }
+            }
+            ImGui.EndDragDropTarget();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("X") && entityRef.IsValid)
+        {
+            app.RecordUndo();
+            prop.SetValue(obj, EntityReference.None);
+            app.RefreshUndoBaseline();
+        }
+
+        ImGui.Columns(1);
+        ImGui.PopID();
+    }
+
+    // ─── FObject helpers ──────────────────────────────────────────────
+
+    private static bool IsFObjectListType(Type type, out Type? elementType)
+    {
+        elementType = null;
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            var arg = type.GetGenericArguments()[0];
+            if (typeof(FObject).IsAssignableFrom(arg))
+            {
+                elementType = arg;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void DrawFObjectProperty(string label, Component component, PropertyInfo prop, Type propType)
+    {
+        var app = EditorApplication.Instance;
+        var current = prop.GetValue(component) as FObject;
+        var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(propType).ToList();
+
+        string preview = current != null ? current.DisplayName : "(None)";
+
+        ImGui.PushID(prop.Name);
+
+        if (ImGui.BeginCombo(label, preview))
+        {
+            if (ImGui.Selectable("(None)", current == null))
+            {
+                app.RecordUndo();
+                prop.SetValue(component, null);
+                app.RefreshUndoBaseline();
+            }
+
+            foreach (var type in candidateTypes)
+            {
+                var displayName = FObjectTypeResolver.GetDisplayName(type);
+                var source = FObjectTypeResolver.GetAssemblySource(type);
+                var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
+                bool isSelected = current != null && current.GetType() == type;
+
+                if (ImGui.Selectable(itemLabel, isSelected))
+                {
+                    try
+                    {
+                        var newObj = (FObject)Activator.CreateInstance(type)!;
+                        app.RecordUndo();
+                        prop.SetValue(component, newObj);
+                        app.RefreshUndoBaseline();
+                    }
+                    catch { }
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+
+        if (current != null)
+        {
+            ImGui.Indent();
+            DrawObjectProperties(current, FObjectExcludedProperties);
+            ImGui.Unindent();
+        }
+
+        ImGui.PopID();
+    }
+
+    private static void DrawFObjectListProperty(string label, Component component, PropertyInfo prop, Type elementType)
+    {
+        var app = EditorApplication.Instance;
+        var list = prop.GetValue(component) as System.Collections.IList;
+        if (list == null)
+        {
+            ImGui.LabelText(label, "(null)");
+            return;
+        }
+
+        ImGui.PushID(prop.Name);
+
+        int? removeIndex = null;
+        int? moveUpIndex = null;
+        int? moveDownIndex = null;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            var item = list[i] as FObject;
+            if (item == null) continue;
+
+            ImGui.PushID(i);
+
+            bool open = ImGui.CollapsingHeader(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+
+            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+            if (i > 0)
+            {
+                if (ImGui.SmallButton("^")) moveUpIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("^");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (i < list.Count - 1)
+            {
+                if (ImGui.SmallButton("v")) moveDownIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("v");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (ImGui.SmallButton("X")) removeIndex = i;
+
+            if (open)
+            {
+                ImGui.Indent();
+                DrawObjectProperties(item, FObjectExcludedProperties);
+                ImGui.Unindent();
+            }
+
+            ImGui.PopID();
+            ImGui.Spacing();
+        }
+
+        if (removeIndex.HasValue)
+        {
+            app.RecordUndo();
+            list.RemoveAt(removeIndex.Value);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveUpIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveUpIndex.Value;
+            (list[idx], list[idx - 1]) = (list[idx - 1], list[idx]);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveDownIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveDownIndex.Value;
+            (list[idx], list[idx + 1]) = (list[idx + 1], list[idx]);
+            app.RefreshUndoBaseline();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var popupId = $"AddFObject_{prop.Name}";
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float buttonWidthAdd = MathF.Min(200f, availWidth);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
+        if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidthAdd, 0)))
+            ImGui.OpenPopup(popupId);
+
+        if (ImGui.BeginPopup(popupId))
+        {
+            var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(elementType).ToList();
+            if (candidateTypes.Count == 0)
+            {
+                ImGui.TextDisabled("No types available");
+            }
+            else
+            {
+                foreach (var type in candidateTypes)
+                {
+                    var displayName = FObjectTypeResolver.GetDisplayName(type);
+                    var source = FObjectTypeResolver.GetAssemblySource(type);
+                    var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
+
+                    if (ImGui.Selectable(itemLabel))
+                    {
+                        try
+                        {
+                            var newObj = (FObject)Activator.CreateInstance(type)!;
+                            app.RecordUndo();
+                            list.Add(newObj);
+                            app.RefreshUndoBaseline();
+                        }
+                        catch { }
+                    }
+                }
+            }
+            ImGui.EndPopup();
+        }
+
+        ImGui.PopID();
+    }
+
+    private static void DrawInlineFObjectProperty(string label, object owner, PropertyInfo prop, Type propType)
+    {
+        var app = EditorApplication.Instance;
+        var current = prop.GetValue(owner) as FObject;
+        var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(propType).ToList();
+
+        string preview = current != null ? current.DisplayName : "(None)";
+
+        ImGui.PushID(prop.Name);
+
+        if (ImGui.BeginCombo(label, preview))
+        {
+            if (ImGui.Selectable("(None)", current == null))
+            {
+                app.RecordUndo();
+                prop.SetValue(owner, null);
+                app.RefreshUndoBaseline();
+            }
+
+            foreach (var type in candidateTypes)
+            {
+                var displayName = FObjectTypeResolver.GetDisplayName(type);
+                var source = FObjectTypeResolver.GetAssemblySource(type);
+                var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
+                bool isSelected = current != null && current.GetType() == type;
+
+                if (ImGui.Selectable(itemLabel, isSelected))
+                {
+                    try
+                    {
+                        var newObj = (FObject)Activator.CreateInstance(type)!;
+                        app.RecordUndo();
+                        prop.SetValue(owner, newObj);
+                        app.RefreshUndoBaseline();
+                    }
+                    catch { }
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+
+        if (current != null)
+        {
+            ImGui.Indent();
+            DrawObjectProperties(current, FObjectExcludedProperties);
+            ImGui.Unindent();
+        }
+
+        ImGui.PopID();
+    }
+
+    private static void DrawInlineFObjectListProperty(string label, object owner, PropertyInfo prop, Type elementType)
+    {
+        var app = EditorApplication.Instance;
+        var list = prop.GetValue(owner) as System.Collections.IList;
+        if (list == null)
+        {
+            ImGui.LabelText(label, "(null)");
+            return;
+        }
+
+        ImGui.PushID(prop.Name);
+
+        int? removeIndex = null;
+        int? moveUpIndex = null;
+        int? moveDownIndex = null;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            var item = list[i] as FObject;
+            if (item == null) continue;
+
+            ImGui.PushID(i);
+
+            bool open = ImGui.CollapsingHeader(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap);
+
+            float buttonWidth = ImGui.CalcTextSize("X").X + ImGui.GetStyle().FramePadding.X * 2f;
+            float totalButtonWidth = buttonWidth * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+            if (i > 0)
+            {
+                if (ImGui.SmallButton("^")) moveUpIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("^");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (i < list.Count - 1)
+            {
+                if (ImGui.SmallButton("v")) moveDownIndex = i;
+            }
+            else
+            {
+                ImGui.BeginDisabled();
+                ImGui.SmallButton("v");
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine();
+
+            if (ImGui.SmallButton("X")) removeIndex = i;
+
+            if (open)
+            {
+                ImGui.Indent();
+                DrawObjectProperties(item, FObjectExcludedProperties);
+                ImGui.Unindent();
+            }
+
+            ImGui.PopID();
+            ImGui.Spacing();
+        }
+
+        if (removeIndex.HasValue)
+        {
+            app.RecordUndo();
+            list.RemoveAt(removeIndex.Value);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveUpIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveUpIndex.Value;
+            (list[idx], list[idx - 1]) = (list[idx - 1], list[idx]);
+            app.RefreshUndoBaseline();
+        }
+        else if (moveDownIndex.HasValue)
+        {
+            app.RecordUndo();
+            int idx = moveDownIndex.Value;
+            (list[idx], list[idx + 1]) = (list[idx + 1], list[idx]);
+            app.RefreshUndoBaseline();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var popupId = $"AddFObject_{prop.Name}_inline";
+        float availWidth = ImGui.GetContentRegionAvail().X;
+        float buttonWidthAdd = MathF.Min(200f, availWidth);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (availWidth - buttonWidthAdd) * 0.5f);
+        if (ImGui.Button($"Add {NiceLabel(elementType.Name)}", new Vector2(buttonWidthAdd, 0)))
+            ImGui.OpenPopup(popupId);
+
+        if (ImGui.BeginPopup(popupId))
+        {
+            var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(elementType).ToList();
+            if (candidateTypes.Count == 0)
+            {
+                ImGui.TextDisabled("No types available");
+            }
+            else
+            {
+                foreach (var type in candidateTypes)
+                {
+                    var displayName = FObjectTypeResolver.GetDisplayName(type);
+                    var source = FObjectTypeResolver.GetAssemblySource(type);
+                    var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
+
+                    if (ImGui.Selectable(itemLabel))
+                    {
+                        try
+                        {
+                            var newObj = (FObject)Activator.CreateInstance(type)!;
+                            app.RecordUndo();
+                            list.Add(newObj);
+                            app.RefreshUndoBaseline();
+                        }
+                        catch { }
+                    }
+                }
+            }
+            ImGui.EndPopup();
+        }
+
+        ImGui.PopID();
     }
 
     // ─── Reusable helpers ───────────────────────────────────────────────

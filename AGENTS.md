@@ -32,7 +32,8 @@ Co-Authored-By: (the agent model's name and attribution byline)
 - Components in `Components/`, panels in `Panels/`, serialization in `Serialization/`
 - Scenes: `.fscene`, Prefabs: `.fprefab`, Projects: `.fproject` (all JSON)
 - Public Core API types/methods get `<summary>` XML docs; Editor/Runtime internals do not
-- Update `README.md` when adding features or changing behavior
+- Update `/docs` when adding new features
+- Do not updates `/docs/api`, it is auto-generated. 
 
 ## Console Commands
 

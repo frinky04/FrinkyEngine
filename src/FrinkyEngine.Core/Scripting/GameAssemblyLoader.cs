@@ -72,6 +72,7 @@ public class GameAssemblyLoader
             _gameAssembly = _loadContext.LoadFromStream(new MemoryStream(bytes));
             ComponentTypeResolver.RegisterAssembly(_gameAssembly);
             PostProcessEffectResolver.RegisterAssembly(_gameAssembly);
+            FObjectTypeResolver.RegisterAssembly(_gameAssembly);
             return true;
         }
         catch (ReflectionTypeLoadException ex)
@@ -101,6 +102,7 @@ public class GameAssemblyLoader
     {
         if (_gameAssembly != null)
         {
+            FObjectTypeResolver.UnregisterAssembly(_gameAssembly);
             PostProcessEffectResolver.UnregisterAssembly(_gameAssembly);
             ComponentTypeResolver.UnregisterAssembly(_gameAssembly);
         }

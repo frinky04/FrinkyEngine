@@ -383,6 +383,13 @@ public class MenuBar
                 types.Add(type);
         }
 
+        types.Add(typeof(FObject));
+        foreach (var type in FObjectTypeResolver.GetAllTypes())
+        {
+            if (!type.IsAbstract)
+                types.Add(type);
+        }
+
         _baseClassTypes = types.ToArray();
         _baseClassOptions = types.Select(t => t.Name).ToArray();
     }

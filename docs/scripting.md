@@ -55,6 +55,8 @@ Public read/write properties on components are automatically serialized to JSON.
 | Enums | Serialized by name |
 | `EntityReference` | Serialized as GUID string (see [Prefabs](prefabs.md)) |
 | `AssetReference` | Asset path reference |
+| `FObject` subclasses | Polymorphic `$type` + `properties` (see [FObjects](#fobjects--polymorphic-data-objects)) |
+| `List<T>` where T : `FObject` | Array of polymorphic objects |
 
 ## Inspector Attributes
 
@@ -97,6 +99,90 @@ public class WeaponComponent : Component
     public float AltFireDamage { get; set; } = 25f;
 }
 ```
+
+## FObjects — Polymorphic Data Objects
+
+FObjects are a general-purpose composition system for configurable, type-selectable data owned by components. Use them for things like AI behaviors, weapon configs, ability definitions, loot tables, or any case where a component needs a property whose concrete type is chosen at edit time.
+
+### Writing an FObject
+
+Subclass `FObject` and add public read/write properties:
+
+```csharp
+using FrinkyEngine.Core.ECS;
+
+public abstract class AIBehavior : FObject { }
+
+public class AggressiveBehavior : AIBehavior
+{
+    public override string DisplayName => "Aggressive";
+    public float AggressionLevel { get; set; } = 0.8f;
+    public float ChaseRange { get; set; } = 20f;
+}
+
+public class PassiveBehavior : AIBehavior
+{
+    public override string DisplayName => "Passive";
+    public float FleeRange { get; set; } = 15f;
+}
+```
+
+### Using FObjects in Components
+
+Declare properties typed as an FObject subclass (single or list):
+
+```csharp
+public class EnemyComponent : Component
+{
+    // Single FObject — inspector shows a type dropdown (None, Aggressive, Passive)
+    public AIBehavior? PrimaryBehavior { get; set; }
+
+    // List of FObjects — inspector shows collapsible list with Add/Remove/Reorder
+    public List<AIBehavior> Behaviors { get; set; } = new();
+
+    public override void Update(float dt)
+    {
+        // Access FObject properties directly
+        if (PrimaryBehavior is AggressiveBehavior aggressive)
+        {
+            // Chase logic using aggressive.ChaseRange
+        }
+    }
+}
+```
+
+### Inspector Behavior
+
+- **Single FObject property**: combo dropdown with `(None)` plus all concrete types assignable to the declared type, followed by inline property editing
+- **List&lt;FObject&gt; property**: collapsible headers per entry with reorder (^/v), remove (X) buttons and an "Add" button with a type picker popup
+- **Multi-entity editing**: shows "(edit individually)" for FObject properties
+- **Nested FObjects**: FObject properties can themselves contain FObject or List&lt;FObject&gt; properties — the inspector recurses automatically
+
+### Serialization
+
+FObjects serialize to JSON with the same `$type` + `properties` pattern used by post-processing effects:
+
+```json
+{
+  "$type": "MyGame.Scripts.AggressiveBehavior",
+  "properties": {
+    "AggressionLevel": 0.8,
+    "ChaseRange": 20.0
+  }
+}
+```
+
+All serializable property types supported by components also work inside FObjects (float, int, bool, string, Vector2/3, Color, enums, EntityReference, AssetReference, nested FObjects).
+
+EntityReferences inside FObjects are correctly remapped during entity duplication, prefab instantiation, and prefab application.
+
+### Creating FObject Scripts
+
+Use `Scripts -> Create Script...` in the editor menu bar. Select `FObject` (or any concrete FObject subclass) as the base class. The generated template includes a `DisplayName` override.
+
+### Hot-Reload
+
+FObject types from game assemblies are discovered automatically via `FObjectTypeResolver`. When a game assembly is rebuilt and reloaded, new FObject types appear in inspector dropdowns and removed types are cleaned up.
 
 ## Input API
 

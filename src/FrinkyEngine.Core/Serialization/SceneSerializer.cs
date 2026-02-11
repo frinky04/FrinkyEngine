@@ -29,6 +29,7 @@ public static class SceneSerializer
             new EntityReferenceConverter(),
             new PostProcessEffectListConverter(),
             new AssetReferenceConverter(),
+            new FObjectConverterFactory(),
             new JsonStringEnumConverter()
         }
     };
@@ -252,27 +253,111 @@ public static class SceneSerializer
     {
         foreach (var component in data.Components)
         {
-            var keysToRemap = new List<string>();
+            var keysToUpdate = new List<(string key, JsonElement remapped)>();
             foreach (var (propName, jsonElement) in component.Properties)
             {
-                if (jsonElement.ValueKind == JsonValueKind.String)
-                {
-                    var str = jsonElement.GetString();
-                    if (str != null && Guid.TryParse(str, out var guid) && oldToNew.ContainsKey(guid))
-                        keysToRemap.Add(propName);
-                }
+                var remapped = RemapJsonElement(jsonElement, oldToNew);
+                if (remapped.HasValue)
+                    keysToUpdate.Add((propName, remapped.Value));
             }
 
-            foreach (var key in keysToRemap)
-            {
-                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
-                var newGuid = oldToNew[oldGuid];
-                component.Properties[key] = JsonSerializer.SerializeToElement(newGuid.ToString(), JsonOptions);
-            }
+            foreach (var (key, remapped) in keysToUpdate)
+                component.Properties[key] = remapped;
         }
 
         foreach (var child in data.Children)
             RemapEntityReferences(child, oldToNew);
+    }
+
+    private static JsonElement? RemapJsonElement(JsonElement element, Dictionary<Guid, Guid> oldToNew)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+            {
+                var str = element.GetString();
+                if (str != null && Guid.TryParse(str, out var guid) && oldToNew.TryGetValue(guid, out var newGuid))
+                    return JsonSerializer.SerializeToElement(newGuid.ToString(), JsonOptions);
+                return null;
+            }
+            case JsonValueKind.Object:
+            {
+                if (element.TryGetProperty("$type", out _) && element.TryGetProperty("properties", out var props))
+                {
+                    bool changed = false;
+                    using var doc = JsonDocument.Parse(element.GetRawText());
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartObject();
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            if (prop.Name == "properties")
+                            {
+                                writer.WritePropertyName("properties");
+                                writer.WriteStartObject();
+                                foreach (var innerProp in prop.Value.EnumerateObject())
+                                {
+                                    var remapped = RemapJsonElement(innerProp.Value, oldToNew);
+                                    writer.WritePropertyName(innerProp.Name);
+                                    if (remapped.HasValue)
+                                    {
+                                        remapped.Value.WriteTo(writer);
+                                        changed = true;
+                                    }
+                                    else
+                                    {
+                                        innerProp.Value.WriteTo(writer);
+                                    }
+                                }
+                                writer.WriteEndObject();
+                            }
+                            else
+                            {
+                                prop.WriteTo(writer);
+                            }
+                        }
+                        writer.WriteEndObject();
+                    }
+
+                    if (changed)
+                    {
+                        var newDoc = JsonDocument.Parse(ms.ToArray());
+                        return newDoc.RootElement.Clone();
+                    }
+                }
+                return null;
+            }
+            case JsonValueKind.Array:
+            {
+                bool changed = false;
+                var elements = new List<(JsonElement original, JsonElement? remapped)>();
+                foreach (var item in element.EnumerateArray())
+                {
+                    var remapped = RemapJsonElement(item, oldToNew);
+                    elements.Add((item, remapped));
+                    if (remapped.HasValue)
+                        changed = true;
+                }
+
+                if (changed)
+                {
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartArray();
+                        foreach (var (original, remapped) in elements)
+                            (remapped ?? original).WriteTo(writer);
+                        writer.WriteEndArray();
+                    }
+                    var newDoc = JsonDocument.Parse(ms.ToArray());
+                    return newDoc.RootElement.Clone();
+                }
+                return null;
+            }
+            default:
+                return null;
+        }
     }
 
     /// <summary>

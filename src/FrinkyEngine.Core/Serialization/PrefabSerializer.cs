@@ -21,6 +21,7 @@ public static class PrefabSerializer
             new EntityReferenceConverter(),
             new PostProcessEffectListConverter(),
             new AssetReferenceConverter(),
+            new FObjectConverterFactory(),
             new JsonStringEnumConverter()
         }
     };
@@ -126,35 +127,119 @@ public static class PrefabSerializer
     {
         foreach (var component in node.Components)
         {
-            var keysToRemap = new List<string>();
+            var keysToUpdate = new List<(string key, JsonElement normalized)>();
             foreach (var (propName, jsonElement) in component.Properties)
             {
-                if (jsonElement.ValueKind == JsonValueKind.String)
-                {
-                    var str = jsonElement.GetString();
-                    if (str != null && Guid.TryParse(str, out var guid))
-                    {
-                        var key = guid.ToString("N");
-                        if (entityIdToStableId.TryGetValue(key, out var stableId) &&
-                            !string.Equals(key, stableId, StringComparison.OrdinalIgnoreCase))
-                        {
-                            keysToRemap.Add(propName);
-                        }
-                    }
-                }
+                var normalized = NormalizeJsonElement(jsonElement, entityIdToStableId);
+                if (normalized.HasValue)
+                    keysToUpdate.Add((propName, normalized.Value));
             }
 
-            foreach (var key in keysToRemap)
-            {
-                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
-                var stableId = entityIdToStableId[oldGuid.ToString("N")];
-                var stableGuid = Guid.Parse(stableId);
-                component.Properties[key] = JsonSerializer.SerializeToElement(stableGuid.ToString(), JsonOptions);
-            }
+            foreach (var (key, normalized) in keysToUpdate)
+                component.Properties[key] = normalized;
         }
 
         foreach (var child in node.Children)
             NormalizeInternalEntityReferences(child, entityIdToStableId);
+    }
+
+    private static JsonElement? NormalizeJsonElement(JsonElement element, Dictionary<string, string> entityIdToStableId)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+            {
+                var str = element.GetString();
+                if (str != null && Guid.TryParse(str, out var guid))
+                {
+                    var key = guid.ToString("N");
+                    if (entityIdToStableId.TryGetValue(key, out var stableId) &&
+                        !string.Equals(key, stableId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var stableGuid = Guid.Parse(stableId);
+                        return JsonSerializer.SerializeToElement(stableGuid.ToString(), JsonOptions);
+                    }
+                }
+                return null;
+            }
+            case JsonValueKind.Object:
+            {
+                if (element.TryGetProperty("$type", out _) && element.TryGetProperty("properties", out _))
+                {
+                    bool changed = false;
+                    using var doc = JsonDocument.Parse(element.GetRawText());
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartObject();
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            if (prop.Name == "properties")
+                            {
+                                writer.WritePropertyName("properties");
+                                writer.WriteStartObject();
+                                foreach (var innerProp in prop.Value.EnumerateObject())
+                                {
+                                    var normalized = NormalizeJsonElement(innerProp.Value, entityIdToStableId);
+                                    writer.WritePropertyName(innerProp.Name);
+                                    if (normalized.HasValue)
+                                    {
+                                        normalized.Value.WriteTo(writer);
+                                        changed = true;
+                                    }
+                                    else
+                                    {
+                                        innerProp.Value.WriteTo(writer);
+                                    }
+                                }
+                                writer.WriteEndObject();
+                            }
+                            else
+                            {
+                                prop.WriteTo(writer);
+                            }
+                        }
+                        writer.WriteEndObject();
+                    }
+
+                    if (changed)
+                    {
+                        var newDoc = JsonDocument.Parse(ms.ToArray());
+                        return newDoc.RootElement.Clone();
+                    }
+                }
+                return null;
+            }
+            case JsonValueKind.Array:
+            {
+                bool changed = false;
+                var elements = new List<(JsonElement original, JsonElement? normalized)>();
+                foreach (var item in element.EnumerateArray())
+                {
+                    var normalized = NormalizeJsonElement(item, entityIdToStableId);
+                    elements.Add((item, normalized));
+                    if (normalized.HasValue)
+                        changed = true;
+                }
+
+                if (changed)
+                {
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartArray();
+                        foreach (var (original, normalized) in elements)
+                            (normalized ?? original).WriteTo(writer);
+                        writer.WriteEndArray();
+                    }
+                    var newDoc = JsonDocument.Parse(ms.ToArray());
+                    return newDoc.RootElement.Clone();
+                }
+                return null;
+            }
+            default:
+                return null;
+        }
     }
 
     public static PrefabComponentData SerializeComponent(Component component)

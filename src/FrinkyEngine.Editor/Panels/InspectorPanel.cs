@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
@@ -546,6 +547,14 @@ public class InspectorPanel
         {
             ImGui.LabelText(label, "(edit individually)");
         }
+        else if (typeof(FObject).IsAssignableFrom(propType))
+        {
+            ImGui.LabelText(label, "(edit individually)");
+        }
+        else if (IsFObjectListType(propType))
+        {
+            ImGui.LabelText(label, "(edit individually)");
+        }
         else
         {
             ImGui.LabelText(label, propType.Name);
@@ -637,6 +646,16 @@ public class InspectorPanel
                 prop.SetValue(source, attenuation);
             }
         }
+    }
+
+    private static bool IsFObjectListType(Type type)
+    {
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            var arg = type.GetGenericArguments()[0];
+            return typeof(FObject).IsAssignableFrom(arg);
+        }
+        return false;
     }
 
     private static bool IsInspectableProperty(PropertyInfo prop)

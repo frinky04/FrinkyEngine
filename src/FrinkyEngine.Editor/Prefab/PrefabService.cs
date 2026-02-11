@@ -420,32 +420,115 @@ public class PrefabService
     {
         foreach (var component in node.Components)
         {
-            var keysToRemap = new List<string>();
+            var keysToUpdate = new List<(string key, JsonElement remapped)>();
             foreach (var (propName, jsonElement) in component.Properties)
             {
-                if (jsonElement.ValueKind == JsonValueKind.String)
-                {
-                    var str = jsonElement.GetString();
-                    if (str != null && Guid.TryParse(str, out var guid))
-                    {
-                        var normalizedKey = guid.ToString("N");
-                        if (mapping.ContainsKey(normalizedKey))
-                            keysToRemap.Add(propName);
-                    }
-                }
+                var remapped = RemapPrefabJsonElement(jsonElement, mapping);
+                if (remapped.HasValue)
+                    keysToUpdate.Add((propName, remapped.Value));
             }
 
-            foreach (var key in keysToRemap)
-            {
-                var oldGuid = Guid.Parse(component.Properties[key].GetString()!);
-                var normalizedKey = oldGuid.ToString("N");
-                var newGuid = mapping[normalizedKey];
-                component.Properties[key] = JsonSerializer.SerializeToElement(newGuid.ToString());
-            }
+            foreach (var (key, remapped) in keysToUpdate)
+                component.Properties[key] = remapped;
         }
 
         foreach (var child in node.Children)
             RemapPrefabEntityReferences(child, mapping);
+    }
+
+    private static JsonElement? RemapPrefabJsonElement(JsonElement element, Dictionary<string, Guid> mapping)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+            {
+                var str = element.GetString();
+                if (str != null && Guid.TryParse(str, out var guid))
+                {
+                    var normalizedKey = guid.ToString("N");
+                    if (mapping.TryGetValue(normalizedKey, out var newGuid))
+                        return JsonSerializer.SerializeToElement(newGuid.ToString());
+                }
+                return null;
+            }
+            case JsonValueKind.Object:
+            {
+                if (element.TryGetProperty("$type", out _) && element.TryGetProperty("properties", out _))
+                {
+                    bool changed = false;
+                    using var doc = JsonDocument.Parse(element.GetRawText());
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartObject();
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            if (prop.Name == "properties")
+                            {
+                                writer.WritePropertyName("properties");
+                                writer.WriteStartObject();
+                                foreach (var innerProp in prop.Value.EnumerateObject())
+                                {
+                                    var remapped = RemapPrefabJsonElement(innerProp.Value, mapping);
+                                    writer.WritePropertyName(innerProp.Name);
+                                    if (remapped.HasValue)
+                                    {
+                                        remapped.Value.WriteTo(writer);
+                                        changed = true;
+                                    }
+                                    else
+                                    {
+                                        innerProp.Value.WriteTo(writer);
+                                    }
+                                }
+                                writer.WriteEndObject();
+                            }
+                            else
+                            {
+                                prop.WriteTo(writer);
+                            }
+                        }
+                        writer.WriteEndObject();
+                    }
+
+                    if (changed)
+                    {
+                        var newDoc = JsonDocument.Parse(ms.ToArray());
+                        return newDoc.RootElement.Clone();
+                    }
+                }
+                return null;
+            }
+            case JsonValueKind.Array:
+            {
+                bool changed = false;
+                var elements = new List<(JsonElement original, JsonElement? remapped)>();
+                foreach (var item in element.EnumerateArray())
+                {
+                    var remapped = RemapPrefabJsonElement(item, mapping);
+                    elements.Add((item, remapped));
+                    if (remapped.HasValue)
+                        changed = true;
+                }
+
+                if (changed)
+                {
+                    using var ms = new MemoryStream();
+                    using (var writer = new Utf8JsonWriter(ms))
+                    {
+                        writer.WriteStartArray();
+                        foreach (var (original, remapped) in elements)
+                            (remapped ?? original).WriteTo(writer);
+                        writer.WriteEndArray();
+                    }
+                    var newDoc = JsonDocument.Parse(ms.ToArray());
+                    return newDoc.RootElement.Clone();
+                }
+                return null;
+            }
+            default:
+                return null;
+        }
     }
 
     private Entity? ReplacePrefabRoot(Entity root, PrefabOverridesData? overrides)
