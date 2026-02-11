@@ -78,6 +78,8 @@ public class EditorApplication
     private HashSet<string>? _deferredChangedPaths;
     private readonly Dictionary<string, HierarchySceneState> _sessionHierarchyStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _hierarchyStateDirty;
+    private int _lastCleanupEntityCount = -1;
+    private string? _lastCleanupSceneKey;
     private bool _wasFocused = true;
 
     public ViewportPanel ViewportPanel { get; }
@@ -1026,21 +1028,31 @@ public class EditorApplication
         var prefabRoots = GetSelectedPrefabRoots();
         if (prefabRoots.Count == 0) return;
 
+        RecordUndo();
         int reverted = 0;
         foreach (var root in prefabRoots)
-            if (Prefabs.RevertPrefab(root)) reverted++;
+            if (Prefabs.RevertPrefab(root, skipUndo: true)) reverted++;
         if (reverted > 0)
+        {
+            RefreshUndoBaseline();
             NotificationManager.Instance.Post(
                 reverted == 1 ? "Prefab reverted." : $"{reverted} prefabs reverted.",
                 NotificationType.Info, 1.5f);
+        }
     }
 
     public void MakeUniqueSelectedPrefab()
     {
         if (!CanEditScene) return;
         var prefabRoots = GetSelectedPrefabRoots();
+        if (prefabRoots.Count == 0) return;
+
+        RecordUndo();
+        int made = 0;
         foreach (var root in prefabRoots)
-            Prefabs.MakeUnique(root);
+            if (Prefabs.MakeUnique(root, skipUndo: true)) made++;
+        if (made > 0)
+            RefreshUndoBaseline();
     }
 
     public void UnpackSelectedPrefab()
@@ -1049,13 +1061,17 @@ public class EditorApplication
         var prefabRoots = GetSelectedPrefabRoots();
         if (prefabRoots.Count == 0) return;
 
+        RecordUndo();
         int unpacked = 0;
         foreach (var root in prefabRoots)
-            if (Prefabs.UnpackPrefab(root)) unpacked++;
+            if (Prefabs.UnpackPrefab(root, skipUndo: true)) unpacked++;
         if (unpacked > 0)
+        {
+            RefreshUndoBaseline();
             NotificationManager.Instance.Post(
                 unpacked == 1 ? "Prefab unpacked." : $"{unpacked} prefabs unpacked.",
                 NotificationType.Info, 1.5f);
+        }
     }
 
     private List<Entity> GetSelectedPrefabRoots()
@@ -1218,7 +1234,6 @@ public class EditorApplication
                 MarkHierarchyStateDirty();
         }
 
-        state.Normalize();
         return state;
     }
 
@@ -1348,6 +1363,15 @@ public class EditorApplication
         if (CurrentScene == null)
             return;
 
+        var sceneKey = GetCurrentHierarchySceneKey();
+        var entityCount = CurrentScene.Entities.Count;
+        if (sceneKey == _lastCleanupSceneKey &&
+            entityCount == _lastCleanupEntityCount)
+            return;
+
+        _lastCleanupSceneKey = sceneKey;
+        _lastCleanupEntityCount = entityCount;
+
         var state = GetOrCreateHierarchySceneState();
         bool changed = false;
 
@@ -1400,6 +1424,7 @@ public class EditorApplication
     public void MarkHierarchyStateDirty()
     {
         _hierarchyStateDirty = true;
+        _lastCleanupEntityCount = -1;
     }
 
     private void ResetHierarchyStateForCurrentScene()
@@ -1445,7 +1470,6 @@ public class EditorApplication
         if (IsPersistedHierarchyKey(key) && ProjectEditorSettings != null)
         {
             ProjectEditorSettings.Hierarchy ??= new HierarchyEditorSettings();
-            ProjectEditorSettings.Hierarchy.Normalize();
             return ProjectEditorSettings.Hierarchy.Scenes;
         }
 
