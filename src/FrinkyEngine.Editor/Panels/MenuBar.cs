@@ -389,6 +389,7 @@ public class MenuBar
         var result = Dialog.FileOpen("fscene", defaultPath);
         if (!result.IsOk) return;
 
+        int logCursor = _app.CaptureLogCursor();
         SceneManager.Instance.LoadScene(result.Path);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
         _app.Prefabs.RecalculateOverridesForScene();
@@ -397,6 +398,7 @@ public class MenuBar
         _app.UpdateWindowTitle();
         _app.UndoRedo.Clear();
         _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds(), _app.SerializeCurrentHierarchyState());
+        _app.NotifySkippedComponentWarningsSince(logCursor, "Scene open");
         FrinkyLog.Info($"Opened scene: {result.Path}");
         NotificationManager.Instance.Post($"Scene opened: {_app.CurrentScene?.Name ?? "scene"}", NotificationType.Success);
     }

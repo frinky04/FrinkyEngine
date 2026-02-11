@@ -853,12 +853,26 @@ public class InspectorPanel
     private void AddComponentToEntities(IReadOnlyList<Entity> entities, Type type)
     {
         _app.RecordUndo();
+        bool anyAdded = false;
         foreach (var entity in entities)
         {
             if (entity.GetComponent(type) == null)
-                entity.AddComponent(type);
+            {
+                if (entity.TryAddComponent(type, out _, out var failureReason))
+                {
+                    anyAdded = true;
+                }
+                else
+                {
+                    NotificationManager.Instance.Post(
+                        failureReason ?? $"Failed to add {ComponentTypeResolver.GetDisplayName(type)} to {entity.Name}.",
+                        NotificationType.Warning);
+                }
+            }
         }
-        _app.RefreshUndoBaseline();
+
+        if (anyAdded)
+            _app.RefreshUndoBaseline();
     }
 
     private static void DrawBaseClassTooltip(Type type)

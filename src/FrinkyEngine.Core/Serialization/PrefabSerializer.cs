@@ -300,7 +300,27 @@ public static class PrefabSerializer
         else
         {
             var existing = entity.GetComponent(type);
-            component = existing ?? entity.AddComponent(type);
+            if (existing != null)
+            {
+                component = existing;
+            }
+            else if (!entity.TryAddComponent(type, out var created, out var failureReason))
+            {
+                entity.UnresolvedComponents.Add(new ComponentData
+                {
+                    Type = data.Type,
+                    Enabled = data.Enabled,
+                    EditorOnly = data.EditorOnly,
+                    Properties = new Dictionary<string, JsonElement>(data.Properties)
+                });
+                FrinkyLog.Warning(
+                    $"Skipped component '{data.Type}' on entity '{entity.Name}' (prefab apply): {failureReason} — data preserved");
+                return false;
+            }
+            else
+            {
+                component = created!;
+            }
         }
 
         component.Enabled = data.Enabled;

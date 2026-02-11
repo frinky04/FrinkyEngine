@@ -457,10 +457,18 @@ public class ViewportPanel
         }
 
         _app.RecordUndo();
-        pickedEntity.AddComponent(componentType);
-        _app.SetSingleSelection(pickedEntity);
-        _app.RefreshUndoBaseline();
-        NotificationManager.Instance.Post($"Added {typeName} to {pickedEntity.Name}", NotificationType.Info, 1.5f);
+        if (pickedEntity.TryAddComponent(componentType, out _, out var failureReason))
+        {
+            _app.SetSingleSelection(pickedEntity);
+            _app.RefreshUndoBaseline();
+            NotificationManager.Instance.Post($"Added {typeName} to {pickedEntity.Name}", NotificationType.Info, 1.5f);
+        }
+        else
+        {
+            NotificationManager.Instance.Post(
+                failureReason ?? $"Failed to add {typeName} to {pickedEntity.Name}.",
+                NotificationType.Warning);
+        }
     }
 
     private static Vector3 ComputeDropWorldPosition(Camera3D camera, Vector2 localMouse, Vector2 viewportSize)

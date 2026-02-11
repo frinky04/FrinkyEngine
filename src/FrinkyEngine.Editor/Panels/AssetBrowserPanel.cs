@@ -834,6 +834,7 @@ public class AssetBrowserPanel
     private void OpenSceneAsset(AssetEntry asset)
     {
         var fullPath = AssetManager.Instance.ResolvePath(asset.RelativePath);
+        int logCursor = _app.CaptureLogCursor();
         SceneManager.Instance.LoadScene(fullPath);
         _app.CurrentScene = SceneManager.Instance.ActiveScene;
         _app.Prefabs.RecalculateOverridesForScene();
@@ -842,6 +843,7 @@ public class AssetBrowserPanel
         _app.UpdateWindowTitle();
         _app.UndoRedo.Clear();
         _app.UndoRedo.SetBaseline(_app.CurrentScene, _app.GetSelectedEntityIds(), _app.SerializeCurrentHierarchyState());
+        _app.NotifySkippedComponentWarningsSince(logCursor, "Scene open");
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 

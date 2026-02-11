@@ -952,10 +952,18 @@ public class HierarchyPanel
                     else
                     {
                         _app.RecordUndo();
-                        entity.AddComponent(componentType);
-                        _app.SetSingleSelection(entity);
-                        _app.RefreshUndoBaseline();
-                        NotificationManager.Instance.Post($"Added {typeName} to {entity.Name}", NotificationType.Info, 1.5f);
+                        if (entity.TryAddComponent(componentType, out _, out var failureReason))
+                        {
+                            _app.SetSingleSelection(entity);
+                            _app.RefreshUndoBaseline();
+                            NotificationManager.Instance.Post($"Added {typeName} to {entity.Name}", NotificationType.Info, 1.5f);
+                        }
+                        else
+                        {
+                            NotificationManager.Instance.Post(
+                                failureReason ?? $"Failed to add {typeName} to {entity.Name}.",
+                                NotificationType.Warning);
+                        }
                     }
                 }
             }

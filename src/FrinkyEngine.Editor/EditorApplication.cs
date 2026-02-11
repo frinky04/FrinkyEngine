@@ -483,6 +483,8 @@ public class EditorApplication
 
     public void OpenProject(string fprojectPath)
     {
+        var loadLogCursor = CaptureLogCursor();
+
         ProjectDirectory = Path.GetDirectoryName(fprojectPath);
         ProjectFile = Core.Assets.ProjectFile.Load(fprojectPath);
         PrefabDatabase.Instance.Clear();
@@ -543,6 +545,7 @@ public class EditorApplication
         IsSceneDirty = false;
         FrinkyLog.Info($"Opened project: {ProjectFile.ProjectName}");
         NotificationManager.Instance.Post($"Opened: {ProjectFile.ProjectName}", NotificationType.Success);
+        NotifySkippedComponentWarningsSince(loadLogCursor, "Project open");
         UpdateWindowTitle();
         BuildScripts();
     }
@@ -557,6 +560,39 @@ public class EditorApplication
         if (IsSceneDirty)
             title += " *";
         Raylib.SetWindowTitle(title);
+    }
+
+    public int CaptureLogCursor()
+    {
+        return FrinkyLog.Entries.Count;
+    }
+
+    public void NotifySkippedComponentWarningsSince(int logCursor, string operationLabel)
+    {
+        if (logCursor < 0)
+            logCursor = 0;
+
+        var entries = FrinkyLog.Entries;
+        if (logCursor >= entries.Count)
+            return;
+
+        int skippedCount = 0;
+        for (int i = logCursor; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            if (entry.Level == LogLevel.Warning &&
+                entry.Message.StartsWith("Skipped component '", StringComparison.Ordinal))
+            {
+                skippedCount++;
+            }
+        }
+
+        if (skippedCount > 0)
+        {
+            NotificationManager.Instance.Post(
+                $"{operationLabel} completed with {skippedCount} skipped component(s). See log.",
+                NotificationType.Warning);
+        }
     }
 
     public bool OpenProjectInVSCode()

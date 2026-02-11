@@ -40,6 +40,13 @@ public class RotatorComponent : Component
 
 Public read/write properties appear automatically in the inspector and are serialized to scene/prefab JSON.
 
+## Constructor Requirements
+
+Custom components loaded from scenes and prefabs must have a **public parameterless constructor**.
+
+- If a component cannot be default-constructed, FrinkyEngine skips that component during load and preserves its serialized data.
+- Use `Awake` and `Start` for runtime initialization logic instead of constructor parameters.
+
 ## Game Assemblies
 
 - Game code compiles to a separate DLL referenced via `.fproject` `gameAssembly`

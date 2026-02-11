@@ -13,6 +13,15 @@
 - Ensure your component class is `public` and extends `Component`
 - Check the Console panel for assembly load errors
 
+## Component was skipped while opening a scene or prefab
+
+- Symptom: the Console shows a warning like `Skipped component '...' ... data preserved`
+- Cause: the component type could not be instantiated (commonly missing a public parameterless constructor)
+- Fix:
+  1. Add a public parameterless constructor to the component
+  2. Move initialization logic into `Awake`/`Start` instead of constructor parameters
+  3. Rebuild scripts (`Ctrl+B`) and reopen the scene
+
 ## Runtime does not start in exported mode
 
 - Confirm the `.fasset` file is in the same folder as the executable

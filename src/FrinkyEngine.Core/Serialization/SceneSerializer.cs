@@ -395,7 +395,15 @@ public static class SceneSerializer
         }
         else
         {
-            component = entity.AddComponent(type);
+            if (!entity.TryAddComponent(type, out var created, out var failureReason))
+            {
+                entity.UnresolvedComponents.Add(data);
+                FrinkyLog.Warning(
+                    $"Skipped component '{data.Type}' on entity '{entity.Name}' (scene deserialize): {failureReason} — data preserved");
+                return;
+            }
+
+            component = created!;
         }
 
         component.Enabled = data.Enabled;

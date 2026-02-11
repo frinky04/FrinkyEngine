@@ -1,6 +1,7 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Prefabs;
 using FrinkyEngine.Core.Serialization;
+using System.Reflection;
 
 namespace FrinkyEngine.Core.ECS;
 
@@ -95,9 +96,72 @@ public class Entity
         if (!type.IsSubclassOf(typeof(Component)))
             throw new ArgumentException($"{type.Name} is not a Component.");
 
-        var component = (Component)Activator.CreateInstance(type)!;
-        AddComponentInternal(component);
-        return component;
+        if (!TryAddComponent(type, out var component, out var failureReason))
+            throw new InvalidOperationException(failureReason);
+
+        return component!;
+    }
+
+    /// <summary>
+    /// Tries to create and attach a new component of the specified runtime type.
+    /// </summary>
+    /// <param name="type">The component type to add.</param>
+    /// <param name="component">The newly created component when successful; otherwise <c>null</c>.</param>
+    /// <param name="failureReason">Human-readable failure reason when creation fails.</param>
+    /// <returns><c>true</c> if the component was created and added; otherwise <c>false</c>.</returns>
+    public bool TryAddComponent(Type type, out Component? component, out string? failureReason)
+    {
+        if (type == typeof(TransformComponent))
+        {
+            component = null;
+            failureReason = "Cannot add a second TransformComponent.";
+            return false;
+        }
+
+        if (!type.IsSubclassOf(typeof(Component)))
+        {
+            component = null;
+            failureReason = $"{type.Name} is not a Component.";
+            return false;
+        }
+
+        if (type.IsAbstract)
+        {
+            component = null;
+            failureReason = $"Component type '{type.FullName}' is abstract and cannot be instantiated.";
+            return false;
+        }
+
+        if (type.ContainsGenericParameters)
+        {
+            component = null;
+            failureReason = $"Component type '{type.FullName}' has unbound generic parameters and cannot be instantiated.";
+            return false;
+        }
+
+        if (type.GetConstructor(Type.EmptyTypes) == null)
+        {
+            component = null;
+            failureReason = $"Component type '{type.FullName}' must define a public parameterless constructor.";
+            return false;
+        }
+
+        try
+        {
+            component = (Component)Activator.CreateInstance(type)!;
+            AddComponentInternal(component);
+            failureReason = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            component = null;
+            var cause = ex is TargetInvocationException tie && tie.InnerException != null
+                ? tie.InnerException
+                : ex;
+            failureReason = $"Failed to instantiate component type '{type.FullName}': {cause.Message}";
+            return false;
+        }
     }
 
     private void AddComponentInternal(Component component)

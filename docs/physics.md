@@ -60,7 +60,7 @@ public class PickupZone : Component
 }
 ```
 
-Both entities in the overlap receive callbacks. At least one of the two colliders must have `IsTrigger` enabled.
+Both entities in the overlap receive callbacks. At least one of the two colliders must have `IsTrigger` enabled. Trigger colliders still require a `RigidbodyComponent` on the same entity to participate in physics — the motion type can be Static, Kinematic, or Dynamic.
 
 ## Raycasting
 
