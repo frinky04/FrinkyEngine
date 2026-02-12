@@ -18,7 +18,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private const float DefaultAnimationFps = 60f;
 
     private MeshRendererComponent? _meshRenderer;
-    private string _lastModelPath = string.Empty;
+    private int _lastModelVersion;
     private unsafe ModelAnimation* _animations;
     private int _animationCount;
 
@@ -237,12 +237,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         if (_meshRenderer == null || !_meshRenderer.RenderModel.HasValue)
             return false;
 
-        var modelPath = _meshRenderer.ModelPath.Path;
-        if (!string.Equals(_lastModelPath, modelPath, StringComparison.Ordinal))
+        if (_meshRenderer.ModelVersion != _lastModelVersion)
         {
             ResetAnimationState();
-            _lastModelPath = modelPath;
-            _animations = AssetManager.Instance.LoadModelAnimations(modelPath, out _animationCount);
+            _lastModelVersion = _meshRenderer.ModelVersion;
+            _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
             _playbackInitialized = false;
         }
 

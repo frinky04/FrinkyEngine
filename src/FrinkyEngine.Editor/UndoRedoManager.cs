@@ -127,9 +127,12 @@ public class UndoRedoManager
         var restored = SceneSerializer.DeserializeFromString(snapshot.SceneJson);
         if (restored == null) return;
 
-        // Preserve scene metadata
+        // Release unique model instances owned by old scene components before replacing
         if (app.CurrentScene != null)
         {
+            foreach (var renderable in app.CurrentScene.Renderables)
+                renderable.Invalidate();
+
             restored.Name = app.CurrentScene.Name;
             restored.FilePath = app.CurrentScene.FilePath;
         }

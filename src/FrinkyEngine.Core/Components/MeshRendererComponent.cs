@@ -17,6 +17,12 @@ public class MeshRendererComponent : RenderableComponent
     private bool _ownsUniqueModelInstance;
 
     /// <summary>
+    /// Monotonically increasing counter incremented each time the model is invalidated.
+    /// Used by sibling components to detect same-path reloads.
+    /// </summary>
+    internal int ModelVersion { get; private set; }
+
+    /// <summary>
     /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
     /// </summary>
     [AssetFilter(AssetType.Model)]
@@ -100,6 +106,7 @@ public class MeshRendererComponent : RenderableComponent
             _ownsUniqueModelInstance = false;
         }
 
+        ModelVersion++;
         base.Invalidate();
     }
 

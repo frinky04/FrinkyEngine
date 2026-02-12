@@ -797,6 +797,11 @@ public class EditorApplication
         {
             var savedSelection = _selectedEntities.Select(e => e.Id).ToHashSet();
             var snapshot = SceneSerializer.SerializeToString(CurrentScene);
+
+            // Release unique model instances owned by old scene components before replacing
+            foreach (var renderable in CurrentScene.Renderables)
+                renderable.Invalidate();
+
             var refreshed = SceneSerializer.DeserializeFromString(snapshot);
             if (refreshed != null)
             {
