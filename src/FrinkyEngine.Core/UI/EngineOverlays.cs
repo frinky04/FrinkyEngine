@@ -51,6 +51,7 @@ public static unsafe class EngineOverlays
     private static AudioFrameStats _displayedAudioStats;
     private static SubCategoryTiming[] _displayedSubTimings = Array.Empty<SubCategoryTiming>();
     private static double _displayedIdleMs;
+    private static int _displayedSkinnedMeshCount;
     private static float _fpsAccumulator;
 
     private static bool _consoleVisible;
@@ -65,6 +66,12 @@ public static unsafe class EngineOverlays
     private static bool _consoleFocusInput;
     private static bool _consoleAutoScroll = true;
     private static bool _consoleBackendInitialized;
+
+    /// <summary>
+    /// The scene renderer whose per-frame stats are displayed by the overlay.
+    /// Must be set before <see cref="Update"/> is called.
+    /// </summary>
+    public static SceneRenderer? Renderer { get; set; }
 
     /// <summary>
     /// Gets whether the developer console overlay is currently visible.
@@ -145,6 +152,8 @@ public static unsafe class EngineOverlays
         _displayedPhysicsStats = scene?.GetPhysicsFrameStats() ?? default;
         _displayedAudioStats = scene?.GetAudioFrameStats() ?? default;
 
+        _displayedSkinnedMeshCount = Renderer?.LastFrameSkinnedMeshCount ?? 0;
+
         _displayedSnapshotValid = FrameProfiler.Enabled && FrameProfiler.FrameCount > 0;
         if (!_displayedSnapshotValid)
         {
@@ -190,6 +199,12 @@ public static unsafe class EngineOverlays
         ImGui.End();
     }
 
+    private static void SectionHeader(string title)
+    {
+        ImGui.Spacing();
+        ImGui.TextDisabled($"\u2014 {title} \u2014");
+    }
+
     private static void DrawAdvancedStats()
     {
         ImGui.Separator();
@@ -223,17 +238,19 @@ public static unsafe class EngineOverlays
         else
             ImGui.Text($"Idle: {_displayedIdleMs:F2}ms");
 
+        SectionHeader("Timing");
         ImGui.Text($"Game: {latest.GetCategoryMs(ProfileCategory.Game):F2}  Late: {latest.GetCategoryMs(ProfileCategory.GameLate):F2}");
-        ImGui.Text($"Phys: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
-        ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
+        ImGui.Text($"Physics: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
+        ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Skin: {latest.GetCategoryMs(ProfileCategory.Skinning):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
         ImGui.Text($"UI: {latest.GetCategoryMs(ProfileCategory.UI):F2}  Other: {latest.OtherMs:F2}");
 
         var editorMs = latest.GetCategoryMs(ProfileCategory.Editor);
         if (editorMs > 0.001)
             ImGui.Text($"Editor: {editorMs:F2}");
 
+        SectionHeader("Scene");
         ImGui.Text($"Resolution: {_displayedScreenWidth}x{_displayedScreenHeight}");
-        ImGui.Text($"Entities: {_displayedEntityCount}  PP Passes: {latest.GpuStats.PostProcessPasses}");
+        ImGui.Text($"Entities: {_displayedEntityCount}");
     }
 
     private static void DrawVerboseStats()
@@ -248,25 +265,31 @@ public static unsafe class EngineOverlays
 
         ImGui.Separator();
 
+        SectionHeader("Rendering");
+        ImGui.Text($"Skinned Meshes: {_displayedSkinnedMeshCount}");
+        ImGui.Text($"PP Passes: {latest.GpuStats.PostProcessPasses}");
+
         if (_displayedPhysicsStats.Valid)
         {
-            ImGui.Text("Physics");
-            ImGui.Text($"Bodies D/K/S: {_displayedPhysicsStats.DynamicBodies}/{_displayedPhysicsStats.KinematicBodies}/{_displayedPhysicsStats.StaticBodies}");
-            ImGui.Text($"Substeps: {_displayedPhysicsStats.SubstepsThisFrame}  Step: {_displayedPhysicsStats.StepTimeMs:F2}ms  CC: {_displayedPhysicsStats.ActiveCharacterControllers}");
+            SectionHeader("Physics");
+            ImGui.Text($"Bodies: {_displayedPhysicsStats.DynamicBodies} / {_displayedPhysicsStats.KinematicBodies} / {_displayedPhysicsStats.StaticBodies}  (D/K/S)");
+            ImGui.Text($"Substeps: {_displayedPhysicsStats.SubstepsThisFrame}  Step: {_displayedPhysicsStats.StepTimeMs:F2}ms");
+            ImGui.Text($"Characters: {_displayedPhysicsStats.ActiveCharacterControllers}");
         }
 
         if (_displayedAudioStats.Valid)
         {
-            ImGui.Text("Audio");
+            SectionHeader("Audio");
             ImGui.Text($"Voices: {_displayedAudioStats.ActiveVoices}  Streaming: {_displayedAudioStats.StreamingVoices}");
-            ImGui.Text($"Virtual: {_displayedAudioStats.VirtualizedVoices}  Stolen: {_displayedAudioStats.StolenVoicesThisFrame}  Update: {_displayedAudioStats.UpdateTimeMs:F2}ms");
+            ImGui.Text($"Virtual: {_displayedAudioStats.VirtualizedVoices}  Stolen: {_displayedAudioStats.StolenVoicesThisFrame}");
+            ImGui.Text($"Update: {_displayedAudioStats.UpdateTimeMs:F2}ms");
         }
 
         var subTimings = _displayedSubTimings;
         if (subTimings == null || subTimings.Length == 0)
             return;
 
-        ImGui.Text("Post FX (Top)");
+        SectionHeader("Post FX (Top)");
 
         var used = new bool[subTimings.Length];
         int shown = 0;
@@ -854,6 +877,13 @@ public static unsafe class EngineOverlays
             "Enable or disable automatic model/primitive instancing (1=on, 0=off).",
             RenderRuntimeCvars.GetAutoInstancingValue,
             RenderRuntimeCvars.TrySetAutoInstancing));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_animation",
+            "r_animation [0|1]",
+            "Enable or disable skeletal animation playback for skinned meshes (1=on, 0=off).",
+            RenderRuntimeCvars.GetAnimationValue,
+            RenderRuntimeCvars.TrySetAnimation));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_showstats",

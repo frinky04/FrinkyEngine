@@ -56,6 +56,41 @@ Supported model formats (loaded via Raylib):
 
 Drag models from the asset browser into the viewport to create entities with `MeshRendererComponent`.
 
+## Skeletal Animation
+
+Skeletal animations embedded in GLTF/GLB models are played back using GPU skinning. Bone matrices are computed on the CPU with frame interpolation and uploaded to the vertex shader each frame.
+
+### Setup
+
+1. Import a GLTF/GLB model that contains skeletal animations
+2. Add a `MeshRendererComponent` pointing to the model
+3. Add a `SkinnedMeshAnimatorComponent` to the same entity
+
+The animator automatically loads all animation clips from the model and begins playback.
+
+### Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `ClipIndex` | 0 | Selected animation clip (shown as a dropdown of clip names) |
+| `PlayAutomatically` | true | Start playback when the clip is loaded |
+| `Playing` | true | Whether playback is currently advancing |
+| `Loop` | true | Wrap to the beginning when the clip ends |
+| `PlaybackSpeed` | 1.0 | Speed multiplier (0–4) |
+| `AnimationFps` | 60 | Sample rate in frames per second (1–120) |
+
+Read-only inspector fields show the current `ActionName`, `ActionCount`, and `FrameCount`.
+
+### How It Works
+
+The animator samples two adjacent keyframes from the active clip each frame, linearly interpolates the bone matrices, and writes them to the mesh's `BoneMatrices` buffer. The vertex shader transforms vertices by their bone weights when the `useSkinning` uniform is set. Entities with an active animator are excluded from automatic instanced batching since each instance has unique bone data.
+
+### Notes
+
+- The animator requires a sibling `MeshRendererComponent` on the same entity. It automatically requests a unique model instance so bone data does not conflict with other entities sharing the same model asset.
+- Non-looping clips stop on the last frame and set `Playing` to false.
+- Use the **Restart** and **Stop** inspector buttons to control playback during editing.
+
 ## Materials
 
 Both `MeshRendererComponent` (via `MaterialSlots` list) and primitive components (via a single `Material` property) use the `Material` class. Three material types:
@@ -147,3 +182,5 @@ Custom effects are discovered automatically via `FObjectTypeResolver` when loade
 - `r_postprocess 1` — enable post-processing at runtime
 - `r_autoinstancing 0` — disable automatic batching/instanced rendering for models and primitives
 - `r_autoinstancing 1` — enable automatic batching/instanced rendering for models and primitives
+- `r_animation 0` — disable skinned animation playback and force bind pose
+- `r_animation 1` — enable skinned animation playback

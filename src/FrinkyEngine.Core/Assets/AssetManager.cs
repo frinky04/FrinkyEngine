@@ -13,6 +13,7 @@ public class AssetManager
     public static AssetManager Instance { get; } = new();
 
     private readonly Dictionary<string, Model> _models = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedModelAnimations> _modelAnimations = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Sound> _audioClips = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Music> _audioStreams = new(StringComparer.OrdinalIgnoreCase);
@@ -71,6 +72,65 @@ public class AssetManager
         var model = Raylib.LoadModel(fullPath);
         _models[key] = model;
         return model;
+    }
+
+    /// <summary>
+    /// Loads a unique 3D model instance from the assets directory without using the shared model cache.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <returns>The loaded <see cref="Model"/>.</returns>
+    public Model LoadModelUnique(string relativePath)
+    {
+        relativePath = ResolveViaDatabase(relativePath);
+        var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+            return ErrorModel ?? default;
+
+        return Raylib.LoadModel(fullPath);
+    }
+
+    /// <summary>
+    /// Loads skeletal animation clips for a model and caches them by asset path.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <param name="animationCount">Receives the number of loaded clips.</param>
+    /// <returns>Pointer to cached animation clips, or <c>null</c> when unavailable.</returns>
+    public unsafe ModelAnimation* LoadModelAnimations(string relativePath, out int animationCount)
+    {
+        relativePath = ResolveViaDatabase(relativePath);
+        var key = relativePath.Replace('\\', '/');
+        if (_modelAnimations.TryGetValue(key, out var cached))
+        {
+            animationCount = cached.Count;
+            return cached.Pointer;
+        }
+
+        var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+        {
+            animationCount = 0;
+            return null;
+        }
+
+        int count = 0;
+        var animations = Raylib.LoadModelAnimations(fullPath, ref count);
+        animationCount = count;
+        _modelAnimations[key] = new CachedModelAnimations(animations, animationCount);
+        return animations;
+    }
+
+    /// <summary>
+    /// Checks whether a model has one or more skeletal animation clips.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <param name="animationCount">Receives the number of clips if available.</param>
+    /// <returns><c>true</c> when one or more clips exist; otherwise <c>false</c>.</returns>
+    public bool ModelHasAnimations(string relativePath, out int animationCount)
+    {
+        unsafe
+        {
+            return LoadModelAnimations(relativePath, out animationCount) != null && animationCount > 0;
+        }
     }
 
     /// <summary>
@@ -167,6 +227,8 @@ public class AssetManager
         var normalized = relativePath.Replace('\\', '/');
         if (_models.Remove(normalized, out var model))
             Raylib.UnloadModel(model);
+        if (_modelAnimations.Remove(normalized, out var animations))
+            animations.Unload();
         if (_textures.Remove(normalized, out var texture))
             Raylib.UnloadTexture(texture);
         if (_audioClips.Remove(normalized, out var clip))
@@ -183,6 +245,10 @@ public class AssetManager
         foreach (var model in _models.Values)
             Raylib.UnloadModel(model);
         _models.Clear();
+
+        foreach (var animations in _modelAnimations.Values)
+            animations.Unload();
+        _modelAnimations.Clear();
 
         foreach (var texture in _textures.Values)
             Raylib.UnloadTexture(texture);
@@ -245,4 +311,22 @@ public class AssetManager
         int ScaleMilli,
         int BlendSharpnessMilli,
         bool UseWorldSpace);
+
+    private readonly unsafe struct CachedModelAnimations
+    {
+        public CachedModelAnimations(ModelAnimation* pointer, int count)
+        {
+            Pointer = pointer;
+            Count = count;
+        }
+
+        public ModelAnimation* Pointer { get; }
+        public int Count { get; }
+
+        public void Unload()
+        {
+            if (Pointer != null && Count > 0)
+                Raylib.UnloadModelAnimations(Pointer, Count);
+        }
+    }
 }

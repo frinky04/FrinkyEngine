@@ -41,6 +41,11 @@ public static class RenderRuntimeCvars
     public static bool PostProcessingEnabled { get; private set; } = true;
 
     /// <summary>
+    /// Global skeletal animation toggle for skinned mesh playback.
+    /// </summary>
+    public static bool AnimationEnabled { get; private set; } = true;
+
+    /// <summary>
     /// Gets the post-processing cvar value as "1" (enabled) or "0" (disabled).
     /// </summary>
     /// <returns>The current value string.</returns>
@@ -60,6 +65,29 @@ public static class RenderRuntimeCvars
             return false;
 
         PostProcessingEnabled = enabled;
+        return true;
+    }
+
+    /// <summary>
+    /// Gets the animation cvar value as "1" (enabled) or "0" (disabled).
+    /// </summary>
+    /// <returns>The current value string.</returns>
+    public static string GetAnimationValue()
+    {
+        return AnimationEnabled ? "1" : "0";
+    }
+
+    /// <summary>
+    /// Attempts to parse and apply the animation cvar from "1" or "0".
+    /// </summary>
+    /// <param name="value">User input value.</param>
+    /// <returns><c>true</c> if the value was accepted; otherwise <c>false</c>.</returns>
+    public static bool TrySetAnimation(string value)
+    {
+        if (!TryParseBool01(value, out var enabled))
+            return false;
+
+        AnimationEnabled = enabled;
         return true;
     }
 
