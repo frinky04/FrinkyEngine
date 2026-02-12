@@ -15,7 +15,7 @@ namespace FrinkyEngine.Core.Components;
 [ComponentDisplayName("Skinned Mesh Animator")]
 public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 {
-    private const float DefaultAnimationFps = 30f;
+    private const float DefaultAnimationFps = 60f;
 
     private MeshRendererComponent? _meshRenderer;
     private string _lastModelPath = string.Empty;
@@ -50,8 +50,15 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public float PlaybackSpeed { get; set; } = 1f;
 
     /// <summary>
+    /// Animation sample rate in frames per second.
+    /// </summary>
+    [InspectorRange(1f, 120f, 1f)]
+    public float AnimationFps { get; set; } = DefaultAnimationFps;
+
+    /// <summary>
     /// Selected animation clip index.
     /// </summary>
+    [InspectorDropdown(nameof(GetActionNames))]
     [InspectorOnChanged(nameof(OnClipIndexChanged))]
     public int ClipIndex
     {
@@ -65,16 +72,29 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public bool Playing { get; set; } = true;
 
     /// <summary>
-    /// Number of clips loaded for the current model.
+    /// Name of the currently selected animation action.
     /// </summary>
     [InspectorReadOnly]
-    public int ClipCount => _animationCount;
+    public string ActionName => GetAnimationName(ResolveClipIndex());
 
     /// <summary>
-    /// Human-readable summary of loaded clips.
+    /// Number of animation actions loaded for the current model.
     /// </summary>
     [InspectorReadOnly]
-    public string ClipSummary => _animationCount <= 0 ? "(none)" : $"0..{_animationCount - 1}";
+    public int ActionCount => _animationCount;
+
+    /// <summary>
+    /// Frame count of the currently selected animation clip.
+    /// </summary>
+    [InspectorReadOnly]
+    public int FrameCount
+    {
+        get
+        {
+            int clip = ResolveClipIndex();
+            return clip < 0 ? 0 : _animations[clip].FrameCount;
+        }
+    }
 
     /// <summary>
     /// Resets playback time to clip start.
@@ -82,8 +102,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     [InspectorButton("Restart")]
     public void Restart()
     {
-        _playheadFrames = 0f;
-        _lastSampleTime = -1d;
+        ResetPlayhead();
         Playing = true;
     }
 
@@ -94,9 +113,15 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public void StopAndResetPose()
     {
         Playing = false;
-        _playheadFrames = 0f;
-        _lastSampleTime = -1d;
+        ResetPlayhead();
         ApplyBindPose();
+    }
+
+    /// <inheritdoc />
+    public override void Start()
+    {
+        ResetPlayhead();
+        _playbackInitialized = false;
     }
 
     /// <inheritdoc />
@@ -161,7 +186,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                 return;
 
             var speed = float.IsFinite(PlaybackSpeed) ? Math.Max(0f, PlaybackSpeed) : 1f;
-            _playheadFrames += dt * speed * DefaultAnimationFps;
+            _playheadFrames += dt * speed * AnimationFps;
 
             int frameCount = Math.Max(1, animation.FrameCount);
             if (Loop)
@@ -251,8 +276,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         if (_animationCount <= 0 || _animations == null)
             return -1;
 
-        int resolved = Math.Clamp(_clipIndex, 0, _animationCount - 1);
-        return resolved;
+        return Math.Clamp(_clipIndex, 0, _animationCount - 1);
     }
 
     private void CaptureBindPoseIfNeeded(Model model)
@@ -406,8 +430,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     {
         _animations = null;
         _animationCount = 0;
-        _playheadFrames = 0f;
-        _lastSampleTime = -1d;
+        ResetPlayhead();
         ResetPoseBuffersOnly();
     }
 
@@ -420,9 +443,31 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         _hasSkinnedMeshes = false;
     }
 
-    private void OnClipIndexChanged()
+    private void ResetPlayhead()
     {
         _playheadFrames = 0f;
         _lastSampleTime = -1d;
+    }
+
+    private void OnClipIndexChanged() => ResetPlayhead();
+
+    private string GetAnimationName(int index)
+    {
+        if (index < 0 || _animations == null || index >= _animationCount)
+            return "(none)";
+
+        var name = new string(_animations[index].Name, 0, 32).TrimEnd('\0');
+        return string.IsNullOrWhiteSpace(name) ? $"Action {index}" : name;
+    }
+
+    private string[] GetActionNames()
+    {
+        if (_animationCount <= 0 || _animations == null)
+            return ["(no animations)"];
+
+        var names = new string[_animationCount];
+        for (int i = 0; i < _animationCount; i++)
+            names[i] = GetAnimationName(i);
+        return names;
     }
 }
