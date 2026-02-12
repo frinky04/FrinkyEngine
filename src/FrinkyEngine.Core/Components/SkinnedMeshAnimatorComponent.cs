@@ -230,10 +230,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         }
     }
 
-    internal bool UsesSkinning()
-    {
-        return _hasSkinnedMeshes;
-    }
+    internal bool UsesSkinning => _hasSkinnedMeshes;
 
     private bool EnsureAnimationState()
     {
@@ -378,7 +375,6 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private static void LerpPose(Matrix4x4[][] a, Matrix4x4[][] b, Matrix4x4[][] output, float alpha)
     {
-        alpha = Math.Clamp(alpha, 0f, 1f);
         float beta = 1f - alpha;
 
         for (int i = 0; i < output.Length; i++)

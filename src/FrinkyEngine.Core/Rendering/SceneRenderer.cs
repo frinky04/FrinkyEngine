@@ -2,6 +2,7 @@ using System.Numerics;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering.Profiling;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.Rendering;
@@ -72,6 +73,7 @@ public class SceneRenderer
     private readonly Dictionary<uint, int> _useSkinningLocationCache = new();
     private readonly Dictionary<uint, int> _instanceTransformAttribLocationCache = new();
     private int _frameDrawCallCount;
+    private int _frameSkinnedMeshCount;
     private ulong _animationFrameToken;
     private int _lastAutoInstancingBatchCount;
     private int _lastAutoInstancingInstancedBatchCount;
@@ -94,6 +96,11 @@ public class SceneRenderer
     /// Number of draw calls issued in the most recent <see cref="Render"/> pass.
     /// </summary>
     public int LastFrameDrawCallCount { get; private set; }
+
+    /// <summary>
+    /// Number of skinned meshes that had GPU skinning prepared in the most recent <see cref="Render"/> pass.
+    /// </summary>
+    public int LastFrameSkinnedMeshCount { get; private set; }
 
     /// <summary>
     /// Diagnostic statistics from the most recent automatic instancing frame.
@@ -287,6 +294,7 @@ public class SceneRenderer
     {
         _animationFrameToken++;
         _frameDrawCallCount = 0;
+        _frameSkinnedMeshCount = 0;
         _lastAutoInstancingBatchCount = 0;
         _lastAutoInstancingInstancedBatchCount = 0;
         _lastAutoInstancingInstancedInstanceCount = 0;
@@ -326,6 +334,7 @@ public class SceneRenderer
             Raylib.EndTextureMode();
 
         LastFrameDrawCallCount = _frameDrawCallCount;
+        LastFrameSkinnedMeshCount = _frameSkinnedMeshCount;
     }
 
     /// <summary>
@@ -1370,8 +1379,15 @@ public class SceneRenderer
         if (animator == null || !animator.Enabled)
             return false;
 
-        animator.PrepareForRender(_animationFrameToken);
-        return animator.UsesSkinning();
+        using (FrameProfiler.Scope(ProfileCategory.Skinning))
+        {
+            animator.PrepareForRender(_animationFrameToken);
+        }
+
+        bool active = animator.UsesSkinning;
+        if (active)
+            _frameSkinnedMeshCount++;
+        return active;
     }
 
     private enum RenderPass

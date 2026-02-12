@@ -185,6 +185,7 @@ public static class Program
 
         var sceneRenderer = new SceneRenderer();
         sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
+        EngineOverlays.Renderer = sceneRenderer;
         sceneRenderer.ConfigureForwardPlus(new ForwardPlusSettings(
             launchSettings.ForwardPlusTileSize,
             launchSettings.ForwardPlusMaxLights,

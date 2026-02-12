@@ -51,6 +51,7 @@ public static unsafe class EngineOverlays
     private static AudioFrameStats _displayedAudioStats;
     private static SubCategoryTiming[] _displayedSubTimings = Array.Empty<SubCategoryTiming>();
     private static double _displayedIdleMs;
+    private static int _displayedSkinnedMeshCount;
     private static float _fpsAccumulator;
 
     private static bool _consoleVisible;
@@ -65,6 +66,12 @@ public static unsafe class EngineOverlays
     private static bool _consoleFocusInput;
     private static bool _consoleAutoScroll = true;
     private static bool _consoleBackendInitialized;
+
+    /// <summary>
+    /// The scene renderer whose per-frame stats are displayed by the overlay.
+    /// Must be set before <see cref="Update"/> is called.
+    /// </summary>
+    public static SceneRenderer? Renderer { get; set; }
 
     /// <summary>
     /// Gets whether the developer console overlay is currently visible.
@@ -144,6 +151,8 @@ public static unsafe class EngineOverlays
         _displayedEntityCount = scene?.Entities.Count ?? 0;
         _displayedPhysicsStats = scene?.GetPhysicsFrameStats() ?? default;
         _displayedAudioStats = scene?.GetAudioFrameStats() ?? default;
+
+        _displayedSkinnedMeshCount = Renderer?.LastFrameSkinnedMeshCount ?? 0;
 
         _displayedSnapshotValid = FrameProfiler.Enabled && FrameProfiler.FrameCount > 0;
         if (!_displayedSnapshotValid)
@@ -225,7 +234,7 @@ public static unsafe class EngineOverlays
 
         ImGui.Text($"Game: {latest.GetCategoryMs(ProfileCategory.Game):F2}  Late: {latest.GetCategoryMs(ProfileCategory.GameLate):F2}");
         ImGui.Text($"Phys: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
-        ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
+        ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Skin: {latest.GetCategoryMs(ProfileCategory.Skinning):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
         ImGui.Text($"UI: {latest.GetCategoryMs(ProfileCategory.UI):F2}  Other: {latest.OtherMs:F2}");
 
         var editorMs = latest.GetCategoryMs(ProfileCategory.Editor);
@@ -261,6 +270,8 @@ public static unsafe class EngineOverlays
             ImGui.Text($"Voices: {_displayedAudioStats.ActiveVoices}  Streaming: {_displayedAudioStats.StreamingVoices}");
             ImGui.Text($"Virtual: {_displayedAudioStats.VirtualizedVoices}  Stolen: {_displayedAudioStats.StolenVoicesThisFrame}  Update: {_displayedAudioStats.UpdateTimeMs:F2}ms");
         }
+
+        ImGui.Text($"Skinning: {_displayedSkinnedMeshCount}");
 
         var subTimings = _displayedSubTimings;
         if (subTimings == null || subTimings.Length == 0)
