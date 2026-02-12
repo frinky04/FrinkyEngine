@@ -199,6 +199,12 @@ public static unsafe class EngineOverlays
         ImGui.End();
     }
 
+    private static void SectionHeader(string title)
+    {
+        ImGui.Spacing();
+        ImGui.TextDisabled($"\u2014 {title} \u2014");
+    }
+
     private static void DrawAdvancedStats()
     {
         ImGui.Separator();
@@ -232,8 +238,9 @@ public static unsafe class EngineOverlays
         else
             ImGui.Text($"Idle: {_displayedIdleMs:F2}ms");
 
+        SectionHeader("Timing");
         ImGui.Text($"Game: {latest.GetCategoryMs(ProfileCategory.Game):F2}  Late: {latest.GetCategoryMs(ProfileCategory.GameLate):F2}");
-        ImGui.Text($"Phys: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
+        ImGui.Text($"Physics: {latest.GetCategoryMs(ProfileCategory.Physics):F2}  Audio: {latest.GetCategoryMs(ProfileCategory.Audio):F2}");
         ImGui.Text($"Render: {latest.GetCategoryMs(ProfileCategory.Rendering):F2}  Skin: {latest.GetCategoryMs(ProfileCategory.Skinning):F2}  Post: {latest.GetCategoryMs(ProfileCategory.PostProcessing):F2}");
         ImGui.Text($"UI: {latest.GetCategoryMs(ProfileCategory.UI):F2}  Other: {latest.OtherMs:F2}");
 
@@ -241,8 +248,9 @@ public static unsafe class EngineOverlays
         if (editorMs > 0.001)
             ImGui.Text($"Editor: {editorMs:F2}");
 
+        SectionHeader("Scene");
         ImGui.Text($"Resolution: {_displayedScreenWidth}x{_displayedScreenHeight}");
-        ImGui.Text($"Entities: {_displayedEntityCount}  PP Passes: {latest.GpuStats.PostProcessPasses}");
+        ImGui.Text($"Entities: {_displayedEntityCount}");
     }
 
     private static void DrawVerboseStats()
@@ -257,27 +265,31 @@ public static unsafe class EngineOverlays
 
         ImGui.Separator();
 
+        SectionHeader("Rendering");
+        ImGui.Text($"Skinned Meshes: {_displayedSkinnedMeshCount}");
+        ImGui.Text($"PP Passes: {latest.GpuStats.PostProcessPasses}");
+
         if (_displayedPhysicsStats.Valid)
         {
-            ImGui.Text("Physics");
-            ImGui.Text($"Bodies D/K/S: {_displayedPhysicsStats.DynamicBodies}/{_displayedPhysicsStats.KinematicBodies}/{_displayedPhysicsStats.StaticBodies}");
-            ImGui.Text($"Substeps: {_displayedPhysicsStats.SubstepsThisFrame}  Step: {_displayedPhysicsStats.StepTimeMs:F2}ms  CC: {_displayedPhysicsStats.ActiveCharacterControllers}");
+            SectionHeader("Physics");
+            ImGui.Text($"Bodies: {_displayedPhysicsStats.DynamicBodies} / {_displayedPhysicsStats.KinematicBodies} / {_displayedPhysicsStats.StaticBodies}  (D/K/S)");
+            ImGui.Text($"Substeps: {_displayedPhysicsStats.SubstepsThisFrame}  Step: {_displayedPhysicsStats.StepTimeMs:F2}ms");
+            ImGui.Text($"Characters: {_displayedPhysicsStats.ActiveCharacterControllers}");
         }
 
         if (_displayedAudioStats.Valid)
         {
-            ImGui.Text("Audio");
+            SectionHeader("Audio");
             ImGui.Text($"Voices: {_displayedAudioStats.ActiveVoices}  Streaming: {_displayedAudioStats.StreamingVoices}");
-            ImGui.Text($"Virtual: {_displayedAudioStats.VirtualizedVoices}  Stolen: {_displayedAudioStats.StolenVoicesThisFrame}  Update: {_displayedAudioStats.UpdateTimeMs:F2}ms");
+            ImGui.Text($"Virtual: {_displayedAudioStats.VirtualizedVoices}  Stolen: {_displayedAudioStats.StolenVoicesThisFrame}");
+            ImGui.Text($"Update: {_displayedAudioStats.UpdateTimeMs:F2}ms");
         }
-
-        ImGui.Text($"Skinning: {_displayedSkinnedMeshCount}");
 
         var subTimings = _displayedSubTimings;
         if (subTimings == null || subTimings.Length == 0)
             return;
 
-        ImGui.Text("Post FX (Top)");
+        SectionHeader("Post FX (Top)");
 
         var used = new bool[subTimings.Length];
         int shown = 0;
