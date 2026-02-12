@@ -35,6 +35,7 @@ public class SceneRenderer
     private int _tileHeaderTexSizeLoc = -1;
     private int _tileIndexTexSizeLoc = -1;
     private int _lightingUseInstancingLoc = -1;
+    private int _lightingUseSkinningLoc = -1;
 
     private ForwardPlusSettings _forwardPlusSettings = ForwardPlusSettings.Default;
     private int _viewportWidth;
@@ -68,6 +69,7 @@ public class SceneRenderer
     private readonly Dictionary<RenderBatchKey, InstancedBatchBucket> _instancedBatches = new();
     private readonly List<RenderableDrawItem> _instancingFallbackDraws = new();
     private readonly Dictionary<uint, int> _useInstancingLocationCache = new();
+    private readonly Dictionary<uint, int> _useSkinningLocationCache = new();
     private readonly Dictionary<uint, int> _instanceTransformAttribLocationCache = new();
     private int _frameDrawCallCount;
     private int _lastAutoInstancingBatchCount;
@@ -205,6 +207,7 @@ public class SceneRenderer
         _tileHeaderTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileHeaderTexSize");
         _tileIndexTexSizeLoc = Raylib.GetShaderLocation(_lightingShader, "tileIndexTexSize");
         _lightingUseInstancingLoc = Raylib.GetShaderLocation(_lightingShader, "useInstancing");
+        _lightingUseSkinningLoc = Raylib.GetShaderLocation(_lightingShader, "useSkinning");
 
         // Map forward+ sampler uniforms to unused material map slots so DrawMesh
         // binds them reliably (SetShaderValueTexture uses activeTextureId which
@@ -215,6 +218,9 @@ public class SceneRenderer
             _lightingShader.Locs[(int)ShaderLocationIndex.MapEmission] = _tileHeaderTexLoc;
             _lightingShader.Locs[(int)ShaderLocationIndex.MapHeight] = _tileIndexTexLoc;
             _lightingShader.Locs[(int)ShaderLocationIndex.MapBrdf] = _triplanarParamsTexLoc;
+            _lightingShader.Locs[(int)ShaderLocationIndex.BoneMatrices] = Raylib.GetShaderLocation(_lightingShader, "boneMatrices");
+            _lightingShader.Locs[(int)ShaderLocationIndex.VertexBoneIds] = Raylib.GetShaderLocationAttrib(_lightingShader, "vertexBoneIds");
+            _lightingShader.Locs[(int)ShaderLocationIndex.VertexBoneWeights] = Raylib.GetShaderLocationAttrib(_lightingShader, "vertexBoneWeights");
         }
 
         var ambOvr = RenderRuntimeCvars.AmbientOverride;
@@ -225,6 +231,7 @@ public class SceneRenderer
 
         _shaderLoaded = true;
         SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
+        SetShaderUseSkinning(_lightingShader, _lightingUseSkinningLoc, false);
 
         var shaderDir = Path.GetDirectoryName(vsPath) ?? "Shaders";
         var selectionMaskVsPath = Path.Combine(shaderDir, "selection_mask.vs");
@@ -233,6 +240,12 @@ public class SceneRenderer
         if (File.Exists(selectionMaskVsPath) && File.Exists(selectionMaskFsPath))
         {
             _selectionMaskShader = Raylib.LoadShader(selectionMaskVsPath, selectionMaskFsPath);
+            unsafe
+            {
+                _selectionMaskShader.Locs[(int)ShaderLocationIndex.BoneMatrices] = Raylib.GetShaderLocation(_selectionMaskShader, "boneMatrices");
+                _selectionMaskShader.Locs[(int)ShaderLocationIndex.VertexBoneIds] = Raylib.GetShaderLocationAttrib(_selectionMaskShader, "vertexBoneIds");
+                _selectionMaskShader.Locs[(int)ShaderLocationIndex.VertexBoneWeights] = Raylib.GetShaderLocationAttrib(_selectionMaskShader, "vertexBoneWeights");
+            }
             _selectionMaskShaderLoaded = true;
         }
     }
@@ -257,6 +270,7 @@ public class SceneRenderer
         }
 
         _useInstancingLocationCache.Clear();
+        _useSkinningLocationCache.Clear();
         _instanceTransformAttribLocationCache.Clear();
     }
 
@@ -339,7 +353,7 @@ public class SceneRenderer
         Raylib.EndTextureMode();
     }
 
-    private void DrawModelWithCustomShader(Model model, Matrix4x4 worldMatrix, Shader shader)
+    private void DrawModelWithCustomShader(Model model, Matrix4x4 worldMatrix, Shader shader, RenderableComponent? renderable = null)
     {
         unsafe
         {
@@ -348,15 +362,19 @@ public class SceneRenderer
         }
 
         SetShaderUseInstancing(shader, GetUseInstancingLocation(shader), false);
+        bool useSkinning = PrepareSkinning(renderable);
+        SetShaderUseSkinning(shader, GetUseSkinningLocation(shader), useSkinning);
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, Color.White);
     }
 
-    private void DrawModelWithShader(Model model, Matrix4x4 worldMatrix, Color tint)
+    private void DrawModelWithShader(Model model, Matrix4x4 worldMatrix, Color tint, RenderableComponent? renderable = null)
     {
         if (_shaderLoaded)
         {
             SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
+            bool useSkinning = PrepareSkinning(renderable);
+            SetShaderUseSkinning(_lightingShader, _lightingUseSkinningLoc, useSkinning);
             unsafe
             {
                 for (int i = 0; i < model.MaterialCount; i++)
@@ -407,9 +425,9 @@ public class SceneRenderer
             var model = renderable.RenderModel.Value;
             var worldMatrix = renderable.Entity.Transform.WorldMatrix;
             if (pass == RenderPass.Main)
-                DrawModelWithShader(model, worldMatrix, Color.White);
+                DrawModelWithShader(model, worldMatrix, Color.White, renderable);
             else
-                DrawModelWithCustomShader(model, worldMatrix, depthShader);
+                DrawModelWithCustomShader(model, worldMatrix, depthShader, renderable);
         }
     }
 
@@ -483,9 +501,9 @@ public class SceneRenderer
 
         var model = item.Renderable.RenderModel.Value;
         if (pass == RenderPass.Main)
-            DrawModelWithShader(model, item.WorldMatrix, Color.White);
+            DrawModelWithShader(model, item.WorldMatrix, Color.White, item.Renderable);
         else
-            DrawModelWithCustomShader(model, item.WorldMatrix, depthShader);
+            DrawModelWithCustomShader(model, item.WorldMatrix, depthShader, item.Renderable);
     }
 
     private void DrawInstancedBatch(InstancedBatchBucket batch, RenderPass pass, Shader depthShader)
@@ -509,6 +527,7 @@ public class SceneRenderer
         if (instanceAttribLoc >= 0)
             SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, instanceAttribLoc);
         SetShaderUseInstancing(activeShader, useInstancingLoc, true);
+        SetShaderUseSkinning(activeShader, GetUseSkinningLocation(activeShader), false);
 
         unsafe
         {
@@ -531,6 +550,7 @@ public class SceneRenderer
         }
 
         SetShaderUseInstancing(activeShader, useInstancingLoc, false);
+        SetShaderUseSkinning(activeShader, GetUseSkinningLocation(activeShader), false);
         if (instanceAttribLoc >= 0)
             SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, previousMatrixModelLoc);
     }
@@ -565,6 +585,13 @@ public class SceneRenderer
 
     private static bool TryCreateRenderBatchKey(RenderableComponent renderable, Model model, out RenderBatchKey key)
     {
+        var animator = renderable.Entity.GetComponent<SkinnedMeshAnimatorComponent>();
+        if (animator != null && animator.Enabled)
+        {
+            key = default;
+            return false;
+        }
+
         if (renderable is MeshRendererComponent meshRenderer)
         {
             var path = ResolveMeshAssetKey(meshRenderer.ModelPath.Path);
@@ -697,7 +724,7 @@ public class SceneRenderer
             if (renderable.EditorOnly && !isEditorMode) continue;
             renderable.EnsureModelReady();
             if (!renderable.RenderModel.HasValue) continue;
-            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, Color.White);
+            DrawModelWithShader(renderable.RenderModel.Value, renderable.Entity.Transform.WorldMatrix, Color.White, renderable);
         }
 
         Rlgl.DrawRenderBatchActive();
@@ -718,17 +745,7 @@ public class SceneRenderer
                 continue;
 
             var model = renderable.RenderModel.Value;
-
-            unsafe
-            {
-                for (int i = 0; i < model.MaterialCount; i++)
-                {
-                    model.Materials[i].Shader = _selectionMaskShader;
-                }
-            }
-
-            model.Transform = Matrix4x4.Transpose(entity.Transform.WorldMatrix);
-            Raylib.DrawModel(model, Vector3.Zero, 1f, Color.White);
+            DrawModelWithCustomShader(model, entity.Transform.WorldMatrix, _selectionMaskShader, renderable);
         }
 
         Rlgl.DrawRenderBatchActive();
@@ -1291,6 +1308,19 @@ public class SceneRenderer
         return loc;
     }
 
+    private int GetUseSkinningLocation(Shader shader)
+    {
+        if (shader.Id == 0)
+            return -1;
+
+        if (_useSkinningLocationCache.TryGetValue(shader.Id, out var cached))
+            return cached;
+
+        int loc = Raylib.GetShaderLocation(shader, "useSkinning");
+        _useSkinningLocationCache[shader.Id] = loc;
+        return loc;
+    }
+
     private int GetInstanceTransformAttribLocation(Shader shader)
     {
         if (shader.Id == 0)
@@ -1327,6 +1357,28 @@ public class SceneRenderer
 
         int value = enabled ? 1 : 0;
         Raylib.SetShaderValue(shader, location, value, ShaderUniformDataType.Int);
+    }
+
+    private static void SetShaderUseSkinning(Shader shader, int location, bool enabled)
+    {
+        if (shader.Id == 0 || location < 0)
+            return;
+
+        int value = enabled ? 1 : 0;
+        Raylib.SetShaderValue(shader, location, value, ShaderUniformDataType.Int);
+    }
+
+    private static bool PrepareSkinning(RenderableComponent? renderable)
+    {
+        if (renderable == null)
+            return false;
+
+        var animator = renderable.Entity.GetComponent<SkinnedMeshAnimatorComponent>();
+        if (animator == null || !animator.Enabled)
+            return false;
+
+        animator.PrepareForRender();
+        return animator.UsesSkinning();
     }
 
     private static void DrawGrid(int slices, float spacing)

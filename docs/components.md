@@ -9,6 +9,7 @@ All built-in components and their key properties. For information on writing cus
 | `CameraComponent` | `FieldOfView` (60), `NearPlane` (0.1), `FarPlane` (1000), `Projection` (Perspective/Orthographic), `ClearColor`, `IsMain` |
 | `LightComponent` | `LightType` (Directional/Point/Skylight), `LightColor`, `Intensity` (1.0), `Range` (10.0) |
 | `MeshRendererComponent` | `ModelPath`, `MaterialSlots` (list of `Material`), `Tint`, `EditorOnly` |
+| `SkinnedMeshAnimatorComponent` | `PlayAutomatically` (true), `Loop` (true), `PlaybackSpeed` (1.0), `ClipIndex` (0), `Playing` (true) |
 | `PostProcessStackComponent` | `PostProcessingEnabled` (true), `Effects` (list of effects) |
 
 ## Primitives

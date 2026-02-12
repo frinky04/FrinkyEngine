@@ -856,6 +856,13 @@ public static unsafe class EngineOverlays
             RenderRuntimeCvars.TrySetAutoInstancing));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_animation",
+            "r_animation [0|1]",
+            "Enable or disable skeletal animation playback for skinned meshes (1=on, 0=off).",
+            RenderRuntimeCvars.GetAnimationValue,
+            RenderRuntimeCvars.TrySetAnimation));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_showstats",
             "r_showstats [0-3]",
             "Stats overlay mode (0=off, 1=fps, 2=advanced, 3=verbose).",

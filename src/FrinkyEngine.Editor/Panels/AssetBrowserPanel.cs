@@ -593,6 +593,11 @@ public class AssetBrowserPanel
             return;
 
         mr.ModelPath = AssetDatabase.Instance.GetCanonicalName(asset.RelativePath);
+        if (AssetManager.Instance.ModelHasAnimations(mr.ModelPath.Path, out _)
+            && entity.GetComponent<SkinnedMeshAnimatorComponent>() == null)
+        {
+            entity.TryAddComponent(typeof(SkinnedMeshAnimatorComponent), out _, out _);
+        }
         FrinkyLog.Info($"Assigned model '{asset.FileName}' to {entity.Name}");
     }
 
