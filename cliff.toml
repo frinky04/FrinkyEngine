@@ -1,0 +1,59 @@
+# git-cliff configuration for FrinkyEngine release notes
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | split(pat="\n") | first | trim }}\
+  ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/frinky04/FrinkyEngine/commit/{{ commit.id }}))\
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = false
+filter_commits = true
+tag_pattern = "v[0-9].*"
+topo_order = false
+sort_commits = "newest"
+
+commit_preprocessors = [
+  # Map plain "Add ..." style commits to conventional format
+  { pattern = "^Add ", replace = "feat: Add " },
+  { pattern = "^Update ", replace = "chore: Update " },
+  { pattern = "^Remove ", replace = "chore: Remove " },
+  { pattern = "^Delete ", replace = "chore: Delete " },
+  { pattern = "^Implement ", replace = "feat: Implement " },
+  { pattern = "^Improve ", replace = "feat: Improve " },
+  { pattern = "^Support ", replace = "feat: Support " },
+]
+
+commit_parsers = [
+  # Skip auto-generated API doc commits and merge commits
+  { message = "^docs: Regenerate API reference", skip = true },
+  { message = "^Merge pull request", skip = true },
+  { message = "^Merge branch", skip = true },
+
+  # Categorize by conventional commit type
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^ref", group = "Refactoring" },
+  { message = "^perf", group = "Performance" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^style", group = "Miscellaneous" },
+  { message = "^test", group = "Miscellaneous" },
+  { message = "^chore", group = "Miscellaneous" },
+  { message = "^ci", group = "Miscellaneous" },
+  { message = "^build", group = "Miscellaneous" },
+
+  # Catch-all for anything else
+  { message = ".*", group = "Miscellaneous" },
+]

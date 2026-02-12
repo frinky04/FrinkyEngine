@@ -28,8 +28,8 @@ docs/api/
 ## Project specific
 *.fproject.user
 imgui.ini
-/.claude
 /artifacts
 **/artifacts
 **/.frinky/
 nul
+.claude/settings.local.json
