@@ -72,6 +72,7 @@ public class SceneRenderer
     private readonly Dictionary<uint, int> _useSkinningLocationCache = new();
     private readonly Dictionary<uint, int> _instanceTransformAttribLocationCache = new();
     private int _frameDrawCallCount;
+    private ulong _animationFrameToken;
     private int _lastAutoInstancingBatchCount;
     private int _lastAutoInstancingInstancedBatchCount;
     private int _lastAutoInstancingInstancedInstanceCount;
@@ -230,8 +231,8 @@ public class SceneRenderer
         Raylib.SetShaderValue(_lightingShader, _ambientLoc, ambient, ShaderUniformDataType.Vec4);
 
         _shaderLoaded = true;
-        SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
-        SetShaderUseSkinning(_lightingShader, _lightingUseSkinningLoc, false);
+        SetShaderBool(_lightingShader, _lightingUseInstancingLoc, false);
+        SetShaderBool(_lightingShader, _lightingUseSkinningLoc, false);
 
         var shaderDir = Path.GetDirectoryName(vsPath) ?? "Shaders";
         var selectionMaskVsPath = Path.Combine(shaderDir, "selection_mask.vs");
@@ -284,6 +285,7 @@ public class SceneRenderer
     /// <param name="isEditorMode">When <c>true</c>, editor-only objects and the grid are drawn.</param>
     public void Render(Scene.Scene scene, Camera3D camera, RenderTexture2D? renderTarget = null, Action? postSceneRender = null, bool isEditorMode = true)
     {
+        _animationFrameToken++;
         _frameDrawCallCount = 0;
         _lastAutoInstancingBatchCount = 0;
         _lastAutoInstancingInstancedBatchCount = 0;
@@ -314,7 +316,7 @@ public class SceneRenderer
         DrawRenderables(scene.Renderables, isEditorMode, RenderPass.Main, depthShader: default);
 
         if (isEditorMode)
-            DrawGrid(20, 1.0f);
+            Raylib.DrawGrid(20, 1.0f);
 
         postSceneRender?.Invoke();
 
@@ -361,9 +363,9 @@ public class SceneRenderer
                 model.Materials[i].Shader = shader;
         }
 
-        SetShaderUseInstancing(shader, GetUseInstancingLocation(shader), false);
+        SetShaderBool(shader, GetUseInstancingLocation(shader), false);
         bool useSkinning = PrepareSkinning(renderable);
-        SetShaderUseSkinning(shader, GetUseSkinningLocation(shader), useSkinning);
+        SetShaderBool(shader, GetUseSkinningLocation(shader), useSkinning);
         model.Transform = Matrix4x4.Transpose(worldMatrix);
         Raylib.DrawModel(model, System.Numerics.Vector3.Zero, 1f, Color.White);
     }
@@ -372,9 +374,9 @@ public class SceneRenderer
     {
         if (_shaderLoaded)
         {
-            SetShaderUseInstancing(_lightingShader, _lightingUseInstancingLoc, false);
+            SetShaderBool(_lightingShader, _lightingUseInstancingLoc, false);
             bool useSkinning = PrepareSkinning(renderable);
-            SetShaderUseSkinning(_lightingShader, _lightingUseSkinningLoc, useSkinning);
+            SetShaderBool(_lightingShader, _lightingUseSkinningLoc, useSkinning);
             unsafe
             {
                 for (int i = 0; i < model.MaterialCount; i++)
@@ -526,8 +528,8 @@ public class SceneRenderer
 
         if (instanceAttribLoc >= 0)
             SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, instanceAttribLoc);
-        SetShaderUseInstancing(activeShader, useInstancingLoc, true);
-        SetShaderUseSkinning(activeShader, GetUseSkinningLocation(activeShader), false);
+        SetShaderBool(activeShader, useInstancingLoc, true);
+        SetShaderBool(activeShader, GetUseSkinningLocation(activeShader), false);
 
         unsafe
         {
@@ -549,8 +551,8 @@ public class SceneRenderer
             }
         }
 
-        SetShaderUseInstancing(activeShader, useInstancingLoc, false);
-        SetShaderUseSkinning(activeShader, GetUseSkinningLocation(activeShader), false);
+        SetShaderBool(activeShader, useInstancingLoc, false);
+        SetShaderBool(activeShader, GetUseSkinningLocation(activeShader), false);
         if (instanceAttribLoc >= 0)
             SetShaderLocationInLocs(activeShader, ShaderLocationIndex.MatrixModel, previousMatrixModelLoc);
     }
@@ -1350,7 +1352,7 @@ public class SceneRenderer
         shader.Locs[(int)index] = location;
     }
 
-    private static void SetShaderUseInstancing(Shader shader, int location, bool enabled)
+    private static void SetShaderBool(Shader shader, int location, bool enabled)
     {
         if (shader.Id == 0 || location < 0)
             return;
@@ -1359,16 +1361,7 @@ public class SceneRenderer
         Raylib.SetShaderValue(shader, location, value, ShaderUniformDataType.Int);
     }
 
-    private static void SetShaderUseSkinning(Shader shader, int location, bool enabled)
-    {
-        if (shader.Id == 0 || location < 0)
-            return;
-
-        int value = enabled ? 1 : 0;
-        Raylib.SetShaderValue(shader, location, value, ShaderUniformDataType.Int);
-    }
-
-    private static bool PrepareSkinning(RenderableComponent? renderable)
+    private bool PrepareSkinning(RenderableComponent? renderable)
     {
         if (renderable == null)
             return false;
@@ -1377,13 +1370,8 @@ public class SceneRenderer
         if (animator == null || !animator.Enabled)
             return false;
 
-        animator.PrepareForRender();
+        animator.PrepareForRender(_animationFrameToken);
         return animator.UsesSkinning();
-    }
-
-    private static void DrawGrid(int slices, float spacing)
-    {
-        Raylib.DrawGrid(slices, spacing);
     }
 
     private enum RenderPass

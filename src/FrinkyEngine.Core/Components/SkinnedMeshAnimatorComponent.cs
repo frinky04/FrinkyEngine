@@ -26,6 +26,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private float _playheadFrames;
     private double _lastSampleTime = -1d;
     private bool _playbackInitialized;
+    private ulong _lastPreparedRenderToken;
 
     private Matrix4x4[][]? _bindPose;
     private Matrix4x4[][]? _poseFrameA;
@@ -70,8 +71,6 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         get => _clipIndex;
         set => _clipIndex = Math.Max(0, value);
     }
-
-
 
     /// <summary>
     /// Name of the currently selected animation action.
@@ -139,7 +138,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             _meshRenderer.SetRequireUniqueModelInstance(false);
     }
 
-    internal void PrepareForRender()
+    internal void PrepareForRender(ulong renderToken)
     {
         if (!Enabled)
             return;
@@ -155,6 +154,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         if (!EnsureAnimationState())
             return;
+
+        if (_lastPreparedRenderToken == renderToken)
+            return;
+
+        _lastPreparedRenderToken = renderToken;
 
         if (!RenderRuntimeCvars.AnimationEnabled)
         {
@@ -449,6 +453,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     {
         _playheadFrames = 0f;
         _lastSampleTime = -1d;
+        _lastPreparedRenderToken = 0;
     }
 
     private void OnClipIndexChanged() => ResetPlayhead();
