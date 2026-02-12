@@ -44,6 +44,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public bool Loop { get; set; } = true;
 
     /// <summary>
+    /// Whether playback advances over time.
+    /// </summary>
+    public bool Playing { get; set; } = true;
+
+    /// <summary>
     /// Playback speed multiplier where 1.0 is normal speed.
     /// </summary>
     [InspectorRange(0f, 4f, 0.01f)]
@@ -66,10 +71,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         set => _clipIndex = Math.Max(0, value);
     }
 
-    /// <summary>
-    /// Whether playback advances over time.
-    /// </summary>
-    public bool Playing { get; set; } = true;
+
 
     /// <summary>
     /// Name of the currently selected animation action.
