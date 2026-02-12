@@ -1567,35 +1567,47 @@ internal sealed class PhysicsSystem : IDisposable
 
     // --- Raycast ---
 
+    private struct RaycastFilter
+    {
+        public bool IncludeTriggers;
+        public HashSet<int> TriggerBodyHandles;
+        public HashSet<int> TriggerStaticHandles;
+        public HashSet<Guid>? IgnoredEntityIds;
+        public Dictionary<int, Guid> BodyHandleToEntityId;
+        public Dictionary<int, Guid> StaticHandleToEntityId;
+
+        public readonly bool AllowCollidable(CollidableReference collidable)
+        {
+            bool isStatic = collidable.Mobility == CollidableMobility.Static;
+            int handleValue = isStatic ? collidable.StaticHandle.Value : collidable.BodyHandle.Value;
+
+            if (!IncludeTriggers)
+            {
+                var triggerSet = isStatic ? TriggerStaticHandles : TriggerBodyHandles;
+                if (triggerSet.Contains(handleValue))
+                    return false;
+            }
+
+            if (IgnoredEntityIds != null)
+            {
+                var handleMap = isStatic ? StaticHandleToEntityId : BodyHandleToEntityId;
+                if (handleMap.TryGetValue(handleValue, out var entityId) && IgnoredEntityIds.Contains(entityId))
+                    return false;
+            }
+
+            return true;
+        }
+    }
+
     private struct ClosestHitHandler : IRayHitHandler
     {
         public float ClosestT;
         public Vector3 ClosestNormal;
         public CollidableReference ClosestCollidable;
         public bool HasHit;
-        public bool IncludeTriggers;
-        public HashSet<int> TriggerBodyHandles;
-        public HashSet<int> TriggerStaticHandles;
+        public RaycastFilter Filter;
 
-        public bool AllowTest(CollidableReference collidable)
-        {
-            if (!IncludeTriggers)
-            {
-                if (collidable.Mobility == CollidableMobility.Static)
-                {
-                    if (TriggerStaticHandles.Contains(collidable.StaticHandle.Value))
-                        return false;
-                }
-                else
-                {
-                    if (TriggerBodyHandles.Contains(collidable.BodyHandle.Value))
-                        return false;
-                }
-            }
-
-            return true;
-        }
-
+        public bool AllowTest(CollidableReference collidable) => Filter.AllowCollidable(collidable);
         public bool AllowTest(CollidableReference collidable, int childIndex) => true;
 
         public void OnRayHit(in RayData ray, ref float maximumT, float t, in Vector3 normal, CollidableReference collidable, int childIndex)
@@ -1614,29 +1626,9 @@ internal sealed class PhysicsSystem : IDisposable
     private struct AllHitsHandler : IRayHitHandler
     {
         public List<(float T, Vector3 Normal, CollidableReference Collidable)> Hits;
-        public bool IncludeTriggers;
-        public HashSet<int> TriggerBodyHandles;
-        public HashSet<int> TriggerStaticHandles;
+        public RaycastFilter Filter;
 
-        public bool AllowTest(CollidableReference collidable)
-        {
-            if (!IncludeTriggers)
-            {
-                if (collidable.Mobility == CollidableMobility.Static)
-                {
-                    if (TriggerStaticHandles.Contains(collidable.StaticHandle.Value))
-                        return false;
-                }
-                else
-                {
-                    if (TriggerBodyHandles.Contains(collidable.BodyHandle.Value))
-                        return false;
-                }
-            }
-
-            return true;
-        }
-
+        public bool AllowTest(CollidableReference collidable) => Filter.AllowCollidable(collidable);
         public bool AllowTest(CollidableReference collidable, int childIndex) => true;
 
         public void OnRayHit(in RayData ray, ref float maximumT, float t, in Vector3 normal, CollidableReference collidable, int childIndex)
@@ -1645,7 +1637,7 @@ internal sealed class PhysicsSystem : IDisposable
         }
     }
 
-    internal bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out RaycastHit hit, bool includeTriggers = false)
+    internal bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out RaycastHit hit, RaycastParams raycastParams)
     {
         hit = default;
         if (_simulation == null)
@@ -1656,13 +1648,12 @@ internal sealed class PhysicsSystem : IDisposable
             return false;
 
         var normalizedDir = direction / dirLength;
+        var filter = BuildRaycastFilter(raycastParams);
         var handler = new ClosestHitHandler
         {
             ClosestT = float.MaxValue,
             HasHit = false,
-            IncludeTriggers = includeTriggers,
-            TriggerBodyHandles = _triggerBodyHandles,
-            TriggerStaticHandles = _triggerStaticHandles,
+            Filter = filter,
         };
 
         _simulation.RayCast(origin, normalizedDir, maxDistance, ref handler);
@@ -1684,7 +1675,7 @@ internal sealed class PhysicsSystem : IDisposable
         return true;
     }
 
-    internal List<RaycastHit> RaycastAll(Vector3 origin, Vector3 direction, float maxDistance, bool includeTriggers = false)
+    internal List<RaycastHit> RaycastAll(Vector3 origin, Vector3 direction, float maxDistance, RaycastParams raycastParams)
     {
         var results = new List<RaycastHit>();
         if (_simulation == null)
@@ -1695,12 +1686,11 @@ internal sealed class PhysicsSystem : IDisposable
             return results;
 
         var normalizedDir = direction / dirLength;
+        var filter = BuildRaycastFilter(raycastParams);
         var handler = new AllHitsHandler
         {
             Hits = new List<(float, Vector3, CollidableReference)>(),
-            IncludeTriggers = includeTriggers,
-            TriggerBodyHandles = _triggerBodyHandles,
-            TriggerStaticHandles = _triggerStaticHandles,
+            Filter = filter,
         };
 
         _simulation.RayCast(origin, normalizedDir, maxDistance, ref handler);
@@ -1721,6 +1711,27 @@ internal sealed class PhysicsSystem : IDisposable
         }
 
         return results;
+    }
+
+    private RaycastFilter BuildRaycastFilter(RaycastParams raycastParams)
+    {
+        HashSet<Guid>? ignoredEntityIds = null;
+        if (raycastParams.IgnoredEntities is { Count: > 0 })
+        {
+            ignoredEntityIds = new HashSet<Guid>(raycastParams.IgnoredEntities.Count);
+            foreach (var entity in raycastParams.IgnoredEntities)
+                ignoredEntityIds.Add(entity.Id);
+        }
+
+        return new RaycastFilter
+        {
+            IncludeTriggers = raycastParams.IncludeTriggers,
+            TriggerBodyHandles = _triggerBodyHandles,
+            TriggerStaticHandles = _triggerStaticHandles,
+            IgnoredEntityIds = ignoredEntityIds,
+            BodyHandleToEntityId = _bodyHandleToEntityId,
+            StaticHandleToEntityId = _staticHandleToEntityId,
+        };
     }
 
     private readonly struct ShapeCreationResult

@@ -84,6 +84,50 @@ foreach (var h in hits)
 }
 ```
 
+### Point-to-Point Raycasting
+
+Cast between two world-space positions instead of specifying direction and distance:
+
+```csharp
+if (Physics.Raycast(pointA, pointB, out var hit))
+{
+    FrinkyLog.Info($"Something between A and B: {hit.Entity.Name}");
+}
+
+var hits = Physics.RaycastAll(pointA, pointB);
+```
+
+### RaycastParams
+
+Use `RaycastParams` to filter raycast results:
+
+```csharp
+var rayParams = new RaycastParams
+{
+    IncludeTriggers = true,                       // include trigger colliders (skipped by default)
+    IgnoredEntities = new HashSet<Entity> { Entity } // skip specific entities
+};
+
+if (Physics.Raycast(origin, direction, 100f, out var hit, rayParams))
+{
+    // hit.Entity will never be this entity
+}
+```
+
+#### Ignoring an Entity Tree
+
+`IgnoreEntityTree` collects the full hierarchy (root and all descendants) of a given entity into the ignore set. This is useful for ignoring the caster and all of its children/parents:
+
+```csharp
+var rayParams = new RaycastParams();
+rayParams.IgnoreEntityTree(Entity); // ignores root parent + entire subtree
+
+if (Physics.Raycast(origin, direction, 100f, out var hit, rayParams))
+{
+    // won't hit any entity in the same hierarchy tree
+}
+```
+
 `RaycastHit` fields:
 
 | Field | Type | Description |
@@ -92,12 +136,6 @@ foreach (var h in hits)
 | `Point` | `Vector3` | World-space impact point |
 | `Normal` | `Vector3` | Surface normal at impact |
 | `Distance` | `float` | Distance from ray origin to hit |
-
-Trigger colliders are **skipped** by default. Pass `includeTriggers: true` to include them:
-
-```csharp
-Physics.Raycast(origin, direction, 100f, out var hit, includeTriggers: true);
-```
 
 ## Character Controller
 
