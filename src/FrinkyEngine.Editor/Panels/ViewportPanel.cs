@@ -418,6 +418,10 @@ public class ViewportPanel
                 var entity = _app.CurrentScene.CreateEntity(name);
                 var meshRenderer = entity.AddComponent<MeshRendererComponent>();
                 meshRenderer.ModelPath = AssetDatabase.Instance.GetCanonicalName(asset.RelativePath);
+                if (AssetManager.Instance.ModelHasAnimations(meshRenderer.ModelPath.Path, out _))
+                {
+                    entity.TryAddComponent(typeof(SkinnedMeshAnimatorComponent), out _, out _);
+                }
                 entity.Transform.LocalPosition = dropPos;
                 _app.SetSingleSelection(entity);
                 _app.RefreshUndoBaseline();

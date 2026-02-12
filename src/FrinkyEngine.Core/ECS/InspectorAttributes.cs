@@ -324,6 +324,18 @@ public sealed class InspectorListFactoryAttribute(string methodName) : Attribute
 }
 
 /// <summary>
+/// Renders an int property as a combo box dropdown. The named method must return <c>string[]</c> where each index maps to the int value.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, Inherited = true)]
+public sealed class InspectorDropdownAttribute(string methodName) : Attribute
+{
+    /// <summary>
+    /// Name of a parameterless instance method returning <c>string[]</c> of labels.
+    /// </summary>
+    public string MethodName { get; } = methodName;
+}
+
+/// <summary>
 /// Renders an inline object's sub-properties flat in the parent scope without a tree node wrapper.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, Inherited = true)]

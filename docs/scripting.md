@@ -90,6 +90,7 @@ Customize how properties appear in the editor inspector:
 | `[InspectorVector3Style(...)]` | Customize `Vector3` controls (for example colored XYZ reset buttons and reset defaults) |
 | `[InspectorOnChanged("MethodName")]` | Invoke a parameterless method after inspector edits to that property |
 | `[InspectorListFactory("MethodName")]` | Use a parameterless factory method when adding new `List<T>` items |
+| `[InspectorDropdown("MethodName")]` | Render an `int` property as a combo box; method returns `string[]` of labels |
 | `[InspectorButton("Label", ...)]` | Render a parameterless `void`/`bool` method as a clickable inspector button |
 | `[InspectorMessageIf("Condition", "Text", ...)]` | Show class-level info/warning/error text when a bool member evaluates true |
 | `[ComponentCategory("Path")]` | Set category in Add Component menu (slash-separated, e.g. `"Physics/Colliders"`) |

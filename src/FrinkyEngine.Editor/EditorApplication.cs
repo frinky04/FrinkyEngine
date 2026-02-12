@@ -109,6 +109,7 @@ public class EditorApplication
         AudioDeviceService.EnsureInitialized();
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
+        EngineOverlays.Renderer = SceneRenderer;
         EditorIcons.Load();
         LoadErrorAssets();
         ProjectTemplateRegistry.Discover();

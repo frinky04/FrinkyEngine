@@ -10,6 +10,7 @@ public enum ProfileCategory : byte
     Physics,
     Audio,
     Rendering,
+    Skinning,
     PostProcessing,
     UI,
     Editor,

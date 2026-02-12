@@ -1,6 +1,7 @@
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
+using Raylib_cs;
 
 namespace FrinkyEngine.Core.Components;
 
@@ -12,6 +13,8 @@ namespace FrinkyEngine.Core.Components;
 public class MeshRendererComponent : RenderableComponent
 {
     private AssetReference _modelPath = new("");
+    private bool _requireUniqueModelInstance;
+    private bool _ownsUniqueModelInstance;
 
     /// <summary>
     /// Asset-relative path to the model file. Changing this triggers a reload on the next frame.
@@ -24,7 +27,7 @@ public class MeshRendererComponent : RenderableComponent
         {
             if (_modelPath.Path == value.Path) return;
             _modelPath = value;
-            RenderModel = null;
+            Invalidate();
         }
     }
 
@@ -41,11 +44,16 @@ public class MeshRendererComponent : RenderableComponent
         // Load model once
         if (!RenderModel.HasValue)
         {
-            var model = AssetManager.Instance.LoadModel(_modelPath.Path);
+            var resolvedPath = AssetDatabase.Instance.ResolveAssetPath(_modelPath.Path) ?? _modelPath.Path;
+            bool fileExists = File.Exists(AssetManager.Instance.ResolvePath(resolvedPath));
+
+            var model = (_requireUniqueModelInstance && fileExists)
+                ? AssetManager.Instance.LoadModelUnique(_modelPath.Path)
+                : AssetManager.Instance.LoadModel(_modelPath.Path);
+            _ownsUniqueModelInstance = _requireUniqueModelInstance && fileExists;
 
             // Sync material slots to match model's material count (skip for error model)
-            var resolvedPath = AssetDatabase.Instance.ResolveAssetPath(_modelPath.Path) ?? _modelPath.Path;
-            if (File.Exists(AssetManager.Instance.ResolvePath(resolvedPath)))
+            if (fileExists)
             {
                 while (MaterialSlots.Count < model.MaterialCount)
                     MaterialSlots.Add(new Material());
@@ -71,12 +79,39 @@ public class MeshRendererComponent : RenderableComponent
     /// </summary>
     public void RefreshMaterials()
     {
-        RenderModel = null;
+        Invalidate();
+    }
+
+    internal void SetRequireUniqueModelInstance(bool required)
+    {
+        if (_requireUniqueModelInstance == required)
+            return;
+
+        _requireUniqueModelInstance = required;
+        Invalidate();
+    }
+
+    /// <inheritdoc />
+    public override void Invalidate()
+    {
+        if (_ownsUniqueModelInstance && RenderModel.HasValue)
+        {
+            Raylib.UnloadModel(RenderModel.Value);
+            _ownsUniqueModelInstance = false;
+        }
+
+        base.Invalidate();
     }
 
     /// <inheritdoc />
     public override void Start()
     {
         EnsureModelReady();
+    }
+
+    /// <inheritdoc />
+    public override void OnDestroy()
+    {
+        Invalidate();
     }
 }

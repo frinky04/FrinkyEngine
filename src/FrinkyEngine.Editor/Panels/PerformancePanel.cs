@@ -19,6 +19,7 @@ public class PerformancePanel
     private static readonly uint ColorPhysics = ImGui.ColorConvertFloat4ToU32(new Vector4(0.30f, 0.50f, 0.90f, 1.0f));
     private static readonly uint ColorAudio = ImGui.ColorConvertFloat4ToU32(new Vector4(0.65f, 0.35f, 0.85f, 1.0f));
     private static readonly uint ColorRendering = ImGui.ColorConvertFloat4ToU32(new Vector4(0.95f, 0.60f, 0.20f, 1.0f));
+    private static readonly uint ColorSkinning = ImGui.ColorConvertFloat4ToU32(new Vector4(0.95f, 0.45f, 0.55f, 1.0f));
     private static readonly uint ColorPostProcessing = ImGui.ColorConvertFloat4ToU32(new Vector4(0.95f, 0.90f, 0.25f, 1.0f));
     private static readonly uint ColorUI = ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.85f, 0.85f, 1.0f));
     private static readonly uint ColorEditor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.55f, 0.55f, 0.55f, 1.0f));
@@ -32,6 +33,7 @@ public class PerformancePanel
         ("Physics", ColorPhysics),
         ("Audio", ColorAudio),
         ("Rendering", ColorRendering),
+        ("Skinning", ColorSkinning),
         ("PostProcessing", ColorPostProcessing),
         ("UI", ColorUI),
         ("Editor", ColorEditor),
@@ -484,6 +486,7 @@ public class PerformancePanel
             ImGui.Text($"GPU: {FrameProfiler.GpuRenderer}");
             ImGui.Text($"Vendor: {FrameProfiler.GpuVendor}");
             ImGui.Text($"Draw Calls: {_app.SceneRenderer.LastFrameDrawCallCount}");
+            ImGui.Text($"Skinned Meshes: {_app.SceneRenderer.LastFrameSkinnedMeshCount}");
             ImGui.Text($"Auto-Instancing: {(instancing.Enabled ? "On" : "Off")}");
             ImGui.Text($"Instanced Batches: {instancing.InstancedBatchCount}/{instancing.BatchCount}");
             ImGui.Text($"Instanced Instances: {instancing.InstancedInstanceCount}");
