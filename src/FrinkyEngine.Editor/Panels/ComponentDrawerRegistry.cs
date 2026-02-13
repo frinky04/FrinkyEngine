@@ -1180,20 +1180,57 @@ public static class ComponentDrawerRegistry
                 }
                 else if (propType == typeof(int))
                 {
-                    int val = (int)prop.GetValue(obj)!;
-                    float speed = rangeAttr?.Speed ?? 1f;
-                    int min = (int)(rangeAttr?.Min ?? int.MinValue);
-                    int max = (int)(rangeAttr?.Max ?? int.MaxValue);
-                    DrawPropertyWithTooltip(prop, () =>
+                    var dropdownAttr = prop.GetCustomAttribute<InspectorDropdownAttribute>();
+                    if (dropdownAttr != null)
                     {
-                        if (ImGui.DragInt(label, ref val, speed, min, max))
+                        int val = (int)prop.GetValue(obj)!;
+                        string[]? options = null;
+                        var method = obj.GetType().GetMethod(dropdownAttr.MethodName,
+                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+                            binder: null, types: Type.EmptyTypes, modifiers: null);
+                        if (method != null && method.ReturnType == typeof(string[]))
+                            options = method.Invoke(obj, null) as string[];
+
+                        options ??= [];
+                        string preview = val >= 0 && val < options.Length ? options[val] : $"{val}";
+                        DrawPropertyWithTooltip(prop, () =>
                         {
-                            prop.SetValue(obj, val);
-                            onChanged?.Invoke();
-                            anyChanged = true;
-                        }
-                        TrackContinuousUndo(app);
-                    });
+                            if (ImGui.BeginCombo(label, preview))
+                            {
+                                for (int i = 0; i < options.Length; i++)
+                                {
+                                    bool selected = i == val;
+                                    if (ImGui.Selectable(options[i], selected))
+                                    {
+                                        prop.SetValue(obj, i);
+                                        onChanged?.Invoke();
+                                        anyChanged = true;
+                                    }
+                                    if (selected)
+                                        ImGui.SetItemDefaultFocus();
+                                }
+                                ImGui.EndCombo();
+                            }
+                            TrackContinuousUndo(app);
+                        });
+                    }
+                    else
+                    {
+                        int val = (int)prop.GetValue(obj)!;
+                        float speed = rangeAttr?.Speed ?? 1f;
+                        int min = (int)(rangeAttr?.Min ?? int.MinValue);
+                        int max = (int)(rangeAttr?.Max ?? int.MaxValue);
+                        DrawPropertyWithTooltip(prop, () =>
+                        {
+                            if (ImGui.DragInt(label, ref val, speed, min, max))
+                            {
+                                prop.SetValue(obj, val);
+                                onChanged?.Invoke();
+                                anyChanged = true;
+                            }
+                            TrackContinuousUndo(app);
+                        });
+                    }
                 }
                 else if (propType == typeof(bool))
                 {

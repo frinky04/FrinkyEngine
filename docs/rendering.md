@@ -72,7 +72,7 @@ The animator automatically loads all animation clips from the model and begins p
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `ClipIndex` | 0 | Selected animation clip (shown as a dropdown of clip names) |
+| `ClipIndex` | 0 | Selected animation entry. `0` is `(none)` (bind pose), `1..N` are imported clips. |
 | `PlayAutomatically` | true | Start playback when the clip is loaded |
 | `Playing` | true | Whether playback is currently advancing |
 | `Loop` | true | Wrap to the beginning when the clip ends |
@@ -83,7 +83,16 @@ Read-only inspector fields show the current `ActionName`, `ActionCount`, and `Fr
 
 ### How It Works
 
-The animator samples two adjacent keyframes from the active clip each frame, linearly interpolates the bone matrices, and writes them to the mesh's `BoneMatrices` buffer. The vertex shader transforms vertices by their bone weights when the `useSkinning` uniform is set. Entities with an active animator are excluded from automatic instanced batching since each instance has unique bone data.
+The animator samples two adjacent keyframes from the active clip each frame, interpolates bone transforms, rebuilds skinning matrices, and writes them to the mesh's `BoneMatrices` buffer. The vertex shader transforms vertices by their bone weights when the `useSkinning` uniform is set. Entities with an active animator are excluded from automatic instanced batching since each instance has unique bone data.
+
+### Inverse Kinematics
+
+Add an `InverseKinematicsComponent` to the same entity as `SkinnedMeshAnimatorComponent` to run IK after animation sampling.
+
+- Solvers are processed in list order.
+- Solver `TargetPosition`/`PoleTargetPosition` values are world-space.
+- `TwoBoneIKSolver` expects a strict `root -> mid -> end` parent chain (for example thigh -> calf -> foot or upper-arm -> forearm -> hand).
+- If `ClipIndex` is `(none)`, IK starts from bind pose.
 
 ### Notes
 

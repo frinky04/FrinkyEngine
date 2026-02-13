@@ -10,6 +10,7 @@ All built-in components and their key properties. For information on writing cus
 | `LightComponent` | `LightType` (Directional/Point/Skylight), `LightColor`, `Intensity` (1.0), `Range` (10.0) |
 | `MeshRendererComponent` | `ModelPath`, `MaterialSlots` (list of `Material`), `Tint`, `EditorOnly` |
 | `SkinnedMeshAnimatorComponent` | `PlayAutomatically` (true), `Loop` (true), `PlaybackSpeed` (1.0), `ClipIndex` (0), `Playing` (true) |
+| `InverseKinematicsComponent` | `Solvers` (list of IK solver objects, processed in order) |
 | `PostProcessStackComponent` | `PostProcessingEnabled` (true), `Effects` (list of effects) |
 
 ## Primitives

@@ -51,6 +51,9 @@ When adding a new system or feature, evaluate whether it benefits from console c
 ## API Pitfalls
 
 - **Raylib-cs `Shader.Locs`** is a pointer — use `unsafe`, cache locations in `int` fields
+- **Raylib animation math conventions** — for skinning-critical codepaths, prefer `Raymath.MatrixMultiply/MatrixInvert/QuaternionToMatrix/...` over hand-rolled `System.Numerics` composition; matrix order assumptions are easy to get wrong and can cause catastrophic mesh deformation
+- **IK pose spaces** — sample animation, convert to local-space, run IK in local-space, then convert back to model-space for skinning matrix reconstruction; avoid interpolating IK input in model-space
+- **IK activation gating** — only run IK pipeline when at least one solver is truly runnable for the current hierarchy (not merely present/enabled), otherwise stay on the non-IK animation path
 - **Hexa.NET.ImGui** — namespace `Hexa.NET.ImGui`, use `ImGuiP` for docking APIs, many overloads need `(string?)null` casts, images use `ImTextureRef`
 - **Hexa.NET.ImGui.Widgets** — `ComboEnumHelper<T>.Combo()` / `ComboEnumHelper.Combo()` for enum combos, `MessageBoxes.Show()` / `MessageBoxes.Draw()` for modal dialogs
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
