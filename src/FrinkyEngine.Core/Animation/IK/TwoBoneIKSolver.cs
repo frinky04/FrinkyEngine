@@ -5,6 +5,22 @@ using Raylib_cs;
 namespace FrinkyEngine.Core.Animation.IK;
 
 /// <summary>
+/// Coordinate space for IK targets.
+/// </summary>
+public enum IKTargetSpace
+{
+    /// <summary>
+    /// Target is specified in world space.
+    /// </summary>
+    World,
+
+    /// <summary>
+    /// Target is specified relative to the owning entity's transform.
+    /// </summary>
+    Local
+}
+
+/// <summary>
 /// Two-bone (3-joint) IK solver for limb chains such as arms and legs.
 /// </summary>
 public class TwoBoneIKSolver : IKSolver
@@ -34,13 +50,29 @@ public class TwoBoneIKSolver : IKSolver
     public int EndBoneIndex { get; set; }
 
     /// <summary>
-    /// World-space target position the end effector should reach toward.
+    /// Coordinate space for <see cref="TargetPosition"/>.
     /// </summary>
+    [InspectorSection("Target")]
+    public IKTargetSpace TargetSpace { get; set; } = IKTargetSpace.World;
+
+    /// <summary>
+    /// Target position the end effector should reach toward.
+    /// Interpreted according to <see cref="TargetSpace"/>.
+    /// </summary>
+    [InspectorGizmo("Target", ColorR = 50, ColorG = 255, ColorB = 50, SpaceProperty = nameof(TargetSpace))]
     public Vector3 TargetPosition { get; set; }
 
     /// <summary>
-    /// World-space pole target that defines the bend plane (e.g. knee/elbow direction).
+    /// Coordinate space for <see cref="PoleTargetPosition"/>.
     /// </summary>
+    [InspectorSection("Pole Target")]
+    public IKTargetSpace PoleTargetSpace { get; set; } = IKTargetSpace.World;
+
+    /// <summary>
+    /// Pole target that defines the bend plane (e.g. knee/elbow direction).
+    /// Interpreted according to <see cref="PoleTargetSpace"/>.
+    /// </summary>
+    [InspectorGizmo("Pole", ColorR = 255, ColorG = 100, ColorB = 50, SpaceProperty = nameof(PoleTargetSpace))]
     public Vector3 PoleTargetPosition { get; set; }
 
     /// <inheritdoc/>
@@ -81,6 +113,15 @@ public class TwoBoneIKSolver : IKSolver
         if (!Enabled || Weight <= 0f || !CanSolve(hierarchy))
             return;
 
+        // Resolve targets to world space
+        var worldTarget = TargetSpace == IKTargetSpace.Local
+            ? Vector3.Transform(TargetPosition, entityWorldMatrix)
+            : TargetPosition;
+
+        var worldPole = PoleTargetSpace == IKTargetSpace.Local
+            ? Vector3.Transform(PoleTargetPosition, entityWorldMatrix)
+            : PoleTargetPosition;
+
         // Dropdown index 0 = (none), so actual bone index = dropdown - 1
         int root = RootBoneIndex - 1;
         int mid = MidBoneIndex - 1;
@@ -95,7 +136,7 @@ public class TwoBoneIKSolver : IKSolver
         float lowerLen = Vector3.Distance(midPos, endPos);
 
         // Compute where the mid joint should be
-        var newMidPos = IKMath.ComputeTwoBoneMidPosition(rootPos, upperLen, lowerLen, TargetPosition, PoleTargetPosition);
+        var newMidPos = IKMath.ComputeTwoBoneMidPosition(rootPos, upperLen, lowerLen, worldTarget, worldPole);
         if (newMidPos == null)
             return;
 
@@ -124,7 +165,7 @@ public class TwoBoneIKSolver : IKSolver
         var updatedEndPos = worldMatrices[end].Translation;
 
         var oldLowerVec = updatedEndPos - updatedMidPos;
-        var desiredLowerVec = TargetPosition - updatedMidPos;
+        var desiredLowerVec = worldTarget - updatedMidPos;
         if (oldLowerVec.LengthSquared() < 1e-8f || desiredLowerVec.LengthSquared() < 1e-8f)
             return;
 
