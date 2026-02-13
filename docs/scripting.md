@@ -95,6 +95,7 @@ Customize how properties appear in the editor inspector:
 | `[InspectorMessageIf("Condition", "Text", ...)]` | Show class-level info/warning/error text when a bool member evaluates true |
 | `[ComponentCategory("Path")]` | Set category in Add Component menu (slash-separated, e.g. `"Physics/Colliders"`) |
 | `[ComponentDisplayName("Name")]` | Override component name in the editor |
+| `[InspectorGizmo("Label", ...)]` | Draw a draggable viewport gizmo sphere for a `Vector3` property (see below) |
 | `[AssetFilter(AssetType)]` | Restrict `AssetReference` to a specific asset type |
 
 Example:
@@ -129,6 +130,22 @@ public class WeaponComponent : Component
 - Targets classes (including script components)
 - Condition member can be a bool property/field/method
 - `Severity` supports `Info`, `Warning`, `Error`
+
+`InspectorGizmo` notes:
+
+- Applies to `Vector3` properties on components or `FObject` subclasses
+- The gizmo sphere is drawn in the viewport and can be clicked and dragged to reposition
+- Optional named parameters: `GizmoRadius` (default 0.1), `ColorR`/`ColorG`/`ColorB` (default yellow), `SpaceProperty` (name of a sibling enum property with `World`/`Local` members — when `Local`, the position is transformed from entity-local to world space)
+
+```csharp
+public class LookAtComponent : Component
+{
+    public IKTargetSpace TargetSpace { get; set; } = IKTargetSpace.World;
+
+    [InspectorGizmo("Look Target", ColorR = 50, ColorG = 255, ColorB = 50, SpaceProperty = nameof(TargetSpace))]
+    public Vector3 TargetPosition { get; set; }
+}
+```
 
 The inspector also reflects nested classes/structs and `List<T>` properties (with add/remove/reorder and recursive editing), so script data models can use the same workflows as built-in engine components.
 

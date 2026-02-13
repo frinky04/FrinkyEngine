@@ -87,12 +87,29 @@ The animator samples two adjacent keyframes from the active clip each frame, int
 
 ### Inverse Kinematics
 
-Add an `InverseKinematicsComponent` to the same entity as `SkinnedMeshAnimatorComponent` to run IK after animation sampling.
+Add an `InverseKinematicsComponent` to the same entity as `SkinnedMeshAnimatorComponent` to run IK after animation sampling. Solvers are applied in list order after the animation clip is sampled (or from bind pose when `ClipIndex` is `(none)`).
 
-- Solvers are processed in list order.
-- Solver `TargetPosition`/`PoleTargetPosition` values are world-space.
-- `TwoBoneIKSolver` expects a strict `root -> mid -> end` parent chain (for example thigh -> calf -> foot or upper-arm -> forearm -> hand).
-- If `ClipIndex` is `(none)`, IK starts from bind pose.
+#### TwoBoneIKSolver
+
+The built-in solver for three-joint limb chains (e.g. upper-arm → forearm → hand, thigh → calf → foot). The three bones must form a direct parent chain in the skeleton.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `RootBone` | (none) | First bone in the chain (e.g. upper arm / thigh) |
+| `MidBone` | (none) | Middle joint (e.g. forearm / shin) |
+| `EndBone` | (none) | End effector (e.g. hand / foot) |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position the end effector reaches toward |
+| `PoleTargetSpace` | World | Coordinate space for the pole target — `World` or `Local` |
+| `PoleTargetPosition` | (0,0,0) | Controls the bend-plane direction (e.g. knee/elbow) |
+
+When `TargetSpace` or `PoleTargetSpace` is set to `Local`, the position is relative to the owning entity's transform.
+
+#### Viewport Gizmos
+
+Target and pole-target positions appear as draggable wireframe spheres in the viewport. Click a sphere to select it, then drag the translate handle to reposition it. A line connects each gizmo to the entity origin.
 
 ### Notes
 

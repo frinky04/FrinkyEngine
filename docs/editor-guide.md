@@ -20,6 +20,10 @@ The FrinkyEngine editor is an ImGui-based desktop application for building and t
 - **3** — Scale mode
 - **X** — Toggle world/local space
 
+## Inspector Gizmos
+
+Some components expose draggable gizmo handles in the viewport (for example, IK target and pole-target positions). Click a gizmo sphere to select it, then use the translate handle to reposition it. The entity transform gizmo is hidden while an inspector gizmo is active; click empty space to deselect.
+
 ## Entity Management
 
 - **Create**: right-click in the hierarchy or use the `Entity` menu
