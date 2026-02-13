@@ -16,18 +16,21 @@ public class TwoBoneIKSolver : IKSolver
     /// Root bone index (e.g. upper arm / thigh). Dropdown index where 0 = (none).
     /// </summary>
     [InspectorDropdown(nameof(GetBoneNames))]
+    [InspectorLabel("Root Bone")]
     public int RootBoneIndex { get; set; }
 
     /// <summary>
     /// Mid bone index (e.g. forearm / shin). Dropdown index where 0 = (none).
     /// </summary>
     [InspectorDropdown(nameof(GetBoneNames))]
+    [InspectorLabel("Mid Bone")]
     public int MidBoneIndex { get; set; }
 
     /// <summary>
     /// End bone index (e.g. hand / foot). Dropdown index where 0 = (none).
     /// </summary>
     [InspectorDropdown(nameof(GetBoneNames))]
+    [InspectorLabel("End Bone")]
     public int EndBoneIndex { get; set; }
 
     /// <summary>
@@ -84,9 +87,9 @@ public class TwoBoneIKSolver : IKSolver
         int end = EndBoneIndex - 1;
 
         // Current world-space positions
-        var rootPos = IKMath.ExtractTranslation(worldMatrices[root]);
-        var midPos = IKMath.ExtractTranslation(worldMatrices[mid]);
-        var endPos = IKMath.ExtractTranslation(worldMatrices[end]);
+        var rootPos = worldMatrices[root].Translation;
+        var midPos = worldMatrices[mid].Translation;
+        var endPos = worldMatrices[end].Translation;
 
         float upperLen = Vector3.Distance(rootPos, midPos);
         float lowerLen = Vector3.Distance(midPos, endPos);
@@ -117,8 +120,8 @@ public class TwoBoneIKSolver : IKSolver
 
         // --- Mid bone rotation ---
         // After root rotation, get the new actual positions
-        var updatedMidPos = IKMath.ExtractTranslation(worldMatrices[mid]);
-        var updatedEndPos = IKMath.ExtractTranslation(worldMatrices[end]);
+        var updatedMidPos = worldMatrices[mid].Translation;
+        var updatedEndPos = worldMatrices[end].Translation;
 
         var oldLowerVec = updatedEndPos - updatedMidPos;
         var desiredLowerVec = TargetPosition - updatedMidPos;

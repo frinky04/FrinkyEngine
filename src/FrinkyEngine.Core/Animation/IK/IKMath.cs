@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using Raylib_cs;
 
@@ -69,9 +70,11 @@ public static class IKMath
             return;
 
         // Handle arbitrary bone ordering; do not assume parent index < child index.
-        var visitState = new byte[count]; // 0=unvisited, 1=visiting, 2=done
+        var visitState = ArrayPool<byte>.Shared.Rent(count); // 0=unvisited, 1=visiting, 2=done
+        Array.Clear(visitState, 0, count);
         for (int i = 0; i < count; i++)
             ComputeWorld(i);
+        ArrayPool<byte>.Shared.Return(visitState);
 
         void ComputeWorld(int boneIndex)
         {
@@ -109,14 +112,6 @@ public static class IKMath
 
             visitState[boneIndex] = 2;
         }
-    }
-
-    /// <summary>
-    /// Extracts the translation component from a 4x4 matrix.
-    /// </summary>
-    public static Vector3 ExtractTranslation(Matrix4x4 m)
-    {
-        return m.Translation;
     }
 
     /// <summary>

@@ -45,10 +45,7 @@ public class InverseKinematicsComponent : Component
     {
         // Eagerly populate hierarchy so inspector bone dropdowns work
         // without waiting for the first render-time ApplyIK call.
-        var meshRenderer = Entity.GetComponent<MeshRendererComponent>();
-        meshRenderer?.EnsureModelReady();
-        if (meshRenderer?.RenderModel.HasValue == true)
-            EnsureHierarchy(meshRenderer.RenderModel.Value);
+        EnsureHierarchyFromMeshRenderer();
 
         if (NeedsSolverHierarchyRefresh())
             RefreshSolverHierarchyRefs();
@@ -137,11 +134,15 @@ public class InverseKinematicsComponent : Component
 
     private void OnSolversChanged()
     {
+        EnsureHierarchyFromMeshRenderer();
+        RefreshSolverHierarchyRefs();
+    }
+
+    private void EnsureHierarchyFromMeshRenderer()
+    {
         var meshRenderer = Entity.GetComponent<MeshRendererComponent>();
         meshRenderer?.EnsureModelReady();
         if (meshRenderer?.RenderModel.HasValue == true)
             EnsureHierarchy(meshRenderer.RenderModel.Value);
-
-        RefreshSolverHierarchyRefs();
     }
 }

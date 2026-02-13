@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using System.Linq;
 using FrinkyEngine.Core.Animation.IK;
@@ -554,7 +555,8 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     /// <summary>
     /// Converts per-bone model-space transforms to local-space transforms using parent indices.
-    /// Input and output arrays may alias.
+    /// Input and output arrays must NOT alias (the forward loop reads parent entries
+    /// that may already be overwritten when parent index &gt; child index).
     /// </summary>
     private static void ConvertModelPoseToLocal(
         (Vector3 t, Quaternion r, Vector3 s)[] modelPose,
@@ -597,9 +599,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             return;
 
         // Handle arbitrary bone ordering; do not assume parent index < child index.
-        var visitState = new byte[count]; // 0=unvisited, 1=visiting, 2=done
+        var visitState = ArrayPool<byte>.Shared.Rent(count); // 0=unvisited, 1=visiting, 2=done
+        Array.Clear(visitState, 0, count);
         for (int i = 0; i < count; i++)
             ComputeModel(i);
+        ArrayPool<byte>.Shared.Return(visitState);
 
         void ComputeModel(int boneIndex)
         {
@@ -699,11 +703,6 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             for (int b = 0; b < count; b++)
                 mesh.BoneMatrices[b] = firstMesh.BoneMatrices[b];
         }
-    }
-
-    private static Vector3 ComponentMultiply(Vector3 a, Vector3 b)
-    {
-        return new Vector3(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
     }
 
     private static Vector3 ComponentDivide(Vector3 value, Vector3 divisor)
