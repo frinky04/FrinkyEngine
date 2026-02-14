@@ -18,8 +18,9 @@ public enum IconGenerationStatus { None, Queued, Generating, Failed, Ready }
 public sealed class AssetIconService : IDisposable
 {
     private const int IconSize = 256;
+    private const int RenderSize = IconSize * 2; // 2x supersampling for anti-aliasing
     private const double MinJobIntervalSeconds = 0.2;
-    private const int CacheVersion = 2;
+    private const int CacheVersion = 3;
     private const string CacheFolderName = "asset-icons";
     private const string ManifestFileName = "manifest.json";
 
@@ -28,6 +29,7 @@ public sealed class AssetIconService : IDisposable
     private readonly Dictionary<string, AssetEntry> _eligibleAssets = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _loadedIcons = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _failedKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _skippedKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly JsonSerializerOptions _manifestJsonOptions = new() { WriteIndented = true };
 
     private Dictionary<string, ManifestEntry> _manifest = new(StringComparer.OrdinalIgnoreCase);
@@ -101,6 +103,8 @@ public sealed class AssetIconService : IDisposable
                 var key = BuildProjectKey(relPath);
                 if (_eligibleAssets.ContainsKey(key))
                 {
+                    _failedKeys.Remove(key);
+                    _skippedKeys.Remove(key);
                     Queue(key);
                     continue;
                 }
@@ -180,6 +184,7 @@ public sealed class AssetIconService : IDisposable
         var key = BuildAssetKey(asset);
         RemoveKey(key);
         _failedKeys.Remove(key);
+        _skippedKeys.Remove(key);
         Queue(key);
     }
 
@@ -208,6 +213,7 @@ public sealed class AssetIconService : IDisposable
         _eligibleAssets.Clear();
         _manifest.Clear();
         _failedKeys.Clear();
+        _skippedKeys.Clear();
         _cacheDirectory = null;
         _manifestPath = null;
         _currentlyGenerating = null;
@@ -251,7 +257,7 @@ public sealed class AssetIconService : IDisposable
                 return;
             }
 
-            bool generated;
+            bool? generated;
             var sw = Stopwatch.StartNew();
             try
             {
@@ -271,7 +277,13 @@ public sealed class AssetIconService : IDisposable
             sw.Stop();
             _lastGenerationMs = sw.Elapsed.TotalMilliseconds;
 
-            if (!generated)
+            if (generated == null)
+            {
+                _skippedKeys.Add(key);
+                return;
+            }
+
+            if (generated == false)
             {
                 _failedKeys.Add(key);
                 _totalFailed++;
@@ -279,6 +291,7 @@ public sealed class AssetIconService : IDisposable
             }
 
             _failedKeys.Remove(key);
+            _skippedKeys.Remove(key);
             _totalGenerated++;
 
             if (_loadedIcons.Remove(key, out var oldTexture))
@@ -334,6 +347,8 @@ public sealed class AssetIconService : IDisposable
 
     private void Queue(string key)
     {
+        if (_failedKeys.Contains(key) || _skippedKeys.Contains(key))
+            return;
         if (_queued.Add(key))
             _queue.Enqueue(key);
     }
@@ -394,11 +409,11 @@ public sealed class AssetIconService : IDisposable
         if (_hasRenderTarget)
             return;
 
-        _renderTarget = Raylib.LoadRenderTexture(IconSize, IconSize);
+        _renderTarget = Raylib.LoadRenderTexture(RenderSize, RenderSize);
         _hasRenderTarget = _renderTarget.Id != 0;
     }
 
-    private bool GenerateTextureIcon(AssetEntry asset, string outputPath)
+    private bool? GenerateTextureIcon(AssetEntry asset, string outputPath)
     {
         EnsureRenderTarget();
         if (!_hasRenderTarget)
@@ -409,15 +424,15 @@ public sealed class AssetIconService : IDisposable
             return false;
 
         Raylib.BeginTextureMode(_renderTarget);
-        Raylib.ClearBackground(new Color(24, 24, 26, 255));
+        Raylib.ClearBackground(new Color(0, 0, 0, 0));
 
-        float padding = IconSize * 0.08f;
-        float maxDim = IconSize - padding * 2f;
+        float padding = RenderSize * 0.08f;
+        float maxDim = RenderSize - padding * 2f;
         float scale = MathF.Min(maxDim / texture.Width, maxDim / texture.Height);
         float drawW = texture.Width * scale;
         float drawH = texture.Height * scale;
-        float x = (IconSize - drawW) * 0.5f;
-        float y = (IconSize - drawH) * 0.5f;
+        float x = (RenderSize - drawW) * 0.5f;
+        float y = (RenderSize - drawH) * 0.5f;
         Raylib.DrawTexturePro(
             texture,
             new Rectangle(0, 0, texture.Width, texture.Height),
@@ -430,7 +445,7 @@ public sealed class AssetIconService : IDisposable
         return ExportRenderTarget(outputPath);
     }
 
-    private bool GenerateModelIcon(SceneRenderer renderer, string modelAssetPath, string outputPath)
+    private bool? GenerateModelIcon(SceneRenderer renderer, string modelAssetPath, string outputPath)
     {
         EnsureRenderTarget();
         if (!_hasRenderTarget)
@@ -471,12 +486,12 @@ public sealed class AssetIconService : IDisposable
         var cameraEntity = scene.CreateEntity("PreviewCamera");
         var cameraComponent = cameraEntity.AddComponent<CameraComponent>();
         cameraComponent.IsMain = true;
-        cameraComponent.ClearColor = new Color(26, 30, 34, 255);
+        cameraComponent.ClearColor = new Color(0, 0, 0, 0);
 
         const float fovY = 35f;
         var viewDir = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1.05f, 0.68f, 1.0f));
         var center = (bounds.Min + bounds.Max) * 0.5f;
-        float cameraDistance = ComputePreviewCameraDistance(bounds, viewDir, fovY, targetFill: 0.86f);
+        float cameraDistance = ComputePreviewCameraDistance(bounds, viewDir, fovY, targetFill: 0.94f);
         var camPos = center + viewDir * cameraDistance;
         var camera = new Camera3D
         {
@@ -536,7 +551,7 @@ public sealed class AssetIconService : IDisposable
         yield return new System.Numerics.Vector3(b.Max.X, b.Max.Y, b.Max.Z);
     }
 
-    private bool GeneratePrefabIcon(SceneRenderer renderer, string prefabAssetPath, string outputPath)
+    private bool? GeneratePrefabIcon(SceneRenderer renderer, string prefabAssetPath, string outputPath)
     {
         EnsureRenderTarget();
         if (!_hasRenderTarget)
@@ -553,7 +568,7 @@ public sealed class AssetIconService : IDisposable
 
             var bounds = ComputeSceneBounds(scene);
             if (!bounds.HasValue)
-                return false;
+                return null; // no renderable components — not an error
 
             return RenderPreviewScene(renderer, scene, bounds.Value, outputPath);
         }
@@ -610,6 +625,8 @@ public sealed class AssetIconService : IDisposable
         try
         {
             Raylib.ImageFlipVertical(ref image);
+            if (image.Width != IconSize || image.Height != IconSize)
+                Raylib.ImageResize(ref image, IconSize, IconSize);
             return Raylib.ExportImage(image, outputPath);
         }
         finally

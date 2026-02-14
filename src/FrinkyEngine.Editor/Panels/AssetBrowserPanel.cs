@@ -415,11 +415,11 @@ public class AssetBrowserPanel
         var min = ImGui.GetItemRectMin();
         var drawList = ImGui.GetWindowDrawList();
 
-        float iconX = min.X + (tileWidth - iconSize) * 0.5f;
-        float iconY = min.Y + 8f;
-        DrawItemIcon(item, new Vector2(iconX, iconY), iconSize);
-
         float textY = min.Y + tileHeight - ImGui.GetTextLineHeightWithSpacing() - 4f;
+        float iconAreaHeight = textY - min.Y;
+        float iconX = min.X + (tileWidth - iconSize) * 0.5f;
+        float iconY = min.Y + (iconAreaHeight - iconSize) * 0.5f;
+        DrawItemIcon(item, new Vector2(iconX, iconY), iconSize);
 
         if (string.Equals(_renamingAssetPath, item.Id, StringComparison.OrdinalIgnoreCase))
         {
@@ -661,11 +661,17 @@ public class AssetBrowserPanel
         if (!asset.IsEngineAsset && ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
             DeleteSelectedAssets();
 
-        if (AssetIconService.IsSupportedType(asset.Type))
+        if (_lastItems.Any(i => _selectedAssets.Contains(i.Id) && AssetIconService.IsSupportedType(i.Asset.Type)))
         {
             ImGui.Separator();
             if (ImGui.MenuItem("Regenerate Icon"))
-                _app.AssetIcons.RegenerateIcon(asset);
+            {
+                foreach (var item in _lastItems)
+                {
+                    if (_selectedAssets.Contains(item.Id) && AssetIconService.IsSupportedType(item.Asset.Type))
+                        _app.AssetIcons.RegenerateIcon(item.Asset);
+                }
+            }
         }
 
         // Tags submenu
