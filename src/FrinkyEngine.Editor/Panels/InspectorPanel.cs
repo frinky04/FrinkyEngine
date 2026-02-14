@@ -171,7 +171,7 @@ public class InspectorPanel
         if (unresolvedToRemove != null)
         {
             _app.RecordUndo();
-            entity.UnresolvedComponents.Remove(unresolvedToRemove);
+            entity.RemoveUnresolvedComponent(unresolvedToRemove);
             _app.RefreshUndoBaseline();
         }
 
@@ -180,7 +180,7 @@ public class InspectorPanel
             if (ImGui.Button("Remove All Unresolved"))
             {
                 _app.RecordUndo();
-                entity.UnresolvedComponents.Clear();
+                entity.ClearUnresolvedComponents();
                 _app.RefreshUndoBaseline();
             }
         }

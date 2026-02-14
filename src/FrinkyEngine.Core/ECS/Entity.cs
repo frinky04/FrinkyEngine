@@ -48,16 +48,33 @@ public class Entity
     /// </summary>
     public IReadOnlyList<Component> Components => _components;
 
+    private readonly List<ComponentData> _unresolvedComponents = new();
+
     /// <summary>
     /// Component data that could not be resolved to a type during deserialization.
     /// Preserved so that saving the scene does not lose data for unloaded assemblies.
     /// </summary>
-    public List<ComponentData> UnresolvedComponents { get; } = new();
+    public IReadOnlyList<ComponentData> UnresolvedComponents => _unresolvedComponents;
 
     /// <summary>
     /// Returns <c>true</c> if this entity has any unresolved component data from deserialization.
     /// </summary>
-    public bool HasUnresolvedComponents => UnresolvedComponents.Count > 0;
+    public bool HasUnresolvedComponents => _unresolvedComponents.Count > 0;
+
+    /// <summary>
+    /// Adds unresolved component data preserved from deserialization.
+    /// </summary>
+    public void AddUnresolvedComponent(ComponentData data) => _unresolvedComponents.Add(data);
+
+    /// <summary>
+    /// Removes a specific unresolved component entry.
+    /// </summary>
+    public bool RemoveUnresolvedComponent(ComponentData data) => _unresolvedComponents.Remove(data);
+
+    /// <summary>
+    /// Removes all unresolved component data from this entity.
+    /// </summary>
+    public void ClearUnresolvedComponents() => _unresolvedComponents.Clear();
 
     /// <summary>
     /// Creates a new entity with the specified name and a default <see cref="TransformComponent"/>.

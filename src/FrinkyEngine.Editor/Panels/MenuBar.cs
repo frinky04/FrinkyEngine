@@ -224,7 +224,7 @@ public class MenuBar
 
                 ImGui.Separator();
 
-                var hasUnresolved = _app.CurrentScene != null && HasUnresolvedComponents(_app.CurrentScene);
+                var hasUnresolved = _app.CanEditScene && _app.CurrentScene != null && HasUnresolvedComponents(_app.CurrentScene);
                 ImGui.BeginDisabled(!hasUnresolved);
                 if (ImGui.MenuItem("Clean Up Unresolved Components"))
                 {
@@ -1494,7 +1494,7 @@ public class MenuBar
 
     private void CleanUpUnresolvedComponents()
     {
-        if (_app.CurrentScene == null) return;
+        if (!_app.CanEditScene || _app.CurrentScene == null) return;
 
         _app.RecordUndo();
         int removed = 0;
@@ -1514,7 +1514,7 @@ public class MenuBar
     private static int CleanUpUnresolvedComponentsRecursive(Core.ECS.Entity entity)
     {
         int count = entity.UnresolvedComponents.Count;
-        entity.UnresolvedComponents.Clear();
+        entity.ClearUnresolvedComponents();
         foreach (var child in entity.Transform.Children)
             count += CleanUpUnresolvedComponentsRecursive(child.Entity);
         return count;

@@ -140,8 +140,8 @@ public class UndoRedoManager
             // expensive disk reloads and shader recompilations on undo/redo.
             TransferLoadedAssets(app.CurrentScene, restored);
 
-            // Only invalidate old renderables whose models were NOT transferred
-            // (i.e. those that still own a unique model instance).
+            // Invalidate all old renderables so that any resources affected by the
+            // asset transfer are properly refreshed.
             foreach (var renderable in app.CurrentScene.Renderables)
                 renderable.Invalidate();
         }
@@ -188,7 +188,7 @@ public class UndoRedoManager
             var newMesh = entity.GetComponent<MeshRendererComponent>();
             var oldMesh = oldEntity.GetComponent<MeshRendererComponent>();
             if (newMesh != null && oldMesh != null && oldMesh.HasLoadedModel
-                && newMesh.ModelPath.Path == oldMesh.ModelPath.Path
+                && string.Equals(newMesh.ModelPath.Path, oldMesh.ModelPath.Path, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrEmpty(newMesh.ModelPath.Path))
             {
                 newMesh.TransferModelFrom(oldMesh);
