@@ -346,3 +346,43 @@ public sealed class InspectorInlineAttribute : Attribute;
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, Inherited = true)]
 public sealed class InspectorFixedListSizeAttribute : Attribute;
+
+/// <summary>
+/// Marks a <see cref="System.Numerics.Vector3"/> property so the editor draws a draggable
+/// gizmo sphere at that position in the viewport.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, Inherited = true)]
+public sealed class InspectorGizmoAttribute(string label = "") : Attribute
+{
+    /// <summary>
+    /// Short label shown next to the gizmo sphere.
+    /// </summary>
+    public string Label { get; } = label;
+
+    /// <summary>
+    /// Wireframe sphere radius.
+    /// </summary>
+    public float GizmoRadius { get; init; } = 0.1f;
+
+    /// <summary>
+    /// Gizmo color — red channel.
+    /// </summary>
+    public byte ColorR { get; init; } = 255;
+
+    /// <summary>
+    /// Gizmo color — green channel.
+    /// </summary>
+    public byte ColorG { get; init; } = 220;
+
+    /// <summary>
+    /// Gizmo color — blue channel.
+    /// </summary>
+    public byte ColorB { get; init; } = 50;
+
+    /// <summary>
+    /// Name of a sibling property returning an enum with <c>World</c>/<c>Local</c> members.
+    /// When the value is <c>Local</c>, the gizmo position is transformed from entity-local to
+    /// world space using the entity's world matrix before drawing.
+    /// </summary>
+    public string? SpaceProperty { get; init; }
+}

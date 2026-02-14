@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Reflection;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using Raylib_cs;
@@ -10,6 +11,19 @@ public enum PhysicsHitboxDrawMode
     Off,
     SelectedOnly,
     All
+}
+
+/// <summary>
+/// Describes a single gizmo target discovered via <see cref="InspectorGizmoAttribute"/> reflection.
+/// </summary>
+public readonly struct GizmoTarget
+{
+    public required object Owner { get; init; }
+    public required PropertyInfo Property { get; init; }
+    public required InspectorGizmoAttribute Attribute { get; init; }
+    public required Entity Entity { get; init; }
+    public required Vector3 WorldPosition { get; init; }
+    public required bool IsLocal { get; init; }
 }
 
 public static class EditorGizmos
@@ -334,5 +348,117 @@ public static class EditorGizmos
     private static void DrawEdge(Vector3[] corners, int indexA, int indexB, Color color)
     {
         Raylib.DrawLine3D(corners[indexA], corners[indexB], color);
+    }
+
+    // ─── Inspector Gizmo rendering ──────────────────────────────────────
+
+    /// <summary>
+    /// Draws wireframe spheres and connecting lines for all <see cref="InspectorGizmoAttribute"/>
+    /// Vector3 properties on the selected entities' components.
+    /// </summary>
+    public static void DrawInspectorGizmos(List<GizmoTarget> targets)
+    {
+        foreach (var t in targets)
+        {
+            var color = new Color(t.Attribute.ColorR, t.Attribute.ColorG, t.Attribute.ColorB, (byte)255);
+            Raylib.DrawSphereWires(t.WorldPosition, t.Attribute.GizmoRadius, 8, 8, color);
+
+            // Draw a thin line from the entity origin to the gizmo position
+            var entityPos = t.Entity.Transform.WorldPosition;
+            var lineColor = new Color(t.Attribute.ColorR, t.Attribute.ColorG, t.Attribute.ColorB, (byte)100);
+            Raylib.DrawLine3D(entityPos, t.WorldPosition, lineColor);
+        }
+    }
+
+    /// <summary>
+    /// Collects all <see cref="GizmoTarget"/> instances from the selected entities.
+    /// Used by both 3D gizmo rendering and ImGuizmo drag handles.
+    /// </summary>
+    public static List<GizmoTarget> CollectGizmoTargets(IReadOnlyList<Entity> selectedEntities)
+    {
+        var results = new List<GizmoTarget>();
+        foreach (var entity in selectedEntities)
+        {
+            foreach (var component in entity.Components)
+            {
+                CollectFromObject(component, entity, results);
+            }
+        }
+        return results;
+    }
+
+    private static void CollectFromObject(object obj, Entity entity, List<GizmoTarget> results)
+    {
+        var type = obj.GetType();
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            // Check for [InspectorGizmo] on Vector3 properties
+            var gizmoAttr = prop.GetCustomAttribute<InspectorGizmoAttribute>();
+            if (gizmoAttr != null && prop.PropertyType == typeof(Vector3) && prop.CanRead)
+            {
+                var localPos = (Vector3)prop.GetValue(obj)!;
+                bool isLocal = IsSpaceLocal(obj, gizmoAttr.SpaceProperty);
+                var worldPos = isLocal
+                    ? Vector3.Transform(localPos, entity.Transform.WorldMatrix)
+                    : localPos;
+
+                results.Add(new GizmoTarget
+                {
+                    Owner = obj,
+                    Property = prop,
+                    Attribute = gizmoAttr,
+                    Entity = entity,
+                    WorldPosition = worldPos,
+                    IsLocal = isLocal
+                });
+                continue;
+            }
+
+            // Recurse into FObject properties
+            if (prop.CanRead && typeof(FObject).IsAssignableFrom(prop.PropertyType))
+            {
+                var child = prop.GetValue(obj) as FObject;
+                if (child != null)
+                    CollectFromObject(child, entity, results);
+                continue;
+            }
+
+            // Recurse into List<FObject> properties
+            if (prop.CanRead && IsFObjectList(prop.PropertyType))
+            {
+                if (prop.GetValue(obj) is System.Collections.IList list)
+                {
+                    foreach (var item in list)
+                    {
+                        if (item is FObject fobj)
+                            CollectFromObject(fobj, entity, results);
+                    }
+                }
+            }
+        }
+    }
+
+    private static bool IsSpaceLocal(object owner, string? spacePropertyName)
+    {
+        if (string.IsNullOrEmpty(spacePropertyName))
+            return false;
+
+        var prop = owner.GetType().GetProperty(spacePropertyName, BindingFlags.Public | BindingFlags.Instance);
+        if (prop == null || !prop.CanRead)
+            return false;
+
+        var value = prop.GetValue(owner);
+        // Check if the enum value's name is "Local"
+        return value != null && string.Equals(value.ToString(), "Local", StringComparison.Ordinal);
+    }
+
+    private static bool IsFObjectList(Type type)
+    {
+        if (!type.IsGenericType)
+            return false;
+        var genDef = type.GetGenericTypeDefinition();
+        if (genDef != typeof(List<>))
+            return false;
+        return typeof(FObject).IsAssignableFrom(type.GetGenericArguments()[0]);
     }
 }

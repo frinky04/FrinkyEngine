@@ -1,12 +1,14 @@
 using System.Numerics;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Serialization;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
+using Hexa.NET.ImGuizmo;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -35,6 +37,10 @@ public class ViewportPanel
     private readonly PostProcessPipeline _postProcessPipeline = new();
     private bool _consoleKeyboardOverrideLogged;
     private bool _consoleFocusOverrideLogged;
+    private int _selectedInspectorGizmo = -1;
+    private bool _isInspectorGizmoDragging;
+    private bool _wasInspectorGizmoDragging;
+    private List<GizmoTarget>? _cachedGizmoTargets;
 
     public ViewportPanel(EditorApplication app)
     {
@@ -110,6 +116,7 @@ public class ViewportPanel
                 if (_app.CurrentScene != null)
                 {
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
+                    _cachedGizmoTargets = isEditorMode ? EditorGizmos.CollectGizmoTargets(selectedEntities) : null;
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     var textureToDisplay = _renderTexture;
 
@@ -126,6 +133,7 @@ public class ViewportPanel
                                 if (isEditorMode)
                                 {
                                     EditorGizmos.DrawAll(_app.CurrentScene, camera);
+                                    EditorGizmos.DrawInspectorGizmos(_cachedGizmoTargets!);
                                     foreach (var selectedEntity in selectedEntities)
                                         EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
                                 }
@@ -210,9 +218,13 @@ public class ViewportPanel
                     if (isEditorMode)
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
-                    // Draw ImGuizmo overlay (must be called unconditionally to handle ongoing drags)
-                    if (isEditorMode)
+                    // Draw ImGuizmo overlay — skip the entity transform gizmo while an inspector gizmo is selected
+                    if (isEditorMode && _selectedInspectorGizmo < 0)
                         gizmo.DrawAndUpdate(camera, selectedEntities, selected, imageScreenPos, new Vector2(w, h));
+
+                    // Draw translate handle for the selected inspector gizmo target (if any)
+                    if (isEditorMode && !gizmo.IsDragging)
+                        DrawSelectedInspectorGizmoHandle(camera, _cachedGizmoTargets!, imageScreenPos, new Vector2(w, h));
 
                     // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                     _isHovered = ImGui.IsWindowHovered();
@@ -221,22 +233,34 @@ public class ViewportPanel
                         if (Raylib.IsMouseButtonPressed(MouseButton.Left)
                             && !gizmo.IsDragging
                             && gizmo.HoveredAxis < 0
-                            && !Raylib.IsMouseButtonDown(MouseButton.Right)
-                            && _app.CurrentScene != null)
+                            && !_isInspectorGizmoDragging
+                            && !Raylib.IsMouseButtonDown(MouseButton.Right))
                         {
                             var mousePos = ImGui.GetMousePos();
                             var localMouse = mousePos - imageScreenPos;
-                            var pickedEntity = _app.PickingSystem.Pick(
-                                _app.CurrentScene, camera, localMouse, new Vector2(w, h));
 
-                            if (ImGui.GetIO().KeyCtrl)
+                            // Check if an inspector gizmo sphere was clicked before doing entity picking
+                            int hitGizmo = PickInspectorGizmo(camera, _cachedGizmoTargets!, localMouse, new Vector2(w, h));
+                            if (hitGizmo >= 0)
                             {
-                                if (pickedEntity != null)
-                                    _app.ToggleSelection(pickedEntity);
+                                _selectedInspectorGizmo = hitGizmo;
                             }
                             else
                             {
-                                _app.SetSingleSelection(pickedEntity);
+                                _selectedInspectorGizmo = -1;
+
+                                var pickedEntity = _app.PickingSystem.Pick(
+                                    _app.CurrentScene, camera, localMouse, new Vector2(w, h));
+
+                                if (ImGui.GetIO().KeyCtrl)
+                                {
+                                    if (pickedEntity != null)
+                                        _app.ToggleSelection(pickedEntity);
+                                }
+                                else
+                                {
+                                    _app.SetSingleSelection(pickedEntity);
+                                }
                             }
                         }
                     }
@@ -249,24 +273,15 @@ public class ViewportPanel
                     RlImGui.ImageRenderTexture(_renderTexture);
                     if (isEditorMode)
                         HandleAssetDropTarget(camera, imageScreenPos, w, h);
-                    bool toolbarHovered = false;
                     if (isEditorMode)
-                        toolbarHovered = DrawViewportToolbar(gizmo);
+                        DrawViewportToolbar(gizmo);
 
                     _isHovered = ImGui.IsWindowHovered();
                 }
 
-                // Gizmo drag batching for undo
-                if (_app.Mode == EditorMode.Edit && gizmo.IsDragging && !_wasGizmoDragging)
-                {
-                    _app.UndoRedo.BeginBatch(_app.GetSelectedEntityIds());
-                }
-                else if (_app.Mode == EditorMode.Edit && !gizmo.IsDragging && _wasGizmoDragging)
-                {
-                    _app.Prefabs.RecalculateOverridesForScene();
-                    _app.UndoRedo.EndBatch(_app.CurrentScene, _app.GetSelectedEntityIds());
-                }
-                _wasGizmoDragging = _app.Mode == EditorMode.Edit && gizmo.IsDragging;
+                // Undo batching for gizmo drags
+                _wasGizmoDragging = TrackDragUndo(gizmo.IsDragging, _wasGizmoDragging);
+                _wasInspectorGizmoDragging = TrackDragUndo(_isInspectorGizmoDragging, _wasInspectorGizmoDragging);
             }
             else
             {
@@ -489,6 +504,113 @@ public class ViewportPanel
 
         // Fallback: 10 units in front of camera
         return ray.Position + ray.Direction * 10f;
+    }
+
+    /// <summary>
+    /// Draws a single translate-only ImGuizmo handle for the currently selected inspector gizmo target.
+    /// </summary>
+    private unsafe void DrawSelectedInspectorGizmoHandle(
+        Camera3D camera,
+        List<GizmoTarget> targets,
+        Vector2 viewportScreenPos,
+        Vector2 viewportSize)
+    {
+        _isInspectorGizmoDragging = false;
+
+        if (_selectedInspectorGizmo < 0)
+            return;
+        if (_selectedInspectorGizmo >= targets.Count)
+        {
+            _selectedInspectorGizmo = -1;
+            return;
+        }
+
+        var target = targets[_selectedInspectorGizmo];
+
+        var view = Matrix4x4.CreateLookAt(camera.Position, camera.Target, camera.Up);
+        float aspect = viewportSize.X / viewportSize.Y;
+        var proj = Matrix4x4.CreatePerspectiveFieldOfView(
+            camera.FovY * FrinkyEngine.Core.FrinkyMath.Deg2Rad, aspect, 0.01f, 1000f);
+
+        ImGuizmo.SetRect(viewportScreenPos.X, viewportScreenPos.Y, viewportSize.X, viewportSize.Y);
+        ImGuizmo.SetOrthographic(false);
+        ImGuizmo.SetDrawlist();
+        ImGuizmo.SetID(1000);
+
+        var objectMatrix = Matrix4x4.CreateTranslation(target.WorldPosition);
+        var deltaMatrix = Matrix4x4.Identity;
+
+        bool changed = ImGuizmo.Manipulate(
+            (float*)&view, (float*)&proj,
+            ImGuizmoOperation.Translate, ImGuizmoMode.World,
+            (float*)&objectMatrix, (float*)&deltaMatrix,
+            (float*)null, (float*)null, (float*)null);
+
+        _isInspectorGizmoDragging = ImGuizmo.IsUsing();
+
+        if (changed)
+        {
+            var newWorldPos = new Vector3(objectMatrix.M41, objectMatrix.M42, objectMatrix.M43);
+
+            if (target.IsLocal)
+            {
+                if (Matrix4x4.Invert(target.Entity.Transform.WorldMatrix, out var inv))
+                    newWorldPos = Vector3.Transform(newWorldPos, inv);
+            }
+
+            target.Property.SetValue(target.Owner, newWorldPos);
+        }
+
+        ImGuizmo.SetID(0);
+    }
+
+    /// <summary>
+    /// Tests if a mouse click hits any inspector gizmo sphere. Returns the index into the targets
+    /// list, or -1 if nothing was hit.
+    /// </summary>
+    private static int PickInspectorGizmo(
+        Camera3D camera,
+        List<GizmoTarget> targets,
+        Vector2 localMouse,
+        Vector2 viewportSize)
+    {
+        if (targets.Count == 0)
+            return -1;
+
+        var ray = RaycastUtils.GetViewportRay(camera, localMouse, viewportSize);
+
+        // Use a generous hit radius so the spheres are easy to click
+        const float hitRadius = 0.15f;
+        float closestT = float.MaxValue;
+        int closestIdx = -1;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            if (RaySphereIntersect(ray, targets[i].WorldPosition, hitRadius, out float t) && t < closestT)
+            {
+                closestT = t;
+                closestIdx = i;
+            }
+        }
+
+        return closestIdx;
+    }
+
+    private static bool RaySphereIntersect(Ray ray, Vector3 center, float radius, out float t)
+    {
+        t = 0f;
+        var oc = ray.Position - center;
+        float a = Vector3.Dot(ray.Direction, ray.Direction);
+        float b = 2f * Vector3.Dot(oc, ray.Direction);
+        float c = Vector3.Dot(oc, oc) - radius * radius;
+        float discriminant = b * b - 4f * a * c;
+        if (discriminant < 0f)
+            return false;
+
+        t = (-b - MathF.Sqrt(discriminant)) / (2f * a);
+        if (t < 0f)
+            t = (-b + MathF.Sqrt(discriminant)) / (2f * a);
+        return t >= 0f;
     }
 
     private static void DrawDropPreview(System.Numerics.Vector3 pos)
@@ -752,5 +874,20 @@ public class ViewportPanel
         }
 
         _postProcessPipeline.Shutdown();
+    }
+
+    private bool TrackDragUndo(bool isDragging, bool wasDragging)
+    {
+        bool active = _app.Mode == EditorMode.Edit && isDragging;
+        if (active && !wasDragging)
+        {
+            _app.UndoRedo.BeginBatch(_app.GetSelectedEntityIds());
+        }
+        else if (!active && wasDragging)
+        {
+            _app.Prefabs.RecalculateOverridesForScene();
+            _app.UndoRedo.EndBatch(_app.CurrentScene, _app.GetSelectedEntityIds());
+        }
+        return active;
     }
 }

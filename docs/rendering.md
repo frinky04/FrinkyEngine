@@ -72,7 +72,7 @@ The animator automatically loads all animation clips from the model and begins p
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `ClipIndex` | 0 | Selected animation clip (shown as a dropdown of clip names) |
+| `ClipIndex` | 0 | Selected animation entry. `0` is `(none)` (bind pose), `1..N` are imported clips. |
 | `PlayAutomatically` | true | Start playback when the clip is loaded |
 | `Playing` | true | Whether playback is currently advancing |
 | `Loop` | true | Wrap to the beginning when the clip ends |
@@ -83,7 +83,66 @@ Read-only inspector fields show the current `ActionName`, `ActionCount`, and `Fr
 
 ### How It Works
 
-The animator samples two adjacent keyframes from the active clip each frame, linearly interpolates the bone matrices, and writes them to the mesh's `BoneMatrices` buffer. The vertex shader transforms vertices by their bone weights when the `useSkinning` uniform is set. Entities with an active animator are excluded from automatic instanced batching since each instance has unique bone data.
+The animator samples two adjacent keyframes from the active clip each frame, interpolates bone transforms, rebuilds skinning matrices, and writes them to the mesh's `BoneMatrices` buffer. The vertex shader transforms vertices by their bone weights when the `useSkinning` uniform is set. Entities with an active animator are excluded from automatic instanced batching since each instance has unique bone data.
+
+### Inverse Kinematics
+
+Add an `InverseKinematicsComponent` to the same entity as `SkinnedMeshAnimatorComponent` to run IK after animation sampling. Solvers are applied in list order after the animation clip is sampled (or from bind pose when `ClipIndex` is `(none)`).
+
+#### TwoBoneIKSolver
+
+The built-in solver for three-joint limb chains (e.g. upper-arm → forearm → hand, thigh → calf → foot). The three bones must form a direct parent chain in the skeleton.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `RootBone` | (none) | First bone in the chain (e.g. upper arm / thigh) |
+| `MidBone` | (none) | Middle joint (e.g. forearm / shin) |
+| `EndBone` | (none) | End effector (e.g. hand / foot) |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position the end effector reaches toward |
+| `PoleTargetSpace` | World | Coordinate space for the pole target — `World` or `Local` |
+| `PoleTargetPosition` | (0,0,0) | Controls the bend-plane direction (e.g. knee/elbow) |
+
+When `TargetSpace` or `PoleTargetSpace` is set to `Local`, the position is relative to the owning entity's transform.
+
+#### FABRIKSolver
+
+FABRIK (Forward And Backward Reaching Inverse Kinematics) solver for arbitrary-length bone chains. Unlike Two Bone IK, FABRIK supports chains of any length — the bones between root and end are discovered automatically by walking the skeleton hierarchy.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `RootBone` | (none) | First bone in the chain |
+| `EndBone` | (none) | End effector bone |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position the end effector reaches toward |
+| `MaxIterations` | 10 | Maximum FABRIK iterations per solve (1–50) |
+| `Tolerance` | 0.001 | Convergence threshold in world units — iteration stops when the end effector is within this distance of the target |
+
+The root and end bones must be connected through a direct parent chain in the skeleton (end is a descendant of root). When the target is unreachable, the chain stretches toward it.
+
+#### LookAtIKSolver
+
+Rotates a single bone so that a chosen local axis points toward a target position. Useful for head tracking, turrets, eye gaze, and similar aim constraints.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `Bone` | (none) | The bone to rotate |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position to look at |
+| `AimAxis` | Z+ | Which local bone axis should point toward the target |
+| `UpAxis` | Y+ | Which local bone axis should align toward world up |
+
+Available axes: `X+`, `Y+`, `Z+`, `X-`, `Y-`, `Z-`.
+
+#### Viewport Gizmos
+
+Solver target positions (and pole targets for Two Bone IK) appear as draggable wireframe spheres in the viewport. Click a sphere to select it, then drag the translate handle to reposition it. A line connects each gizmo to the entity origin.
 
 ### Notes
 

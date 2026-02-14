@@ -20,7 +20,7 @@ New to FrinkyEngine? Start here:
 | [Components Reference](components.md) | All built-in components with key properties |
 | [Physics](physics.md) | Rigidbodies, colliders, character controller, crouching |
 | [Audio](audio.md) | 2D/3D playback, components, mixer buses, attenuation |
-| [Rendering & Post-Processing](rendering.md) | Lighting, materials, camera setup, bloom/fog/SSAO |
+| [Rendering & Post-Processing](rendering.md) | Lighting, materials, camera setup, skeletal animation, inverse kinematics, bloom/fog/SSAO |
 | [Game UI](ui.md) | Immediate-mode UI wrapper API for HUDs and menus |
 | [Prefabs & Entity References](prefabs.md) | Prefab workflow, overrides, entity cross-linking |
 | [Exporting & Packaging](exporting.md) | Export pipeline, runtime modes, packaging scripts |
