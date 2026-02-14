@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Reflection;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using Raylib_cs;
@@ -348,6 +349,56 @@ public static class EditorGizmos
     private static void DrawEdge(Vector3[] corners, int indexA, int indexB, Color color)
     {
         Raylib.DrawLine3D(corners[indexA], corners[indexB], color);
+    }
+
+    // ─── Bone preview rendering ────────────────────────────────────────
+
+    private static readonly Color BoneJointColor = new(50, 220, 255, 255);
+    private static readonly Color BoneLineColor = new(50, 220, 255, 140);
+
+    public static unsafe void DrawBones(Core.Scene.Scene scene)
+    {
+        foreach (var entity in scene.Entities)
+        {
+            if (!entity.Active)
+                continue;
+
+            var animator = entity.GetComponent<SkinnedMeshAnimatorComponent>();
+            if (animator == null || !animator.Enabled)
+                continue;
+
+            var meshRenderer = entity.GetComponent<MeshRendererComponent>();
+            if (meshRenderer == null || meshRenderer.ModelPath.IsEmpty)
+                continue;
+
+            var model = AssetManager.Instance.LoadModel(meshRenderer.ModelPath.Path);
+            if (model.BoneCount <= 0)
+                continue;
+
+            var worldMatrix = entity.Transform.WorldMatrix;
+
+            for (int i = 0; i < model.BoneCount; i++)
+            {
+                var bone = model.Bones[i];
+                var boneTransform = model.BindPose[i];
+
+                // Compute the bone world position from model-space bind pose translation
+                var boneModelPos = boneTransform.Translation;
+                var boneWorldPos = Vector3.Transform(boneModelPos, worldMatrix);
+
+                // Draw a small sphere at the bone joint
+                Raylib.DrawSphereWires(boneWorldPos, 0.02f, 4, 4, BoneJointColor);
+
+                // Draw line to parent bone
+                if (bone.Parent >= 0 && bone.Parent < model.BoneCount)
+                {
+                    var parentTransform = model.BindPose[bone.Parent];
+                    var parentModelPos = parentTransform.Translation;
+                    var parentWorldPos = Vector3.Transform(parentModelPos, worldMatrix);
+                    Raylib.DrawLine3D(boneWorldPos, parentWorldPos, BoneLineColor);
+                }
+            }
+        }
     }
 
     // ─── Inspector Gizmo rendering ──────────────────────────────────────

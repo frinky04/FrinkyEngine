@@ -283,6 +283,14 @@ public class MenuBar
                     _app.TogglePhysicsHitboxPreview();
                 }
 
+                if (ImGui.MenuItem(
+                        "Bone Preview",
+                        KeybindManager.Instance.GetShortcutText(EditorAction.ToggleBonePreview),
+                        _app.IsBonePreviewEnabled))
+                {
+                    _app.ToggleBonePreview();
+                }
+
                 ImGui.Separator();
 
                 if (ImGui.BeginMenu("Theme"))

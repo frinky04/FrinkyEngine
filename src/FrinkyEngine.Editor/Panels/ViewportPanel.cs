@@ -138,6 +138,11 @@ public class ViewportPanel
                                         EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
                                 }
 
+                                if (_app.IsBonePreviewEnabled)
+                                {
+                                    EditorGizmos.DrawBones(_app.CurrentScene);
+                                }
+
                                 if (_dragPreviewPosition.HasValue)
                                     DrawDropPreview(_dragPreviewPosition.Value);
                             },

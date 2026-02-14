@@ -79,7 +79,11 @@ The animator automatically loads all animation clips from the model and begins p
 | `PlaybackSpeed` | 1.0 | Speed multiplier (0–4) |
 | `AnimationFps` | 60 | Sample rate in frames per second (1–120) |
 
-Read-only inspector fields show the current `ActionName`, `ActionCount`, and `FrameCount`.
+Read-only inspector fields show the current `ActionName`, `ActionCount`, and `FrameCount`. A collapsible **Bone Hierarchy** tree is displayed at the bottom of the inspector, showing all bones and their parent-child relationships.
+
+### Bone Preview
+
+Press `F9` (or **View > Bone Preview**) to toggle a viewport overlay that draws bone joints as wireframe spheres and parent-child connections as lines for all skinned mesh entities.
 
 ### How It Works
 
