@@ -1,3 +1,6 @@
+using System.Collections;
+using FrinkyEngine.Core.Coroutines;
+
 namespace FrinkyEngine.Core.ECS;
 
 /// <summary>
@@ -11,6 +14,8 @@ namespace FrinkyEngine.Core.ECS;
 /// </remarks>
 public abstract class Component
 {
+    private CoroutineRunner? _coroutineRunner;
+    private TimerRunner? _timerRunner;
     /// <summary>
     /// The <see cref="ECS.Entity"/> this component is attached to.
     /// </summary>
@@ -27,8 +32,16 @@ public abstract class Component
         {
             if (_enabled == value) return;
             _enabled = value;
-            if (_enabled) OnEnable();
-            else OnDisable();
+            if (_enabled)
+            {
+                ResumeCoroutines();
+                OnEnable();
+            }
+            else
+            {
+                PauseCoroutines();
+                OnDisable();
+            }
         }
     }
 
@@ -114,4 +127,114 @@ public abstract class Component
     /// </summary>
     /// <param name="info">Information about the collision contact.</param>
     public virtual void OnCollisionExit(Physics.CollisionInfo info) { }
+
+    // ── Coroutines ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Starts a coroutine on this component. The coroutine runs each frame during the component update loop
+    /// and pauses when the component is disabled. All coroutines are cancelled when the component is destroyed.
+    /// </summary>
+    /// <param name="routine">An iterator method that yields <see cref="YieldInstruction"/> objects or <c>null</c>.</param>
+    /// <returns>A <see cref="Coroutine"/> handle that can be used to stop the coroutine.</returns>
+    public Coroutine StartCoroutine(IEnumerator routine)
+    {
+        _coroutineRunner ??= new CoroutineRunner();
+        return _coroutineRunner.Start(routine);
+    }
+
+    /// <summary>
+    /// Stops a specific coroutine that was started on this component.
+    /// </summary>
+    /// <param name="coroutine">The coroutine handle returned by <see cref="StartCoroutine"/>.</param>
+    public void StopCoroutine(Coroutine coroutine)
+    {
+        _coroutineRunner?.Stop(coroutine);
+    }
+
+    /// <summary>
+    /// Stops all coroutines running on this component.
+    /// </summary>
+    public void StopAllCoroutines()
+    {
+        _coroutineRunner?.StopAll();
+    }
+
+    // ── Timers ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Schedules a callback to be invoked after a delay. The timer respects <see cref="Scene.Scene.TimeScale"/>.
+    /// </summary>
+    /// <param name="callback">The action to invoke.</param>
+    /// <param name="delaySeconds">Time in scaled seconds before the callback fires.</param>
+    public void Invoke(Action callback, float delaySeconds)
+    {
+        _timerRunner ??= new TimerRunner();
+        _timerRunner.Invoke(callback, delaySeconds);
+    }
+
+    /// <summary>
+    /// Schedules a callback to be invoked repeatedly. The first invocation occurs after <paramref name="delay"/>,
+    /// then every <paramref name="interval"/> seconds. Timers respect <see cref="Scene.Scene.TimeScale"/>.
+    /// </summary>
+    /// <param name="callback">The action to invoke.</param>
+    /// <param name="delay">Initial delay in scaled seconds.</param>
+    /// <param name="interval">Interval in scaled seconds between subsequent invocations.</param>
+    public void InvokeRepeating(Action callback, float delay, float interval)
+    {
+        _timerRunner ??= new TimerRunner();
+        _timerRunner.InvokeRepeating(callback, delay, interval);
+    }
+
+    /// <summary>
+    /// Cancels all pending timer invocations on this component.
+    /// </summary>
+    public void CancelInvoke()
+    {
+        _timerRunner?.CancelAll();
+    }
+
+    /// <summary>
+    /// Cancels all pending timer invocations that reference a specific callback.
+    /// </summary>
+    /// <param name="callback">The callback to cancel.</param>
+    public void CancelInvoke(Action callback)
+    {
+        _timerRunner?.Cancel(callback);
+    }
+
+    // ── Internal tick methods ───────────────────────────────────────
+
+    /// <summary>
+    /// Ticks coroutines and timers. Called by the entity update loop.
+    /// </summary>
+    internal void TickCoroutinesAndTimers(float scaledDt, float unscaledDt)
+    {
+        _coroutineRunner?.Tick(scaledDt, unscaledDt);
+        _timerRunner?.Tick(scaledDt);
+    }
+
+    /// <summary>
+    /// Pauses coroutines when the component is disabled. Called internally.
+    /// </summary>
+    internal void PauseCoroutines()
+    {
+        _coroutineRunner?.PauseAll();
+    }
+
+    /// <summary>
+    /// Resumes coroutines when the component is re-enabled. Called internally.
+    /// </summary>
+    internal void ResumeCoroutines()
+    {
+        _coroutineRunner?.ResumeAll();
+    }
+
+    /// <summary>
+    /// Cancels all coroutines and timers. Called on destroy.
+    /// </summary>
+    internal void CancelAllCoroutinesAndTimers()
+    {
+        _coroutineRunner?.StopAll();
+        _timerRunner?.CancelAll();
+    }
 }

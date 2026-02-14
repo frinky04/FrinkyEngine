@@ -9,6 +9,7 @@ Awake → Start → Update / LateUpdate → OnDestroy
                  OnEnable / OnDisable
                  OnTriggerEnter / OnTriggerStay / OnTriggerExit
                  OnCollisionEnter / OnCollisionStay / OnCollisionExit
+                 Coroutines & Timers (ticked after Update)
 ```
 
 - **Awake** — called once when the component is created
@@ -317,3 +318,115 @@ Entity.Destroy(0f);
 ```
 
 Deferred destroys are processed at the end of each `Scene.Update()` call. A delay of `0` destroys the entity at the end of the current frame.
+
+## Timers
+
+Schedule callbacks with a delay, respecting `Scene.TimeScale`:
+
+```csharp
+// One-shot: call after 2 seconds
+Invoke(OnExplosion, 2f);
+
+// Repeating: first call after 1 second, then every 0.5 seconds
+InvokeRepeating(SpawnEnemy, 1f, 0.5f);
+
+// Cancel all timers on this component
+CancelInvoke();
+
+// Cancel timers for a specific callback
+CancelInvoke(SpawnEnemy);
+```
+
+Timers are automatically cancelled when the component is destroyed.
+
+## Coroutines
+
+Coroutines let you write multi-step sequences that execute over multiple frames:
+
+```csharp
+using System.Collections;
+using FrinkyEngine.Core.Coroutines;
+
+public class ExampleComponent : Component
+{
+    private Coroutine? _flashRoutine;
+
+    public override void Start()
+    {
+        _flashRoutine = StartCoroutine(FlashSequence());
+    }
+
+    private IEnumerator FlashSequence()
+    {
+        // Wait one frame
+        yield return null;
+
+        // Wait 2 seconds (scaled time)
+        yield return new WaitForSeconds(2f);
+
+        // Wait 1 second (real time, ignores TimeScale)
+        yield return new WaitForSecondsRealtime(1f);
+
+        // Wait until a condition is true
+        yield return new WaitUntil(() => Entity.Scene.Time > 10f);
+
+        // Wait while a condition is true
+        yield return new WaitWhile(() => someFlag);
+    }
+
+    public override void Update(float dt)
+    {
+        // Stop a specific coroutine
+        if (someCondition && _flashRoutine != null)
+        {
+            StopCoroutine(_flashRoutine);
+            _flashRoutine = null;
+        }
+    }
+
+    public override void OnDestroy()
+    {
+        // All coroutines are automatically cancelled on destroy,
+        // but you can also stop them manually:
+        StopAllCoroutines();
+    }
+}
+```
+
+### Yield Instructions
+
+| Yield Value | Behavior |
+|-------------|----------|
+| `null` | Resume next frame |
+| `new WaitForSeconds(float)` | Wait for scaled time |
+| `new WaitForSecondsRealtime(float)` | Wait for real (unscaled) time |
+| `new WaitUntil(Func<bool>)` | Resume when condition is true |
+| `new WaitWhile(Func<bool>)` | Resume when condition is false |
+
+### Coroutine Lifecycle
+
+- Coroutines **pause** when the component is disabled and **resume** when re-enabled
+- Coroutines are **cancelled** when the component is destroyed
+- Use `StopCoroutine(handle)` to stop a specific coroutine
+- Use `StopAllCoroutines()` to stop all coroutines on the component
+
+## Scene Time
+
+Access timing information from any component via `Entity.Scene`:
+
+```csharp
+// Total elapsed scaled time since scene started
+float t = Entity.Scene.Time;
+
+// Total elapsed real time (ignores TimeScale)
+float realT = Entity.Scene.UnscaledTime;
+
+// Unscaled delta time for this frame
+float rawDt = Entity.Scene.UnscaledDeltaTime;
+
+// Total frames elapsed since scene started
+long frame = Entity.Scene.FrameCount;
+
+// Global time scale (static, affects all scenes)
+Scene.TimeScale = 0.5f; // half speed
+```

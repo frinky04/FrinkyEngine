@@ -83,6 +83,26 @@ public class Scene : IDisposable
     private bool _started;
 
     /// <summary>
+    /// Total elapsed scaled time since the scene started, in seconds.
+    /// </summary>
+    public float Time { get; private set; }
+
+    /// <summary>
+    /// Total elapsed unscaled (real) time since the scene started, in seconds.
+    /// </summary>
+    public float UnscaledTime { get; private set; }
+
+    /// <summary>
+    /// The unscaled delta time for the current frame, in seconds.
+    /// </summary>
+    public float UnscaledDeltaTime { get; private set; }
+
+    /// <summary>
+    /// Total number of frames elapsed since the scene started.
+    /// </summary>
+    public long FrameCount { get; private set; }
+
+    /// <summary>
     /// Gets the first enabled camera marked as <see cref="CameraComponent.IsMain"/>, or <c>null</c> if none exists.
     /// </summary>
     public CameraComponent? MainCamera => _registry.GetComponents<CameraComponent>()
@@ -217,14 +237,20 @@ public class Scene : IDisposable
     public void Update(float dt)
     {
         Physics.Physics.CurrentScene = this;
+        float unscaledDt = dt;
         dt *= TimeScale;
+
+        UnscaledDeltaTime = unscaledDt;
+        Time += dt;
+        UnscaledTime += unscaledDt;
+        FrameCount++;
 
         using (FrameProfiler.Scope(ProfileCategory.Game))
         {
             foreach (var entity in _entities)
             {
                 if (entity.Active)
-                    entity.UpdateComponents(dt);
+                    entity.UpdateComponents(dt, unscaledDt);
             }
         }
 
@@ -416,6 +442,10 @@ public class Scene : IDisposable
         AudioSystem?.Dispose();
         AudioSystem = null;
         _pendingDestroys.Clear();
+        Time = 0f;
+        UnscaledTime = 0f;
+        UnscaledDeltaTime = 0f;
+        FrameCount = 0;
         _started = false;
     }
 }
