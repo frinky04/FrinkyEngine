@@ -4,12 +4,13 @@ in vec2 fragTexCoord;
 
 uniform sampler2D texture0;
 uniform vec2 texelSize;
+uniform float weight;
 
 out vec4 finalColor;
 
 void main()
 {
-    // 9-tap tent filter for smooth upsample
+    // 9-tap tent filter for smooth upsample, scaled by per-mip scatter weight
     vec4 a = texture(texture0, fragTexCoord + texelSize * vec2(-1.0, -1.0));
     vec4 b = texture(texture0, fragTexCoord + texelSize * vec2( 0.0, -1.0));
     vec4 c = texture(texture0, fragTexCoord + texelSize * vec2( 1.0, -1.0));
@@ -23,5 +24,5 @@ void main()
     finalColor = e * 4.0;
     finalColor += (b + d + f + h) * 2.0;
     finalColor += (a + c + g + i);
-    finalColor /= 16.0;
+    finalColor = (finalColor / 16.0) * weight;
 }

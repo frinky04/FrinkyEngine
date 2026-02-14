@@ -3,8 +3,8 @@ using Raylib_cs;
 namespace FrinkyEngine.Core.Rendering.PostProcessing.Effects;
 
 /// <summary>
-/// Multi-pass bloom effect: threshold extraction, iterative downsample/upsample, and additive composite.
-/// Creates a glow around bright areas of the image.
+/// Multi-pass bloom effect using progressive downsample/upsample (UE4/5-style).
+/// Extracts bright pixels, blurs through a mip chain, then composites back onto the scene.
 /// </summary>
 public class BloomEffect : PostProcessEffect
 {
@@ -31,6 +31,12 @@ public class BloomEffect : PostProcessEffect
     /// </summary>
     public int Iterations { get; set; } = 5;
 
+    /// <summary>
+    /// Controls how much bloom spreads across mip levels (0 = tight glow, 1 = wide cinematic bloom).
+    /// Biases per-mip weights toward lower (larger) mips for a wider scatter.
+    /// </summary>
+    public float Scatter { get; set; } = 0.7f;
+
     private Shader _thresholdShader;
     private Shader _downsampleShader;
     private Shader _upsampleShader;
@@ -40,6 +46,7 @@ public class BloomEffect : PostProcessEffect
     private int _softKneeLoc = -1;
     private int _downsampleTexelSizeLoc = -1;
     private int _upsampleTexelSizeLoc = -1;
+    private int _upsampleWeightLoc = -1;
     private int _compositeIntensityLoc = -1;
     private int _compositeBloomTexLoc = -1;
 
@@ -61,6 +68,7 @@ public class BloomEffect : PostProcessEffect
         _softKneeLoc = Raylib.GetShaderLocation(_thresholdShader, "softKnee");
         _downsampleTexelSizeLoc = Raylib.GetShaderLocation(_downsampleShader, "texelSize");
         _upsampleTexelSizeLoc = Raylib.GetShaderLocation(_upsampleShader, "texelSize");
+        _upsampleWeightLoc = Raylib.GetShaderLocation(_upsampleShader, "weight");
         _compositeIntensityLoc = Raylib.GetShaderLocation(_compositeShader, "intensity");
         _compositeBloomTexLoc = Raylib.GetShaderLocation(_compositeShader, "bloomTex");
 
@@ -73,9 +81,10 @@ public class BloomEffect : PostProcessEffect
         if (!IsInitialized) return;
 
         int iterations = Math.Clamp(Iterations, 1, 8);
+        float scatter = Math.Clamp(Scatter, 0f, 1f);
         var mipChain = new RenderTexture2D[iterations];
 
-        // Threshold pass
+        // Threshold pass — extract bright pixels into first half-res mip
         if (_thresholdLoc >= 0)
             Raylib.SetShaderValue(_thresholdShader, _thresholdLoc, Threshold, ShaderUniformDataType.Float);
         if (_softKneeLoc >= 0)
@@ -86,7 +95,7 @@ public class BloomEffect : PostProcessEffect
         mipChain[0] = context.GetTemporaryRT(mipW, mipH);
         PostProcessContext.Blit(source, mipChain[0], _thresholdShader);
 
-        // Downsample chain
+        // Progressive downsample through mip chain
         for (int i = 1; i < iterations; i++)
         {
             mipW = Math.Max(1, mipW / 2);
@@ -100,20 +109,27 @@ public class BloomEffect : PostProcessEffect
             PostProcessContext.Blit(mipChain[i - 1].Texture, mipChain[i], _downsampleShader);
         }
 
-        // Upsample chain (accumulate back up)
+        // Progressive upsample — blend each mip level back up with per-mip scatter weighting.
+        // Higher scatter biases toward lower (wider) mips for a broader bloom.
         for (int i = iterations - 2; i >= 0; i--)
         {
             float[] texelSize = { 1.0f / mipChain[i + 1].Texture.Width, 1.0f / mipChain[i + 1].Texture.Height };
             if (_upsampleTexelSizeLoc >= 0)
                 Raylib.SetShaderValue(_upsampleShader, _upsampleTexelSizeLoc, texelSize, ShaderUniformDataType.Vec2);
 
-            // Upsample lower mip into the current mip (additive blend)
+            // Per-mip weight: lerp between equal weighting and bottom-heavy weighting based on scatter.
+            // mipNorm=0 at top (full res), 1 at bottom (smallest mip).
+            float mipNorm = (iterations > 1) ? (float)i / (iterations - 1) : 0f;
+            float weight = MathF.Pow(1f - mipNorm, 1f - scatter);
+            if (_upsampleWeightLoc >= 0)
+                Raylib.SetShaderValue(_upsampleShader, _upsampleWeightLoc, weight, ShaderUniformDataType.Float);
+
             var tempRT = context.GetTemporaryRT(mipChain[i].Texture.Width, mipChain[i].Texture.Height);
 
-            // First draw existing mip
+            // Copy current mip into temp
             PostProcessContext.Blit(mipChain[i].Texture, tempRT);
 
-            // Then additively blend upsampled lower mip
+            // Additively blend the upsampled lower mip on top
             Raylib.BeginTextureMode(tempRT);
             Raylib.BeginShaderMode(_upsampleShader);
             Rlgl.SetBlendMode(BlendMode.Additive);
@@ -129,7 +145,7 @@ public class BloomEffect : PostProcessEffect
             mipChain[i] = tempRT;
         }
 
-        // Composite: scene + bloom
+        // Composite: add bloom back onto the original scene
         if (_compositeIntensityLoc >= 0)
             Raylib.SetShaderValue(_compositeShader, _compositeIntensityLoc, Intensity, ShaderUniformDataType.Float);
 
