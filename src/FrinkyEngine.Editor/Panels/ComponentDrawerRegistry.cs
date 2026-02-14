@@ -1644,47 +1644,10 @@ public static class ComponentDrawerRegistry
 
             bool open = ImGui.TreeNodeEx(item.DisplayName, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding);
 
-            float buttonSize = ImGui.GetFrameHeight();
-            float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
-            ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
-
-            var transparent = new Vector4(0, 0, 0, 0);
-            ImGui.PushStyleColor(ImGuiCol.Button, transparent);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
-            ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-
-            if (i > 0)
-            {
-                if (ImGui.Button("^", new Vector2(buttonSize, buttonSize))) moveUpIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.Button("^", new Vector2(buttonSize, buttonSize));
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            if (i < list.Count - 1)
-            {
-                if (ImGui.Button("v", new Vector2(buttonSize, buttonSize))) moveDownIndex = i;
-            }
-            else
-            {
-                ImGui.BeginDisabled();
-                ImGui.Button("v", new Vector2(buttonSize, buttonSize));
-                ImGui.EndDisabled();
-            }
-            ImGui.SameLine();
-
-            ImGui.PopStyleColor(); // pop TextDisabled text
-            ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
-            ImGui.PopStyleColor(2); // pop HeaderHovered, HeaderActive
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
-            if (ImGui.Button("X", new Vector2(buttonSize, buttonSize))) removeIndex = i;
-            ImGui.PopStyleColor(4); // pop remaining 4 (transparent Button, red Hovered, red Active, Text)
+            var (up, down, rm) = DrawListItemButtons(i, list.Count);
+            if (up.HasValue) moveUpIndex = up.Value;
+            if (down.HasValue) moveDownIndex = down.Value;
+            if (rm.HasValue) removeIndex = rm.Value;
 
             if (open)
             {
@@ -1984,50 +1947,10 @@ public static class ComponentDrawerRegistry
                             | ImGuiTreeNodeFlags.SpanAvailWidth
                             | ImGuiTreeNodeFlags.FramePadding);
 
-                        float buttonSize = ImGui.GetFrameHeight();
-                        float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
-                        ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
-
-                        var transparent = new Vector4(0, 0, 0, 0);
-                        ImGui.PushStyleColor(ImGuiCol.Button, transparent);
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled]);
-
-                        if (i > 0)
-                        {
-                            if (ImGui.Button("^", new Vector2(buttonSize, buttonSize)))
-                                moveUpIndex = i;
-                        }
-                        else
-                        {
-                            ImGui.BeginDisabled();
-                            ImGui.Button("^", new Vector2(buttonSize, buttonSize));
-                            ImGui.EndDisabled();
-                        }
-
-                        ImGui.SameLine();
-                        if (i < list.Count - 1)
-                        {
-                            if (ImGui.Button("v", new Vector2(buttonSize, buttonSize)))
-                                moveDownIndex = i;
-                        }
-                        else
-                        {
-                            ImGui.BeginDisabled();
-                            ImGui.Button("v", new Vector2(buttonSize, buttonSize));
-                            ImGui.EndDisabled();
-                        }
-
-                        ImGui.SameLine();
-                        ImGui.PopStyleColor();
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
-                        ImGui.PopStyleColor(2);
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
-                        if (ImGui.Button("X", new Vector2(buttonSize, buttonSize)))
-                            removeIndex = i;
-                        ImGui.PopStyleColor(4);
+                        var (up, down, rm) = DrawListItemButtons(i, list.Count);
+                        if (up.HasValue) moveUpIndex = up.Value;
+                        if (down.HasValue) moveDownIndex = down.Value;
+                        if (rm.HasValue) removeIndex = rm.Value;
                     }
                     else
                     {
@@ -2403,12 +2326,12 @@ public static class ComponentDrawerRegistry
 
     // ─── Reusable helpers ───────────────────────────────────────────────
 
-    private static readonly Vector4 AccentBarColor = new(0.35f, 0.55f, 0.75f, 0.45f);
+    private static readonly Vector4 AccentBarColor = new(0.45f, 0.45f, 0.45f, 0.25f);
 
     private static void DrawIndentedWithAccentBar(Action drawContent)
     {
-        float indentSpacing = ImGui.GetStyle().IndentSpacing;
-        ImGui.Indent();
+        const float indent = 10f;
+        ImGui.Indent(indent);
 
         var startPos = ImGui.GetCursorScreenPos();
         float startY = startPos.Y;
@@ -2416,17 +2339,53 @@ public static class ComponentDrawerRegistry
         drawContent();
 
         float endY = ImGui.GetCursorScreenPos().Y;
-        ImGui.Unindent();
+        ImGui.Unindent(indent);
 
         if (endY > startY)
         {
             var drawList = ImGui.GetWindowDrawList();
-            float barX = startPos.X - indentSpacing + 4f;
+            float barX = startPos.X - indent + 4f;
             drawList.AddRectFilled(
                 new Vector2(barX, startY),
                 new Vector2(barX + 2f, endY),
                 ImGui.GetColorU32(AccentBarColor));
         }
+    }
+
+    /// <summary>
+    /// Draws move-up, move-down, and remove buttons for a list item.
+    /// Returns (moveUp, moveDown, remove) indices if any button was clicked.
+    /// </summary>
+    private static (int? moveUp, int? moveDown, int? remove) DrawListItemButtons(int index, int count)
+    {
+        int? moveUp = null, moveDown = null, remove = null;
+
+        float buttonSize = ImGui.GetFrameHeight();
+        float totalButtonWidth = buttonSize * 3f + ImGui.GetStyle().ItemSpacing.X * 2f;
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - totalButtonWidth + ImGui.GetCursorPosX());
+
+        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, 0, 0, 0));
+
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderHovered]);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.GetStyle().Colors[(int)ImGuiCol.HeaderActive]);
+
+        ImGui.BeginDisabled(index <= 0);
+        if (ImGui.ArrowButton("##up", ImGuiDir.Up)) moveUp = index;
+        ImGui.EndDisabled();
+        ImGui.SameLine();
+
+        ImGui.BeginDisabled(index >= count - 1);
+        if (ImGui.ArrowButton("##down", ImGuiDir.Down)) moveDown = index;
+        ImGui.EndDisabled();
+        ImGui.SameLine();
+
+        ImGui.PopStyleColor(2); // swap header hover/active for red hover/active
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 0.4f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.8f, 0.2f, 0.2f, 0.6f));
+        if (ImGui.Button("X", new Vector2(buttonSize, buttonSize))) remove = index;
+        ImGui.PopStyleColor(3); // red active, red hovered, transparent button
+
+        return (moveUp, moveDown, remove);
     }
 
     private static readonly Vector4 WarningColor = new(1f, 0.55f, 0.25f, 1f);
