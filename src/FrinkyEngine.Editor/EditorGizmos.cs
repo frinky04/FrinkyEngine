@@ -358,6 +358,8 @@ public static class EditorGizmos
 
     public static unsafe void DrawBones(Core.Scene.Scene scene)
     {
+        Rlgl.DisableDepthTest();
+
         foreach (var entity in scene.Entities)
         {
             if (!entity.Active)
@@ -376,14 +378,17 @@ public static class EditorGizmos
                 continue;
 
             var worldMatrix = entity.Transform.WorldMatrix;
+            var currentPose = animator.CurrentModelPose;
+            bool hasAnimatedPose = currentPose.Length == model.BoneCount;
 
             for (int i = 0; i < model.BoneCount; i++)
             {
                 var bone = model.Bones[i];
-                var boneTransform = model.BindPose[i];
 
-                // Compute the bone world position from model-space bind pose translation
-                var boneModelPos = boneTransform.Translation;
+                // Use the current animated pose when available, otherwise fall back to bind pose
+                var boneModelPos = hasAnimatedPose
+                    ? currentPose[i].t
+                    : model.BindPose[i].Translation;
                 var boneWorldPos = Vector3.Transform(boneModelPos, worldMatrix);
 
                 // Draw a small sphere at the bone joint
@@ -392,13 +397,16 @@ public static class EditorGizmos
                 // Draw line to parent bone
                 if (bone.Parent >= 0 && bone.Parent < model.BoneCount)
                 {
-                    var parentTransform = model.BindPose[bone.Parent];
-                    var parentModelPos = parentTransform.Translation;
+                    var parentModelPos = hasAnimatedPose
+                        ? currentPose[bone.Parent].t
+                        : model.BindPose[bone.Parent].Translation;
                     var parentWorldPos = Vector3.Transform(parentModelPos, worldMatrix);
                     Raylib.DrawLine3D(boneWorldPos, parentWorldPos, BoneLineColor);
                 }
             }
         }
+
+        Rlgl.EnableDepthTest();
     }
 
     // ─── Inspector Gizmo rendering ──────────────────────────────────────

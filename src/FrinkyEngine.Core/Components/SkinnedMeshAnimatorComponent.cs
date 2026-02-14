@@ -36,6 +36,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private Matrix4x4[][]? _poseLerped;
     private bool _hasSkinnedMeshes;
 
+    // Current model-space bone transforms, updated each PrepareForRender for bone preview.
+    private (Vector3 t, Quaternion r, Vector3 s)[]? _currentModelPose;
+
     // IK pose buffers (allocated on demand when IK component is present)
     private (Vector3 t, Quaternion r, Vector3 s)[]? _ikModelPoseA;
     private (Vector3 t, Quaternion r, Vector3 s)[]? _ikModelPoseB;
@@ -172,15 +175,17 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         _lastPreparedRenderToken = renderToken;
 
+        var model = _meshRenderer.RenderModel.Value;
+
         if (!RenderRuntimeCvars.AnimationEnabled)
         {
             // Prevent a large dt jump when animation is re-enabled.
             _lastSampleTime = -1d;
             ApplyBindPose();
+            CaptureCurrentModelPose(model);
             return;
         }
 
-        var model = _meshRenderer.RenderModel.Value;
         var ikComponent = Entity.GetComponent<InverseKinematicsComponent>();
         bool hasActiveIk = ikComponent != null && model.BoneCount > 0 && ikComponent.HasRunnableSolvers(model);
         var activeIk = hasActiveIk ? ikComponent : null;
@@ -198,16 +203,21 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                 activeIk.ApplyIK(_ikLocalPose!, model, Entity.Transform.WorldMatrix, _ikWorldMatrices!);
                 ConvertLocalPoseToModel(_ikLocalPose!, _ikModelPose!, _ikParentIndices!);
                 ComputeSkinningMatrices(model, _ikModelPose!);
+                CaptureCurrentModelPose(_ikModelPose!);
             }
             else
             {
                 ApplyBindPose();
+                CaptureCurrentModelPose(model);
             }
             return;
         }
 
         if (!Playing)
+        {
+            // Pose is already applied; keep _currentModelPose from last update.
             return;
+        }
 
         var now = Raylib.GetTime();
         if (_lastSampleTime < 0d)
@@ -271,6 +281,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                 activeIk.ApplyIK(_ikLocalPose!, model, Entity.Transform.WorldMatrix, _ikWorldMatrices!);
                 ConvertLocalPoseToModel(_ikLocalPose!, _ikModelPose!, _ikParentIndices!);
                 ComputeSkinningMatrices(model, _ikModelPose!);
+                CaptureCurrentModelPose(_ikModelPose!);
                 return;
             }
 
@@ -279,16 +290,26 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             if (alpha <= 0f || frameA == frameB)
             {
                 ApplyPose(_poseFrameA!);
+                CaptureInterpolatedModelPose(model, animation, frameA, frameA, 0f);
                 return;
             }
 
             SampleFramePose(model, animation, frameB, _poseFrameB!);
             LerpPose(_poseFrameA!, _poseFrameB!, _poseLerped!, alpha);
             ApplyPose(_poseLerped!);
+            CaptureInterpolatedModelPose(model, animation, frameA, frameB, alpha);
         }
     }
 
     internal bool UsesSkinning => _hasSkinnedMeshes;
+
+    /// <summary>
+    /// Returns the current model-space bone transforms after animation has been applied.
+    /// Each element contains the translation, rotation and scale for that bone index.
+    /// Returns an empty span when no animation state is available.
+    /// </summary>
+    public ReadOnlySpan<(Vector3 t, Quaternion r, Vector3 s)> CurrentModelPose =>
+        _currentModelPose is not null ? _currentModelPose.AsSpan() : ReadOnlySpan<(Vector3, Quaternion, Vector3)>.Empty;
 
     private bool EnsureAnimationState()
     {
@@ -705,6 +726,68 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         }
     }
 
+    private unsafe void CaptureCurrentModelPose(Model model)
+    {
+        int boneCount = model.BoneCount;
+        if (boneCount <= 0)
+        {
+            _currentModelPose = null;
+            return;
+        }
+
+        if (_currentModelPose == null || _currentModelPose.Length != boneCount)
+            _currentModelPose = new (Vector3, Quaternion, Vector3)[boneCount];
+
+        for (int i = 0; i < boneCount; i++)
+        {
+            var t = model.BindPose[i];
+            _currentModelPose[i] = (t.Translation, t.Rotation, t.Scale);
+        }
+    }
+
+    private void CaptureCurrentModelPose((Vector3 t, Quaternion r, Vector3 s)[] modelPose)
+    {
+        int count = modelPose.Length;
+        if (count <= 0)
+        {
+            _currentModelPose = null;
+            return;
+        }
+
+        if (_currentModelPose == null || _currentModelPose.Length != count)
+            _currentModelPose = new (Vector3, Quaternion, Vector3)[count];
+
+        Array.Copy(modelPose, _currentModelPose, count);
+    }
+
+    private unsafe void CaptureInterpolatedModelPose(Model model, ModelAnimation animation, int frameA, int frameB, float alpha)
+    {
+        int boneCount = Math.Min(model.BoneCount, animation.BoneCount);
+        if (boneCount <= 0)
+        {
+            _currentModelPose = null;
+            return;
+        }
+
+        if (_currentModelPose == null || _currentModelPose.Length != boneCount)
+            _currentModelPose = new (Vector3, Quaternion, Vector3)[boneCount];
+
+        int clampedA = Math.Clamp(frameA, 0, Math.Max(0, animation.FrameCount - 1));
+        int clampedB = Math.Clamp(frameB, 0, Math.Max(0, animation.FrameCount - 1));
+        var posesA = animation.FramePoses[clampedA];
+        var posesB = animation.FramePoses[clampedB];
+
+        for (int i = 0; i < boneCount; i++)
+        {
+            var a = posesA[i];
+            var b = posesB[i];
+            _currentModelPose[i] = (
+                Vector3.Lerp(a.Translation, b.Translation, alpha),
+                Quaternion.Slerp(a.Rotation, b.Rotation, alpha),
+                Vector3.Lerp(a.Scale, b.Scale, alpha));
+        }
+    }
+
     private static Vector3 ComponentDivide(Vector3 value, Vector3 divisor)
     {
         return new Vector3(
@@ -741,6 +824,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         _ikParentIndices = null;
         _ikWorldMatrices = null;
         _hasSkinnedMeshes = false;
+        _currentModelPose = null;
     }
 
     private void ResetPlayhead()
