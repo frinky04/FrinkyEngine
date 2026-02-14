@@ -103,6 +103,14 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public bool Loop { get; set; } = true;
 
     /// <summary>
+    /// Number of frames to trim from the end of a looping animation to avoid stalling
+    /// on duplicate trailing frames. Most glTF exports include one duplicate frame;
+    /// some exporters add more. Only applies when <see cref="Loop"/> is enabled.
+    /// </summary>
+    [InspectorRange(0f, 10f, 1f)]
+    public int LoopFrameTrim { get; set; } = 1;
+
+    /// <summary>
     /// Whether playback advances over time.
     /// </summary>
     public bool Playing { get; set; } = true;
@@ -394,13 +402,13 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             _playheadFrames += dt * speed * AnimationFps;
 
             int frameCount = Math.Max(1, animation.FrameCount);
-            // Looping animations typically have a duplicate last frame
+            // Looping animations typically have duplicate trailing frames
             // (e.g. Raylib's glTF loader samples duration*fps+1 frames
-            // where the final frame equals the first). Cycle through
-            // frameCount-1 unique frames so the wrap interpolates
-            // smoothly from the second-to-last frame back to frame 0
-            // instead of stalling on a duplicate.
-            int loopLength = Math.Max(1, frameCount - 1);
+            // where the final frame equals the first). Trim LoopFrameTrim
+            // frames from the end so the wrap interpolates smoothly back
+            // to frame 0 instead of stalling on duplicates.
+            int trim = Loop ? Math.Max(0, LoopFrameTrim) : 0;
+            int loopLength = Math.Max(1, frameCount - trim);
             if (Loop)
             {
                 _playheadFrames %= loopLength;
