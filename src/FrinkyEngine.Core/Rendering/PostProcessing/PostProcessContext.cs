@@ -73,6 +73,7 @@ public class PostProcessContext
         else
         {
             rt = Raylib.LoadRenderTexture(width, height);
+            Raylib.SetTextureFilter(rt.Texture, TextureFilter.Bilinear);
             Raylib.SetTextureWrap(rt.Texture, TextureWrap.Clamp);
         }
 
