@@ -56,7 +56,31 @@ public static class AssetReferenceValidator
             else if (prop.PropertyType.IsGenericType &&
                      prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
             {
-                ValidateListProperty(entity, component, prop, type, db);
+                var elementType = prop.PropertyType.GetGenericArguments()[0];
+                if (elementType == typeof(AssetReference))
+                {
+                    ValidateAssetReferenceListProperty(entity, component, prop, type, db);
+                }
+                else
+                {
+                    ValidateListProperty(entity, component, prop, type, db);
+                }
+            }
+        }
+    }
+
+    private static void ValidateAssetReferenceListProperty(
+        Entity entity, Component component, PropertyInfo listProp, Type componentType, AssetDatabase db)
+    {
+        if (listProp.GetValue(component) is not List<AssetReference> list) return;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            var value = list[i];
+            if (!value.IsEmpty && !db.AssetExistsByName(value.Path))
+            {
+                FrinkyLog.Warning(
+                    $"Broken asset reference: '{value.Path}' on {entity.Name}.{componentType.Name}.{listProp.Name}[{i}]");
             }
         }
     }

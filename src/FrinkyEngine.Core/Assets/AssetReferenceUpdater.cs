@@ -94,6 +94,20 @@ public static class AssetReferenceUpdater
                         IsBareName(val.Path) ? newFileName : newPath));
                 }
             }
+            else if (prop.PropertyType.IsGenericType
+                     && prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>)
+                     && prop.PropertyType.GetGenericArguments()[0] == typeof(AssetReference))
+            {
+                if (prop.GetValue(obj) is not List<AssetReference> list) continue;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var val = list[i];
+                    if (!val.IsEmpty && PathMatches(val.Path, oldPath, oldFileName))
+                    {
+                        list[i] = new AssetReference(IsBareName(val.Path) ? newFileName : newPath);
+                    }
+                }
+            }
         }
     }
 
