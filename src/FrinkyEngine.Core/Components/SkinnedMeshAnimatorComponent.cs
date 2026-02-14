@@ -157,6 +157,16 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     }
 
     /// <summary>
+    /// Number of leading frames to skip in a looping animation to avoid dwelling on
+    /// the duplicate seam pose. Most glTF exports include one duplicate frame at the
+    /// start/end boundary; some exporters add more. Only applies when <see cref="Loop"/>
+    /// is enabled.
+    /// </summary>
+    [InspectorHeader("Advanced")]
+    [InspectorRange(0f, 10f, 1f)]
+    public int LoopFrameTrim { get; set; } = 1;
+
+    /// <summary>
     /// Resets playback time to clip start.
     /// </summary>
     [InspectorButton("Restart")]
@@ -394,11 +404,18 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             _playheadFrames += dt * speed * AnimationFps;
 
             int frameCount = Math.Max(1, animation.FrameCount);
+            // Looping animations from Raylib's glTF resampler have a
+            // duplicate seam frame (frame 0 == frame N). LoopFrameTrim
+            // skips the first N frames so the wrap jumps from the last
+            // unique frame back to frame trim, avoiding a visible dwell
+            // on the duplicate start pose.
+            int trim = Loop ? Math.Clamp(LoopFrameTrim, 0, frameCount - 1) : 0;
+            int loopLength = Math.Max(1, frameCount - trim);
             if (Loop)
             {
-                _playheadFrames %= frameCount;
+                _playheadFrames %= loopLength;
                 if (_playheadFrames < 0f)
-                    _playheadFrames += frameCount;
+                    _playheadFrames += loopLength;
             }
             else
             {
@@ -410,11 +427,12 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                 }
             }
 
-            int frameA = (int)MathF.Floor(_playheadFrames);
+            int localFrame = (int)MathF.Floor(_playheadFrames);
+            float alpha = Math.Clamp(_playheadFrames - localFrame, 0f, 1f);
+            int frameA = localFrame + trim;
             int frameB = Loop
-                ? (frameA + 1) % frameCount
+                ? (localFrame + 1) % loopLength + trim
                 : Math.Min(frameA + 1, frameCount - 1);
-            float alpha = Math.Clamp(_playheadFrames - frameA, 0f, 1f);
 
             // IK path: sample as local transforms, apply IK, then compute skinning matrices
             if (activeIk != null)
