@@ -480,6 +480,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         {
             ResetAnimationState();
             _lastModelVersion = _meshRenderer.ModelVersion;
+            _lastSourcesHash = ComputeSourcesHash();
 
             if (UseMultiSource)
             {
@@ -489,6 +490,12 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             {
                 _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
             }
+
+            // Clamp clip index to valid range after clip list changes
+            int maxIndex = UseMultiSource ? _aggregatedClips.Count : _animationCount;
+            if (_clipIndex > maxIndex)
+                _clipIndex = maxIndex > 0 ? 1 : 0;
+
             _playbackInitialized = false;
         }
 
