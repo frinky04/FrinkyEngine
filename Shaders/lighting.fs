@@ -115,12 +115,10 @@ void main()
 
             lightDir = toLight / dist;
 
-            float distRatio = dist / max(lightRange, 0.0001);
-            float distRatio2 = distRatio * distRatio;
-            float distRatio4 = distRatio2 * distRatio2;
-            float window = clamp(1.0 - distRatio4, 0.0, 1.0);
-            window = window * window;
-            attenuation = window / (dist * dist + 1.0);
+            float r = dist / max(lightRange, 0.0001);
+            float r4 = r * r * r * r;
+            attenuation = clamp(1.0 - r4, 0.0, 1.0);
+            attenuation *= attenuation;
         }
         else
         {
