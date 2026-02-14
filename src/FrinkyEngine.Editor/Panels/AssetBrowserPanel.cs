@@ -71,32 +71,36 @@ public class AssetBrowserPanel
         DrawTagFilterBar();
         ImGui.Separator();
 
-        var items = BuildFilteredItems();
-        _lastItems = items;
+        if (ImGui.BeginChild("##AssetContent", Vector2.Zero, ImGuiChildFlags.None))
+        {
+            var items = BuildFilteredItems();
+            _lastItems = items;
 
-        if (items.Count == 0)
-        {
-            ImGui.TextDisabled("No assets found.");
-        }
-        else if (EditorPreferences.Instance.AssetBrowserGridView)
-        {
-            DrawItemsGrid(items);
-        }
-        else
-        {
-            DrawItemsList(items);
-        }
+            if (items.Count == 0)
+            {
+                ImGui.TextDisabled("No assets found.");
+            }
+            else if (EditorPreferences.Instance.AssetBrowserGridView)
+            {
+                DrawItemsGrid(items);
+            }
+            else
+            {
+                DrawItemsList(items);
+            }
 
-        // Click empty area to clear selection
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) &&
-            !ImGui.IsAnyItemHovered() &&
-            ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-        {
-            if (_renamingAssetPath != null)
-                CancelAssetRename();
-            _selectedAssets.Clear();
-            _selectionAnchor = null;
+            // Click empty area to clear selection
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) &&
+                !ImGui.IsAnyItemHovered() &&
+                ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+            {
+                if (_renamingAssetPath != null)
+                    CancelAssetRename();
+                _selectedAssets.Clear();
+                _selectionAnchor = null;
+            }
         }
+        ImGui.EndChild();
 
         _isWindowFocused = ImGui.IsWindowFocused(ImGuiFocusedFlags.ChildWindows);
 
@@ -106,40 +110,67 @@ public class AssetBrowserPanel
 
     private void DrawToolbar()
     {
-        if (ImGui.Button("Refresh"))
-        {
-            AssetDatabase.Instance.Refresh();
-            _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
-        }
+        if (ImGui.Button("\u2699##SettingsCog"))
+            ImGui.OpenPopup("AssetBrowserSettings");
 
-        ImGui.SameLine();
-        bool isGrid = EditorPreferences.Instance.AssetBrowserGridView;
-        if (ImGui.RadioButton("Grid", isGrid))
-            SetGridViewMode(true);
-
-        ImGui.SameLine();
-        if (ImGui.RadioButton("List", !isGrid))
-            SetGridViewMode(false);
-
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(80);
-        float iconScale = EditorIcons.IconScale;
-        if (ImGui.SliderFloat("##IconSize", ref iconScale, 0.5f, 3.0f, "%.1fx"))
-            EditorIcons.IconScale = iconScale;
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            EditorPreferences.Instance.SaveConfig();
+        DrawSettingsPopup();
 
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100);
         ImGui.Combo("##Filter", ref _filterIndex, FilterNames, FilterNames.Length);
 
         ImGui.SameLine();
-        if (ImGui.Button("Tag Manager"))
-            _openTagManager = true;
-
-        ImGui.SameLine();
         ImGui.SetNextItemWidth(-1);
         ImGui.InputTextWithHint("##Search", "Search assets...", ref _searchQuery, 256);
+    }
+
+    private void DrawSettingsPopup()
+    {
+        if (!ImGui.BeginPopup("AssetBrowserSettings"))
+            return;
+
+        if (ImGui.MenuItem("Refresh"))
+        {
+            AssetDatabase.Instance.Refresh();
+            _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
+        }
+
+        ImGui.Separator();
+
+        bool isGrid = EditorPreferences.Instance.AssetBrowserGridView;
+        if (ImGui.MenuItem("Grid View", (string?)null, isGrid))
+            SetGridViewMode(true);
+        if (ImGui.MenuItem("List View", (string?)null, !isGrid))
+            SetGridViewMode(false);
+
+        ImGui.Separator();
+
+        ImGui.SetNextItemWidth(80);
+        float iconScale = EditorIcons.IconScale;
+        if (ImGui.SliderFloat("Icon Size", ref iconScale, 0.5f, 3.0f, "%.1fx"))
+            EditorIcons.IconScale = iconScale;
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            EditorPreferences.Instance.SaveConfig();
+
+        ImGui.Separator();
+
+        var settings = _app.ProjectEditorSettings;
+        if (settings != null)
+        {
+            bool hideUnrecognised = settings.HideUnrecognisedAssets;
+            if (ImGui.MenuItem("Hide Unrecognised Assets", (string?)null, hideUnrecognised))
+            {
+                settings.HideUnrecognisedAssets = !hideUnrecognised;
+                settings.Save(_app.ProjectDirectory);
+            }
+        }
+
+        ImGui.Separator();
+
+        if (ImGui.MenuItem("Tag Manager"))
+            _openTagManager = true;
+
+        ImGui.EndPopup();
     }
 
     private void DrawTagFilterBar()
@@ -250,8 +281,14 @@ public class AssetBrowserPanel
             }
         }
 
+        bool hideUnrecognised = _app.ProjectEditorSettings?.HideUnrecognisedAssets ?? true;
+
         foreach (var asset in db.GetAssets(filter))
         {
+            // Hide unrecognised asset types when setting is enabled
+            if (hideUnrecognised && filter == null && asset.Type == AssetType.Unknown)
+                continue;
+
             // Search filter — matches path, filename, or any tag name
             if (hasQuery
                 && !asset.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase)
