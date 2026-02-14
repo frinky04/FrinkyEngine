@@ -939,6 +939,19 @@ public static unsafe class EngineOverlays
             RenderRuntimeCvars.TrySetScreenPercentage));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
+            "r_raylib_logs",
+            "r_raylib_logs [0|1]",
+            "Enable or disable Raylib trace log output (1=on, 0=off). Off by default.",
+            () => RaylibLogger.Enabled ? "1" : "0",
+            value =>
+            {
+                if (!TryParseBool01(value, out var enabled))
+                    return false;
+                RaylibLogger.Enabled = enabled;
+                return true;
+            }));
+
+        ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_vsync",
             "r_vsync [0|1]",
             "Toggle VSync (1=on, 0=off).",
@@ -1072,6 +1085,23 @@ public static unsafe class EngineOverlays
             {
                 var text = args.Count > 0 ? string.Join(' ', args) : string.Empty;
                 return new ConsoleExecutionResult(true, new[] { text });
+            });
+
+        ConsoleBackend.RegisterCommand("clear_log", "clear_log", "Clear all log entries.",
+            _ =>
+            {
+                FrinkyLog.Clear();
+                return new ConsoleExecutionResult(true, new[] { "Log cleared." });
+            });
+
+        ConsoleBackend.RegisterCommand("debug_print", "debug_print <text>", "Display a debug message on screen.",
+            args =>
+            {
+                if (args.Count == 0)
+                    return new ConsoleExecutionResult(false, new[] { "Usage: debug_print <text>" });
+                var text = string.Join(' ', args);
+                DebugDraw.PrintString(text);
+                return new ConsoleExecutionResult(true, new[] { $"Debug: {text}" });
             });
 
         ConsoleBackend.RegisterCommand("quit", "quit", "Exit the application.",

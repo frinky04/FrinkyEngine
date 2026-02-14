@@ -121,6 +121,32 @@ if (!UI.InputCapture.WantsKeyboard)
 
 Dynamic font sizes are available per widget — pass pixel values (e.g. `24f`) to the `fontPx` parameter. The default font size is used when `fontPx` is `0`.
 
+## Debug Screen Text
+
+`DebugDraw.PrintString()` displays temporary on-screen messages, similar to Unreal Engine's Print String node. Messages appear as a text overlay in the top-left of the viewport and automatically disappear after their duration expires.
+
+```csharp
+using FrinkyEngine.Core.Rendering;
+
+// Simple message (green, 5 seconds)
+DebugDraw.PrintString("Hello world!");
+
+// Custom color and duration
+DebugDraw.PrintString("Health low!", 3f, new System.Numerics.Vector4(1, 0.3f, 0.3f, 1));
+
+// Keyed message — replaces existing entry with the same key
+DebugDraw.PrintString($"FPS: {fps}", 0.5f, key: "fps_counter");
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `message` | required | Text to display |
+| `duration` | `5f` | Seconds to show the message |
+| `color` | green | RGBA `Vector4` (0-1 per channel) |
+| `key` | `null` | If set, replaces any existing message with the same key |
+
+**Editor-only**: Debug text renders in the editor viewport. In runtime builds, `DebugDraw.PrintString` is a no-op (no backend registered). The `debug_print` console command can also display debug text.
+
 ## Notes
 
 - The API is immediate mode — call `UI.Draw(...)` every frame you want UI visible

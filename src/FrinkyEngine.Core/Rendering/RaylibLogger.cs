@@ -14,9 +14,17 @@ public static unsafe class RaylibLogger
     [DllImport("msvcrt", CallingConvention = CallingConvention.Cdecl)]
     private static extern int vsnprintf(sbyte* buffer, nuint size, sbyte* format, sbyte* args);
 
+    /// <summary>
+    /// Whether Raylib trace log messages are forwarded to <see cref="FrinkyLog"/>. Default is <c>false</c>.
+    /// </summary>
+    public static bool Enabled { get; set; }
+
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static void TraceLogCallback(int logLevel, sbyte* text, sbyte* args)
     {
+        if (!Enabled)
+            return;
+
         sbyte* buffer = stackalloc sbyte[1024];
         vsnprintf(buffer, 1024, text, args);
         var message = new string(buffer).TrimEnd('\n', '\r');
