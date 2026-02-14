@@ -20,6 +20,12 @@ public class AssetManager
     private readonly Dictionary<TriplanarParamKey, Texture2D> _triplanarParamsTextures = new();
 
     /// <summary>
+    /// Monotonically increasing counter incremented each time an asset is invalidated.
+    /// Components can track this to detect when cached asset pointers may be stale.
+    /// </summary>
+    public int AssetGeneration { get; private set; }
+
+    /// <summary>
     /// Root directory for resolving relative asset paths (defaults to "Assets").
     /// </summary>
     public string AssetsPath { get; set; } = "Assets";
@@ -223,6 +229,8 @@ public class AssetManager
     /// <param name="relativePath">Path relative to the assets root (forward slashes are normalized).</param>
     public void InvalidateAsset(string relativePath)
     {
+        AssetGeneration++;
+
         // Normalize to forward slashes to match cache keys
         var normalized = relativePath.Replace('\\', '/');
         if (_models.Remove(normalized, out var model))

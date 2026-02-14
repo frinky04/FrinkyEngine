@@ -27,6 +27,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     // Multi-source aggregated animation entries
     private readonly List<AggregatedClip> _aggregatedClips = new();
     private int _lastSourcesHash;
+    private int _lastAssetGeneration;
 
     /// <summary>
     /// Tracks a single animation clip loaded from a specific source file.
@@ -475,12 +476,14 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         bool modelChanged = _meshRenderer.ModelVersion != _lastModelVersion;
         bool sourcesChanged = ComputeSourcesHash() != _lastSourcesHash;
+        bool assetsReloaded = AssetManager.Instance.AssetGeneration != _lastAssetGeneration;
 
-        if (modelChanged || sourcesChanged)
+        if (modelChanged || sourcesChanged || assetsReloaded)
         {
             ResetAnimationState();
             _lastModelVersion = _meshRenderer.ModelVersion;
             _lastSourcesHash = ComputeSourcesHash();
+            _lastAssetGeneration = AssetManager.Instance.AssetGeneration;
 
             if (UseMultiSource)
             {
@@ -751,6 +754,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private unsafe void SampleFramePose(Model model, ModelAnimation animation, int frame, Matrix4x4[][] target)
     {
+        if (model.MeshCount <= 0 || animation.BoneCount <= 0 || animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         Raylib.UpdateModelAnimationBones(model, animation, frame);
         CopyCurrentPoseInto(model, target);
     }
@@ -847,6 +853,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         ModelAnimation animation, int frame,
         (Vector3 t, Quaternion r, Vector3 s)[] target)
     {
+        if (animation.BoneCount <= 0 || animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         int boneCount = Math.Min(animation.BoneCount, target.Length);
         frame = Math.Clamp(frame, 0, Math.Max(0, animation.FrameCount - 1));
         var framePoses = animation.FramePoses[frame];
