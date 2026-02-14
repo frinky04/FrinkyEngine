@@ -1529,9 +1529,9 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             switch (eventType)
             {
-                case TriggerEventType.Enter: component.OnTriggerEnter(entityB); break;
-                case TriggerEventType.Stay: component.OnTriggerStay(entityB); break;
-                case TriggerEventType.Exit: component.OnTriggerExit(entityB); break;
+                case TriggerEventType.Enter: Entity.SafeInvokeLifecycle(component, "OnTriggerEnter", () => component.OnTriggerEnter(entityB)); break;
+                case TriggerEventType.Stay: Entity.SafeInvokeLifecycle(component, "OnTriggerStay", () => component.OnTriggerStay(entityB)); break;
+                case TriggerEventType.Exit: Entity.SafeInvokeLifecycle(component, "OnTriggerExit", () => component.OnTriggerExit(entityB)); break;
             }
         }
 
@@ -1541,9 +1541,9 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             switch (eventType)
             {
-                case TriggerEventType.Enter: component.OnTriggerEnter(entityA); break;
-                case TriggerEventType.Stay: component.OnTriggerStay(entityA); break;
-                case TriggerEventType.Exit: component.OnTriggerExit(entityA); break;
+                case TriggerEventType.Enter: Entity.SafeInvokeLifecycle(component, "OnTriggerEnter", () => component.OnTriggerEnter(entityA)); break;
+                case TriggerEventType.Stay: Entity.SafeInvokeLifecycle(component, "OnTriggerStay", () => component.OnTriggerStay(entityA)); break;
+                case TriggerEventType.Exit: Entity.SafeInvokeLifecycle(component, "OnTriggerExit", () => component.OnTriggerExit(entityA)); break;
             }
         }
     }
@@ -2014,9 +2014,9 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             switch (eventType)
             {
-                case CollisionEventType.Enter: component.OnCollisionEnter(infoForA); break;
-                case CollisionEventType.Stay: component.OnCollisionStay(infoForA); break;
-                case CollisionEventType.Exit: component.OnCollisionExit(infoForA); break;
+                case CollisionEventType.Enter: Entity.SafeInvokeLifecycle(component, "OnCollisionEnter", () => component.OnCollisionEnter(infoForA)); break;
+                case CollisionEventType.Stay: Entity.SafeInvokeLifecycle(component, "OnCollisionStay", () => component.OnCollisionStay(infoForA)); break;
+                case CollisionEventType.Exit: Entity.SafeInvokeLifecycle(component, "OnCollisionExit", () => component.OnCollisionExit(infoForA)); break;
             }
         }
 
@@ -2026,9 +2026,9 @@ internal sealed class PhysicsSystem : IDisposable
                 continue;
             switch (eventType)
             {
-                case CollisionEventType.Enter: component.OnCollisionEnter(infoForB); break;
-                case CollisionEventType.Stay: component.OnCollisionStay(infoForB); break;
-                case CollisionEventType.Exit: component.OnCollisionExit(infoForB); break;
+                case CollisionEventType.Enter: Entity.SafeInvokeLifecycle(component, "OnCollisionEnter", () => component.OnCollisionEnter(infoForB)); break;
+                case CollisionEventType.Stay: Entity.SafeInvokeLifecycle(component, "OnCollisionStay", () => component.OnCollisionStay(infoForB)); break;
+                case CollisionEventType.Exit: Entity.SafeInvokeLifecycle(component, "OnCollisionExit", () => component.OnCollisionExit(infoForB)); break;
             }
         }
     }
