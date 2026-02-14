@@ -22,7 +22,7 @@ This guide tracks the staged rollout for generated asset icons (textures, meshes
 - [x] Add generation status indicators (queued/generating/failed) in the UI.
 - [x] Add perf counters (queue length, ms per icon, cache hit rate) to a debug panel.
 - [ ] Add retry/backoff behavior for transient generation failures.
-- [ ] Add prefab preview support for non-model prefab renderables (primitives/custom renderables).
+- [x] Add prefab preview support for non-model prefab renderables (primitives/custom renderables).
 
 ## Phase 3: Generic Runtime/Scripting Extensibility
 

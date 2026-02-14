@@ -4,9 +4,11 @@ using System.Text;
 using System.Text.Json;
 using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Prefabs;
 using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
+using FrinkyEngine.Core.Serialization;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor;
@@ -436,45 +438,50 @@ public sealed class AssetIconService : IDisposable
             if (!bounds.HasValue)
                 return false;
 
-            var lightEntity = scene.CreateEntity("PreviewLight");
-            var light = lightEntity.AddComponent<LightComponent>();
-            light.LightType = LightType.Directional;
-            light.Intensity = 1.35f;
-            lightEntity.Transform.EulerAngles = new System.Numerics.Vector3(-35f, -35f, 0f);
-
-            var fillLightEntity = scene.CreateEntity("PreviewFill");
-            var fillLight = fillLightEntity.AddComponent<LightComponent>();
-            fillLight.LightType = LightType.Skylight;
-            fillLight.Intensity = 0.35f;
-
-            var cameraEntity = scene.CreateEntity("PreviewCamera");
-            var cameraComponent = cameraEntity.AddComponent<CameraComponent>();
-            cameraComponent.IsMain = true;
-            cameraComponent.ClearColor = new Color(26, 30, 34, 255);
-
-            var min = bounds.Value.Min;
-            var max = bounds.Value.Max;
-            var center = (min + max) * 0.5f;
-            const float fovY = 35f;
-            var viewDir = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1.05f, 0.68f, 1.0f));
-            float cameraDistance = ComputePreviewCameraDistance(min, max, center, viewDir, fovY, targetFill: 0.86f);
-            var camPos = center + viewDir * cameraDistance;
-            var camera = new Camera3D
-            {
-                Position = camPos,
-                Target = center,
-                Up = System.Numerics.Vector3.UnitY,
-                FovY = fovY,
-                Projection = CameraProjection.Perspective
-            };
-
-            renderer.Render(scene, camera, _renderTarget, isEditorMode: false);
-            return ExportRenderTarget(outputPath);
+            return RenderPreviewScene(renderer, scene, bounds.Value, outputPath);
         }
         finally
         {
             scene.Dispose();
         }
+    }
+
+    private bool RenderPreviewScene(SceneRenderer renderer, Scene scene, BoundingBox bounds, string outputPath)
+    {
+        var lightEntity = scene.CreateEntity("PreviewLight");
+        var light = lightEntity.AddComponent<LightComponent>();
+        light.LightType = LightType.Directional;
+        light.Intensity = 1.35f;
+        lightEntity.Transform.EulerAngles = new System.Numerics.Vector3(-35f, -35f, 0f);
+
+        var fillLightEntity = scene.CreateEntity("PreviewFill");
+        var fillLight = fillLightEntity.AddComponent<LightComponent>();
+        fillLight.LightType = LightType.Skylight;
+        fillLight.Intensity = 0.35f;
+
+        var cameraEntity = scene.CreateEntity("PreviewCamera");
+        var cameraComponent = cameraEntity.AddComponent<CameraComponent>();
+        cameraComponent.IsMain = true;
+        cameraComponent.ClearColor = new Color(26, 30, 34, 255);
+
+        var min = bounds.Min;
+        var max = bounds.Max;
+        var center = (min + max) * 0.5f;
+        const float fovY = 35f;
+        var viewDir = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1.05f, 0.68f, 1.0f));
+        float cameraDistance = ComputePreviewCameraDistance(min, max, center, viewDir, fovY, targetFill: 0.86f);
+        var camPos = center + viewDir * cameraDistance;
+        var camera = new Camera3D
+        {
+            Position = camPos,
+            Target = center,
+            Up = System.Numerics.Vector3.UnitY,
+            FovY = fovY,
+            Projection = CameraProjection.Perspective
+        };
+
+        renderer.Render(scene, camera, _renderTarget, isEditorMode: false);
+        return ExportRenderTarget(outputPath);
     }
 
     private static float ComputePreviewCameraDistance(
@@ -525,54 +532,70 @@ public sealed class AssetIconService : IDisposable
 
     private bool GeneratePrefabIcon(SceneRenderer renderer, string prefabAssetPath, string outputPath)
     {
-        if (!TryExtractPrefabModelPath(prefabAssetPath, out var modelAssetPath))
-            return false;
-
-        return GenerateModelIcon(renderer, modelAssetPath, outputPath);
-    }
-
-    private static bool TryExtractPrefabModelPath(string prefabAssetPath, out string modelAssetPath)
-    {
-        modelAssetPath = string.Empty;
-        if (AssetReference.HasEnginePrefix(prefabAssetPath))
+        EnsureRenderTarget();
+        if (!_hasRenderTarget)
             return false;
 
         var prefab = PrefabDatabase.Instance.Load(prefabAssetPath, resolveVariants: true);
         if (prefab?.Root == null)
             return false;
 
-        return TryExtractModelPathFromNode(prefab.Root, out modelAssetPath);
+        var scene = new Scene { Name = "AssetIconPreview" };
+        try
+        {
+            InstantiatePrefabNode(prefab.Root, scene, parent: null);
+
+            var bounds = ComputeSceneBounds(scene);
+            if (!bounds.HasValue)
+                return false;
+
+            return RenderPreviewScene(renderer, scene, bounds.Value, outputPath);
+        }
+        finally
+        {
+            scene.Dispose();
+        }
     }
 
-    private static bool TryExtractModelPathFromNode(PrefabNodeData node, out string modelAssetPath)
+    private static void InstantiatePrefabNode(PrefabNodeData node, Scene scene, TransformComponent? parent)
     {
-        modelAssetPath = string.Empty;
+        var entity = new Entity(node.Name) { Active = node.Active };
         foreach (var component in node.Components)
-        {
-            if (!component.Type.EndsWith("MeshRendererComponent", StringComparison.Ordinal))
-                continue;
-
-            if (!component.Properties.TryGetValue("ModelPath", out var modelPathElement))
-                continue;
-
-            if (modelPathElement.ValueKind != JsonValueKind.String)
-                continue;
-
-            var raw = modelPathElement.GetString();
-            if (string.IsNullOrWhiteSpace(raw))
-                continue;
-
-            modelAssetPath = raw;
-            return true;
-        }
-
+            PrefabSerializer.ApplyComponentData(entity, component);
+        scene.AddEntity(entity);
+        if (parent != null)
+            entity.Transform.SetParent(parent);
         foreach (var child in node.Children)
+            InstantiatePrefabNode(child, scene, entity.Transform);
+    }
+
+    private static BoundingBox? ComputeSceneBounds(Scene scene)
+    {
+        System.Numerics.Vector3? unionMin = null;
+        System.Numerics.Vector3? unionMax = null;
+
+        foreach (var renderable in scene.Renderables)
         {
-            if (TryExtractModelPathFromNode(child, out modelAssetPath))
-                return true;
+            var bb = renderable.GetWorldBoundingBox();
+            if (!bb.HasValue)
+                continue;
+
+            if (unionMin.HasValue)
+            {
+                unionMin = System.Numerics.Vector3.Min(unionMin.Value, bb.Value.Min);
+                unionMax = System.Numerics.Vector3.Max(unionMax!.Value, bb.Value.Max);
+            }
+            else
+            {
+                unionMin = bb.Value.Min;
+                unionMax = bb.Value.Max;
+            }
         }
 
-        return false;
+        if (!unionMin.HasValue)
+            return null;
+
+        return new BoundingBox(unionMin.Value, unionMax!.Value);
     }
 
     private bool ExportRenderTarget(string outputPath)

@@ -64,7 +64,6 @@ When adding a new system or feature, evaluate whether it benefits from console c
 
 ## Current Workarounds
 
-- **Asset icon generation (prefabs)** — current prefab preview generation uses the first `MeshRendererComponent.ModelPath` discovered in prefab data (including variant-resolved prefab data). Prefabs without a mesh renderer currently fall back to static type icons and are tracked for a later phase.
 - **Asset icon generation cadence** — icon generation is intentionally throttled in `AssetIconService` (`MinJobIntervalSeconds = 0.2`) to keep editor frame impact low; adjust this constant if startup icon warmup speed is preferred over smoother frame pacing.
 
 ## Editor Keybinds
