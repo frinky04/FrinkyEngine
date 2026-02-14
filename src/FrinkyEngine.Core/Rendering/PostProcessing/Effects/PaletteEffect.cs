@@ -15,7 +15,7 @@ public class PaletteEffect : PostProcessEffect
     /// <summary>
     /// Asset reference to a .pal file (JASC-PAL format).
     /// </summary>
-    public string PalettePath { get; set; } = "";
+    public AssetReference PalettePath { get; set; } = new("");
 
     private Shader _shader;
     private int _paletteSizeLoc = -1;
@@ -45,7 +45,7 @@ public class PaletteEffect : PostProcessEffect
         if (!IsInitialized) return;
 
         // Reload palette if path changed
-        if (_loadedPalettePath != PalettePath)
+        if (_loadedPalettePath != PalettePath.Path)
             LoadPalette();
 
         if (_paletteTexId == 0 || _paletteColorCount == 0) return;
@@ -84,23 +84,24 @@ public class PaletteEffect : PostProcessEffect
 
     private void LoadPalette()
     {
-        _loadedPalettePath = PalettePath;
+        var path = PalettePath.Path;
+        _loadedPalettePath = path;
         UnloadPaletteTexture();
 
-        if (string.IsNullOrEmpty(PalettePath)) return;
+        if (PalettePath.IsEmpty) return;
 
-        var dbPath = AssetDatabase.Instance.ResolveAssetPath(PalettePath) ?? PalettePath;
+        var dbPath = AssetDatabase.Instance.ResolveAssetPath(path) ?? path;
         var fullPath = AssetManager.Instance.ResolvePath(dbPath);
         if (!File.Exists(fullPath))
         {
-            FrinkyLog.Warning($"PaletteEffect: palette file not found: {PalettePath}");
+            FrinkyLog.Warning($"PaletteEffect: palette file not found: {path}");
             return;
         }
 
         var colors = ParseJascPal(fullPath);
         if (colors == null || colors.Length == 0)
         {
-            FrinkyLog.Warning($"PaletteEffect: failed to parse palette: {PalettePath}");
+            FrinkyLog.Warning($"PaletteEffect: failed to parse palette: {path}");
             return;
         }
 
@@ -126,7 +127,7 @@ public class PaletteEffect : PostProcessEffect
         Raylib.SetTextureWrap(tex, TextureWrap.Clamp);
         _paletteTexId = tex.Id;
 
-        FrinkyLog.Info($"PaletteEffect: loaded {_paletteColorCount} colors from {PalettePath}");
+        FrinkyLog.Info($"PaletteEffect: loaded {_paletteColorCount} colors from {path}");
     }
 
     private void UnloadPaletteTexture()
