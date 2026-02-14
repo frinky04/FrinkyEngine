@@ -137,6 +137,10 @@ public static class ComponentDrawerRegistry
         DrawInspectorMessages(component);
         DrawInspectorButtons(component);
         DrawTransientMessages(component);
+
+        // Custom post-draw sections for specific component types
+        if (component is SkinnedMeshAnimatorComponent animator)
+            DrawAnimationSourcesPreview(animator);
     }
 
     private static void ApplyLayoutAttributes(PropertyInfo prop, ref string? lastSection, ref string? lastHeader)
@@ -2584,5 +2588,60 @@ public static class ComponentDrawerRegistry
         }
 
         return new Vector4(1, 1, 1, 1);
+    }
+
+    // ─── Animation Sources Preview ──────────────────────────────────────
+
+    private static void DrawAnimationSourcesPreview(SkinnedMeshAnimatorComponent animator)
+    {
+        if (animator.AnimationSources.Count == 0)
+            return;
+
+        var sourceInfo = animator.GetAnimationSourceInfo();
+        if (sourceInfo.Count == 0)
+            return;
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
+        if (!ImGui.TreeNodeEx("Loaded Clips by Source", flags))
+            return;
+
+        foreach (var (sourcePath, clipNames, valid) in sourceInfo)
+        {
+            var fileName = Path.GetFileName(sourcePath);
+            bool hasInvalid = valid.Any(v => !v);
+            var sourceLabel = hasInvalid ? $"\u26a0 {fileName}" : fileName;
+
+            ImGui.PushID(sourcePath);
+            if (ImGui.TreeNodeEx(sourceLabel, ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth))
+            {
+                if (hasInvalid)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.2f, 1f));
+                    ImGui.TextWrapped("Skeleton mismatch — some clips may not play correctly.");
+                    ImGui.PopStyleColor();
+                }
+
+                for (int i = 0; i < clipNames.Count; i++)
+                {
+                    var prefix = valid[i] ? "  " : "\u26a0 ";
+                    if (!valid[i])
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0.2f, 1f));
+
+                    ImGui.BulletText($"{prefix}{clipNames[i]}");
+
+                    if (!valid[i])
+                        ImGui.PopStyleColor();
+                }
+
+                ImGui.TreePop();
+            }
+            ImGui.PopID();
+        }
+
+        ImGui.TreePop();
     }
 }

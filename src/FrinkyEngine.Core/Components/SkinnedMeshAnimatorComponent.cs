@@ -11,7 +11,7 @@ namespace FrinkyEngine.Core.Components;
 
 /// <summary>
 /// Plays skeletal animation clips for a sibling <see cref="MeshRendererComponent"/> using GPU skinning.
-/// Supports frame interpolation and can preview in editor viewport rendering.
+/// Supports frame interpolation, multiple animation sources, and can preview in editor viewport rendering.
 /// </summary>
 [ComponentCategory("Rendering")]
 [ComponentDisplayName("Skinned Mesh Animator")]
@@ -23,6 +23,32 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private int _lastModelVersion;
     private unsafe ModelAnimation* _animations;
     private int _animationCount;
+
+    // Multi-source aggregated animation entries
+    private readonly List<AggregatedClip> _aggregatedClips = new();
+    private int _lastSourcesHash;
+    private int _lastAssetGeneration;
+
+    /// <summary>
+    /// Tracks a single animation clip loaded from a specific source file.
+    /// </summary>
+    private readonly struct AggregatedClip
+    {
+        public readonly string SourcePath;
+        public readonly int SourceLocalIndex;
+        public readonly string ClipName;
+        public readonly ModelAnimation* Pointer;
+        public readonly bool IsValid;
+
+        public AggregatedClip(string sourcePath, int sourceLocalIndex, string clipName, ModelAnimation* pointer, bool isValid)
+        {
+            SourcePath = sourcePath;
+            SourceLocalIndex = sourceLocalIndex;
+            ClipName = clipName;
+            Pointer = pointer;
+            IsValid = isValid;
+        }
+    }
 
     private int _clipIndex;
     private float _playheadFrames;
@@ -48,6 +74,23 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private (Vector3 t, Quaternion r, Vector3 s)[]? _ikLocalPose;
     private int[]? _ikParentIndices;
     private Matrix4x4[]? _ikWorldMatrices;
+
+    /// <summary>
+    /// Additional .glb files to load animation clips from. When empty, animations are loaded
+    /// from the mesh file only. When populated, animations are loaded from all listed sources
+    /// and merged into the available clip list. Each source is validated against the model's
+    /// skeleton at load time.
+    /// </summary>
+    [AssetFilter(AssetType.Model)]
+    [InspectorOnChanged(nameof(OnAnimationSourcesChanged))]
+    public List<AssetReference> AnimationSources { get; set; } = new();
+
+    /// <summary>
+    /// Whether to load animation clips embedded in the mesh file.
+    /// When <c>true</c> (default), clips from the mesh file are included in the available clip list.
+    /// When <c>false</c>, only clips from <see cref="AnimationSources"/> are used.
+    /// </summary>
+    public bool UseEmbeddedAnimations { get; set; } = true;
 
     /// <summary>
     /// Whether playback starts automatically once a valid clip is available.
@@ -97,7 +140,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     /// Number of animation actions loaded for the current model.
     /// </summary>
     [InspectorReadOnly]
-    public int ActionCount => _animationCount;
+    public int ActionCount => UseMultiSource ? _aggregatedClips.Count : _animationCount;
 
     /// <summary>
     /// Frame count of the currently selected animation clip.
@@ -108,7 +151,8 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         get
         {
             int clip = ResolveClipIndex();
-            return clip < 0 ? 0 : _animations[clip].FrameCount;
+            if (clip < 0) return 0;
+            return ResolveAnimation(clip).FrameCount;
         }
     }
 
@@ -131,6 +175,118 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         Playing = false;
         ResetPlayhead();
         ApplyBindPose();
+    }
+
+    /// <summary>
+    /// Plays the animation clip with the given name. Searches across all loaded sources.
+    /// Returns <c>true</c> if the clip was found and playback started; <c>false</c> otherwise.
+    /// </summary>
+    /// <param name="clipName">The name of the animation clip to play.</param>
+    public bool PlayAnimation(string clipName)
+    {
+        EnsureMeshRendererReference();
+        if (_meshRenderer != null)
+            EnsureAnimationState();
+
+        if (UseMultiSource)
+        {
+            for (int i = 0; i < _aggregatedClips.Count; i++)
+            {
+                if (string.Equals(_aggregatedClips[i].ClipName, clipName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ClipIndex = i + 1; // +1 because index 0 = "(none)"
+                    Playing = true;
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _animationCount; i++)
+            {
+                var name = GetAnimationName(i);
+                if (string.Equals(name, clipName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ClipIndex = i + 1;
+                    Playing = true;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the names of all available animation clips across all loaded sources.
+    /// </summary>
+    public string[] GetAnimationNames()
+    {
+        EnsureMeshRendererReference();
+        if (_meshRenderer != null)
+            EnsureAnimationState();
+
+        if (UseMultiSource)
+            return _aggregatedClips.Select(c => c.ClipName).ToArray();
+
+        var names = new string[_animationCount];
+        for (int i = 0; i < _animationCount; i++)
+            names[i] = GetAnimationName(i);
+        return names;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if an animation clip with the given name is available.
+    /// </summary>
+    /// <param name="clipName">The clip name to search for.</param>
+    public bool HasAnimation(string clipName)
+    {
+        EnsureMeshRendererReference();
+        if (_meshRenderer != null)
+            EnsureAnimationState();
+
+        if (UseMultiSource)
+            return _aggregatedClips.Any(c => string.Equals(c.ClipName, clipName, StringComparison.OrdinalIgnoreCase));
+
+        for (int i = 0; i < _animationCount; i++)
+        {
+            if (string.Equals(GetAnimationName(i), clipName, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Adds a new animation source at runtime. The path should be an asset-relative path
+    /// to a .glb file containing animations compatible with this model's skeleton.
+    /// </summary>
+    /// <param name="path">Asset-relative path to the animation source file.</param>
+    public void AddAnimationSource(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        AnimationSources.Add(new AssetReference(path));
+        InvalidateAnimationSources();
+    }
+
+    /// <summary>
+    /// Removes an animation source at runtime by path.
+    /// Returns <c>true</c> if the source was found and removed.
+    /// </summary>
+    /// <param name="path">Asset-relative path of the source to remove.</param>
+    public bool RemoveAnimationSource(string path)
+    {
+        for (int i = AnimationSources.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(AnimationSources[i].Path, path, StringComparison.OrdinalIgnoreCase))
+            {
+                AnimationSources.RemoveAt(i);
+                InvalidateAnimationSources();
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <inheritdoc />
@@ -230,8 +386,8 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         unsafe
         {
-            var animation = _animations[clip];
-            if (animation.FrameCount <= 0 || !Raylib.IsModelAnimationValid(model, animation))
+            var animation = ResolveAnimation(clip);
+            if (animation.FrameCount <= 0 || model.MeshCount <= 0 || !Raylib.IsModelAnimationValid(model, animation))
                 return;
 
             var speed = float.IsFinite(PlaybackSpeed) ? Math.Max(0f, PlaybackSpeed) : 1f;
@@ -318,16 +474,38 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public ReadOnlySpan<(Vector3 t, Quaternion r, Vector3 s)> CurrentModelPose =>
         _currentModelPose is not null ? _currentModelPose.AsSpan() : ReadOnlySpan<(Vector3, Quaternion, Vector3)>.Empty;
 
+    private bool UseMultiSource => AnimationSources.Count > 0 || !UseEmbeddedAnimations;
+
     private bool EnsureAnimationState()
     {
         if (_meshRenderer == null || !_meshRenderer.RenderModel.HasValue)
             return false;
 
-        if (_meshRenderer.ModelVersion != _lastModelVersion)
+        bool modelChanged = _meshRenderer.ModelVersion != _lastModelVersion;
+        bool sourcesChanged = ComputeSourcesHash() != _lastSourcesHash;
+        bool assetsReloaded = AssetManager.Instance.AssetGeneration != _lastAssetGeneration;
+
+        if (modelChanged || sourcesChanged || assetsReloaded)
         {
             ResetAnimationState();
             _lastModelVersion = _meshRenderer.ModelVersion;
-            _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
+            _lastSourcesHash = ComputeSourcesHash();
+            _lastAssetGeneration = AssetManager.Instance.AssetGeneration;
+
+            if (UseMultiSource)
+            {
+                RebuildAggregatedClips();
+            }
+            else
+            {
+                _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
+            }
+
+            // Clamp clip index to valid range after clip list changes
+            int maxIndex = UseMultiSource ? _aggregatedClips.Count : _animationCount;
+            if (_clipIndex > maxIndex)
+                _clipIndex = maxIndex > 0 ? 1 : 0;
+
             _playbackInitialized = false;
         }
 
@@ -340,6 +518,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         if (!_playbackInitialized)
         {
+            // Auto-select the first clip when PlayAutomatically is true and no clip is selected
+            int totalClips = UseMultiSource ? _aggregatedClips.Count : _animationCount;
+            if (PlayAutomatically && _clipIndex == 0 && totalClips > 0)
+                _clipIndex = 1; // index 1 = first real clip (index 0 = "(none)")
+
             Playing = PlayAutomatically;
             _playbackInitialized = true;
         }
@@ -347,10 +530,15 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         int clip = ResolveClipIndex();
         if (clip >= 0)
         {
-            unsafe
+            if (UseMultiSource)
+            {
+                if (_aggregatedClips[clip].IsValid)
+                    return true;
+            }
+            else
             {
                 var animation = _animations[clip];
-                if (Raylib.IsModelAnimationValid(model, animation))
+                if (model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, animation))
                     return true;
             }
         }
@@ -364,10 +552,130 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         return false;
     }
 
+    private void RebuildAggregatedClips()
+    {
+        _aggregatedClips.Clear();
+
+        if (_meshRenderer == null || !_meshRenderer.RenderModel.HasValue)
+            return;
+
+        var model = _meshRenderer.RenderModel.Value;
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Load embedded animations from the mesh file first
+        if (UseEmbeddedAnimations)
+        {
+            _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
+            if (_animations != null && _animationCount > 0)
+            {
+                for (int i = 0; i < _animationCount; i++)
+                {
+                    var anim = _animations[i];
+                    bool valid = model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, anim);
+                    var rawName = ExtractClipName(anim, i);
+
+                    usedNames.Add(rawName);
+                    _aggregatedClips.Add(new AggregatedClip(
+                        _meshRenderer.ModelPath.Path,
+                        i,
+                        rawName,
+                        &_animations[i],
+                        valid));
+                }
+            }
+        }
+
+        // Append clips from external animation sources
+        foreach (var source in AnimationSources)
+        {
+            if (source.IsEmpty) continue;
+
+            var anims = AssetManager.Instance.LoadModelAnimations(source.Path, out int count);
+            if (anims == null || count == 0) continue;
+
+            var sourceFileName = Path.GetFileNameWithoutExtension(source.Path);
+
+            for (int i = 0; i < count; i++)
+            {
+                var anim = anims[i];
+                bool valid = model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, anim);
+
+                if (!valid)
+                {
+                    FrinkyLog.Warning(
+                        $"Animation source '{source.Path}' clip {i} has incompatible skeleton for model '{_meshRenderer.ModelPath.Path}'");
+                }
+
+                var clipName = DeduplicateClipName(ExtractClipName(anim, i), sourceFileName, usedNames);
+
+                _aggregatedClips.Add(new AggregatedClip(
+                    source.Path,
+                    i,
+                    clipName,
+                    &anims[i],
+                    valid));
+            }
+        }
+    }
+
+    private static unsafe string ExtractClipName(ModelAnimation anim, int index)
+    {
+        var name = new string(anim.Name, 0, 32).TrimEnd('\0');
+        return string.IsNullOrWhiteSpace(name) ? $"Action {index}" : name;
+    }
+
+    private static string DeduplicateClipName(string rawName, string sourceFileName, HashSet<string> usedNames)
+    {
+        if (usedNames.Add(rawName))
+            return rawName;
+
+        var prefixed = $"{sourceFileName}/{rawName}";
+        if (usedNames.Add(prefixed))
+            return prefixed;
+
+        int suffix = 2;
+        string candidate;
+        do
+        {
+            candidate = $"{prefixed} ({suffix})";
+            suffix++;
+        } while (!usedNames.Add(candidate));
+        return candidate;
+    }
+
+    private int ComputeSourcesHash()
+    {
+        var hash = new HashCode();
+        hash.Add(UseEmbeddedAnimations);
+        foreach (var source in AnimationSources)
+            hash.Add(source.Path ?? "", StringComparer.OrdinalIgnoreCase);
+        return hash.ToHashCode();
+    }
+
+    private void InvalidateAnimationSources()
+    {
+        _lastSourcesHash = 0;
+    }
+
+    private void OnAnimationSourcesChanged()
+    {
+        InvalidateAnimationSources();
+        ResetPlayhead();
+    }
+
     private int ResolveClipIndex()
     {
         // _clipIndex 0 = "(none)" dropdown entry → resolved clip -1
         int resolved = _clipIndex - 1;
+
+        if (UseMultiSource)
+        {
+            if (_aggregatedClips.Count <= 0)
+                return -1;
+            if (resolved < 0)
+                return -1;
+            return Math.Clamp(resolved, 0, _aggregatedClips.Count - 1);
+        }
 
         if (_animations == null || _animationCount <= 0)
             return -1;
@@ -376,6 +684,13 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             return -1;
 
         return Math.Clamp(resolved, 0, _animationCount - 1);
+    }
+
+    private ModelAnimation ResolveAnimation(int clip)
+    {
+        if (UseMultiSource)
+            return *_aggregatedClips[clip].Pointer;
+        return _animations[clip];
     }
 
     private void CaptureBindPoseIfNeeded(Model model)
@@ -447,6 +762,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private unsafe void SampleFramePose(Model model, ModelAnimation animation, int frame, Matrix4x4[][] target)
     {
+        if (model.MeshCount <= 0 || animation.BoneCount <= 0 || animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         Raylib.UpdateModelAnimationBones(model, animation, frame);
         CopyCurrentPoseInto(model, target);
     }
@@ -543,6 +861,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         ModelAnimation animation, int frame,
         (Vector3 t, Quaternion r, Vector3 s)[] target)
     {
+        if (animation.BoneCount <= 0 || animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         int boneCount = Math.Min(animation.BoneCount, target.Length);
         frame = Math.Clamp(frame, 0, Math.Max(0, animation.FrameCount - 1));
         var framePoses = animation.FramePoses[frame];
@@ -769,6 +1090,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private unsafe void CaptureInterpolatedModelPose(Model model, ModelAnimation animation, int frameA, int frameB, float alpha)
     {
+        if (animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         int boneCount = Math.Min(model.BoneCount, animation.BoneCount);
         if (boneCount <= 0)
         {
@@ -812,6 +1136,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     {
         _animations = null;
         _animationCount = 0;
+        _aggregatedClips.Clear();
         ResetPlayhead();
         ResetPoseBuffersOnly();
     }
@@ -845,6 +1170,13 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private string GetAnimationName(int index)
     {
+        if (UseMultiSource)
+        {
+            if (index < 0 || index >= _aggregatedClips.Count)
+                return "(none)";
+            return _aggregatedClips[index].ClipName;
+        }
+
         if (index < 0 || _animations == null || index >= _animationCount)
             return "(none)";
 
@@ -854,13 +1186,48 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private string[] GetActionNames()
     {
+        if (UseMultiSource)
+        {
+            if (_aggregatedClips.Count <= 0)
+                return ["(none)"];
+
+            var names = new string[_aggregatedClips.Count + 1];
+            names[0] = "(none)";
+            for (int i = 0; i < _aggregatedClips.Count; i++)
+                names[i + 1] = _aggregatedClips[i].ClipName;
+            return names;
+        }
+
         if (_animationCount <= 0 || _animations == null)
             return ["(none)"];
 
-        var names = new string[_animationCount + 1];
-        names[0] = "(none)";
+        var result = new string[_animationCount + 1];
+        result[0] = "(none)";
         for (int i = 0; i < _animationCount; i++)
-            names[i + 1] = GetAnimationName(i);
-        return names;
+            result[i + 1] = GetAnimationName(i);
+        return result;
+    }
+
+    /// <summary>
+    /// Returns information about all loaded animation clips, grouped by source file.
+    /// Each entry contains the source path and the clip names loaded from that source.
+    /// </summary>
+    public IReadOnlyList<(string SourcePath, IReadOnlyList<string> ClipNames, IReadOnlyList<bool> Valid)> GetAnimationSourceInfo()
+    {
+        if (!UseMultiSource)
+            return Array.Empty<(string, IReadOnlyList<string>, IReadOnlyList<bool>)>();
+
+        var result = new List<(string, IReadOnlyList<string>, IReadOnlyList<bool>)>();
+        var grouped = _aggregatedClips
+            .GroupBy(c => c.SourcePath, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in grouped)
+        {
+            var clipNames = group.Select(c => c.ClipName).ToList();
+            var valid = group.Select(c => c.IsValid).ToList();
+            result.Add((group.Key, clipNames, valid));
+        }
+
+        return result;
     }
 }
