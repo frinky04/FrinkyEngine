@@ -15,6 +15,7 @@ public class PaletteEffect : PostProcessEffect
     /// <summary>
     /// Asset reference to a .pal file (JASC-PAL format).
     /// </summary>
+    [AssetFilter(AssetType.Palette)]
     public AssetReference PalettePath { get; set; } = new("");
 
     private Shader _shader;
