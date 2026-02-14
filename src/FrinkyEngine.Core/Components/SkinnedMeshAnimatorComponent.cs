@@ -548,7 +548,6 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private void RebuildAggregatedClips()
     {
         _aggregatedClips.Clear();
-        _lastSourcesHash = ComputeSourcesHash();
 
         if (_meshRenderer == null || !_meshRenderer.RenderModel.HasValue)
             return;
@@ -566,10 +565,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                 {
                     var anim = _animations[i];
                     bool valid = model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, anim);
-
-                    var rawName = new string(anim.Name, 0, 32).TrimEnd('\0');
-                    if (string.IsNullOrWhiteSpace(rawName))
-                        rawName = $"Action {i}";
+                    var rawName = ExtractClipName(anim, i);
 
                     usedNames.Add(rawName);
                     _aggregatedClips.Add(new AggregatedClip(
@@ -603,27 +599,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                         $"Animation source '{source.Path}' clip {i} has incompatible skeleton for model '{_meshRenderer.ModelPath.Path}'");
                 }
 
-                var rawName = new string(anim.Name, 0, 32).TrimEnd('\0');
-                if (string.IsNullOrWhiteSpace(rawName))
-                    rawName = $"Action {i}";
-
-                // Handle name collisions by prefixing with source filename
-                var clipName = rawName;
-                if (!usedNames.Add(clipName))
-                {
-                    clipName = $"{sourceFileName}/{rawName}";
-                    if (!usedNames.Add(clipName))
-                    {
-                        int suffix = 2;
-                        string candidate;
-                        do
-                        {
-                            candidate = $"{clipName} ({suffix})";
-                            suffix++;
-                        } while (!usedNames.Add(candidate));
-                        clipName = candidate;
-                    }
-                }
+                var clipName = DeduplicateClipName(ExtractClipName(anim, i), sourceFileName, usedNames);
 
                 _aggregatedClips.Add(new AggregatedClip(
                     source.Path,
@@ -633,6 +609,31 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
                     valid));
             }
         }
+    }
+
+    private static unsafe string ExtractClipName(ModelAnimation anim, int index)
+    {
+        var name = new string(anim.Name, 0, 32).TrimEnd('\0');
+        return string.IsNullOrWhiteSpace(name) ? $"Action {index}" : name;
+    }
+
+    private static string DeduplicateClipName(string rawName, string sourceFileName, HashSet<string> usedNames)
+    {
+        if (usedNames.Add(rawName))
+            return rawName;
+
+        var prefixed = $"{sourceFileName}/{rawName}";
+        if (usedNames.Add(prefixed))
+            return prefixed;
+
+        int suffix = 2;
+        string candidate;
+        do
+        {
+            candidate = $"{prefixed} ({suffix})";
+            suffix++;
+        } while (!usedNames.Add(candidate));
+        return candidate;
     }
 
     private int ComputeSourcesHash()
@@ -1082,6 +1083,9 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
     private unsafe void CaptureInterpolatedModelPose(Model model, ModelAnimation animation, int frameA, int frameB, float alpha)
     {
+        if (animation.FrameCount <= 0 || animation.FramePoses == null)
+            return;
+
         int boneCount = Math.Min(model.BoneCount, animation.BoneCount);
         if (boneCount <= 0)
         {
