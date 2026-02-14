@@ -64,7 +64,7 @@ public class KeybindManager
             [EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true),
             [EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true),
             [EditorAction.FrameSelected] = new Keybind(ImGuiKey.F),
-            [EditorAction.ToggleBonePreview] = new Keybind(ImGuiKey.F9),
+            [EditorAction.ToggleBonePreview] = new Keybind(ImGuiKey.F10),
         };
     }
 

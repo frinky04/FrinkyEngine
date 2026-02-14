@@ -83,7 +83,7 @@ Read-only inspector fields show the current `ActionName`, `ActionCount`, and `Fr
 
 ### Bone Preview
 
-Press `F9` (or **View > Bone Preview**) to toggle a viewport overlay that draws bone joints as wireframe spheres and parent-child connections as lines for all skinned mesh entities.
+Press `F10` (or **View > Bone Preview**) to toggle a viewport overlay that draws bone joints as wireframe spheres and parent-child connections as lines for all skinned mesh entities.
 
 ### How It Works
 

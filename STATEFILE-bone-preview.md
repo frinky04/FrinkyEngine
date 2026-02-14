@@ -6,7 +6,7 @@
 1. Add `ToggleBonePreview` to `EditorAction` enum
 2. Add `IsBonePreviewEnabled` property + `ToggleBonePreview()` to `EditorApplication`
 3. Add `ShowBonePreview` to `EditorProjectSettings` (persist, clone, normalize, default)
-4. Register keybind (F9) and action in `EditorApplication.RegisterKeybindActions()`
+4. Register keybind (F10) and action in `EditorApplication.RegisterKeybindActions()`
 5. Whitelist `ToggleBonePreview` in `KeybindManager.CanProcessActionInCurrentMode()`
 6. Add menu item in `MenuBar` under View menu
 7. Draw bones in `EditorGizmos` (new `DrawBones` method)

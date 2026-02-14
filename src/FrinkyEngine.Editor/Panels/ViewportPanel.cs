@@ -116,6 +116,8 @@ public class ViewportPanel
                 if (_app.CurrentScene != null)
                 {
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
+                    if (!isEditorMode || selectedEntities.Count == 0)
+                        _selectedInspectorGizmo = -1;
                     _cachedGizmoTargets = isEditorMode ? EditorGizmos.CollectGizmoTargets(selectedEntities) : null;
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     var textureToDisplay = _renderTexture;
@@ -223,21 +225,27 @@ public class ViewportPanel
                     if (isEditorMode)
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
+                    bool entityGizmoActive = isEditorMode && _selectedInspectorGizmo < 0;
+
                     // Draw ImGuizmo overlay — skip the entity transform gizmo while an inspector gizmo is selected
-                    if (isEditorMode && _selectedInspectorGizmo < 0)
+                    if (entityGizmoActive)
                         gizmo.DrawAndUpdate(camera, selectedEntities, selected, imageScreenPos, new Vector2(w, h));
 
-                    // Draw translate handle for the selected inspector gizmo target (if any)
-                    if (isEditorMode && !gizmo.IsDragging)
+                    // Draw translate handle for the selected inspector gizmo target (if any).
+                    // Do not gate this on gizmo.IsDragging: ImGuizmo.IsUsing() is global state.
+                    if (isEditorMode)
                         DrawSelectedInspectorGizmoHandle(camera, _cachedGizmoTargets!, imageScreenPos, new Vector2(w, h));
 
                     // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                     _isHovered = ImGui.IsWindowHovered();
                     if (_isHovered && !toolbarHovered && isEditorMode)
                     {
+                        bool entityGizmoDragging = entityGizmoActive && gizmo.IsDragging;
+                        bool entityGizmoHovered = entityGizmoActive && gizmo.HoveredAxis >= 0;
+
                         if (Raylib.IsMouseButtonPressed(MouseButton.Left)
-                            && !gizmo.IsDragging
-                            && gizmo.HoveredAxis < 0
+                            && !entityGizmoDragging
+                            && !entityGizmoHovered
                             && !_isInspectorGizmoDragging
                             && !Raylib.IsMouseButtonDown(MouseButton.Right))
                         {

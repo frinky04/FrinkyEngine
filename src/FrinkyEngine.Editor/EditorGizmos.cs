@@ -358,6 +358,8 @@ public static class EditorGizmos
 
     public static unsafe void DrawBones(Core.Scene.Scene scene)
     {
+        // Flush queued geometry so depth-state changes apply only to bone overlay draws.
+        Rlgl.DrawRenderBatchActive();
         Rlgl.DisableDepthTest();
 
         foreach (var entity in scene.Entities)
@@ -406,6 +408,8 @@ public static class EditorGizmos
             }
         }
 
+        // Flush bone overlay before restoring default depth state.
+        Rlgl.DrawRenderBatchActive();
         Rlgl.EnableDepthTest();
     }
 
