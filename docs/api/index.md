@@ -4,6 +4,24 @@
 
 [FrinkyMath](./frinkyengine.core.frinkymath)
 
+## FrinkyEngine.Core.Animation.IK
+
+[BoneHierarchy](./frinkyengine.core.animation.ik.bonehierarchy)
+
+[FABRIKSolver](./frinkyengine.core.animation.ik.fabriksolver)
+
+[IKMath](./frinkyengine.core.animation.ik.ikmath)
+
+[IKSolver](./frinkyengine.core.animation.ik.iksolver)
+
+[IKTargetSpace](./frinkyengine.core.animation.ik.iktargetspace)
+
+[LocalAxis](./frinkyengine.core.animation.ik.localaxis)
+
+[LookAtIKSolver](./frinkyengine.core.animation.ik.lookatiksolver)
+
+[TwoBoneIKSolver](./frinkyengine.core.animation.ik.twoboneiksolver)
+
 ## FrinkyEngine.Core.Assets
 
 [AssetDatabase](./frinkyengine.core.assets.assetdatabase)
@@ -92,6 +110,8 @@
 
 [CylinderPrimitive](./frinkyengine.core.components.cylinderprimitive)
 
+[InverseKinematicsComponent](./frinkyengine.core.components.inversekinematicscomponent)
+
 [LightComponent](./frinkyengine.core.components.lightcomponent)
 
 [LightType](./frinkyengine.core.components.lighttype)
@@ -116,11 +136,27 @@
 
 [SimplePlayerInputComponent](./frinkyengine.core.components.simpleplayerinputcomponent)
 
+[SkinnedMeshAnimatorComponent](./frinkyengine.core.components.skinnedmeshanimatorcomponent)
+
 [SphereColliderComponent](./frinkyengine.core.components.spherecollidercomponent)
 
 [SpherePrimitive](./frinkyengine.core.components.sphereprimitive)
 
 [TransformComponent](./frinkyengine.core.components.transformcomponent)
+
+## FrinkyEngine.Core.Coroutines
+
+[Coroutine](./frinkyengine.core.coroutines.coroutine)
+
+[WaitForSeconds](./frinkyengine.core.coroutines.waitforseconds)
+
+[WaitForSecondsRealtime](./frinkyengine.core.coroutines.waitforsecondsrealtime)
+
+[WaitUntil](./frinkyengine.core.coroutines.waituntil)
+
+[WaitWhile](./frinkyengine.core.coroutines.waitwhile)
+
+[YieldInstruction](./frinkyengine.core.coroutines.yieldinstruction)
 
 ## FrinkyEngine.Core.ECS
 
@@ -138,7 +174,11 @@
 
 [InspectorButtonAttribute](./frinkyengine.core.ecs.inspectorbuttonattribute)
 
+[InspectorDropdownAttribute](./frinkyengine.core.ecs.inspectordropdownattribute)
+
 [InspectorFixedListSizeAttribute](./frinkyengine.core.ecs.inspectorfixedlistsizeattribute)
+
+[InspectorGizmoAttribute](./frinkyengine.core.ecs.inspectorgizmoattribute)
 
 [InspectorHeaderAttribute](./frinkyengine.core.ecs.inspectorheaderattribute)
 
@@ -186,11 +226,21 @@
 
 ## FrinkyEngine.Core.Physics
 
+[CollisionInfo](./frinkyengine.core.physics.collisioninfo)
+
+[Physics](./frinkyengine.core.physics.physics)
+
 [PhysicsFrameStats](./frinkyengine.core.physics.physicsframestats)
 
 [PhysicsProjectSettings](./frinkyengine.core.physics.physicsprojectsettings)
 
 [PhysicsSettings](./frinkyengine.core.physics.physicssettings)
+
+[RaycastHit](./frinkyengine.core.physics.raycasthit)
+
+[RaycastParams](./frinkyengine.core.physics.raycastparams)
+
+[ShapeCastHit](./frinkyengine.core.physics.shapecasthit)
 
 ## FrinkyEngine.Core.Physics.Characters
 
@@ -227,6 +277,8 @@
 [PrefabComponentOverrideData](./frinkyengine.core.prefabs.prefabcomponentoverridedata)
 
 [PrefabInstanceMetadata](./frinkyengine.core.prefabs.prefabinstancemetadata)
+
+[PrefabInstantiator](./frinkyengine.core.prefabs.prefabinstantiator)
 
 [PrefabJson](./frinkyengine.core.prefabs.prefabjson)
 

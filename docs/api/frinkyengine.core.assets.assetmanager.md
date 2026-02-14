@@ -120,6 +120,66 @@ Path relative to the assets root.
 Model<br>
 The loaded .
 
+### **LoadModelUnique(String)**
+
+Loads a unique 3D model instance from the assets directory without using the shared model cache.
+
+```csharp
+public Model LoadModelUnique(string relativePath)
+```
+
+#### Parameters
+
+`relativePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Path relative to the assets root.
+
+#### Returns
+
+Model<br>
+The loaded .
+
+### **LoadModelAnimations(String, Int32&)**
+
+Loads skeletal animation clips for a model and caches them by asset path.
+
+```csharp
+public ModelAnimation* LoadModelAnimations(string relativePath, Int32& animationCount)
+```
+
+#### Parameters
+
+`relativePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Path relative to the assets root.
+
+`animationCount` [Int32&](https://docs.microsoft.com/en-us/dotnet/api/system.int32&)<br>
+Receives the number of loaded clips.
+
+#### Returns
+
+ModelAnimation*<br>
+Pointer to cached animation clips, or `null` when unavailable.
+
+### **ModelHasAnimations(String, Int32&)**
+
+Checks whether a model has one or more skeletal animation clips.
+
+```csharp
+public bool ModelHasAnimations(string relativePath, Int32& animationCount)
+```
+
+#### Parameters
+
+`relativePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Path relative to the assets root.
+
+`animationCount` [Int32&](https://docs.microsoft.com/en-us/dotnet/api/system.int32&)<br>
+Receives the number of clips if available.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+`true` when one or more clips exist; otherwise `false`.
+
 ### **LoadTexture(String)**
 
 Loads a texture from the assets directory, returning a cached copy if already loaded.

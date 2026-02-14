@@ -98,6 +98,31 @@ public IReadOnlyList<Component> Components { get; }
 
 [IReadOnlyList&lt;Component&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ireadonlylist-1)<br>
 
+### **UnresolvedComponents**
+
+Component data that could not be resolved to a type during deserialization.
+ Preserved so that saving the scene does not lose data for unloaded assemblies.
+
+```csharp
+public IReadOnlyList<ComponentData> UnresolvedComponents { get; }
+```
+
+#### Property Value
+
+[IReadOnlyList&lt;ComponentData&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ireadonlylist-1)<br>
+
+### **HasUnresolvedComponents**
+
+Returns `true` if this entity has any unresolved component data from deserialization.
+
+```csharp
+public bool HasUnresolvedComponents { get; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ## Constructors
 
 ### **Entity(String)**
@@ -114,6 +139,42 @@ public Entity(string name)
 Display name for the entity (defaults to "Entity").
 
 ## Methods
+
+### **AddUnresolvedComponent(ComponentData)**
+
+Adds unresolved component data preserved from deserialization.
+
+```csharp
+public void AddUnresolvedComponent(ComponentData data)
+```
+
+#### Parameters
+
+`data` [ComponentData](./frinkyengine.core.serialization.componentdata)<br>
+
+### **RemoveUnresolvedComponent(ComponentData)**
+
+Removes a specific unresolved component entry.
+
+```csharp
+public bool RemoveUnresolvedComponent(ComponentData data)
+```
+
+#### Parameters
+
+`data` [ComponentData](./frinkyengine.core.serialization.componentdata)<br>
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
+### **ClearUnresolvedComponents()**
+
+Removes all unresolved component data from this entity.
+
+```csharp
+public void ClearUnresolvedComponents()
+```
 
 ### **AddComponent&lt;T&gt;()**
 
@@ -163,6 +224,30 @@ Thrown if `type` is [TransformComponent](./frinkyengine.core.components.transfor
 
 [ArgumentException](https://docs.microsoft.com/en-us/dotnet/api/system.argumentexception)<br>
 Thrown if `type` does not derive from [Component](./frinkyengine.core.ecs.component).
+
+### **TryAddComponent(Type, Component&, String&)**
+
+Tries to create and attach a new component of the specified runtime type.
+
+```csharp
+public bool TryAddComponent(Type type, Component& component, String& failureReason)
+```
+
+#### Parameters
+
+`type` [Type](https://docs.microsoft.com/en-us/dotnet/api/system.type)<br>
+The component type to add.
+
+`component` [Component&](./frinkyengine.core.ecs.component&)<br>
+The newly created component when successful; otherwise `null`.
+
+`failureReason` [String&](https://docs.microsoft.com/en-us/dotnet/api/system.string&)<br>
+Human-readable failure reason when creation fails.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+`true` if the component was created and added; otherwise `false`.
 
 ### **GetComponent&lt;T&gt;()**
 
@@ -263,3 +348,107 @@ The component to remove.
 
 [InvalidOperationException](https://docs.microsoft.com/en-us/dotnet/api/system.invalidoperationexception)<br>
 Thrown if `component` is a [TransformComponent](./frinkyengine.core.components.transformcomponent).
+
+### **GetComponents&lt;T&gt;()**
+
+Gets all components of type  attached to this entity.
+
+```csharp
+public List<T> GetComponents<T>()
+```
+
+#### Type Parameters
+
+`T`<br>
+The component type to search for.
+
+#### Returns
+
+List&lt;T&gt;<br>
+A list of matching component instances.
+
+### **GetComponentInChildren&lt;T&gt;(Boolean)**
+
+Gets the first component of type  in this entity's children (depth-first).
+
+```csharp
+public T GetComponentInChildren<T>(bool includeInactive)
+```
+
+#### Type Parameters
+
+`T`<br>
+The component type to search for.
+
+#### Parameters
+
+`includeInactive` [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+If true, also searches inactive entities.
+
+#### Returns
+
+T<br>
+The first matching component, or `null` if none is found.
+
+### **GetComponentsInChildren&lt;T&gt;(Boolean)**
+
+Gets all components of type  in this entity's children (depth-first).
+
+```csharp
+public List<T> GetComponentsInChildren<T>(bool includeInactive)
+```
+
+#### Type Parameters
+
+`T`<br>
+The component type to search for.
+
+#### Parameters
+
+`includeInactive` [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+If true, also searches inactive entities.
+
+#### Returns
+
+List&lt;T&gt;<br>
+A list of all matching components in the subtree.
+
+### **GetComponentInParent&lt;T&gt;()**
+
+Gets the first component of type  by walking up the parent chain.
+
+```csharp
+public T GetComponentInParent<T>()
+```
+
+#### Type Parameters
+
+`T`<br>
+The component type to search for.
+
+#### Returns
+
+T<br>
+The first matching component found in a parent, or `null` if none is found.
+
+### **Destroy()**
+
+Immediately removes this entity from its scene, destroying it and all its children.
+
+```csharp
+public void Destroy()
+```
+
+### **Destroy(Single)**
+
+Queues this entity for destruction after the specified delay in seconds.
+ A delay of 0 destroys the entity at the end of the current frame.
+
+```csharp
+public void Destroy(float delaySeconds)
+```
+
+#### Parameters
+
+`delaySeconds` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+Time in seconds before the entity is destroyed.

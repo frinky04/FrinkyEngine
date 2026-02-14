@@ -148,6 +148,54 @@ public IReadOnlyList<RenderableComponent> Renderables { get; }
 
 [IReadOnlyList&lt;RenderableComponent&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ireadonlylist-1)<br>
 
+### **Time**
+
+Total elapsed scaled time since the scene started, in seconds.
+
+```csharp
+public float Time { get; private set; }
+```
+
+#### Property Value
+
+[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+
+### **UnscaledTime**
+
+Total elapsed unscaled (real) time since the scene started, in seconds.
+
+```csharp
+public float UnscaledTime { get; private set; }
+```
+
+#### Property Value
+
+[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+
+### **UnscaledDeltaTime**
+
+The unscaled delta time for the current frame, in seconds.
+
+```csharp
+public float UnscaledDeltaTime { get; private set; }
+```
+
+#### Property Value
+
+[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+
+### **FrameCount**
+
+Total number of frames elapsed since the scene started.
+
+```csharp
+public long FrameCount { get; private set; }
+```
+
+#### Property Value
+
+[Int64](https://docs.microsoft.com/en-us/dotnet/api/system.int64)<br>
+
 ### **MainCamera**
 
 Gets the first enabled camera marked as [CameraComponent.IsMain](./frinkyengine.core.components.cameracomponent#ismain), or `null` if none exists.
@@ -295,6 +343,60 @@ public AudioFrameStats GetAudioFrameStats()
 
 [AudioFrameStats](./frinkyengine.core.audio.audioframestats)<br>
 
+### **FindEntityByName(String)**
+
+Finds the first entity in this scene with the specified name.
+
+```csharp
+public Entity FindEntityByName(string name)
+```
+
+#### Parameters
+
+`name` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The name to search for.
+
+#### Returns
+
+[Entity](./frinkyengine.core.ecs.entity)<br>
+The first matching entity, or `null` if not found.
+
+### **FindEntitiesByName(String)**
+
+Finds all entities in this scene with the specified name.
+
+```csharp
+public List<Entity> FindEntitiesByName(string name)
+```
+
+#### Parameters
+
+`name` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The name to search for.
+
+#### Returns
+
+[List&lt;Entity&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
+A list of all matching entities.
+
+### **FindEntitiesWithComponent&lt;T&gt;()**
+
+Finds all entities that have a component of type .
+
+```csharp
+public List<Entity> FindEntitiesWithComponent<T>()
+```
+
+#### Type Parameters
+
+`T`<br>
+The component type to search for.
+
+#### Returns
+
+[List&lt;Entity&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
+A list of entities with a matching component.
+
 ### **FindEntityById(Guid)**
 
 Finds an entity in this scene by its [Entity.Id](./frinkyengine.core.ecs.entity#id).
@@ -312,6 +414,102 @@ The GUID to search for.
 
 [Entity](./frinkyengine.core.ecs.entity)<br>
 The matching entity, or `null` if not found.
+
+### **Instantiate(String, TransformComponent)**
+
+Instantiates a prefab into this scene.
+
+```csharp
+public Entity Instantiate(string prefabPath, TransformComponent parent)
+```
+
+#### Parameters
+
+`prefabPath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The asset-relative path to the prefab file.
+
+`parent` [TransformComponent](./frinkyengine.core.components.transformcomponent)<br>
+Optional parent transform.
+
+#### Returns
+
+[Entity](./frinkyengine.core.ecs.entity)<br>
+The root entity of the instantiated prefab, or `null` if the prefab was not found.
+
+### **Instantiate(String, Vector3, Quaternion, TransformComponent)**
+
+Instantiates a prefab into this scene at a specific position and rotation.
+
+```csharp
+public Entity Instantiate(string prefabPath, Vector3 position, Quaternion rotation, TransformComponent parent)
+```
+
+#### Parameters
+
+`prefabPath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The asset-relative path to the prefab file.
+
+`position` [Vector3](https://docs.microsoft.com/en-us/dotnet/api/system.numerics.vector3)<br>
+World position for the instantiated entity.
+
+`rotation` [Quaternion](https://docs.microsoft.com/en-us/dotnet/api/system.numerics.quaternion)<br>
+World rotation for the instantiated entity.
+
+`parent` [TransformComponent](./frinkyengine.core.components.transformcomponent)<br>
+Optional parent transform.
+
+#### Returns
+
+[Entity](./frinkyengine.core.ecs.entity)<br>
+The root entity of the instantiated prefab, or `null` if the prefab was not found.
+
+### **Instantiate(AssetReference, TransformComponent)**
+
+Instantiates a prefab into this scene using an asset reference.
+
+```csharp
+public Entity Instantiate(AssetReference prefab, TransformComponent parent)
+```
+
+#### Parameters
+
+`prefab` [AssetReference](./frinkyengine.core.assets.assetreference)<br>
+The asset reference pointing to the prefab file.
+
+`parent` [TransformComponent](./frinkyengine.core.components.transformcomponent)<br>
+Optional parent transform.
+
+#### Returns
+
+[Entity](./frinkyengine.core.ecs.entity)<br>
+The root entity of the instantiated prefab, or `null` if the prefab was not found.
+
+### **Instantiate(AssetReference, Vector3, Quaternion, TransformComponent)**
+
+Instantiates a prefab into this scene at a specific position and rotation using an asset reference.
+
+```csharp
+public Entity Instantiate(AssetReference prefab, Vector3 position, Quaternion rotation, TransformComponent parent)
+```
+
+#### Parameters
+
+`prefab` [AssetReference](./frinkyengine.core.assets.assetreference)<br>
+The asset reference pointing to the prefab file.
+
+`position` [Vector3](https://docs.microsoft.com/en-us/dotnet/api/system.numerics.vector3)<br>
+World position for the instantiated entity.
+
+`rotation` [Quaternion](https://docs.microsoft.com/en-us/dotnet/api/system.numerics.quaternion)<br>
+World rotation for the instantiated entity.
+
+`parent` [TransformComponent](./frinkyengine.core.components.transformcomponent)<br>
+Optional parent transform.
+
+#### Returns
+
+[Entity](./frinkyengine.core.ecs.entity)<br>
+The root entity of the instantiated prefab, or `null` if the prefab was not found.
 
 ### **Dispose()**
 

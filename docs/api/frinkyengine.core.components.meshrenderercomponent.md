@@ -38,6 +38,18 @@ public List<Material> MaterialSlots { get; set; }
 
 [List&lt;Material&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
 
+### **HasLoadedModel**
+
+Whether this component has a loaded model ready for rendering.
+
+```csharp
+public bool HasLoadedModel { get; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **Entity**
 
 The [Entity](./frinkyengine.core.ecs.entity) this component is attached to.
@@ -104,8 +116,35 @@ Forces the model and materials to be reloaded from disk on the next frame.
 public void RefreshMaterials()
 ```
 
+### **TransferModelFrom(MeshRendererComponent)**
+
+Transfers ownership of the loaded model from another [MeshRendererComponent](./frinkyengine.core.components.meshrenderercomponent).
+ Used by the undo/redo system to avoid reloading models from disk when restoring a snapshot.
+ The source component's model is cleared so it will not unload the transferred resources.
+
+```csharp
+public void TransferModelFrom(MeshRendererComponent source)
+```
+
+#### Parameters
+
+`source` [MeshRendererComponent](./frinkyengine.core.components.meshrenderercomponent)<br>
+The component to transfer the model from.
+
+### **Invalidate()**
+
+```csharp
+public void Invalidate()
+```
+
 ### **Start()**
 
 ```csharp
 public void Start()
+```
+
+### **OnDestroy()**
+
+```csharp
+public void OnDestroy()
 ```

@@ -13,6 +13,19 @@ Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/ap
 
 ## Properties
 
+### **Renderer**
+
+The scene renderer whose per-frame stats are displayed by the overlay.
+ Must be set before [EngineOverlays.Update(Single)](./frinkyengine.core.ui.engineoverlays#updatesingle) is called.
+
+```csharp
+public static SceneRenderer Renderer { get; set; }
+```
+
+#### Property Value
+
+[SceneRenderer](./frinkyengine.core.rendering.scenerenderer)<br>
+
 ### **IsConsoleVisible**
 
 Gets whether the developer console overlay is currently visible.

@@ -143,3 +143,178 @@ Called when the component transitions from enabled to disabled.
 ```csharp
 public void OnDisable()
 ```
+
+### **OnTriggerEnter(Entity)**
+
+Called when a trigger collider on this entity first overlaps another entity.
+
+```csharp
+public void OnTriggerEnter(Entity other)
+```
+
+#### Parameters
+
+`other` [Entity](./frinkyengine.core.ecs.entity)<br>
+The other entity involved in the trigger overlap.
+
+### **OnTriggerStay(Entity)**
+
+Called each frame while a trigger collider on this entity continues to overlap another entity.
+
+```csharp
+public void OnTriggerStay(Entity other)
+```
+
+#### Parameters
+
+`other` [Entity](./frinkyengine.core.ecs.entity)<br>
+The other entity involved in the trigger overlap.
+
+### **OnTriggerExit(Entity)**
+
+Called when a trigger collider on this entity stops overlapping another entity.
+
+```csharp
+public void OnTriggerExit(Entity other)
+```
+
+#### Parameters
+
+`other` [Entity](./frinkyengine.core.ecs.entity)<br>
+The other entity involved in the trigger overlap.
+
+### **OnCollisionEnter(CollisionInfo)**
+
+Called when a physics collision first begins with another entity.
+
+```csharp
+public void OnCollisionEnter(CollisionInfo info)
+```
+
+#### Parameters
+
+`info` [CollisionInfo](./frinkyengine.core.physics.collisioninfo)<br>
+Information about the collision contact.
+
+### **OnCollisionStay(CollisionInfo)**
+
+Called each frame while a physics collision continues with another entity.
+
+```csharp
+public void OnCollisionStay(CollisionInfo info)
+```
+
+#### Parameters
+
+`info` [CollisionInfo](./frinkyengine.core.physics.collisioninfo)<br>
+Information about the collision contact.
+
+### **OnCollisionExit(CollisionInfo)**
+
+Called when a physics collision ends with another entity.
+
+```csharp
+public void OnCollisionExit(CollisionInfo info)
+```
+
+#### Parameters
+
+`info` [CollisionInfo](./frinkyengine.core.physics.collisioninfo)<br>
+Information about the collision contact.
+
+### **StartCoroutine(IEnumerator)**
+
+Starts a coroutine on this component. The coroutine runs each frame during the component update loop
+ and pauses when the component is disabled. All coroutines are cancelled when the component is destroyed.
+
+```csharp
+public Coroutine StartCoroutine(IEnumerator routine)
+```
+
+#### Parameters
+
+`routine` [IEnumerator](https://docs.microsoft.com/en-us/dotnet/api/system.collections.ienumerator)<br>
+An iterator method that yields [YieldInstruction](./frinkyengine.core.coroutines.yieldinstruction) objects or `null`.
+
+#### Returns
+
+[Coroutine](./frinkyengine.core.coroutines.coroutine)<br>
+A [Coroutine](./frinkyengine.core.coroutines.coroutine) handle that can be used to stop the coroutine.
+
+### **StopCoroutine(Coroutine)**
+
+Stops a specific coroutine that was started on this component.
+
+```csharp
+public void StopCoroutine(Coroutine coroutine)
+```
+
+#### Parameters
+
+`coroutine` [Coroutine](./frinkyengine.core.coroutines.coroutine)<br>
+The coroutine handle returned by [Component.StartCoroutine(IEnumerator)](./frinkyengine.core.ecs.component#startcoroutineienumerator).
+
+### **StopAllCoroutines()**
+
+Stops all coroutines running on this component.
+
+```csharp
+public void StopAllCoroutines()
+```
+
+### **Invoke(Action, Single)**
+
+Schedules a callback to be invoked after a delay. The timer respects [Scene.TimeScale](./frinkyengine.core.scene.scene#timescale).
+
+```csharp
+public void Invoke(Action callback, float delaySeconds)
+```
+
+#### Parameters
+
+`callback` [Action](https://docs.microsoft.com/en-us/dotnet/api/system.action)<br>
+The action to invoke.
+
+`delaySeconds` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+Time in scaled seconds before the callback fires.
+
+### **InvokeRepeating(Action, Single, Single)**
+
+Schedules a callback to be invoked repeatedly. The first invocation occurs after `delay`,
+ then every `interval` seconds. Timers respect [Scene.TimeScale](./frinkyengine.core.scene.scene#timescale).
+
+```csharp
+public void InvokeRepeating(Action callback, float delay, float interval)
+```
+
+#### Parameters
+
+`callback` [Action](https://docs.microsoft.com/en-us/dotnet/api/system.action)<br>
+The action to invoke.
+
+`delay` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+Initial delay in scaled seconds.
+
+`interval` [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+Interval in scaled seconds between subsequent invocations.
+
+### **CancelInvoke()**
+
+Cancels all pending timer invocations on this component.
+
+```csharp
+public void CancelInvoke()
+```
+
+### **CancelInvoke(Action)**
+
+Cancels all pending timer invocations that reference a specific callback.
+
+```csharp
+public void CancelInvoke(Action callback)
+```
+
+#### Parameters
+
+`callback` [Action](https://docs.microsoft.com/en-us/dotnet/api/system.action)<br>
+The callback to cancel.

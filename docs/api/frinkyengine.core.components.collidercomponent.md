@@ -37,6 +37,18 @@ public float Restitution { get; set; }
 
 [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
 
+### **IsTrigger**
+
+When `true`, this collider acts as a trigger volume: overlap events fire but no physical response occurs.
+
+```csharp
+public bool IsTrigger { get; set; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **Center**
 
 Local offset applied to the collider relative to the entity transform.

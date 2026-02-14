@@ -25,6 +25,18 @@ public int LastFrameDrawCallCount { get; private set; }
 
 [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
 
+### **LastFrameSkinnedMeshCount**
+
+Number of skinned meshes that had GPU skinning prepared in the most recent [SceneRenderer.Render(Scene, Camera3D, Nullable&lt;RenderTexture2D&gt;, Action, Boolean)](./frinkyengine.core.rendering.scenerenderer#renderscene-camera3d-nullablerendertexture2d-action-boolean) pass.
+
+```csharp
+public int LastFrameSkinnedMeshCount { get; private set; }
+```
+
+#### Property Value
+
+[Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+
 ## Constructors
 
 ### **SceneRenderer()**

@@ -37,6 +37,18 @@ public static bool PostProcessingEnabled { get; private set; }
 
 [Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
 
+### **AnimationEnabled**
+
+Global skeletal animation toggle for skinned mesh playback.
+
+```csharp
+public static bool AnimationEnabled { get; private set; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **AmbientOverride**
 
 Optional ambient light override. When non-null, replaces the default 0.15 ambient
@@ -127,6 +139,37 @@ Attempts to parse and apply the post-processing cvar from "1" or "0".
 
 ```csharp
 public static bool TrySetPostProcessing(string value)
+```
+
+#### Parameters
+
+`value` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+User input value.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+`true` if the value was accepted; otherwise `false`.
+
+### **GetAnimationValue()**
+
+Gets the animation cvar value as "1" (enabled) or "0" (disabled).
+
+```csharp
+public static string GetAnimationValue()
+```
+
+#### Returns
+
+[String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The current value string.
+
+### **TrySetAnimation(String)**
+
+Attempts to parse and apply the animation cvar from "1" or "0".
+
+```csharp
+public static bool TrySetAnimation(string value)
 ```
 
 #### Parameters
