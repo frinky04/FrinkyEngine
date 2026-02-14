@@ -238,11 +238,18 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             _playheadFrames += dt * speed * AnimationFps;
 
             int frameCount = Math.Max(1, animation.FrameCount);
+            // Looping animations typically have a duplicate last frame
+            // (e.g. Raylib's glTF loader samples duration*fps+1 frames
+            // where the final frame equals the first). Cycle through
+            // frameCount-1 unique frames so the wrap interpolates
+            // smoothly from the second-to-last frame back to frame 0
+            // instead of stalling on a duplicate.
+            int loopLength = Math.Max(1, frameCount - 1);
             if (Loop)
             {
-                _playheadFrames %= frameCount;
+                _playheadFrames %= loopLength;
                 if (_playheadFrames < 0f)
-                    _playheadFrames += frameCount;
+                    _playheadFrames += loopLength;
             }
             else
             {
@@ -256,7 +263,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
             int frameA = (int)MathF.Floor(_playheadFrames);
             int frameB = Loop
-                ? (frameA + 1) % frameCount
+                ? (frameA + 1) % loopLength
                 : Math.Min(frameA + 1, frameCount - 1);
             float alpha = Math.Clamp(_playheadFrames - frameA, 0f, 1f);
 
