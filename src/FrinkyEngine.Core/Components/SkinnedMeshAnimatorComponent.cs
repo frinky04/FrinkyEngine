@@ -85,6 +85,13 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public List<AssetReference> AnimationSources { get; set; } = new();
 
     /// <summary>
+    /// Whether to load animation clips embedded in the mesh file.
+    /// When <c>true</c> (default), clips from the mesh file are included in the available clip list.
+    /// When <c>false</c>, only clips from <see cref="AnimationSources"/> are used.
+    /// </summary>
+    public bool UseEmbeddedAnimations { get; set; } = true;
+
+    /// <summary>
     /// Whether playback starts automatically once a valid clip is available.
     /// </summary>
     public bool PlayAutomatically { get; set; } = true;
@@ -379,7 +386,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         unsafe
         {
             var animation = ResolveAnimation(clip);
-            if (animation.FrameCount <= 0 || !Raylib.IsModelAnimationValid(model, animation))
+            if (animation.FrameCount <= 0 || model.MeshCount <= 0 || !Raylib.IsModelAnimationValid(model, animation))
                 return;
 
             var speed = float.IsFinite(PlaybackSpeed) ? Math.Max(0f, PlaybackSpeed) : 1f;
@@ -459,7 +466,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public ReadOnlySpan<(Vector3 t, Quaternion r, Vector3 s)> CurrentModelPose =>
         _currentModelPose is not null ? _currentModelPose.AsSpan() : ReadOnlySpan<(Vector3, Quaternion, Vector3)>.Empty;
 
-    private bool UseMultiSource => AnimationSources.Count > 0;
+    private bool UseMultiSource => AnimationSources.Count > 0 || !UseEmbeddedAnimations;
 
     private bool EnsureAnimationState()
     {
@@ -494,6 +501,11 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
 
         if (!_playbackInitialized)
         {
+            // Auto-select the first clip when PlayAutomatically is true and no clip is selected
+            int totalClips = UseMultiSource ? _aggregatedClips.Count : _animationCount;
+            if (PlayAutomatically && _clipIndex == 0 && totalClips > 0)
+                _clipIndex = 1; // index 1 = first real clip (index 0 = "(none)")
+
             Playing = PlayAutomatically;
             _playbackInitialized = true;
         }
@@ -509,7 +521,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             else
             {
                 var animation = _animations[clip];
-                if (Raylib.IsModelAnimationValid(model, animation))
+                if (model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, animation))
                     return true;
             }
         }
@@ -534,6 +546,33 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
         var model = _meshRenderer.RenderModel.Value;
         var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Load embedded animations from the mesh file first
+        if (UseEmbeddedAnimations)
+        {
+            _animations = AssetManager.Instance.LoadModelAnimations(_meshRenderer.ModelPath.Path, out _animationCount);
+            if (_animations != null && _animationCount > 0)
+            {
+                for (int i = 0; i < _animationCount; i++)
+                {
+                    var anim = _animations[i];
+                    bool valid = model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, anim);
+
+                    var rawName = new string(anim.Name, 0, 32).TrimEnd('\0');
+                    if (string.IsNullOrWhiteSpace(rawName))
+                        rawName = $"Action {i}";
+
+                    usedNames.Add(rawName);
+                    _aggregatedClips.Add(new AggregatedClip(
+                        _meshRenderer.ModelPath.Path,
+                        i,
+                        rawName,
+                        &_animations[i],
+                        valid));
+                }
+            }
+        }
+
+        // Append clips from external animation sources
         foreach (var source in AnimationSources)
         {
             if (source.IsEmpty) continue;
@@ -546,7 +585,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             for (int i = 0; i < count; i++)
             {
                 var anim = anims[i];
-                bool valid = Raylib.IsModelAnimationValid(model, anim);
+                bool valid = model.MeshCount > 0 && Raylib.IsModelAnimationValid(model, anim);
 
                 if (!valid)
                 {
@@ -589,6 +628,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     private int ComputeSourcesHash()
     {
         var hash = new HashCode();
+        hash.Add(UseEmbeddedAnimations);
         foreach (var source in AnimationSources)
             hash.Add(source.Path ?? "", StringComparer.OrdinalIgnoreCase);
         return hash.ToHashCode();
