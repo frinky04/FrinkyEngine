@@ -115,9 +115,8 @@ void main()
 
             lightDir = toLight / dist;
 
-            float r = dist / max(lightRange, 0.0001);
-            float r4 = r * r * r * r;
-            attenuation = clamp(1.0 - r4, 0.0, 1.0);
+            float ratio = clamp(dist / max(lightRange, 0.0001), 0.0, 1.0);
+            attenuation = 1.0 - ratio;
             attenuation *= attenuation;
         }
         else
