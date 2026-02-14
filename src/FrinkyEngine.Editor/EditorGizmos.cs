@@ -505,7 +505,7 @@ public static class EditorGizmos
         Raylib.DrawLine3D(top - forward * radius, bottom - forward * radius, color);
     }
 
-    private static bool TryGetWorldBasis(TransformComponent transform, out Vector3 position, out Quaternion rotation, out Vector3 absScale)
+    internal static bool TryGetWorldBasis(TransformComponent transform, out Vector3 position, out Quaternion rotation, out Vector3 absScale)
     {
         if (Matrix4x4.Decompose(transform.WorldMatrix, out var scale, out rotation, out position))
         {
@@ -523,7 +523,7 @@ public static class EditorGizmos
         return true;
     }
 
-    private static Vector3 ComputeWorldCenter(ColliderComponent collider, Vector3 worldPosition, Quaternion worldRotation, Vector3 worldScale)
+    internal static Vector3 ComputeWorldCenter(ColliderComponent collider, Vector3 worldPosition, Quaternion worldRotation, Vector3 worldScale)
     {
         var scaledCenter = new Vector3(
             collider.Center.X * worldScale.X,

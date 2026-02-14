@@ -21,55 +21,10 @@ public class PickingSystem
         {
             if (!entity.Active) continue;
 
-            var renderable = entity.GetComponent<RenderableComponent>();
-            if (renderable != null && renderable.Enabled)
-            {
-                var bb = renderable.GetWorldBoundingBox();
-                if (bb.HasValue)
-                {
-                    var broadphaseCollision = Raylib.GetRayCollisionBox(ray, bb.Value);
-                    if (broadphaseCollision.Hit)
-                    {
-                        var preciseCollision = renderable.GetWorldRayCollision(ray, out bool hasMeshData, frontFacesOnly: true);
-                        if (preciseCollision.HasValue)
-                        {
-                            float hitDistance = preciseCollision.Value.Distance;
-                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
-                            {
-                                closestDist = hitDistance;
-                                closest = entity;
-                            }
-                        }
-                        else if (!hasMeshData)
-                        {
-                            // Fallback path if a renderable cannot provide mesh geometry for narrowphase testing.
-                            float hitDistance = broadphaseCollision.Distance;
-                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
-                            {
-                                closestDist = hitDistance;
-                                closest = entity;
-                            }
-                        }
-                    }
-                }
+            if (TryPickRenderable(ray, entity, ref closestDist, ref closest))
                 continue;
-            }
 
-            // Non-renderable entities with visual editor presence (cameras, lights)
-            var cameraComponent = entity.GetComponent<CameraComponent>();
-            var lightComponent = entity.GetComponent<LightComponent>();
-            bool hasVisualComponent = (cameraComponent != null && cameraComponent.Enabled)
-                                   || (lightComponent != null && lightComponent.Enabled);
-            if (hasVisualComponent)
-            {
-                var pos = entity.Transform.WorldPosition;
-                var collision = Raylib.GetRayCollisionSphere(ray, pos, IconPickRadius);
-                if (collision.Hit && collision.Distance > HitDistanceEpsilon && collision.Distance < closestDist)
-                {
-                    closestDist = collision.Distance;
-                    closest = entity;
-                }
-            }
+            TryPickIcon(ray, entity, ref closestDist, ref closest);
         }
 
         return closest;
@@ -105,81 +60,76 @@ public class PickingSystem
                 continue;
             }
 
-            // Fall back to mesh picking for entities without colliders
-            var renderable = entity.GetComponent<RenderableComponent>();
-            if (renderable != null && renderable.Enabled)
-            {
-                var bb = renderable.GetWorldBoundingBox();
-                if (bb.HasValue)
-                {
-                    var broadphaseCollision = Raylib.GetRayCollisionBox(ray, bb.Value);
-                    if (broadphaseCollision.Hit)
-                    {
-                        var preciseCollision = renderable.GetWorldRayCollision(ray, out bool hasMeshData, frontFacesOnly: true);
-                        if (preciseCollision.HasValue)
-                        {
-                            float hitDistance = preciseCollision.Value.Distance;
-                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
-                            {
-                                closestDist = hitDistance;
-                                closest = entity;
-                            }
-                        }
-                        else if (!hasMeshData)
-                        {
-                            float hitDistance = broadphaseCollision.Distance;
-                            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
-                            {
-                                closestDist = hitDistance;
-                                closest = entity;
-                            }
-                        }
-                    }
-                }
+            if (TryPickRenderable(ray, entity, ref closestDist, ref closest))
                 continue;
-            }
 
-            // Non-renderable entities with visual editor presence (cameras, lights)
-            var cameraComponent = entity.GetComponent<CameraComponent>();
-            var lightComponent = entity.GetComponent<LightComponent>();
-            bool hasVisualComponent = (cameraComponent != null && cameraComponent.Enabled)
-                                   || (lightComponent != null && lightComponent.Enabled);
-            if (hasVisualComponent)
-            {
-                var pos = entity.Transform.WorldPosition;
-                var collision = Raylib.GetRayCollisionSphere(ray, pos, IconPickRadius);
-                if (collision.Hit && collision.Distance > HitDistanceEpsilon && collision.Distance < closestDist)
-                {
-                    closestDist = collision.Distance;
-                    closest = entity;
-                }
-            }
+            TryPickIcon(ray, entity, ref closestDist, ref closest);
         }
 
         return closest;
+    }
+
+    private static bool TryPickRenderable(Ray ray, Entity entity, ref float closestDist, ref Entity? closest)
+    {
+        var renderable = entity.GetComponent<RenderableComponent>();
+        if (renderable == null || !renderable.Enabled)
+            return false;
+
+        var bb = renderable.GetWorldBoundingBox();
+        if (!bb.HasValue)
+            return true;
+
+        var broadphaseCollision = Raylib.GetRayCollisionBox(ray, bb.Value);
+        if (!broadphaseCollision.Hit)
+            return true;
+
+        var preciseCollision = renderable.GetWorldRayCollision(ray, out bool hasMeshData, frontFacesOnly: true);
+        if (preciseCollision.HasValue)
+        {
+            float hitDistance = preciseCollision.Value.Distance;
+            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
+            {
+                closestDist = hitDistance;
+                closest = entity;
+            }
+        }
+        else if (!hasMeshData)
+        {
+            float hitDistance = broadphaseCollision.Distance;
+            if (hitDistance > HitDistanceEpsilon && hitDistance < closestDist)
+            {
+                closestDist = hitDistance;
+                closest = entity;
+            }
+        }
+
+        return true;
+    }
+
+    private static void TryPickIcon(Ray ray, Entity entity, ref float closestDist, ref Entity? closest)
+    {
+        var cameraComponent = entity.GetComponent<CameraComponent>();
+        var lightComponent = entity.GetComponent<LightComponent>();
+        bool hasVisualComponent = (cameraComponent != null && cameraComponent.Enabled)
+                               || (lightComponent != null && lightComponent.Enabled);
+        if (!hasVisualComponent)
+            return;
+
+        var pos = entity.Transform.WorldPosition;
+        var collision = Raylib.GetRayCollisionSphere(ray, pos, IconPickRadius);
+        if (collision.Hit && collision.Distance > HitDistanceEpsilon && collision.Distance < closestDist)
+        {
+            closestDist = collision.Distance;
+            closest = entity;
+        }
     }
 
     private static bool RaycastCollider(Ray ray, ColliderComponent collider, out float distance)
     {
         distance = float.MaxValue;
 
-        var transform = collider.Entity.Transform;
-        if (!Matrix4x4.Decompose(transform.WorldMatrix, out var scale, out var rotation, out var position))
-        {
-            position = transform.WorldPosition;
-            rotation = Quaternion.Normalize(transform.WorldRotation);
-            scale = Vector3.One;
-        }
-
-        var absScale = new Vector3(MathF.Abs(scale.X), MathF.Abs(scale.Y), MathF.Abs(scale.Z));
-        absScale = Vector3.Max(absScale, new Vector3(0.0001f));
-        rotation = Quaternion.Normalize(rotation);
-
-        var scaledCenter = new Vector3(
-            collider.Center.X * absScale.X,
-            collider.Center.Y * absScale.Y,
-            collider.Center.Z * absScale.Z);
-        var worldCenter = position + Vector3.Transform(scaledCenter, rotation);
+        EditorGizmos.TryGetWorldBasis(collider.Entity.Transform, out var position, out var rotation, out var absScale);
+        var worldCenter = EditorGizmos.ComputeWorldCenter(collider, position, rotation, absScale);
 
         switch (collider)
         {

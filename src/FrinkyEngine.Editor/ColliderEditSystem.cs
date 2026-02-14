@@ -55,15 +55,10 @@ public class ColliderEditSystem
 
     private static unsafe void ManipulateBoxCollider(BoxColliderComponent box, Matrix4x4 view, Matrix4x4 proj)
     {
-        var transform = box.Entity.Transform;
-        if (!Matrix4x4.Decompose(transform.WorldMatrix, out var worldScale, out var worldRotation, out var worldPosition))
+        if (!EditorGizmos.TryGetWorldBasis(box.Entity.Transform, out var worldPosition, out var worldRotation, out var absScale))
             return;
 
-        worldRotation = Quaternion.Normalize(worldRotation);
-        var absScale = new Vector3(MathF.Abs(worldScale.X), MathF.Abs(worldScale.Y), MathF.Abs(worldScale.Z));
-        absScale = Vector3.Max(absScale, new Vector3(0.0001f));
-
-        var center = ComputeWorldCenter(box, worldPosition, worldRotation, absScale);
+        var center = EditorGizmos.ComputeWorldCenter(box, worldPosition, worldRotation, absScale);
         var colliderWorldScale = new Vector3(
             MathF.Max(0.001f, box.Size.X * absScale.X),
             MathF.Max(0.001f, box.Size.Y * absScale.Y),
@@ -126,16 +121,11 @@ public class ColliderEditSystem
 
     private static unsafe void ManipulateSphereCollider(SphereColliderComponent sphere, Matrix4x4 view, Matrix4x4 proj)
     {
-        var transform = sphere.Entity.Transform;
-        if (!Matrix4x4.Decompose(transform.WorldMatrix, out var worldScale, out var worldRotation, out var worldPosition))
+        if (!EditorGizmos.TryGetWorldBasis(sphere.Entity.Transform, out var worldPosition, out var worldRotation, out var absScale))
             return;
 
-        worldRotation = Quaternion.Normalize(worldRotation);
-        var absScale = new Vector3(MathF.Abs(worldScale.X), MathF.Abs(worldScale.Y), MathF.Abs(worldScale.Z));
-        absScale = Vector3.Max(absScale, new Vector3(0.0001f));
-
         float radiusScale = MathF.Max(absScale.X, MathF.Max(absScale.Y, absScale.Z));
-        var center = ComputeWorldCenter(sphere, worldPosition, worldRotation, absScale);
+        var center = EditorGizmos.ComputeWorldCenter(sphere, worldPosition, worldRotation, absScale);
         float worldRadius = sphere.Radius * radiusScale;
 
         // Use uniform scale for sphere
@@ -172,16 +162,11 @@ public class ColliderEditSystem
 
     private static unsafe void ManipulateCapsuleCollider(CapsuleColliderComponent capsule, Matrix4x4 view, Matrix4x4 proj)
     {
-        var transform = capsule.Entity.Transform;
-        if (!Matrix4x4.Decompose(transform.WorldMatrix, out var worldScale, out var worldRotation, out var worldPosition))
+        if (!EditorGizmos.TryGetWorldBasis(capsule.Entity.Transform, out var worldPosition, out var worldRotation, out var absScale))
             return;
 
-        worldRotation = Quaternion.Normalize(worldRotation);
-        var absScale = new Vector3(MathF.Abs(worldScale.X), MathF.Abs(worldScale.Y), MathF.Abs(worldScale.Z));
-        absScale = Vector3.Max(absScale, new Vector3(0.0001f));
-
         float radiusScale = MathF.Max(absScale.X, absScale.Z);
-        var center = ComputeWorldCenter(capsule, worldPosition, worldRotation, absScale);
+        var center = EditorGizmos.ComputeWorldCenter(capsule, worldPosition, worldRotation, absScale);
 
         // Encode capsule as scale: X/Z = radius, Y = length
         var capsuleScale = new Vector3(
@@ -220,12 +205,4 @@ public class ColliderEditSystem
         }
     }
 
-    private static Vector3 ComputeWorldCenter(ColliderComponent collider, Vector3 worldPosition, Quaternion worldRotation, Vector3 worldScale)
-    {
-        var scaledCenter = new Vector3(
-            collider.Center.X * worldScale.X,
-            collider.Center.Y * worldScale.Y,
-            collider.Center.Z * worldScale.Z);
-        return worldPosition + Vector3.Transform(scaledCenter, worldRotation);
-    }
 }
