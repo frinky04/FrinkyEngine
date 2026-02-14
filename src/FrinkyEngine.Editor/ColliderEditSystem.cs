@@ -65,26 +65,41 @@ public class ColliderEditSystem
 
         var center = ComputeWorldCenter(box, worldPosition, worldRotation, absScale);
         var colliderWorldScale = new Vector3(
-            box.Size.X * absScale.X,
-            box.Size.Y * absScale.Y,
-            box.Size.Z * absScale.Z);
+            MathF.Max(0.001f, box.Size.X * absScale.X),
+            MathF.Max(0.001f, box.Size.Y * absScale.Y),
+            MathF.Max(0.001f, box.Size.Z * absScale.Z));
 
+        // In ImGuizmo, localBounds is input-only; Bounds manipulates the matrix transform.
+        // Use a unit AABB and read updated size from matrix scale after manipulation.
         var objectMatrix = Matrix4x4.CreateScale(colliderWorldScale)
             * Matrix4x4.CreateFromQuaternion(worldRotation)
             * Matrix4x4.CreateTranslation(center);
 
+        var originalMatrix = objectMatrix;
         var deltaMatrix = Matrix4x4.Identity;
+        float[] localBounds = { -0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f };
 
-        bool changed = ImGuizmo.Manipulate(
-            (float*)&view, (float*)&proj,
-            ImGuizmoOperation.Scale | ImGuizmoOperation.Translate,
-            ImGuizmoMode.Local,
-            (float*)&objectMatrix, (float*)&deltaMatrix,
-            (float*)null, (float*)null, (float*)null);
-
-        if (changed)
+        bool changed;
+        fixed (float* boundsPtr = localBounds)
         {
-            if (Matrix4x4.Decompose(objectMatrix, out var newScale, out _, out var newPos))
+            changed = ImGuizmo.Manipulate(
+                (float*)&view, (float*)&proj,
+                ImGuizmoOperation.Bounds | ImGuizmoOperation.Translate,
+                ImGuizmoMode.Local,
+                (float*)&objectMatrix, (float*)&deltaMatrix,
+                (float*)null, boundsPtr, (float*)null);
+        }
+
+        bool shouldApply = changed || ImGuizmo.IsUsing();
+        if (shouldApply)
+        {
+            // Bounds mode can report interaction while leaving matrix unchanged on some frames.
+            // When that happens, consume deltaMatrix instead.
+            var resolvedMatrix = objectMatrix;
+            if (MatrixNearlyEqual(resolvedMatrix, originalMatrix) && !MatrixNearlyEqual(deltaMatrix, Matrix4x4.Identity))
+                resolvedMatrix = deltaMatrix * originalMatrix;
+
+            if (Matrix4x4.Decompose(resolvedMatrix, out var newScale, out _, out var newPos))
             {
                 var invRotation = Quaternion.Inverse(worldRotation);
                 var localOffset = Vector3.Transform(newPos - worldPosition, invRotation);
@@ -99,6 +114,14 @@ public class ColliderEditSystem
                     MathF.Max(0.001f, MathF.Abs(newScale.Z) / absScale.Z));
             }
         }
+    }
+
+    private static bool MatrixNearlyEqual(in Matrix4x4 a, in Matrix4x4 b, float epsilon = 1e-5f)
+    {
+        return MathF.Abs(a.M11 - b.M11) < epsilon && MathF.Abs(a.M12 - b.M12) < epsilon && MathF.Abs(a.M13 - b.M13) < epsilon && MathF.Abs(a.M14 - b.M14) < epsilon
+            && MathF.Abs(a.M21 - b.M21) < epsilon && MathF.Abs(a.M22 - b.M22) < epsilon && MathF.Abs(a.M23 - b.M23) < epsilon && MathF.Abs(a.M24 - b.M24) < epsilon
+            && MathF.Abs(a.M31 - b.M31) < epsilon && MathF.Abs(a.M32 - b.M32) < epsilon && MathF.Abs(a.M33 - b.M33) < epsilon && MathF.Abs(a.M34 - b.M34) < epsilon
+            && MathF.Abs(a.M41 - b.M41) < epsilon && MathF.Abs(a.M42 - b.M42) < epsilon && MathF.Abs(a.M43 - b.M43) < epsilon && MathF.Abs(a.M44 - b.M44) < epsilon;
     }
 
     private static unsafe void ManipulateSphereCollider(SphereColliderComponent sphere, Matrix4x4 view, Matrix4x4 proj)

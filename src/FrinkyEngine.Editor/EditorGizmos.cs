@@ -257,7 +257,7 @@ public static class EditorGizmos
         var bl = center - right * halfSize - up * halfSize;
         var br = center + right * halfSize - up * halfSize;
 
-        var overlayColor = new Color(0, 0, 0, 140);
+        var overlayColor = new Color(0, 0, 0, 35);
 
         Rlgl.Begin(DrawMode.Triangles);
         Rlgl.Color4ub(overlayColor.R, overlayColor.G, overlayColor.B, overlayColor.A);
