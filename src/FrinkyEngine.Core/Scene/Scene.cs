@@ -1,7 +1,10 @@
+using System.Numerics;
+using FrinkyEngine.Core.Assets;
 using FrinkyEngine.Core.Audio;
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
 using FrinkyEngine.Core.Physics;
+using FrinkyEngine.Core.Prefabs;
 using FrinkyEngine.Core.Rendering.Profiling;
 
 namespace FrinkyEngine.Core.Scene;
@@ -51,6 +54,7 @@ public class Scene : IDisposable
     public PhysicsSettings PhysicsSettings { get; set; } = new();
 
     private readonly List<Entity> _entities = new();
+    private readonly List<(Entity entity, float remainingTime)> _pendingDestroys = new();
 
     /// <summary>
     /// All entities currently in this scene.
@@ -245,6 +249,27 @@ public class Scene : IDisposable
         {
             AudioSystem?.Update(dt);
         }
+
+        ProcessPendingDestroys(dt);
+    }
+
+    private void ProcessPendingDestroys(float dt)
+    {
+        for (int i = _pendingDestroys.Count - 1; i >= 0; i--)
+        {
+            var (entity, remaining) = _pendingDestroys[i];
+            remaining -= dt;
+            if (remaining <= 0f)
+            {
+                _pendingDestroys.RemoveAt(i);
+                if (entity.Scene == this)
+                    RemoveEntity(entity);
+            }
+            else
+            {
+                _pendingDestroys[i] = (entity, remaining);
+            }
+        }
     }
 
     /// <summary>
@@ -264,6 +289,51 @@ public class Scene : IDisposable
     }
 
     /// <summary>
+    /// Finds the first entity in this scene with the specified name.
+    /// </summary>
+    /// <param name="name">The name to search for.</param>
+    /// <returns>The first matching entity, or <c>null</c> if not found.</returns>
+    public Entity? FindEntityByName(string name)
+    {
+        foreach (var entity in _entities)
+        {
+            if (string.Equals(entity.Name, name, StringComparison.Ordinal))
+                return entity;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds all entities in this scene with the specified name.
+    /// </summary>
+    /// <param name="name">The name to search for.</param>
+    /// <returns>A list of all matching entities.</returns>
+    public List<Entity> FindEntitiesByName(string name)
+    {
+        var results = new List<Entity>();
+        foreach (var entity in _entities)
+        {
+            if (string.Equals(entity.Name, name, StringComparison.Ordinal))
+                results.Add(entity);
+        }
+        return results;
+    }
+
+    /// <summary>
+    /// Finds all entities that have a component of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The component type to search for.</typeparam>
+    /// <returns>A list of entities with a matching component.</returns>
+    public List<Entity> FindEntitiesWithComponent<T>() where T : Component
+    {
+        var components = _registry.GetComponents<T>();
+        var results = new List<Entity>(components.Count);
+        foreach (var c in components)
+            results.Add(c.Entity);
+        return results;
+    }
+
+    /// <summary>
     /// Finds an entity in this scene by its <see cref="Entity.Id"/>.
     /// </summary>
     /// <param name="id">The GUID to search for.</param>
@@ -279,6 +349,64 @@ public class Scene : IDisposable
     }
 
     /// <summary>
+    /// Queues an entity for deferred destruction after a delay.
+    /// </summary>
+    /// <param name="entity">The entity to destroy.</param>
+    /// <param name="delaySeconds">Time in seconds before the entity is removed.</param>
+    internal void QueueDestroy(Entity entity, float delaySeconds)
+    {
+        _pendingDestroys.Add((entity, delaySeconds));
+    }
+
+    /// <summary>
+    /// Instantiates a prefab into this scene.
+    /// </summary>
+    /// <param name="prefabPath">The asset-relative path to the prefab file.</param>
+    /// <param name="parent">Optional parent transform.</param>
+    /// <returns>The root entity of the instantiated prefab, or <c>null</c> if the prefab was not found.</returns>
+    public Entity? Instantiate(string prefabPath, TransformComponent? parent = null)
+    {
+        return PrefabInstantiator.Instantiate(this, prefabPath, parent);
+    }
+
+    /// <summary>
+    /// Instantiates a prefab into this scene at a specific position and rotation.
+    /// </summary>
+    /// <param name="prefabPath">The asset-relative path to the prefab file.</param>
+    /// <param name="position">World position for the instantiated entity.</param>
+    /// <param name="rotation">World rotation for the instantiated entity.</param>
+    /// <param name="parent">Optional parent transform.</param>
+    /// <returns>The root entity of the instantiated prefab, or <c>null</c> if the prefab was not found.</returns>
+    public Entity? Instantiate(string prefabPath, Vector3 position, Quaternion rotation, TransformComponent? parent = null)
+    {
+        return PrefabInstantiator.Instantiate(this, prefabPath, position, rotation, parent);
+    }
+
+    /// <summary>
+    /// Instantiates a prefab into this scene using an asset reference.
+    /// </summary>
+    /// <param name="prefab">The asset reference pointing to the prefab file.</param>
+    /// <param name="parent">Optional parent transform.</param>
+    /// <returns>The root entity of the instantiated prefab, or <c>null</c> if the prefab was not found.</returns>
+    public Entity? Instantiate(AssetReference prefab, TransformComponent? parent = null)
+    {
+        return PrefabInstantiator.Instantiate(this, prefab, parent);
+    }
+
+    /// <summary>
+    /// Instantiates a prefab into this scene at a specific position and rotation using an asset reference.
+    /// </summary>
+    /// <param name="prefab">The asset reference pointing to the prefab file.</param>
+    /// <param name="position">World position for the instantiated entity.</param>
+    /// <param name="rotation">World rotation for the instantiated entity.</param>
+    /// <param name="parent">Optional parent transform.</param>
+    /// <returns>The root entity of the instantiated prefab, or <c>null</c> if the prefab was not found.</returns>
+    public Entity? Instantiate(AssetReference prefab, Vector3 position, Quaternion rotation, TransformComponent? parent = null)
+    {
+        return PrefabInstantiator.Instantiate(this, prefab, position, rotation, parent);
+    }
+
+    /// <summary>
     /// Releases runtime resources associated with this scene (for example physics simulation state).
     /// </summary>
     public void Dispose()
@@ -287,6 +415,7 @@ public class Scene : IDisposable
         PhysicsSystem = null;
         AudioSystem?.Dispose();
         AudioSystem = null;
+        _pendingDestroys.Clear();
         _started = false;
     }
 }

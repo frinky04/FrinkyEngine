@@ -20,6 +20,41 @@ Prefabs store reusable entity hierarchies as `.fprefab` JSON files.
 | Make Unique | Ctrl+Shift+U | Save a new `.fprefab` from this instance |
 | Unpack | Ctrl+Alt+K | Break the prefab link, turning the instance into regular entities |
 
+### Runtime Instantiation
+
+Spawn prefabs from scripts using `Scene.Instantiate()`:
+
+```csharp
+using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Assets;
+
+public class SpawnerComponent : Component
+{
+    [AssetFilter(AssetType.Prefab)]
+    public AssetReference ProjectilePrefab { get; set; }
+
+    public override void Update(float dt)
+    {
+        if (Input.IsMouseButtonPressed(0))
+        {
+            // Spawn at a position and rotation
+            var entity = Entity.Scene.Instantiate(
+                ProjectilePrefab,
+                Transform.WorldPosition,
+                Transform.WorldRotation);
+
+            // Or spawn with just a path
+            // var entity = Entity.Scene.Instantiate("Prefabs/Bullet.fprefab");
+
+            // Optionally parent to another transform
+            // var entity = Entity.Scene.Instantiate(ProjectilePrefab, parent: someTransform);
+        }
+    }
+}
+```
+
+All overloads accept an optional `parent` parameter. Entity references within the prefab are automatically remapped to the new instance.
+
 ### Internals
 
 Prefabs use **stable IDs** to track entities across edits and support nested hierarchies. When a prefab is instantiated, entity IDs are remapped so each instance gets unique IDs while maintaining internal cross-references.

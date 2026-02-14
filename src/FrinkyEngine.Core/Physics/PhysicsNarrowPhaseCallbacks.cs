@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using BepuPhysics;
 using BepuPhysics.Collidables;
@@ -19,6 +20,7 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     public HashSet<int>? TriggerBodyHandles;
     public HashSet<int>? TriggerStaticHandles;
     public ConcurrentBag<(CollidableReference A, CollidableReference B)>? TriggerPairSink;
+    public ConcurrentBag<CollisionPairData>? CollisionPairSink;
 
     public PhysicsNarrowPhaseCallbacks(
         SpringSettings contactSpringiness,
@@ -29,7 +31,8 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         CharacterControllers? characters,
         HashSet<int>? triggerBodyHandles,
         HashSet<int>? triggerStaticHandles,
-        ConcurrentBag<(CollidableReference A, CollidableReference B)>? triggerPairSink)
+        ConcurrentBag<(CollidableReference A, CollidableReference B)>? triggerPairSink,
+        ConcurrentBag<CollisionPairData>? collisionPairSink)
     {
         ContactSpringiness = contactSpringiness;
         MaximumRecoveryVelocity = maximumRecoveryVelocity;
@@ -40,6 +43,7 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
         TriggerBodyHandles = triggerBodyHandles;
         TriggerStaticHandles = triggerStaticHandles;
         TriggerPairSink = triggerPairSink;
+        CollisionPairSink = collisionPairSink;
     }
 
     public void Initialize(Simulation simulation)
@@ -102,6 +106,22 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
 
         pairMaterial = new PairMaterialProperties(friction, maxRecovery, ContactSpringiness);
         Characters?.TryReportContacts(pair, ref manifold, workerIndex, ref pairMaterial);
+
+        // Record collision pair for collision callbacks
+        if (CollisionPairSink != null && manifold.Count > 0)
+        {
+            // Extract first contact point data
+            manifold.GetContact(0, out var offset, out var normal, out var depth, out _);
+            CollisionPairSink.Add(new CollisionPairData
+            {
+                A = pair.A,
+                B = pair.B,
+                ContactOffset = offset,
+                Normal = normal,
+                Depth = depth
+            });
+        }
+
         return true;
     }
 
@@ -119,4 +139,13 @@ internal struct PhysicsNarrowPhaseCallbacks : INarrowPhaseCallbacks
     public void Dispose()
     {
     }
+}
+
+internal struct CollisionPairData
+{
+    public CollidableReference A;
+    public CollidableReference B;
+    public Vector3 ContactOffset;
+    public Vector3 Normal;
+    public float Depth;
 }

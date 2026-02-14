@@ -282,6 +282,106 @@ public class Entity
         }
     }
 
+    /// <summary>
+    /// Gets all components of type <typeparamref name="T"/> attached to this entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to search for.</typeparam>
+    /// <returns>A list of matching component instances.</returns>
+    public List<T> GetComponents<T>() where T : Component
+    {
+        var results = new List<T>();
+        foreach (var c in _components)
+            if (c is T typed) results.Add(typed);
+        return results;
+    }
+
+    /// <summary>
+    /// Gets the first component of type <typeparamref name="T"/> in this entity's children (depth-first).
+    /// </summary>
+    /// <typeparam name="T">The component type to search for.</typeparam>
+    /// <param name="includeInactive">If true, also searches inactive entities.</param>
+    /// <returns>The first matching component, or <c>null</c> if none is found.</returns>
+    public T? GetComponentInChildren<T>(bool includeInactive = false) where T : Component
+    {
+        foreach (var child in Transform.Children)
+        {
+            if (!includeInactive && !child.Entity.Active)
+                continue;
+
+            var component = child.Entity.GetComponent<T>();
+            if (component != null)
+                return component;
+
+            var recursive = child.Entity.GetComponentInChildren<T>(includeInactive);
+            if (recursive != null)
+                return recursive;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets all components of type <typeparamref name="T"/> in this entity's children (depth-first).
+    /// </summary>
+    /// <typeparam name="T">The component type to search for.</typeparam>
+    /// <param name="includeInactive">If true, also searches inactive entities.</param>
+    /// <returns>A list of all matching components in the subtree.</returns>
+    public List<T> GetComponentsInChildren<T>(bool includeInactive = false) where T : Component
+    {
+        var results = new List<T>();
+        GetComponentsInChildrenRecursive(results, includeInactive);
+        return results;
+    }
+
+    private void GetComponentsInChildrenRecursive<T>(List<T> results, bool includeInactive) where T : Component
+    {
+        foreach (var child in Transform.Children)
+        {
+            if (!includeInactive && !child.Entity.Active)
+                continue;
+
+            foreach (var c in child.Entity._components)
+                if (c is T typed) results.Add(typed);
+
+            child.Entity.GetComponentsInChildrenRecursive(results, includeInactive);
+        }
+    }
+
+    /// <summary>
+    /// Gets the first component of type <typeparamref name="T"/> by walking up the parent chain.
+    /// </summary>
+    /// <typeparam name="T">The component type to search for.</typeparam>
+    /// <returns>The first matching component found in a parent, or <c>null</c> if none is found.</returns>
+    public T? GetComponentInParent<T>() where T : Component
+    {
+        var current = Transform.Parent;
+        while (current != null)
+        {
+            var component = current.Entity.GetComponent<T>();
+            if (component != null)
+                return component;
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Immediately removes this entity from its scene, destroying it and all its children.
+    /// </summary>
+    public void Destroy()
+    {
+        Scene?.RemoveEntity(this);
+    }
+
+    /// <summary>
+    /// Queues this entity for destruction after the specified delay in seconds.
+    /// A delay of 0 destroys the entity at the end of the current frame.
+    /// </summary>
+    /// <param name="delaySeconds">Time in seconds before the entity is destroyed.</param>
+    public void Destroy(float delaySeconds)
+    {
+        Scene?.QueueDestroy(this, delaySeconds);
+    }
+
     internal void DestroyComponents()
     {
         foreach (var c in _components)

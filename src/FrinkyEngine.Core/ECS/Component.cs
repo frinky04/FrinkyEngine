@@ -96,4 +96,22 @@ public abstract class Component
     /// </summary>
     /// <param name="other">The other entity involved in the trigger overlap.</param>
     public virtual void OnTriggerExit(Entity other) { }
+
+    /// <summary>
+    /// Called when a physics collision first begins with another entity.
+    /// </summary>
+    /// <param name="info">Information about the collision contact.</param>
+    public virtual void OnCollisionEnter(Physics.CollisionInfo info) { }
+
+    /// <summary>
+    /// Called each frame while a physics collision continues with another entity.
+    /// </summary>
+    /// <param name="info">Information about the collision contact.</param>
+    public virtual void OnCollisionStay(Physics.CollisionInfo info) { }
+
+    /// <summary>
+    /// Called when a physics collision ends with another entity.
+    /// </summary>
+    /// <param name="info">Information about the collision contact.</param>
+    public virtual void OnCollisionExit(Physics.CollisionInfo info) { }
 }

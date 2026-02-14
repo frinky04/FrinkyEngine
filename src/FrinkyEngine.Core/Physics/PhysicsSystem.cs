@@ -106,6 +106,12 @@ internal sealed class PhysicsSystem : IDisposable
     private HashSet<(Guid, Guid)> _previousTriggerPairs = new();
     private HashSet<(Guid, Guid)> _currentTriggerPairs = new();
 
+    // Collision tracking
+    private readonly ConcurrentBag<CollisionPairData> _narrowPhaseCollisionPairs = new();
+    private HashSet<(Guid, Guid)> _previousCollisionPairs = new();
+    private HashSet<(Guid, Guid)> _currentCollisionPairs = new();
+    private readonly Dictionary<(Guid, Guid), CollisionContactData> _collisionContactData = new();
+
     private Simulation? _simulation;
     private CharacterControllers? _characterControllers;
     private float _accumulator;
@@ -145,7 +151,8 @@ internal sealed class PhysicsSystem : IDisposable
             _characterControllers,
             _triggerBodyHandles,
             _triggerStaticHandles,
-            _narrowPhaseTriggerPairs);
+            _narrowPhaseTriggerPairs,
+            _narrowPhaseCollisionPairs);
         var poseCallbacks = new PhysicsPoseIntegratorCallbacks(_scene.PhysicsSettings.Gravity);
         var solveDescription = new SolveDescription(projSettings.SolverVelocityIterations, projSettings.SolverSubsteps);
 
@@ -183,6 +190,7 @@ internal sealed class PhysicsSystem : IDisposable
             ApplyCharacterGoalsForStep(fixedDt, allowJump: steps == 0);
             _simulation.Timestep(fixedDt);
             AccumulateTriggerPairs();
+            AccumulateCollisionPairs();
             ApplyPostStepBodyModifiers(fixedDt);
             SyncDynamicTransformsFromPhysics();
             SyncCharacterRuntimeState();
@@ -195,6 +203,7 @@ internal sealed class PhysicsSystem : IDisposable
         {
             _characterBridge.ConsumeFrameInput(_characterStates.Values);
             ProcessTriggerEvents();
+            ProcessCollisionEvents();
         }
 
         if (steps >= maxSubsteps && _accumulator >= fixedDt)
@@ -1449,19 +1458,8 @@ internal sealed class PhysicsSystem : IDisposable
 
     private Entity? ResolveCollidableToEntity(CollidableReference collidable)
     {
-        Guid entityId;
-        switch (collidable.Mobility)
-        {
-            case CollidableMobility.Static:
-                if (!_staticHandleToEntityId.TryGetValue(collidable.StaticHandle.Value, out entityId))
-                    return null;
-                break;
-            default:
-                if (!_bodyHandleToEntityId.TryGetValue(collidable.BodyHandle.Value, out entityId))
-                    return null;
-                break;
-        }
-
+        if (!TryResolveCollidableId(collidable, out var entityId))
+            return null;
         return _scene.FindEntityById(entityId);
     }
 
@@ -1470,36 +1468,21 @@ internal sealed class PhysicsSystem : IDisposable
         return a.CompareTo(b) <= 0 ? (a, b) : (b, a);
     }
 
+    private bool TryResolveCollidableId(CollidableReference collidable, out Guid entityId)
+    {
+        if (collidable.Mobility == CollidableMobility.Static)
+            return _staticHandleToEntityId.TryGetValue(collidable.StaticHandle.Value, out entityId);
+        return _bodyHandleToEntityId.TryGetValue(collidable.BodyHandle.Value, out entityId);
+    }
+
     private void AccumulateTriggerPairs()
     {
         while (_narrowPhaseTriggerPairs.TryTake(out var pair))
         {
-            Guid idA, idB;
-
-            switch (pair.A.Mobility)
-            {
-                case CollidableMobility.Static:
-                    if (!_staticHandleToEntityId.TryGetValue(pair.A.StaticHandle.Value, out idA))
-                        continue;
-                    break;
-                default:
-                    if (!_bodyHandleToEntityId.TryGetValue(pair.A.BodyHandle.Value, out idA))
-                        continue;
-                    break;
-            }
-
-            switch (pair.B.Mobility)
-            {
-                case CollidableMobility.Static:
-                    if (!_staticHandleToEntityId.TryGetValue(pair.B.StaticHandle.Value, out idB))
-                        continue;
-                    break;
-                default:
-                    if (!_bodyHandleToEntityId.TryGetValue(pair.B.BodyHandle.Value, out idB))
-                        continue;
-                    break;
-            }
-
+            if (!TryResolveCollidableId(pair.A, out var idA))
+                continue;
+            if (!TryResolveCollidableId(pair.B, out var idB))
+                continue;
             if (idA == idB)
                 continue;
 
@@ -1734,6 +1717,322 @@ internal sealed class PhysicsSystem : IDisposable
         };
     }
 
+    // --- Shape Cast (Sweep) ---
+
+    private struct ClosestSweepHandler : ISweepHitHandler
+    {
+        public float ClosestT;
+        public Vector3 HitLocation;
+        public Vector3 HitNormal;
+        public CollidableReference HitCollidable;
+        public bool HasHit;
+        public RaycastFilter Filter;
+
+        public bool AllowTest(CollidableReference collidable) => Filter.AllowCollidable(collidable);
+        public bool AllowTest(CollidableReference collidable, int childIndex) => true;
+
+        public void OnHit(ref float maximumT, float t, in Vector3 hitLocation, in Vector3 hitNormal, CollidableReference collidable)
+        {
+            if (t < ClosestT || !HasHit)
+            {
+                ClosestT = t;
+                HitLocation = hitLocation;
+                HitNormal = hitNormal;
+                HitCollidable = collidable;
+                HasHit = true;
+                maximumT = t;
+            }
+        }
+
+        public void OnHitAtZeroT(ref float maximumT, CollidableReference collidable)
+        {
+            // Overlapping at start — treat as hit at distance 0
+            if (!HasHit)
+            {
+                ClosestT = 0f;
+                HitLocation = Vector3.Zero;
+                HitNormal = Vector3.Zero;
+                HitCollidable = collidable;
+                HasHit = true;
+            }
+        }
+    }
+
+    private struct AllSweepHitsHandler : ISweepHitHandler
+    {
+        public List<(float T, Vector3 Location, Vector3 Normal, CollidableReference Collidable)> Hits;
+        public RaycastFilter Filter;
+
+        public bool AllowTest(CollidableReference collidable) => Filter.AllowCollidable(collidable);
+        public bool AllowTest(CollidableReference collidable, int childIndex) => true;
+
+        public void OnHit(ref float maximumT, float t, in Vector3 hitLocation, in Vector3 hitNormal, CollidableReference collidable)
+        {
+            Hits.Add((t, hitLocation, hitNormal, collidable));
+        }
+
+        public void OnHitAtZeroT(ref float maximumT, CollidableReference collidable)
+        {
+            Hits.Add((0f, Vector3.Zero, Vector3.Zero, collidable));
+        }
+    }
+
+    internal bool SweepClosest<TShape>(TShape shape, RigidPose pose, Vector3 direction, float maxDistance, out ShapeCastHit hit, RaycastParams raycastParams)
+        where TShape : unmanaged, IConvexShape
+    {
+        hit = default;
+        if (_simulation == null)
+            return false;
+
+        var dirLength = direction.Length();
+        if (dirLength < 1e-8f)
+            return false;
+
+        var normalizedDir = direction / dirLength;
+        var velocity = new BodyVelocity { Linear = normalizedDir * maxDistance };
+        var filter = BuildRaycastFilter(raycastParams);
+        var handler = new ClosestSweepHandler
+        {
+            ClosestT = float.MaxValue,
+            HasHit = false,
+            Filter = filter,
+        };
+
+        _simulation.Sweep(shape, pose, velocity, 1f, _bufferPool, ref handler);
+
+        if (!handler.HasHit)
+            return false;
+
+        var entity = ResolveCollidableToEntity(handler.HitCollidable);
+        if (entity == null)
+            return false;
+
+        hit = new ShapeCastHit
+        {
+            Entity = entity,
+            Point = handler.HitLocation,
+            Normal = handler.HitNormal,
+            Distance = handler.ClosestT * maxDistance,
+        };
+        return true;
+    }
+
+    internal List<ShapeCastHit> SweepAll<TShape>(TShape shape, RigidPose pose, Vector3 direction, float maxDistance, RaycastParams raycastParams)
+        where TShape : unmanaged, IConvexShape
+    {
+        var results = new List<ShapeCastHit>();
+        if (_simulation == null)
+            return results;
+
+        var dirLength = direction.Length();
+        if (dirLength < 1e-8f)
+            return results;
+
+        var normalizedDir = direction / dirLength;
+        var velocity = new BodyVelocity { Linear = normalizedDir * maxDistance };
+        var filter = BuildRaycastFilter(raycastParams);
+        var handler = new AllSweepHitsHandler
+        {
+            Hits = new List<(float, Vector3, Vector3, CollidableReference)>(),
+            Filter = filter,
+        };
+
+        _simulation.Sweep(shape, pose, velocity, 1f, _bufferPool, ref handler);
+
+        foreach (var (t, location, normal, collidable) in handler.Hits)
+        {
+            var entity = ResolveCollidableToEntity(collidable);
+            if (entity == null)
+                continue;
+
+            results.Add(new ShapeCastHit
+            {
+                Entity = entity,
+                Point = location,
+                Normal = normal,
+                Distance = t * maxDistance,
+            });
+        }
+
+        return results;
+    }
+
+    // --- Overlap Queries ---
+
+    private struct OverlapHandler : ISweepHitHandler
+    {
+        public List<CollidableReference> Overlaps;
+        public RaycastFilter Filter;
+
+        public bool AllowTest(CollidableReference collidable) => Filter.AllowCollidable(collidable);
+        public bool AllowTest(CollidableReference collidable, int childIndex) => true;
+
+        public void OnHit(ref float maximumT, float t, in Vector3 hitLocation, in Vector3 hitNormal, CollidableReference collidable)
+        {
+            // Zero-velocity sweep — OnHit should not fire, but collect just in case
+        }
+
+        public void OnHitAtZeroT(ref float maximumT, CollidableReference collidable)
+        {
+            Overlaps.Add(collidable);
+        }
+    }
+
+    internal List<Entity> OverlapQuery<TShape>(TShape shape, RigidPose pose, RaycastParams raycastParams)
+        where TShape : unmanaged, IConvexShape
+    {
+        var results = new List<Entity>();
+        if (_simulation == null)
+            return results;
+
+        var filter = BuildRaycastFilter(raycastParams);
+        var handler = new OverlapHandler
+        {
+            Overlaps = new List<CollidableReference>(),
+            Filter = filter,
+        };
+
+        // Sweep with zero velocity — OnHitAtZeroT fires for pre-existing overlaps
+        var velocity = new BodyVelocity { Linear = Vector3.Zero };
+        _simulation.Sweep(shape, pose, velocity, 1f, _bufferPool, ref handler);
+
+        foreach (var collidable in handler.Overlaps)
+        {
+            var entity = ResolveCollidableToEntity(collidable);
+            if (entity != null)
+                results.Add(entity);
+        }
+
+        return results;
+    }
+
+    // --- Collision event processing ---
+
+    private readonly record struct CollisionContactData(Vector3 WorldContactPoint, Vector3 Normal, float Depth);
+
+    private void AccumulateCollisionPairs()
+    {
+        while (_narrowPhaseCollisionPairs.TryTake(out var pair))
+        {
+            if (!TryResolveCollidableId(pair.A, out var idA))
+                continue;
+            if (!TryResolveCollidableId(pair.B, out var idB))
+                continue;
+            if (idA == idB)
+                continue;
+
+            // Compute world-space contact point: offset is relative to collidable A's position
+            var worldContactPoint = pair.ContactOffset + GetCollidablePosition(pair.A);
+
+            // Manifold normal points from B toward A.
+            // Canonical pair stores (min GUID, max GUID). If idA ended up as Item2
+            // (i.e. idA > idB), the canonical order is swapped relative to the manifold,
+            // so we negate the normal to keep it pointing from Item2 toward Item1.
+            var canonical = CanonicalPair(idA, idB);
+            bool swapped = canonical.Item1 != idA;
+            var normal = swapped ? -pair.Normal : pair.Normal;
+
+            _currentCollisionPairs.Add(canonical);
+            _collisionContactData[canonical] = new CollisionContactData(worldContactPoint, normal, pair.Depth);
+        }
+    }
+
+    private Vector3 GetCollidablePosition(CollidableReference collidable)
+    {
+        if (_simulation == null)
+            return Vector3.Zero;
+
+        if (collidable.Mobility == CollidableMobility.Static)
+        {
+            if (_simulation.Statics.StaticExists(collidable.StaticHandle))
+                return _simulation.Statics.GetStaticReference(collidable.StaticHandle).Pose.Position;
+        }
+        else
+        {
+            if (_simulation.Bodies.BodyExists(collidable.BodyHandle))
+                return _simulation.Bodies.GetBodyReference(collidable.BodyHandle).Pose.Position;
+        }
+
+        return Vector3.Zero;
+    }
+
+    private void ProcessCollisionEvents()
+    {
+        // Enter: in current but not previous
+        foreach (var pair in _currentCollisionPairs)
+        {
+            _collisionContactData.TryGetValue(pair, out var contact);
+            if (!_previousCollisionPairs.Contains(pair))
+                DispatchCollisionCallback(pair.Item1, pair.Item2, contact, CollisionEventType.Enter);
+            else
+                DispatchCollisionCallback(pair.Item1, pair.Item2, contact, CollisionEventType.Stay);
+        }
+
+        // Exit: in previous but not current
+        foreach (var pair in _previousCollisionPairs)
+        {
+            if (!_currentCollisionPairs.Contains(pair))
+                DispatchCollisionCallback(pair.Item1, pair.Item2, default, CollisionEventType.Exit);
+        }
+
+        // Swap buffers
+        (_previousCollisionPairs, _currentCollisionPairs) = (_currentCollisionPairs, _previousCollisionPairs);
+        _currentCollisionPairs.Clear();
+        _collisionContactData.Clear();
+    }
+
+    private enum CollisionEventType { Enter, Stay, Exit }
+
+    private void DispatchCollisionCallback(Guid entityIdA, Guid entityIdB, CollisionContactData contact, CollisionEventType eventType)
+    {
+        var entityA = _scene.FindEntityById(entityIdA);
+        var entityB = _scene.FindEntityById(entityIdB);
+        if (entityA == null || entityB == null)
+            return;
+
+        // Normal is stored pointing from Item2 toward Item1 (canonical order).
+        // Item1 = entityIdA, Item2 = entityIdB, so normal points toward A.
+        var infoForA = new CollisionInfo
+        {
+            Other = entityB,
+            ContactPoint = contact.WorldContactPoint,
+            Normal = contact.Normal,
+            PenetrationDepth = contact.Depth,
+        };
+        var infoForB = new CollisionInfo
+        {
+            Other = entityA,
+            ContactPoint = contact.WorldContactPoint,
+            Normal = -contact.Normal,
+            PenetrationDepth = contact.Depth,
+        };
+
+        // Snapshot component lists — user scripts may add/remove components during callbacks.
+        foreach (var component in entityA.Components.ToList())
+        {
+            if (!component.Enabled)
+                continue;
+            switch (eventType)
+            {
+                case CollisionEventType.Enter: component.OnCollisionEnter(infoForA); break;
+                case CollisionEventType.Stay: component.OnCollisionStay(infoForA); break;
+                case CollisionEventType.Exit: component.OnCollisionExit(infoForA); break;
+            }
+        }
+
+        foreach (var component in entityB.Components.ToList())
+        {
+            if (!component.Enabled)
+                continue;
+            switch (eventType)
+            {
+                case CollisionEventType.Enter: component.OnCollisionEnter(infoForB); break;
+                case CollisionEventType.Stay: component.OnCollisionStay(infoForB); break;
+                case CollisionEventType.Exit: component.OnCollisionExit(infoForB); break;
+            }
+        }
+    }
+
     private readonly struct ShapeCreationResult
     {
         public required TypedIndex ShapeIndex { get; init; }
@@ -1758,6 +2057,9 @@ internal sealed class PhysicsSystem : IDisposable
         _triggerStaticHandles.Clear();
         _previousTriggerPairs.Clear();
         _currentTriggerPairs.Clear();
+        _previousCollisionPairs.Clear();
+        _currentCollisionPairs.Clear();
+        _collisionContactData.Clear();
         _warnedNoCollider.Clear();
         _warnedParented.Clear();
         _warnedMultipleColliders.Clear();
