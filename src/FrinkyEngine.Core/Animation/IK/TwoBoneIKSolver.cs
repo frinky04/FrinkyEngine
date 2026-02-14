@@ -1,6 +1,5 @@
 using System.Numerics;
 using FrinkyEngine.Core.ECS;
-using Raylib_cs;
 
 namespace FrinkyEngine.Core.Animation.IK;
 
@@ -94,8 +93,6 @@ public class TwoBoneIKSolver : IKSolver
         int mid = MidBoneIndex - 1;
         int end = EndBoneIndex - 1;
 
-        if (root < 0 || mid < 0 || end < 0)
-            return false;
         if (root >= hierarchy.BoneCount || mid >= hierarchy.BoneCount || end >= hierarchy.BoneCount)
             return false;
 
@@ -154,7 +151,7 @@ public class TwoBoneIKSolver : IKSolver
         if (Weight < 1f)
             rootDelta = Quaternion.Slerp(Quaternion.Identity, rootDelta, Weight);
 
-        ApplyWorldRotationDelta(localTransforms, worldMatrices, hierarchy, root, rootDelta);
+        IKMath.ApplyWorldRotationDelta(localTransforms, worldMatrices, hierarchy, root, rootDelta);
 
         // Recompute FK from root onward so mid/end positions update
         IKMath.ForwardKinematics(hierarchy.ParentIndices, localTransforms, entityWorldMatrix, worldMatrices);
@@ -176,36 +173,7 @@ public class TwoBoneIKSolver : IKSolver
         if (Weight < 1f)
             midDelta = Quaternion.Slerp(Quaternion.Identity, midDelta, Weight);
 
-        ApplyWorldRotationDelta(localTransforms, worldMatrices, hierarchy, mid, midDelta);
+        IKMath.ApplyWorldRotationDelta(localTransforms, worldMatrices, hierarchy, mid, midDelta);
         IKMath.ForwardKinematics(hierarchy.ParentIndices, localTransforms, entityWorldMatrix, worldMatrices);
-    }
-
-    private static void ApplyWorldRotationDelta(
-        (Vector3 translation, Quaternion rotation, Vector3 scale)[] localTransforms,
-        Matrix4x4[] worldMatrices,
-        BoneHierarchy hierarchy,
-        int boneIndex,
-        Quaternion worldDelta)
-    {
-        // Current world rotation of this bone
-        var currentWorldRot = IKMath.ExtractRotation(worldMatrices[boneIndex]);
-        // Apply the delta in world space
-        var newWorldRot = Quaternion.Normalize(Raymath.QuaternionMultiply(worldDelta, currentWorldRot));
-
-        // Convert new world rotation to local space
-        int parentIdx = hierarchy.ParentIndices[boneIndex];
-        Quaternion newLocalRot;
-        if (parentIdx >= 0 && parentIdx < worldMatrices.Length)
-            newLocalRot = IKMath.WorldToLocalRotation(newWorldRot, worldMatrices[parentIdx]);
-        else
-            newLocalRot = newWorldRot; // root bone — world == local
-
-        var (t, _, s) = localTransforms[boneIndex];
-        localTransforms[boneIndex] = (t, Quaternion.Normalize(newLocalRot), s);
-    }
-
-    private string[] GetBoneNames()
-    {
-        return Hierarchy?.GetBoneNamesForDropdown() ?? ["(none)"];
     }
 }

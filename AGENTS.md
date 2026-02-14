@@ -1,5 +1,8 @@
 # Agent Instructions
 
+## Docs and Agent MD
+In order to keep a coherent structure, anytime you use a workaround, or want an agent from the future to know anything, update the AGENTS.md with that information. Information can be lost between agent sessions, so its essential to keep this updated. Information should not be lost!
+
 ## Build & Run
 
 | Command | Description |

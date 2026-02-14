@@ -80,18 +80,7 @@ public static class IKMath
         {
             if (visitState[boneIndex] == 2)
                 return;
-            if (visitState[boneIndex] == 1)
-            {
-                // Cycle guard: treat as root and stop recursion.
-                var (cycleT, cycleR, cycleS) = localTransforms[boneIndex];
-                var cycleLocal = Matrix4x4.CreateScale(cycleS)
-                    * Matrix4x4.CreateFromQuaternion(cycleR)
-                    * Matrix4x4.CreateTranslation(cycleT);
-                worldMatrices[boneIndex] = cycleLocal * rootMatrix;
-                visitState[boneIndex] = 2;
-                return;
-            }
-
+            bool isCycle = visitState[boneIndex] == 1;
             visitState[boneIndex] = 1;
 
             var (t, r, s) = localTransforms[boneIndex];
@@ -100,7 +89,7 @@ public static class IKMath
                 * Matrix4x4.CreateTranslation(t);
 
             int parent = parentIndices[boneIndex];
-            if (parent >= 0 && parent < count)
+            if (!isCycle && parent >= 0 && parent < count)
             {
                 ComputeWorld(parent);
                 worldMatrices[boneIndex] = local * worldMatrices[parent];
@@ -156,6 +145,31 @@ public static class IKMath
 
         var cross = Vector3.Cross(from, to);
         return Quaternion.Normalize(new Quaternion(cross, 1f + dot));
+    }
+
+    /// <summary>
+    /// Applies a world-space rotation delta to a bone, converting back to local space.
+    /// Updates the local transform in place.
+    /// </summary>
+    public static void ApplyWorldRotationDelta(
+        (Vector3 translation, Quaternion rotation, Vector3 scale)[] localTransforms,
+        Matrix4x4[] worldMatrices,
+        BoneHierarchy hierarchy,
+        int boneIndex,
+        Quaternion worldDelta)
+    {
+        var currentWorldRot = ExtractRotation(worldMatrices[boneIndex]);
+        var newWorldRot = Quaternion.Normalize(Raymath.QuaternionMultiply(worldDelta, currentWorldRot));
+
+        int parentIdx = hierarchy.ParentIndices[boneIndex];
+        Quaternion newLocalRot;
+        if (parentIdx >= 0 && parentIdx < worldMatrices.Length)
+            newLocalRot = WorldToLocalRotation(newWorldRot, worldMatrices[parentIdx]);
+        else
+            newLocalRot = newWorldRot;
+
+        var (t, _, s) = localTransforms[boneIndex];
+        localTransforms[boneIndex] = (t, Quaternion.Normalize(newLocalRot), s);
     }
 
     private static Vector3 GetPerpendicular(Vector3 v)

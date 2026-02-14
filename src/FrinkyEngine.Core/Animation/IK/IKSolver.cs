@@ -25,6 +25,14 @@ public abstract class IKSolver : FObject
     internal BoneHierarchy? Hierarchy { get; set; }
 
     /// <summary>
+    /// Returns bone names for inspector dropdowns (index 0 = "(none)").
+    /// </summary>
+    protected string[] GetBoneNames()
+    {
+        return Hierarchy?.GetBoneNamesForDropdown() ?? ["(none)"];
+    }
+
+    /// <summary>
     /// Whether the solver has enough configuration data to run.
     /// </summary>
     public virtual bool IsConfigured => true;

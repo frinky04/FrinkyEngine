@@ -107,9 +107,42 @@ The built-in solver for three-joint limb chains (e.g. upper-arm → forearm → 
 
 When `TargetSpace` or `PoleTargetSpace` is set to `Local`, the position is relative to the owning entity's transform.
 
+#### FABRIKSolver
+
+FABRIK (Forward And Backward Reaching Inverse Kinematics) solver for arbitrary-length bone chains. Unlike Two Bone IK, FABRIK supports chains of any length — the bones between root and end are discovered automatically by walking the skeleton hierarchy.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `RootBone` | (none) | First bone in the chain |
+| `EndBone` | (none) | End effector bone |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position the end effector reaches toward |
+| `MaxIterations` | 10 | Maximum FABRIK iterations per solve (1–50) |
+| `Tolerance` | 0.001 | Convergence threshold in world units — iteration stops when the end effector is within this distance of the target |
+
+The root and end bones must be connected through a direct parent chain in the skeleton (end is a descendant of root). When the target is unreachable, the chain stretches toward it.
+
+#### LookAtIKSolver
+
+Rotates a single bone so that a chosen local axis points toward a target position. Useful for head tracking, turrets, eye gaze, and similar aim constraints.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Enabled` | true | Toggle this solver on/off |
+| `Weight` | 1.0 | Blend between animation pose (0) and full IK (1) |
+| `Bone` | (none) | The bone to rotate |
+| `TargetSpace` | World | Coordinate space for the target position — `World` or `Local` |
+| `TargetPosition` | (0,0,0) | Position to look at |
+| `AimAxis` | Z+ | Which local bone axis should point toward the target |
+| `UpAxis` | Y+ | Which local bone axis should align toward world up |
+
+Available axes: `X+`, `Y+`, `Z+`, `X-`, `Y-`, `Z-`.
+
 #### Viewport Gizmos
 
-Target and pole-target positions appear as draggable wireframe spheres in the viewport. Click a sphere to select it, then drag the translate handle to reposition it. A line connects each gizmo to the entity origin.
+Solver target positions (and pole targets for Two Bone IK) appear as draggable wireframe spheres in the viewport. Click a sphere to select it, then drag the translate handle to reposition it. A line connects each gizmo to the entity origin.
 
 ### Notes
 
