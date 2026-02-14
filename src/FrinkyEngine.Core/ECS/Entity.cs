@@ -203,7 +203,18 @@ public class Entity
                 $"Exception in {component.GetType().Name}.{callbackName} on entity '{component.Entity?.Name}': " +
                 $"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             if (disableOnError)
-                component.Enabled = false;
+            {
+                try
+                {
+                    component.Enabled = false;
+                }
+                catch (Exception disableEx)
+                {
+                    FrinkyLog.Error(
+                        $"Exception while disabling component {component.GetType().Name} on entity '{component.Entity?.Name}': " +
+                        $"{disableEx.GetType().Name}: {disableEx.Message}\n{disableEx.StackTrace}");
+                }
+            }
         }
     }
 
