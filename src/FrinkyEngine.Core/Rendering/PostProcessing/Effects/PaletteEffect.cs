@@ -49,7 +49,12 @@ public class PaletteEffect : PostProcessEffect
         if (_loadedPalettePath != PalettePath.Path)
             LoadPalette();
 
-        if (_paletteTexId == 0 || _paletteColorCount == 0) return;
+        // Pass through unchanged when no palette is loaded
+        if (_paletteTexId == 0 || _paletteColorCount == 0)
+        {
+            PostProcessContext.Blit(source, destination);
+            return;
+        }
 
         // Set uniforms
         if (_paletteSizeLoc >= 0)
