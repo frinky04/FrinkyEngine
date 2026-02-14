@@ -2330,8 +2330,10 @@ public static class ComponentDrawerRegistry
 
     private static void DrawIndentedWithAccentBar(Action drawContent)
     {
-        const float indent = 10f;
-        ImGui.Indent(indent);
+        const float indent = 12f;
+        float treeIndent = ImGui.GetStyle().IndentSpacing;
+        float reduce = treeIndent - indent;
+        ImGui.Unindent(reduce);
 
         var startPos = ImGui.GetCursorScreenPos();
         float startY = startPos.Y;
@@ -2339,7 +2341,7 @@ public static class ComponentDrawerRegistry
         drawContent();
 
         float endY = ImGui.GetCursorScreenPos().Y;
-        ImGui.Unindent(indent);
+        ImGui.Indent(reduce);
 
         if (endY > startY)
         {
