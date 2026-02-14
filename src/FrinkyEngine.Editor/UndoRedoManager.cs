@@ -1,5 +1,6 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 
@@ -173,8 +174,7 @@ public class UndoRedoManager
     private static void TransferLoadedAssets(Core.Scene.Scene oldScene, Core.Scene.Scene restoredScene)
     {
         // Build a lookup of old entities by ID for fast matching
-        var oldEntities = new Dictionary<Guid, Entity>();
-        CollectEntities(oldScene, oldEntities);
+        var oldEntities = IterateAllEntities(oldScene).ToDictionary(e => e.Id);
 
         // Transfer MeshRendererComponent model instances
         foreach (var entity in IterateAllEntities(restoredScene))
@@ -237,17 +237,11 @@ public class UndoRedoManager
             {
                 prop.SetValue(target, prop.GetValue(source));
             }
-            catch
+            catch (Exception ex)
             {
-                // Skip properties that can't be copied
+                FrinkyLog.Warning($"CopyEffectProperties: failed to copy {prop.Name} on {type.Name}: {ex.Message}");
             }
         }
-    }
-
-    private static void CollectEntities(Core.Scene.Scene scene, Dictionary<Guid, Entity> map)
-    {
-        foreach (var entity in IterateAllEntities(scene))
-            map[entity.Id] = entity;
     }
 
     private static IEnumerable<Entity> IterateAllEntities(Core.Scene.Scene scene)
@@ -272,24 +266,7 @@ public class UndoRedoManager
 
     private static Core.ECS.Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
     {
-        foreach (var entity in scene.Entities)
-        {
-            if (entity.Id == id) return entity;
-            var found = FindEntityByIdRecursive(entity, id);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private static Core.ECS.Entity? FindEntityByIdRecursive(Core.ECS.Entity entity, Guid id)
-    {
-        foreach (var child in entity.Transform.Children)
-        {
-            if (child.Entity.Id == id) return child.Entity;
-            var found = FindEntityByIdRecursive(child.Entity, id);
-            if (found != null) return found;
-        }
-        return null;
+        return IterateAllEntities(scene).FirstOrDefault(e => e.Id == id);
     }
 
     public void Clear()
