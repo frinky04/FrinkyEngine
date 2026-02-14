@@ -115,10 +115,12 @@ void main()
 
             lightDir = toLight / dist;
 
-            float invSq = 1.0 / max(dist * dist, 0.0001);
-            float edge = clamp(1.0 - dist / max(lightRange, 0.0001), 0.0, 1.0);
-            float rangeFade = edge * edge * (3.0 - 2.0 * edge);
-            attenuation = min(1.0, invSq * rangeFade * lightRange * lightRange);
+            float distRatio = dist / max(lightRange, 0.0001);
+            float distRatio2 = distRatio * distRatio;
+            float distRatio4 = distRatio2 * distRatio2;
+            float window = clamp(1.0 - distRatio4, 0.0, 1.0);
+            window = window * window;
+            attenuation = window / (dist * dist + 1.0);
         }
         else
         {
