@@ -409,7 +409,7 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             // skips the first N frames so the wrap jumps from the last
             // unique frame back to frame trim, avoiding a visible dwell
             // on the duplicate start pose.
-            int trim = Loop ? Math.Clamp(LoopFrameTrim, 0, Math.Max(0, frameCount - 1)) : 0;
+            int trim = Loop ? Math.Clamp(LoopFrameTrim, 0, frameCount - 1) : 0;
             int loopLength = Math.Max(1, frameCount - trim);
             if (Loop)
             {
