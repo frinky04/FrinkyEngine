@@ -1,5 +1,6 @@
 using FrinkyEngine.Core.Components;
 using FrinkyEngine.Core.Prefabs;
+using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Serialization;
 using System.Reflection;
 
@@ -186,11 +187,31 @@ public class Entity
         }
     }
 
+    /// <summary>
+    /// Invokes a user component callback inside a try-catch. If the callback throws,
+    /// the exception is logged and the component is disabled to prevent repeated errors.
+    /// </summary>
+    internal static void SafeInvokeLifecycle(Component component, string callbackName, Action callback, bool disableOnError = true)
+    {
+        try
+        {
+            callback();
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Error(
+                $"Exception in {component.GetType().Name}.{callbackName} on entity '{component.Entity?.Name}': " +
+                $"{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            if (disableOnError)
+                component.Enabled = false;
+        }
+    }
+
     private void AddComponentInternal(Component component)
     {
         component.Entity = this;
         _components.Add(component);
-        component.Awake();
+        SafeInvokeLifecycle(component, "Awake", component.Awake);
         Scene?.OnComponentAdded(this, component);
     }
 
@@ -242,7 +263,7 @@ public class Entity
             {
                 Scene?.OnComponentRemoved(this, component);
                 component.CancelAllCoroutinesAndTimers();
-                component.OnDestroy();
+                SafeInvokeLifecycle(component, "OnDestroy", component.OnDestroy, disableOnError: false);
                 _components.RemoveAt(i);
                 return true;
             }
@@ -265,7 +286,7 @@ public class Entity
         {
             Scene?.OnComponentRemoved(this, component);
             component.CancelAllCoroutinesAndTimers();
-            component.OnDestroy();
+            SafeInvokeLifecycle(component, "OnDestroy", component.OnDestroy, disableOnError: false);
             return true;
         }
         return false;
@@ -277,7 +298,7 @@ public class Entity
         {
             if (!c.HasStarted && c.Enabled)
             {
-                c.Start();
+                SafeInvokeLifecycle(c, "Start", c.Start);
                 c.HasStarted = true;
             }
         }
@@ -290,13 +311,14 @@ public class Entity
             var c = _components[i];
             if (!c.HasStarted && c.Enabled)
             {
-                c.Start();
+                SafeInvokeLifecycle(c, "Start", c.Start);
                 c.HasStarted = true;
             }
             if (c.Enabled)
             {
-                c.Update(dt);
-                c.TickCoroutinesAndTimers(dt, unscaledDt);
+                SafeInvokeLifecycle(c, "Update", () => c.Update(dt));
+                if (c.Enabled)
+                    c.TickCoroutinesAndTimers(dt, unscaledDt);
             }
         }
     }
@@ -306,7 +328,8 @@ public class Entity
         for (int i = 0; i < _components.Count; i++)
         {
             var c = _components[i];
-            if (c.Enabled) c.LateUpdate(dt);
+            if (c.Enabled)
+                SafeInvokeLifecycle(c, "LateUpdate", () => c.LateUpdate(dt));
         }
     }
 
@@ -415,7 +438,7 @@ public class Entity
         foreach (var c in _components)
         {
             c.CancelAllCoroutinesAndTimers();
-            c.OnDestroy();
+            SafeInvokeLifecycle(c, "OnDestroy", c.OnDestroy, disableOnError: false);
         }
     }
 }
