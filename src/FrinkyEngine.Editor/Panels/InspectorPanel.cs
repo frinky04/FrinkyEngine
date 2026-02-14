@@ -112,6 +112,8 @@ public class InspectorPanel
             {
                 ImGui.PushID(componentType.Name);
                 ComponentDrawerRegistry.DrawReflection(component);
+                if (component is SkinnedMeshAnimatorComponent animatorComponent)
+                    DrawBoneHierarchyTree(animatorComponent, entity);
                 ImGui.PopID();
             }
         }
@@ -880,6 +882,67 @@ public class InspectorPanel
         if (ImGui.IsItemHovered() && type.BaseType != null && type.BaseType != typeof(Component))
         {
             ImGui.SetTooltip($"Extends {type.BaseType.Name}");
+        }
+    }
+
+    private static unsafe void DrawBoneHierarchyTree(SkinnedMeshAnimatorComponent animator, Entity entity)
+    {
+        var meshRenderer = entity.GetComponent<MeshRendererComponent>();
+        if (meshRenderer == null || meshRenderer.ModelPath.IsEmpty)
+            return;
+
+        var model = AssetManager.Instance.LoadModel(meshRenderer.ModelPath.Path);
+        if (model.BoneCount <= 0)
+            return;
+
+        ImGui.Separator();
+        if (!ImGui.CollapsingHeader($"Bone Hierarchy ({model.BoneCount} bones)"))
+            return;
+
+        // Build children lookup
+        var children = new Dictionary<int, List<int>>();
+        var roots = new List<int>();
+
+        for (int i = 0; i < model.BoneCount; i++)
+        {
+            int parent = model.Bones[i].Parent;
+            if (parent < 0 || parent >= model.BoneCount)
+            {
+                roots.Add(i);
+            }
+            else
+            {
+                if (!children.TryGetValue(parent, out var list))
+                {
+                    list = new List<int>();
+                    children[parent] = list;
+                }
+                list.Add(i);
+            }
+        }
+
+        foreach (int root in roots)
+            DrawBoneNode(model, root, children);
+    }
+
+    private static unsafe void DrawBoneNode(Model model, int boneIndex, Dictionary<int, List<int>> children)
+    {
+        var boneName = new string(model.Bones[boneIndex].Name, 0, 32).TrimEnd('\0');
+        if (string.IsNullOrWhiteSpace(boneName))
+            boneName = $"Bone {boneIndex}";
+
+        bool hasChildren = children.ContainsKey(boneIndex);
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (!hasChildren)
+            flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
+
+        bool opened = ImGui.TreeNodeEx($"{boneName}##{boneIndex}", flags);
+
+        if (hasChildren && opened)
+        {
+            foreach (int child in children[boneIndex])
+                DrawBoneNode(model, child, children);
+            ImGui.TreePop();
         }
     }
 }

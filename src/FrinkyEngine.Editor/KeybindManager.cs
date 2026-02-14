@@ -65,6 +65,7 @@ public class KeybindManager
             [EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true),
             [EditorAction.FrameSelected] = new Keybind(ImGuiKey.F),
             [EditorAction.ToggleColliderEditMode] = new Keybind(ImGuiKey.F9),
+            [EditorAction.ToggleBonePreview] = new Keybind(ImGuiKey.F10),
         };
     }
 
@@ -116,7 +117,8 @@ public class KeybindManager
             or EditorAction.FrameSelected
             or EditorAction.DeselectEntity
             or EditorAction.TogglePhysicsHitboxPreview
-            or EditorAction.ToggleColliderEditMode;
+            or EditorAction.ToggleColliderEditMode
+            or EditorAction.ToggleBonePreview;
     }
 
     public Keybind GetBinding(EditorAction action) =>

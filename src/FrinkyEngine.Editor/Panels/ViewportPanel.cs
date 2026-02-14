@@ -117,6 +117,8 @@ public class ViewportPanel
                 if (_app.CurrentScene != null)
                 {
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
+                    if (!isEditorMode || selectedEntities.Count == 0)
+                        _selectedInspectorGizmo = -1;
                     _cachedGizmoTargets = isEditorMode ? EditorGizmos.CollectGizmoTargets(selectedEntities) : null;
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
                     bool colliderEditMode = isEditorMode && _app.IsColliderEditModeEnabled;
@@ -155,6 +157,11 @@ public class ViewportPanel
                                     EditorGizmos.DrawInspectorGizmos(_cachedGizmoTargets!);
                                     foreach (var selectedEntity in selectedEntities)
                                         EditorGizmos.DrawSelectionFallbackHighlight(selectedEntity);
+                                }
+
+                                if (_app.IsBonePreviewEnabled)
+                                {
+                                    EditorGizmos.DrawBones(_app.CurrentScene);
                                 }
 
                                 if (_dragPreviewPosition.HasValue)
@@ -237,28 +244,34 @@ public class ViewportPanel
                     if (isEditorMode)
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
+                    bool entityGizmoActive = isEditorMode && _selectedInspectorGizmo < 0;
+
                     // Draw ImGuizmo overlay — skip the entity transform gizmo while an inspector gizmo is selected
                     // In collider edit mode, draw the collider manipulation gizmo instead
                     if (colliderEditMode)
                     {
                         _app.ColliderEditSystem.DrawAndUpdate(camera, selected, imageScreenPos, new Vector2(w, h));
                     }
-                    else if (isEditorMode && _selectedInspectorGizmo < 0)
+                    else if (entityGizmoActive)
                     {
                         gizmo.DrawAndUpdate(camera, selectedEntities, selected, imageScreenPos, new Vector2(w, h));
                     }
 
-                    // Draw translate handle for the selected inspector gizmo target (if any)
-                    if (isEditorMode && !colliderEditMode && !gizmo.IsDragging)
+                    // Draw translate handle for the selected inspector gizmo target (if any).
+                    // Do not gate this on gizmo.IsDragging: ImGuizmo.IsUsing() is global state.
+                    if (isEditorMode && !colliderEditMode)
                         DrawSelectedInspectorGizmoHandle(camera, _cachedGizmoTargets!, imageScreenPos, new Vector2(w, h));
 
                     // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
                     _isHovered = ImGui.IsWindowHovered();
                     if (_isHovered && !toolbarHovered && isEditorMode)
                     {
+                        bool entityGizmoDragging = entityGizmoActive && gizmo.IsDragging;
+                        bool entityGizmoHovered = entityGizmoActive && gizmo.HoveredAxis >= 0;
+
                         if (Raylib.IsMouseButtonPressed(MouseButton.Left)
-                            && !gizmo.IsDragging
-                            && gizmo.HoveredAxis < 0
+                            && !entityGizmoDragging
+                            && !entityGizmoHovered
                             && !_isInspectorGizmoDragging
                             && !_app.ColliderEditSystem.IsDragging
                             && !Raylib.IsMouseButtonDown(MouseButton.Right))

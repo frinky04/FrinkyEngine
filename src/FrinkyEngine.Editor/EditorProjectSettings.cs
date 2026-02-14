@@ -11,6 +11,7 @@ public class EditorProjectSettings
     public bool VSync { get; set; }
     public bool ShowPhysicsHitboxes { get; set; }
     public bool ColliderEditMode { get; set; }
+    public bool ShowBonePreview { get; set; }
     public HierarchyEditorSettings Hierarchy { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -76,6 +77,7 @@ public class EditorProjectSettings
             VSync = VSync,
             ShowPhysicsHitboxes = ShowPhysicsHitboxes,
             ColliderEditMode = ColliderEditMode,
+            ShowBonePreview = ShowBonePreview,
             Hierarchy = Hierarchy.Clone()
         };
     }
@@ -92,7 +94,8 @@ public class EditorProjectSettings
             TargetFps = 120,
             VSync = false,
             ShowPhysicsHitboxes = false,
-            ColliderEditMode = false
+            ColliderEditMode = false,
+            ShowBonePreview = false
         };
     }
 

@@ -38,7 +38,8 @@ public enum EditorAction
     UnpackPrefab,
     TogglePlayModeCursorLock,
     FrameSelected,
-    ToggleColliderEditMode
+    ToggleColliderEditMode,
+    ToggleBonePreview
 }
 
 public struct Keybind : IEquatable<Keybind>

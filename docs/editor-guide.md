@@ -69,6 +69,10 @@ Press `F9` (or use **View -> Collider Edit Mode**) to enter collider edit mode. 
 - The normal entity transform gizmo is replaced by the collider gizmo while this mode is active.
 - Changes are tracked by the undo system.
 
+## Bone Preview
+
+Press `F10` to toggle a bone preview overlay in the viewport. When enabled, bone joints are drawn as small wireframe spheres and parent-child connections are drawn as lines for all entities with a Skinned Mesh Animator component. The inspector also shows a collapsible bone hierarchy tree under the Skinned Mesh Animator component header.
+
 ## Stats Overlay and Developer Console
 
 - **F3** — cycle stats overlay modes: None → FPS + MS → Advanced Stats → Most Verbose Stats
@@ -128,6 +132,7 @@ Press `F9` (or use **View -> Collider Edit Mode**) to enter collider edit mode. 
 | F3 | Cycle Stats Overlay |
 | F8 | Toggle Physics Hitbox Preview |
 | F9 | Toggle Collider Edit Mode |
+| F10 | Toggle Bone Preview |
 
 ### Navigation
 
