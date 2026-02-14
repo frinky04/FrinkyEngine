@@ -133,6 +133,7 @@ public class InspectorPanel
 
         ImGui.Separator();
         DrawAddComponentButton(new[] { entity });
+        DrawAddPhysicsShortcuts(entity);
     }
 
     private void DrawUnresolvedComponents(Entity entity)
@@ -934,6 +935,32 @@ public class InspectorPanel
 
         if (anyAdded)
             _app.RefreshUndoBaseline();
+    }
+
+    private void DrawAddPhysicsShortcuts(Entity entity)
+    {
+        bool hasCollider = entity.GetComponent<ColliderComponent>() != null;
+        bool hasRigidbody = entity.GetComponent<RigidbodyComponent>() != null;
+
+        if (hasCollider && hasRigidbody)
+            return;
+
+        ImGui.Spacing();
+        if (ImGui.CollapsingHeader("Quick Add Physics", ImGuiTreeNodeFlags.None))
+        {
+            float buttonWidth = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X * 2) / 3f;
+
+            if (ImGui.Button("Static", new Vector2(buttonWidth, 0)))
+                PhysicsShortcuts.AddStaticBody(entity, _app);
+
+            ImGui.SameLine();
+            if (ImGui.Button("Dynamic", new Vector2(buttonWidth, 0)))
+                PhysicsShortcuts.AddDynamicBody(entity, _app);
+
+            ImGui.SameLine();
+            if (ImGui.Button("Kinematic", new Vector2(buttonWidth, 0)))
+                PhysicsShortcuts.AddKinematicBody(entity, _app);
+        }
     }
 
     private static void DrawBaseClassTooltip(Type type)

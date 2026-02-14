@@ -53,6 +53,10 @@ Some components expose draggable gizmo handles in the viewport (for example, IK 
 
 Build game assemblies from the editor with `Scripts -> Build Scripts` (`Ctrl+B`). The editor hot-reloads the assembly without restarting.
 
+## Quick-Add Physics
+
+Right-click an entity in the Hierarchy and select **Add Physics** to quickly add collider and rigidbody components. Three presets are available: **Static Body** (collider only), **Dynamic Body** (collider + dynamic rigidbody), and **Kinematic Body** (collider + kinematic rigidbody). The collider shape and size are auto-detected from the entity's primitive component (Cube, Sphere, Cylinder, or Plane). The same shortcuts are available in the Inspector under **Quick Add Physics**.
+
 ## Physics Hitbox Preview
 
 Press `F8` to toggle a wireframe overlay showing collider shapes in the viewport.
