@@ -138,6 +138,7 @@ public abstract class Component
     /// <returns>A <see cref="Coroutine"/> handle that can be used to stop the coroutine.</returns>
     public Coroutine StartCoroutine(IEnumerator routine)
     {
+        ArgumentNullException.ThrowIfNull(routine);
         _coroutineRunner ??= new CoroutineRunner();
         return _coroutineRunner.Start(routine);
     }
@@ -168,6 +169,7 @@ public abstract class Component
     /// <param name="delaySeconds">Time in scaled seconds before the callback fires.</param>
     public void Invoke(Action callback, float delaySeconds)
     {
+        ArgumentNullException.ThrowIfNull(callback);
         _timerRunner ??= new TimerRunner();
         _timerRunner.Invoke(callback, delaySeconds);
     }
@@ -181,6 +183,7 @@ public abstract class Component
     /// <param name="interval">Interval in scaled seconds between subsequent invocations.</param>
     public void InvokeRepeating(Action callback, float delay, float interval)
     {
+        ArgumentNullException.ThrowIfNull(callback);
         _timerRunner ??= new TimerRunner();
         _timerRunner.InvokeRepeating(callback, delay, interval);
     }
@@ -199,6 +202,7 @@ public abstract class Component
     /// <param name="callback">The callback to cancel.</param>
     public void CancelInvoke(Action callback)
     {
+        ArgumentNullException.ThrowIfNull(callback);
         _timerRunner?.Cancel(callback);
     }
 

@@ -17,7 +17,7 @@ public class WaitWhile : YieldInstruction
         _predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
     }
 
-    internal override bool IsReady(float scaledTime, float unscaledDeltaTime)
+    internal override bool IsReady(float scaledDt, float unscaledDt)
     {
         return !_predicate();
     }

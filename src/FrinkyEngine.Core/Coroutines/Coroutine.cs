@@ -25,29 +25,38 @@ public class Coroutine
         if (IsFinished || IsPaused)
             return !IsFinished;
 
-        // If we have a pending yield instruction, check if it's ready
-        if (CurrentYield != null)
+        try
         {
-            if (!CurrentYield.IsReady(scaledDt, unscaledDt))
-                return true; // Still waiting
-            CurrentYield = null;
-        }
+            // If we have a pending yield instruction, check if it's ready
+            if (CurrentYield != null)
+            {
+                if (!CurrentYield.IsReady(scaledDt, unscaledDt))
+                    return true; // Still waiting
+                CurrentYield = null;
+            }
 
-        // Advance the enumerator
-        if (!Enumerator.MoveNext())
+            // Advance the enumerator
+            if (!Enumerator.MoveNext())
+            {
+                IsFinished = true;
+                return false;
+            }
+
+            // Process the yielded value
+            var yielded = Enumerator.Current;
+            if (yielded is YieldInstruction instruction)
+            {
+                CurrentYield = instruction;
+            }
+            // yield return null means resume next frame (no yield instruction set)
+
+            return true;
+        }
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"[Coroutine] Exception during tick, coroutine will be stopped: {ex}");
             IsFinished = true;
             return false;
         }
-
-        // Process the yielded value
-        var yielded = Enumerator.Current;
-        if (yielded is YieldInstruction instruction)
-        {
-            CurrentYield = instruction;
-        }
-        // yield return null means resume next frame (no yield instruction set)
-
-        return true;
     }
 }

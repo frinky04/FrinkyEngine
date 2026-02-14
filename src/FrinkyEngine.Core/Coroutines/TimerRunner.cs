@@ -70,11 +70,20 @@ internal class TimerRunner
             timer.Remaining -= scaledDt;
             if (timer.Remaining <= 0f)
             {
-                timer.Callback();
+                try
+                {
+                    timer.Callback();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[Timer] Exception in timer callback, timer will be removed: {ex}");
+                    _timers.RemoveAt(i);
+                    continue;
+                }
 
                 if (timer.Repeating && !timer.Cancelled)
                 {
-                    timer.Remaining += timer.Interval;
+                    timer.Remaining = timer.Interval;
                 }
                 else
                 {

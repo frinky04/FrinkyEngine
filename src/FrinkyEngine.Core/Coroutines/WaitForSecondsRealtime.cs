@@ -10,15 +10,15 @@ public class WaitForSecondsRealtime : YieldInstruction
     /// <summary>
     /// Creates a new wait instruction that pauses for <paramref name="seconds"/> of real time.
     /// </summary>
-    /// <param name="seconds">Duration to wait in real (unscaled) seconds.</param>
+    /// <param name="seconds">Duration to wait in real (unscaled) seconds. Negative values are treated as zero.</param>
     public WaitForSecondsRealtime(float seconds)
     {
-        _remaining = seconds;
+        _remaining = seconds < 0f ? 0f : seconds;
     }
 
-    internal override bool IsReady(float scaledTime, float unscaledDeltaTime)
+    internal override bool IsReady(float scaledDt, float unscaledDt)
     {
-        _remaining -= unscaledDeltaTime;
+        _remaining -= unscaledDt;
         return _remaining <= 0f;
     }
 }
