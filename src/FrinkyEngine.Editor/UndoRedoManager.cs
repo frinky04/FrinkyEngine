@@ -1,3 +1,7 @@
+using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Editor;
@@ -127,14 +131,19 @@ public class UndoRedoManager
         var restored = SceneSerializer.DeserializeFromString(snapshot.SceneJson);
         if (restored == null) return;
 
-        // Release unique model instances owned by old scene components before replacing
         if (app.CurrentScene != null)
         {
-            foreach (var renderable in app.CurrentScene.Renderables)
-                renderable.Invalidate();
-
             restored.Name = app.CurrentScene.Name;
             restored.FilePath = app.CurrentScene.FilePath;
+
+            // Transfer loaded assets from old scene to restored scene to avoid
+            // expensive disk reloads and shader recompilations on undo/redo.
+            TransferLoadedAssets(app.CurrentScene, restored);
+
+            // Invalidate all old renderables so that any resources affected by the
+            // asset transfer are properly refreshed.
+            foreach (var renderable in app.CurrentScene.Renderables)
+                renderable.Invalidate();
         }
 
         app.CurrentScene = restored;
@@ -156,26 +165,110 @@ public class UndoRedoManager
         _currentHierarchySnapshot = snapshot.HierarchyJson;
     }
 
-    private static Core.ECS.Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
+    /// <summary>
+    /// Transfers loaded model instances and initialized post-process effects from the
+    /// old scene to the restored scene, matching entities by ID and components by type.
+    /// This prevents undo/redo from triggering full model reloads from disk and shader
+    /// recompilations for post-process effects.
+    /// </summary>
+    private static void TransferLoadedAssets(Core.Scene.Scene oldScene, Core.Scene.Scene restoredScene)
+    {
+        // Build a lookup of old entities by ID for fast matching
+        var oldEntities = IterateAllEntities(oldScene)
+            .GroupBy(e => e.Id)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Transfer MeshRendererComponent model instances
+        foreach (var entity in IterateAllEntities(restoredScene))
+        {
+            if (!oldEntities.TryGetValue(entity.Id, out var oldEntity))
+                continue;
+
+            // Transfer unique model instances for skinned meshes
+            var newMesh = entity.GetComponent<MeshRendererComponent>();
+            var oldMesh = oldEntity.GetComponent<MeshRendererComponent>();
+            if (newMesh != null && oldMesh != null && oldMesh.HasLoadedModel
+                && string.Equals(newMesh.ModelPath.Path, oldMesh.ModelPath.Path, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrEmpty(newMesh.ModelPath.Path))
+            {
+                newMesh.TransferModelFrom(oldMesh);
+            }
+
+            // Transfer initialized post-process effects to avoid shader recompilation
+            var newStack = entity.GetComponent<PostProcessStackComponent>();
+            var oldStack = oldEntity.GetComponent<PostProcessStackComponent>();
+            if (newStack != null && oldStack != null)
+            {
+                TransferPostProcessEffects(oldStack, newStack);
+            }
+        }
+    }
+
+    private static void TransferPostProcessEffects(PostProcessStackComponent oldStack, PostProcessStackComponent newStack)
+    {
+        // Match effects by type and position in the list; transfer initialized state
+        for (int i = 0; i < newStack.Effects.Count && i < oldStack.Effects.Count; i++)
+        {
+            var newEffect = newStack.Effects[i];
+            var oldEffect = oldStack.Effects[i];
+            if (newEffect.GetType() == oldEffect.GetType() && oldEffect.IsInitialized)
+            {
+                // Replace the new (uninitialized) effect with the old (initialized) one,
+                // copying over the deserialized property values.
+                CopyEffectProperties(newEffect, oldEffect);
+                newStack.Effects[i] = oldEffect;
+
+                // Remove from old stack so OnDestroy won't dispose the transferred effect
+                oldStack.Effects[i] = newEffect;
+            }
+        }
+    }
+
+    private static void CopyEffectProperties(PostProcessEffect source, PostProcessEffect target)
+    {
+        // Copy serialized property values from the freshly deserialized effect to the
+        // initialized one so that undo/redo applies property changes while preserving
+        // GPU resources (loaded shaders).
+        var type = source.GetType();
+        foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            if (!prop.CanRead || !prop.CanWrite) continue;
+            if (prop.Name is "DisplayName" or "IsInitialized") continue;
+
+            try
+            {
+                prop.SetValue(target, prop.GetValue(source));
+            }
+            catch (Exception ex)
+            {
+                FrinkyLog.Warning($"CopyEffectProperties: failed to copy {prop.Name} on {type.Name}: {ex.Message}");
+            }
+        }
+    }
+
+    private static IEnumerable<Entity> IterateAllEntities(Core.Scene.Scene scene)
     {
         foreach (var entity in scene.Entities)
         {
-            if (entity.Id == id) return entity;
-            var found = FindEntityByIdRecursive(entity, id);
-            if (found != null) return found;
+            yield return entity;
+            foreach (var descendant in IterateDescendants(entity))
+                yield return descendant;
         }
-        return null;
     }
 
-    private static Core.ECS.Entity? FindEntityByIdRecursive(Core.ECS.Entity entity, Guid id)
+    private static IEnumerable<Entity> IterateDescendants(Entity entity)
     {
         foreach (var child in entity.Transform.Children)
         {
-            if (child.Entity.Id == id) return child.Entity;
-            var found = FindEntityByIdRecursive(child.Entity, id);
-            if (found != null) return found;
+            yield return child.Entity;
+            foreach (var descendant in IterateDescendants(child.Entity))
+                yield return descendant;
         }
-        return null;
+    }
+
+    private static Core.ECS.Entity? FindEntityById(Core.Scene.Scene scene, Guid id)
+    {
+        return IterateAllEntities(scene).FirstOrDefault(e => e.Id == id);
     }
 
     public void Clear()

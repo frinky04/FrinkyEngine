@@ -281,7 +281,7 @@ public static class PrefabSerializer
         var type = ComponentTypeResolver.Resolve(data.Type);
         if (type == null)
         {
-            entity.UnresolvedComponents.Add(new ComponentData
+            entity.AddUnresolvedComponent(new ComponentData
             {
                 Type = data.Type,
                 Enabled = data.Enabled,
@@ -306,7 +306,7 @@ public static class PrefabSerializer
             }
             else if (!entity.TryAddComponent(type, out var created, out var failureReason))
             {
-                entity.UnresolvedComponents.Add(new ComponentData
+                entity.AddUnresolvedComponent(new ComponentData
                 {
                     Type = data.Type,
                     Enabled = data.Enabled,

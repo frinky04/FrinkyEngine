@@ -383,7 +383,7 @@ public static class SceneSerializer
         var type = ComponentTypeResolver.Resolve(data.Type);
         if (type == null)
         {
-            entity.UnresolvedComponents.Add(data);
+            entity.AddUnresolvedComponent(data);
             FrinkyLog.Warning($"Unresolved component type '{data.Type}' on entity '{entity.Name}' — data preserved");
             return;
         }
@@ -397,7 +397,7 @@ public static class SceneSerializer
         {
             if (!entity.TryAddComponent(type, out var created, out var failureReason))
             {
-                entity.UnresolvedComponents.Add(data);
+                entity.AddUnresolvedComponent(data);
                 FrinkyLog.Warning(
                     $"Skipped component '{data.Type}' on entity '{entity.Name}' (scene deserialize): {failureReason} — data preserved");
                 return;

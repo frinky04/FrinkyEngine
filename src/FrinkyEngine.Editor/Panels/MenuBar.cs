@@ -224,6 +224,16 @@ public class MenuBar
 
                 ImGui.Separator();
 
+                var hasUnresolved = _app.CanEditScene && _app.CurrentScene != null && HasUnresolvedComponents(_app.CurrentScene);
+                ImGui.BeginDisabled(!hasUnresolved);
+                if (ImGui.MenuItem("Clean Up Unresolved Components"))
+                {
+                    CleanUpUnresolvedComponents();
+                }
+                ImGui.EndDisabled();
+
+                ImGui.Separator();
+
                 var hasProject = _app.ProjectDirectory != null;
                 ImGui.BeginDisabled(!hasProject);
                 if (ImGui.MenuItem("Keybindings..."))
@@ -1474,5 +1484,55 @@ public class MenuBar
         var local = value;
         if (ImGui.InputTextMultiline(label, ref local, maxLength, size))
             value = local;
+    }
+
+    private static bool HasUnresolvedComponents(Core.Scene.Scene scene)
+    {
+        foreach (var entity in scene.Entities)
+        {
+            if (HasUnresolvedComponentsRecursive(entity))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasUnresolvedComponentsRecursive(Core.ECS.Entity entity)
+    {
+        if (entity.HasUnresolvedComponents)
+            return true;
+        foreach (var child in entity.Transform.Children)
+        {
+            if (HasUnresolvedComponentsRecursive(child.Entity))
+                return true;
+        }
+        return false;
+    }
+
+    private void CleanUpUnresolvedComponents()
+    {
+        if (!_app.CanEditScene || _app.CurrentScene == null) return;
+
+        _app.RecordUndo();
+        int removed = 0;
+        foreach (var entity in _app.CurrentScene.Entities)
+            removed += CleanUpUnresolvedComponentsRecursive(entity);
+
+        _app.RefreshUndoBaseline();
+
+        if (removed > 0)
+        {
+            NotificationManager.Instance.Post(
+                $"Removed {removed} unresolved component(s)",
+                NotificationType.Success);
+        }
+    }
+
+    private static int CleanUpUnresolvedComponentsRecursive(Core.ECS.Entity entity)
+    {
+        int count = entity.UnresolvedComponents.Count;
+        entity.ClearUnresolvedComponents();
+        foreach (var child in entity.Transform.Children)
+            count += CleanUpUnresolvedComponentsRecursive(child.Entity);
+        return count;
     }
 }
