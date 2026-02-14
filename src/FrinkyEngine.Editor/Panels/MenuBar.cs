@@ -283,6 +283,14 @@ public class MenuBar
                     _app.TogglePhysicsHitboxPreview();
                 }
 
+                if (ImGui.MenuItem(
+                        "Collider Edit Mode",
+                        KeybindManager.Instance.GetShortcutText(EditorAction.ToggleColliderEditMode),
+                        _app.IsColliderEditModeEnabled))
+                {
+                    _app.ToggleColliderEditMode();
+                }
+
                 ImGui.Separator();
 
                 if (ImGui.BeginMenu("Theme"))

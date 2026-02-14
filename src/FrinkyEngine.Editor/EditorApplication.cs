@@ -44,6 +44,7 @@ public class EditorApplication
     public SceneRenderer SceneRenderer { get; } = new();
     public AssetIconService AssetIcons { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
+    public ColliderEditSystem ColliderEditSystem { get; } = new();
     public PickingSystem PickingSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
     public UndoRedoManager UndoRedo { get; } = new();
@@ -58,6 +59,7 @@ public class EditorApplication
     public bool IsGameViewEnabled { get; private set; }
     public bool IsSceneDirty { get; private set; }
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
+    public bool IsColliderEditModeEnabled { get; private set; }
     public string? DraggedAssetPath { get; set; }
     public Guid? DraggedEntityId { get; set; }
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
@@ -463,6 +465,22 @@ public class EditorApplication
             2.0f);
     }
 
+    public void ToggleColliderEditMode()
+    {
+        IsColliderEditModeEnabled = !IsColliderEditModeEnabled;
+
+        if (ProjectDirectory != null && ProjectEditorSettings != null)
+        {
+            ProjectEditorSettings.ColliderEditMode = IsColliderEditModeEnabled;
+            ProjectEditorSettings.Save(ProjectDirectory);
+        }
+
+        NotificationManager.Instance.Post(
+            IsColliderEditModeEnabled ? "Collider edit mode enabled" : "Collider edit mode disabled",
+            NotificationType.Info,
+            2.0f);
+    }
+
     public void CreateAndOpenProject(string parentDirectory, string projectName, ProjectTemplate template)
     {
         try
@@ -495,6 +513,7 @@ public class EditorApplication
         _sessionHierarchyStates.Clear();
         _hierarchyStateDirty = false;
         IsPhysicsHitboxPreviewEnabled = false;
+        IsColliderEditModeEnabled = false;
 
         if (ProjectDirectory != null)
         {
@@ -504,6 +523,7 @@ public class EditorApplication
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
             TagDatabase = AssetTagDatabase.LoadOrCreate(ProjectDirectory);
             IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
+            IsColliderEditModeEnabled = ProjectEditorSettings.ColliderEditMode;
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
@@ -966,6 +986,7 @@ public class EditorApplication
         km.RegisterAction(EditorAction.UnpackPrefab, () => UnpackSelectedPrefab());
         km.RegisterAction(EditorAction.TogglePlayModeCursorLock, () => TogglePlayModeCursorLock());
         km.RegisterAction(EditorAction.FrameSelected, () => FrameSelected());
+        km.RegisterAction(EditorAction.ToggleColliderEditMode, () => ToggleColliderEditMode());
     }
 
     public void StoreEditorCameraInScene()
@@ -1588,6 +1609,7 @@ public class EditorApplication
         settings.Save(ProjectDirectory);
         ProjectEditorSettings = settings;
         IsPhysicsHitboxPreviewEnabled = settings.ShowPhysicsHitboxes;
+        IsColliderEditModeEnabled = settings.ColliderEditMode;
         _hierarchyStateDirty = false;
         ApplyEditorSettingsImmediate();
     }

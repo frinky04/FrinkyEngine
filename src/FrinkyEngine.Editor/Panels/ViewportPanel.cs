@@ -40,6 +40,7 @@ public class ViewportPanel
     private int _selectedInspectorGizmo = -1;
     private bool _isInspectorGizmoDragging;
     private bool _wasInspectorGizmoDragging;
+    private bool _wasColliderEditDragging;
     private List<GizmoTarget>? _cachedGizmoTargets;
 
     public ViewportPanel(EditorApplication app)
@@ -118,6 +119,7 @@ public class ViewportPanel
                     bool isEditorMode = _app.CanUseEditorViewportTools && !_app.IsGameViewEnabled;
                     _cachedGizmoTargets = isEditorMode ? EditorGizmos.CollectGizmoTargets(selectedEntities) : null;
                     var physicsHitboxDrawMode = ResolvePhysicsHitboxDrawMode();
+                    bool colliderEditMode = isEditorMode && _app.IsColliderEditModeEnabled;
                     var textureToDisplay = _renderTexture;
 
                     using (FrameProfiler.Scope(ProfileCategory.Rendering))
@@ -125,9 +127,26 @@ public class ViewportPanel
                         _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
                             () =>
                             {
-                                if (physicsHitboxDrawMode != PhysicsHitboxDrawMode.Off)
+                                if (colliderEditMode)
                                 {
-                                    EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, physicsHitboxDrawMode);
+                                    // Grey out the scene, then draw filled + wireframe colliders on top
+                                    EditorGizmos.DrawColliderEditOverlay(camera);
+                                    EditorGizmos.DrawFilledColliders(_app.CurrentScene, selectedEntities);
+
+                                    // Wireframes should also render in front of scene geometry
+                                    Rlgl.DrawRenderBatchActive();
+                                    Rlgl.DisableDepthTest();
+                                    EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, PhysicsHitboxDrawMode.All);
+                                    Rlgl.DrawRenderBatchActive();
+                                    Rlgl.EnableDepthTest();
+                                }
+                                else
+                                {
+                                    var effectiveHitboxMode = physicsHitboxDrawMode;
+                                    if (effectiveHitboxMode != PhysicsHitboxDrawMode.Off)
+                                    {
+                                        EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, effectiveHitboxMode);
+                                    }
                                 }
 
                                 if (isEditorMode)
@@ -219,11 +238,18 @@ public class ViewportPanel
                         toolbarHovered = DrawViewportToolbar(gizmo);
 
                     // Draw ImGuizmo overlay — skip the entity transform gizmo while an inspector gizmo is selected
-                    if (isEditorMode && _selectedInspectorGizmo < 0)
+                    // In collider edit mode, draw the collider manipulation gizmo instead
+                    if (colliderEditMode)
+                    {
+                        _app.ColliderEditSystem.DrawAndUpdate(camera, selected, imageScreenPos, new Vector2(w, h));
+                    }
+                    else if (isEditorMode && _selectedInspectorGizmo < 0)
+                    {
                         gizmo.DrawAndUpdate(camera, selectedEntities, selected, imageScreenPos, new Vector2(w, h));
+                    }
 
                     // Draw translate handle for the selected inspector gizmo target (if any)
-                    if (isEditorMode && !gizmo.IsDragging)
+                    if (isEditorMode && !colliderEditMode && !gizmo.IsDragging)
                         DrawSelectedInspectorGizmoHandle(camera, _cachedGizmoTargets!, imageScreenPos, new Vector2(w, h));
 
                     // Viewport picking: left-click selects entity, but gizmo and camera fly take priority
@@ -234,6 +260,7 @@ public class ViewportPanel
                             && !gizmo.IsDragging
                             && gizmo.HoveredAxis < 0
                             && !_isInspectorGizmoDragging
+                            && !_app.ColliderEditSystem.IsDragging
                             && !Raylib.IsMouseButtonDown(MouseButton.Right))
                         {
                             var mousePos = ImGui.GetMousePos();
@@ -249,8 +276,11 @@ public class ViewportPanel
                             {
                                 _selectedInspectorGizmo = -1;
 
-                                var pickedEntity = _app.PickingSystem.Pick(
-                                    _app.CurrentScene, camera, localMouse, new Vector2(w, h));
+                                var pickedEntity = colliderEditMode
+                                    ? _app.PickingSystem.PickCollider(
+                                        _app.CurrentScene, camera, localMouse, new Vector2(w, h))
+                                    : _app.PickingSystem.Pick(
+                                        _app.CurrentScene, camera, localMouse, new Vector2(w, h));
 
                                 if (ImGui.GetIO().KeyCtrl)
                                 {
@@ -282,6 +312,7 @@ public class ViewportPanel
                 // Undo batching for gizmo drags
                 _wasGizmoDragging = TrackDragUndo(gizmo.IsDragging, _wasGizmoDragging);
                 _wasInspectorGizmoDragging = TrackDragUndo(_isInspectorGizmoDragging, _wasInspectorGizmoDragging);
+                _wasColliderEditDragging = TrackDragUndo(_app.ColliderEditSystem.IsDragging, _wasColliderEditDragging);
             }
             else
             {

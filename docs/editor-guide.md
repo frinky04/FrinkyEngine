@@ -57,6 +57,18 @@ Build game assemblies from the editor with `Scripts -> Build Scripts` (`Ctrl+B`)
 
 Press `F8` to toggle a wireframe overlay showing collider shapes in the viewport.
 
+## Collider Edit Mode
+
+Press `F9` (or use **View -> Collider Edit Mode**) to enter collider edit mode. While active:
+
+- All collider wireframes in the scene are displayed.
+- The selected entity's collider can be resized and repositioned using an ImGuizmo handle (Scale + Translate).
+- Box colliders: drag the scale handles to adjust `Size`, or translate to move the `Center` offset.
+- Sphere colliders: drag any scale handle to uniformly adjust `Radius`, or translate to move `Center`.
+- Capsule colliders: drag scale handles to adjust `Radius` (X/Z) and `Length` (Y), or translate to move `Center`.
+- The normal entity transform gizmo is replaced by the collider gizmo while this mode is active.
+- Changes are tracked by the undo system.
+
 ## Stats Overlay and Developer Console
 
 - **F3** — cycle stats overlay modes: None → FPS + MS → Advanced Stats → Most Verbose Stats
@@ -115,6 +127,7 @@ Press `F8` to toggle a wireframe overlay showing collider shapes in the viewport
 | F | Frame Selected (focus camera on selection) |
 | F3 | Cycle Stats Overlay |
 | F8 | Toggle Physics Hitbox Preview |
+| F9 | Toggle Collider Edit Mode |
 
 ### Navigation
 

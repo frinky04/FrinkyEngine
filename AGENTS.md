@@ -58,6 +58,10 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **IK pose spaces** — sample animation, convert to local-space, run IK in local-space, then convert back to model-space for skinning matrix reconstruction; avoid interpolating IK input in model-space
 - **IK activation gating** — only run IK pipeline when at least one solver is truly runnable for the current hierarchy (not merely present/enabled), otherwise stay on the non-IK animation path
 - **Hexa.NET.ImGui** — namespace `Hexa.NET.ImGui`, use `ImGuiP` for docking APIs, many overloads need `(string?)null` casts, images use `ImTextureRef`
+- **Hexa.NET.ImGuizmo bounds editing (collider mode)** — for box-collider face-drag resize with automatic center compensation, use `ImGuizmoOperation.Bounds` with a TR-only matrix and a mutable 6-float `localBounds` array (`minX,minY,minZ,maxX,maxY,maxZ`) in world units; convert updated bounds + matrix translation back to collider `Size`/`Center`
+- **Hexa.NET.ImGuizmo bounds caveat** — `localBounds` is input-only (not mutated). For editable box colliders, feed unit bounds (`-0.5..0.5`) and read updated size/offset from the manipulated matrix scale/translation.
+- **Hexa.NET.ImGuizmo bounds caveat #2** — in Bounds mode, `changed`/`matrix` can be stale on some active frames; when interacting (`ImGuizmo.IsUsing()`), fall back to composing `deltaMatrix * originalMatrix` if `matrix` stayed unchanged.
+- **Box collider edit UX** — use `ImGuizmoOperation.Bounds | ImGuizmoOperation.Translate` so face-drag resize and direct center offset both work in collider edit mode.
 - **Hexa.NET.ImGui.Widgets** — `ComboEnumHelper<T>.Combo()` / `ComboEnumHelper.Combo()` for enum combos, `MessageBoxes.Show()` / `MessageBoxes.Draw()` for modal dialogs
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
 - **Raylib cursor** — `DisableCursor()`/`EnableCursor()` re-center mouse; only call on state transitions

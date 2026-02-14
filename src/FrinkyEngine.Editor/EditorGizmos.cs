@@ -216,6 +216,193 @@ public static class EditorGizmos
         return PhysicsHitboxAllColor;
     }
 
+    private static readonly Color ColliderFillColor = new(50, 120, 255, 80);
+    private static readonly Color ColliderFillSelectedColor = new(255, 180, 50, 60);
+
+    /// <summary>
+    /// Draws a semi-transparent dark overlay quad close to the camera to grey out the scene.
+    /// Must be called inside BeginMode3D.
+    /// </summary>
+    public static void DrawColliderEditOverlay(Camera3D camera)
+    {
+        // Flush any pending draws so the overlay blends on top of the scene
+        Rlgl.DrawRenderBatchActive();
+
+        // Disable depth test so the overlay covers everything
+        Rlgl.DisableDepthTest();
+        Rlgl.DisableDepthMask();
+
+        // Draw a fullscreen quad very close to the near plane
+        var rawForward = camera.Target - camera.Position;
+        if (rawForward.LengthSquared() < 1e-10f)
+        {
+            Rlgl.EnableDepthTest();
+            Rlgl.EnableDepthMask();
+            return;
+        }
+
+        var forward = Vector3.Normalize(rawForward);
+        var rawRight = Vector3.Cross(forward, camera.Up);
+        if (rawRight.LengthSquared() < 1e-10f)
+            rawRight = Vector3.Cross(forward, Vector3.UnitX);
+        var right = Vector3.Normalize(rawRight);
+        var up = Vector3.Cross(right, forward);
+
+        float nearDist = 0.02f;
+        float halfSize = 200f;
+        var center = camera.Position + forward * nearDist;
+
+        var tl = center - right * halfSize + up * halfSize;
+        var tr = center + right * halfSize + up * halfSize;
+        var bl = center - right * halfSize - up * halfSize;
+        var br = center + right * halfSize - up * halfSize;
+
+        var overlayColor = new Color(0, 0, 0, 35);
+
+        Rlgl.Begin(DrawMode.Triangles);
+        Rlgl.Color4ub(overlayColor.R, overlayColor.G, overlayColor.B, overlayColor.A);
+        // Triangle 1: tl, bl, br
+        Rlgl.Vertex3f(tl.X, tl.Y, tl.Z);
+        Rlgl.Vertex3f(bl.X, bl.Y, bl.Z);
+        Rlgl.Vertex3f(br.X, br.Y, br.Z);
+        // Triangle 2: tl, br, tr
+        Rlgl.Vertex3f(tl.X, tl.Y, tl.Z);
+        Rlgl.Vertex3f(br.X, br.Y, br.Z);
+        Rlgl.Vertex3f(tr.X, tr.Y, tr.Z);
+        Rlgl.End();
+        Rlgl.DrawRenderBatchActive();
+
+        Rlgl.EnableDepthTest();
+        Rlgl.EnableDepthMask();
+    }
+
+    /// <summary>
+    /// Draws all colliders as filled translucent shapes. Selected entity colliders
+    /// use a distinct highlight color.
+    /// </summary>
+    public static void DrawFilledColliders(Core.Scene.Scene scene, IReadOnlyList<Entity> selectedEntities)
+    {
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.DisableDepthTest();
+        Rlgl.DisableBackfaceCulling();
+
+        var selectedIds = new HashSet<Guid>(selectedEntities.Select(entity => entity.Id));
+
+        foreach (var collider in scene.GetComponents<ColliderComponent>())
+        {
+            if (!collider.Enabled || !collider.Entity.Active)
+                continue;
+            if (collider.Entity.Scene != scene)
+                continue;
+
+            var color = selectedIds.Contains(collider.Entity.Id)
+                ? ColliderFillSelectedColor
+                : ColliderFillColor;
+
+            DrawColliderFilled(collider, color);
+        }
+
+        Rlgl.DrawRenderBatchActive();
+        Rlgl.EnableBackfaceCulling();
+        Rlgl.EnableDepthTest();
+    }
+
+    private static void DrawColliderFilled(ColliderComponent collider, Color color)
+    {
+        switch (collider)
+        {
+            case BoxColliderComponent box:
+                DrawBoxColliderFilled(box, color);
+                break;
+            case SphereColliderComponent sphere:
+                DrawSphereColliderFilled(sphere, color);
+                break;
+            case CapsuleColliderComponent capsule:
+                DrawCapsuleColliderFilled(capsule, color);
+                break;
+        }
+    }
+
+    private static void DrawBoxColliderFilled(BoxColliderComponent collider, Color color)
+    {
+        var transform = collider.Entity.Transform;
+        if (!TryGetWorldBasis(transform, out var position, out var rotation, out var scale))
+            return;
+
+        var center = ComputeWorldCenter(collider, position, rotation, scale);
+        var halfExtents = new Vector3(
+            MathF.Max(0.0005f, collider.Size.X * scale.X * 0.5f),
+            MathF.Max(0.0005f, collider.Size.Y * scale.Y * 0.5f),
+            MathF.Max(0.0005f, collider.Size.Z * scale.Z * 0.5f));
+
+        var axisX = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, rotation));
+        var axisY = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, rotation));
+        var axisZ = Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, rotation));
+
+        // 8 corners of the OBB
+        var c = new Vector3[8];
+        int idx = 0;
+        for (int x = -1; x <= 1; x += 2)
+        for (int y = -1; y <= 1; y += 2)
+        for (int z = -1; z <= 1; z += 2)
+        {
+            c[idx++] = center
+                + axisX * (halfExtents.X * x)
+                + axisY * (halfExtents.Y * y)
+                + axisZ * (halfExtents.Z * z);
+        }
+
+        // Draw 6 faces as triangle pairs (indices follow the same corner layout as DrawBoxCollider)
+        // c[0]=(-,-,-) c[1]=(-,-,+) c[2]=(-,+,-) c[3]=(-,+,+)
+        // c[4]=(+,-,-) c[5]=(+,-,+) c[6]=(+,+,-) c[7]=(+,+,+)
+        DrawQuadTris(c[0], c[1], c[3], c[2], color); // -X face
+        DrawQuadTris(c[4], c[6], c[7], c[5], color); // +X face
+        DrawQuadTris(c[0], c[4], c[5], c[1], color); // -Y face
+        DrawQuadTris(c[2], c[3], c[7], c[6], color); // +Y face
+        DrawQuadTris(c[0], c[2], c[6], c[4], color); // -Z face
+        DrawQuadTris(c[1], c[5], c[7], c[3], color); // +Z face
+    }
+
+    private static void DrawQuadTris(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color)
+    {
+        Raylib.DrawTriangle3D(a, b, c, color);
+        Raylib.DrawTriangle3D(a, c, d, color);
+    }
+
+    private static void DrawSphereColliderFilled(SphereColliderComponent collider, Color color)
+    {
+        var transform = collider.Entity.Transform;
+        if (!TryGetWorldBasis(transform, out var position, out var rotation, out var scale))
+            return;
+
+        var center = ComputeWorldCenter(collider, position, rotation, scale);
+        float radiusScale = MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
+        float radius = MathF.Max(0.001f, collider.Radius * radiusScale);
+
+        Raylib.DrawSphere(center, radius, color);
+    }
+
+    private static void DrawCapsuleColliderFilled(CapsuleColliderComponent collider, Color color)
+    {
+        var transform = collider.Entity.Transform;
+        if (!TryGetWorldBasis(transform, out var position, out var rotation, out var scale))
+            return;
+
+        var center = ComputeWorldCenter(collider, position, rotation, scale);
+        float radiusScale = MathF.Max(scale.X, scale.Z);
+        float radius = MathF.Max(0.001f, collider.Radius * radiusScale);
+        float halfLength = MathF.Max(0.001f, collider.Length * scale.Y * 0.5f);
+
+        var up = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, rotation));
+        var top = center + up * halfLength;
+        var bottom = center - up * halfLength;
+
+        // Draw the two hemisphere caps as spheres and the cylinder body as a capsule
+        Raylib.DrawSphere(top, radius, color);
+        Raylib.DrawSphere(bottom, radius, color);
+        Raylib.DrawCylinderEx(bottom, top, radius, radius, 12, color);
+    }
+
     private static void DrawColliderWireframe(ColliderComponent collider, Color color)
     {
         switch (collider)
@@ -318,7 +505,7 @@ public static class EditorGizmos
         Raylib.DrawLine3D(top - forward * radius, bottom - forward * radius, color);
     }
 
-    private static bool TryGetWorldBasis(TransformComponent transform, out Vector3 position, out Quaternion rotation, out Vector3 absScale)
+    internal static bool TryGetWorldBasis(TransformComponent transform, out Vector3 position, out Quaternion rotation, out Vector3 absScale)
     {
         if (Matrix4x4.Decompose(transform.WorldMatrix, out var scale, out rotation, out position))
         {
@@ -336,7 +523,7 @@ public static class EditorGizmos
         return true;
     }
 
-    private static Vector3 ComputeWorldCenter(ColliderComponent collider, Vector3 worldPosition, Quaternion worldRotation, Vector3 worldScale)
+    internal static Vector3 ComputeWorldCenter(ColliderComponent collider, Vector3 worldPosition, Quaternion worldRotation, Vector3 worldScale)
     {
         var scaledCenter = new Vector3(
             collider.Center.X * worldScale.X,

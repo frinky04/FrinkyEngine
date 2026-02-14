@@ -64,6 +64,7 @@ public class KeybindManager
             [EditorAction.UnpackPrefab] = new Keybind(ImGuiKey.K, ctrl: true, alt: true),
             [EditorAction.TogglePlayModeCursorLock] = new Keybind(ImGuiKey.F1, shift: true),
             [EditorAction.FrameSelected] = new Keybind(ImGuiKey.F),
+            [EditorAction.ToggleColliderEditMode] = new Keybind(ImGuiKey.F9),
         };
     }
 
@@ -114,7 +115,8 @@ public class KeybindManager
             or EditorAction.TogglePlayModeCursorLock
             or EditorAction.FrameSelected
             or EditorAction.DeselectEntity
-            or EditorAction.TogglePhysicsHitboxPreview;
+            or EditorAction.TogglePhysicsHitboxPreview
+            or EditorAction.ToggleColliderEditMode;
     }
 
     public Keybind GetBinding(EditorAction action) =>
