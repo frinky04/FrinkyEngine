@@ -123,8 +123,67 @@ public class InspectorPanel
             _app.RefreshUndoBaseline();
         }
 
+        // Draw unresolved components (old/renamed/deleted types preserved as raw JSON)
+        if (entity.HasUnresolvedComponents)
+        {
+            DrawUnresolvedComponents(entity);
+        }
+
         ImGui.Separator();
         DrawAddComponentButton(new[] { entity });
+    }
+
+    private void DrawUnresolvedComponents(Entity entity)
+    {
+        ImGui.Separator();
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.3f, 1.0f));
+        ImGui.TextWrapped($"{entity.UnresolvedComponents.Count} unresolved component(s)");
+        ImGui.PopStyleColor();
+
+        ComponentData? unresolvedToRemove = null;
+        for (int i = 0; i < entity.UnresolvedComponents.Count; i++)
+        {
+            var data = entity.UnresolvedComponents[i];
+            ImGui.PushID($"unresolved_{i}");
+
+            // Extract just the class name from the fully qualified type name for display
+            var typeName = data.Type;
+            var lastDot = typeName.LastIndexOf('.');
+            var shortName = lastDot >= 0 ? typeName[(lastDot + 1)..] : typeName;
+
+            bool opened = ImGui.TreeNode($"{shortName} (unresolved)");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Remove"))
+                unresolvedToRemove = data;
+
+            if (opened)
+            {
+                ImGui.TextDisabled($"Type: {typeName}");
+                ImGui.TextDisabled($"Properties: {data.Properties.Count}");
+                foreach (var (propName, _) in data.Properties)
+                    ImGui.BulletText(propName);
+                ImGui.TreePop();
+            }
+
+            ImGui.PopID();
+        }
+
+        if (unresolvedToRemove != null)
+        {
+            _app.RecordUndo();
+            entity.UnresolvedComponents.Remove(unresolvedToRemove);
+            _app.RefreshUndoBaseline();
+        }
+
+        if (entity.UnresolvedComponents.Count > 1)
+        {
+            if (ImGui.Button("Remove All Unresolved"))
+            {
+                _app.RecordUndo();
+                entity.UnresolvedComponents.Clear();
+                _app.RefreshUndoBaseline();
+            }
+        }
     }
 
     private void DrawPrefabHeader(Entity entity)

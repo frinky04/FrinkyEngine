@@ -1,3 +1,6 @@
+using FrinkyEngine.Core.Components;
+using FrinkyEngine.Core.ECS;
+using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Serialization;
 
 namespace FrinkyEngine.Editor;
@@ -127,14 +130,19 @@ public class UndoRedoManager
         var restored = SceneSerializer.DeserializeFromString(snapshot.SceneJson);
         if (restored == null) return;
 
-        // Release unique model instances owned by old scene components before replacing
         if (app.CurrentScene != null)
         {
-            foreach (var renderable in app.CurrentScene.Renderables)
-                renderable.Invalidate();
-
             restored.Name = app.CurrentScene.Name;
             restored.FilePath = app.CurrentScene.FilePath;
+
+            // Transfer loaded assets from old scene to restored scene to avoid
+            // expensive disk reloads and shader recompilations on undo/redo.
+            TransferLoadedAssets(app.CurrentScene, restored);
+
+            // Only invalidate old renderables whose models were NOT transferred
+            // (i.e. those that still own a unique model instance).
+            foreach (var renderable in app.CurrentScene.Renderables)
+                renderable.Invalidate();
         }
 
         app.CurrentScene = restored;
@@ -154,6 +162,112 @@ public class UndoRedoManager
         _currentSnapshot = snapshot.SceneJson;
         _currentSelectedEntityIds = snapshot.SelectedEntityIds.ToList();
         _currentHierarchySnapshot = snapshot.HierarchyJson;
+    }
+
+    /// <summary>
+    /// Transfers loaded model instances and initialized post-process effects from the
+    /// old scene to the restored scene, matching entities by ID and components by type.
+    /// This prevents undo/redo from triggering full model reloads from disk and shader
+    /// recompilations for post-process effects.
+    /// </summary>
+    private static void TransferLoadedAssets(Core.Scene.Scene oldScene, Core.Scene.Scene restoredScene)
+    {
+        // Build a lookup of old entities by ID for fast matching
+        var oldEntities = new Dictionary<Guid, Entity>();
+        CollectEntities(oldScene, oldEntities);
+
+        // Transfer MeshRendererComponent model instances
+        foreach (var entity in IterateAllEntities(restoredScene))
+        {
+            if (!oldEntities.TryGetValue(entity.Id, out var oldEntity))
+                continue;
+
+            // Transfer unique model instances for skinned meshes
+            var newMesh = entity.GetComponent<MeshRendererComponent>();
+            var oldMesh = oldEntity.GetComponent<MeshRendererComponent>();
+            if (newMesh != null && oldMesh != null && oldMesh.HasLoadedModel
+                && newMesh.ModelPath.Path == oldMesh.ModelPath.Path
+                && !string.IsNullOrEmpty(newMesh.ModelPath.Path))
+            {
+                newMesh.TransferModelFrom(oldMesh);
+            }
+
+            // Transfer initialized post-process effects to avoid shader recompilation
+            var newStack = entity.GetComponent<PostProcessStackComponent>();
+            var oldStack = oldEntity.GetComponent<PostProcessStackComponent>();
+            if (newStack != null && oldStack != null)
+            {
+                TransferPostProcessEffects(oldStack, newStack);
+            }
+        }
+    }
+
+    private static void TransferPostProcessEffects(PostProcessStackComponent oldStack, PostProcessStackComponent newStack)
+    {
+        // Match effects by type and position in the list; transfer initialized state
+        for (int i = 0; i < newStack.Effects.Count && i < oldStack.Effects.Count; i++)
+        {
+            var newEffect = newStack.Effects[i];
+            var oldEffect = oldStack.Effects[i];
+            if (newEffect.GetType() == oldEffect.GetType() && oldEffect.IsInitialized)
+            {
+                // Replace the new (uninitialized) effect with the old (initialized) one,
+                // copying over the deserialized property values.
+                CopyEffectProperties(newEffect, oldEffect);
+                newStack.Effects[i] = oldEffect;
+
+                // Remove from old stack so OnDestroy won't dispose the transferred effect
+                oldStack.Effects[i] = newEffect;
+            }
+        }
+    }
+
+    private static void CopyEffectProperties(PostProcessEffect source, PostProcessEffect target)
+    {
+        // Copy serialized property values from the freshly deserialized effect to the
+        // initialized one so that undo/redo applies property changes while preserving
+        // GPU resources (loaded shaders).
+        var type = source.GetType();
+        foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            if (!prop.CanRead || !prop.CanWrite) continue;
+            if (prop.Name is "DisplayName" or "IsInitialized") continue;
+
+            try
+            {
+                prop.SetValue(target, prop.GetValue(source));
+            }
+            catch
+            {
+                // Skip properties that can't be copied
+            }
+        }
+    }
+
+    private static void CollectEntities(Core.Scene.Scene scene, Dictionary<Guid, Entity> map)
+    {
+        foreach (var entity in IterateAllEntities(scene))
+            map[entity.Id] = entity;
+    }
+
+    private static IEnumerable<Entity> IterateAllEntities(Core.Scene.Scene scene)
+    {
+        foreach (var entity in scene.Entities)
+        {
+            yield return entity;
+            foreach (var descendant in IterateDescendants(entity))
+                yield return descendant;
+        }
+    }
+
+    private static IEnumerable<Entity> IterateDescendants(Entity entity)
+    {
+        foreach (var child in entity.Transform.Children)
+        {
+            yield return child.Entity;
+            foreach (var descendant in IterateDescendants(child.Entity))
+                yield return descendant;
+        }
     }
 
     private static Core.ECS.Entity? FindEntityById(Core.Scene.Scene scene, Guid id)

@@ -97,6 +97,29 @@ public class MeshRendererComponent : RenderableComponent
         Invalidate();
     }
 
+    /// <summary>
+    /// Whether this component has a loaded model ready for rendering.
+    /// </summary>
+    public bool HasLoadedModel => RenderModel.HasValue;
+
+    /// <summary>
+    /// Transfers ownership of the loaded model from another <see cref="MeshRendererComponent"/>.
+    /// Used by the undo/redo system to avoid reloading models from disk when restoring a snapshot.
+    /// The source component's model is cleared so it will not unload the transferred resources.
+    /// </summary>
+    /// <param name="source">The component to transfer the model from.</param>
+    public void TransferModelFrom(MeshRendererComponent source)
+    {
+        RenderModel = source.RenderModel;
+        _ownsUniqueModelInstance = source._ownsUniqueModelInstance;
+        _requireUniqueModelInstance = source._requireUniqueModelInstance;
+        ModelVersion++;
+
+        // Clear source so it won't unload the transferred model
+        source.RenderModel = null;
+        source._ownsUniqueModelInstance = false;
+    }
+
     /// <inheritdoc />
     public override void Invalidate()
     {

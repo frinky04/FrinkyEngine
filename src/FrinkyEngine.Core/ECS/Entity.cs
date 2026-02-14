@@ -52,7 +52,12 @@ public class Entity
     /// Component data that could not be resolved to a type during deserialization.
     /// Preserved so that saving the scene does not lose data for unloaded assemblies.
     /// </summary>
-    internal List<ComponentData> UnresolvedComponents { get; } = new();
+    public List<ComponentData> UnresolvedComponents { get; } = new();
+
+    /// <summary>
+    /// Returns <c>true</c> if this entity has any unresolved component data from deserialization.
+    /// </summary>
+    public bool HasUnresolvedComponents => UnresolvedComponents.Count > 0;
 
     /// <summary>
     /// Creates a new entity with the specified name and a default <see cref="TransformComponent"/>.
