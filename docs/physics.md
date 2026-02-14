@@ -283,6 +283,33 @@ The character controller has built-in crouch support:
 | `CrouchCameraYOffset` | -0.8 | Camera offset when crouched |
 | `CameraOffsetLerpSpeed` | 10.0 | Camera blend speed (units/sec) |
 
+## Quick-Add Physics Shortcuts
+
+The editor provides quick-add shortcuts for common physics setups, accessible from:
+
+- **Right-click an entity** in the Hierarchy panel -> **Add Physics** submenu
+- **Inspector panel** -> **Quick Add Physics** section (below Add Component)
+
+Three presets are available:
+
+| Preset | What it adds |
+|--------|-------------|
+| **Static** | Collider only (no rigidbody) — for floors, walls, and static geometry |
+| **Dynamic** | Collider + Rigidbody (Dynamic) — for objects affected by gravity and forces |
+| **Kinematic** | Collider + Rigidbody (Kinematic) — for objects moved by code that push dynamic bodies |
+
+The collider shape is auto-detected from the entity's primitive component:
+
+| Primitive | Collider | Auto-sized to |
+|-----------|----------|--------------|
+| Cube | Box Collider | Cube width/height/depth |
+| Sphere | Sphere Collider | Sphere radius |
+| Cylinder | Capsule Collider | Cylinder radius and height |
+| Plane | Box Collider | Plane width/depth with thin height |
+| None/Other | Box Collider | Default unit size |
+
+Existing colliders and rigidbodies are preserved — the shortcuts skip adding duplicates.
+
 ## Physics Hitbox Preview
 
 Press `F8` in the editor to toggle a wireframe overlay of all collider shapes.

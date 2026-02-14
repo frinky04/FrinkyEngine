@@ -683,6 +683,12 @@ public class HierarchyPanel
             ImGui.EndMenu();
         }
 
+        if (ImGui.BeginMenu("Add Physics"))
+        {
+            PhysicsShortcuts.DrawAddPhysicsMenu(entity, _app);
+            ImGui.EndMenu();
+        }
+
         ImGui.EndPopup();
     }
 
