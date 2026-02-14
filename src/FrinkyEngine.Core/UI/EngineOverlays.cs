@@ -1074,6 +1074,23 @@ public static unsafe class EngineOverlays
                 return new ConsoleExecutionResult(true, new[] { text });
             });
 
+        ConsoleBackend.RegisterCommand("clear_log", "clear_log", "Clear all log entries.",
+            _ =>
+            {
+                FrinkyLog.Clear();
+                return new ConsoleExecutionResult(true, new[] { "Log cleared." });
+            });
+
+        ConsoleBackend.RegisterCommand("debug_print", "debug_print <text>", "Display a debug message on screen.",
+            args =>
+            {
+                if (args.Count == 0)
+                    return new ConsoleExecutionResult(false, new[] { "Usage: debug_print <text>" });
+                var text = string.Join(' ', args);
+                DebugDraw.PrintString(text);
+                return new ConsoleExecutionResult(true, new[] { $"Debug: {text}" });
+            });
+
         ConsoleBackend.RegisterCommand("quit", "quit", "Exit the application.",
             _ =>
             {

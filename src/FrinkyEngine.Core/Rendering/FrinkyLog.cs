@@ -65,6 +65,11 @@ public static class FrinkyLog
     public static event Action<LogEntry>? OnLog;
 
     /// <summary>
+    /// Raised when all log entries are cleared via <see cref="Clear"/>.
+    /// </summary>
+    public static event Action? OnCleared;
+
+    /// <summary>
     /// Logs an informational message.
     /// </summary>
     /// <param name="message">The message text.</param>
@@ -112,5 +117,9 @@ public static class FrinkyLog
     /// <summary>
     /// Removes all stored log entries.
     /// </summary>
-    public static void Clear() => _entries.Clear();
+    public static void Clear()
+    {
+        _entries.Clear();
+        OnCleared?.Invoke();
+    }
 }

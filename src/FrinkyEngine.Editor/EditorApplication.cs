@@ -43,6 +43,7 @@ public class EditorApplication
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
     public AssetIconService AssetIcons { get; } = new();
+    internal DebugDrawOverlay DebugDrawOverlay { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
     public ColliderEditSystem ColliderEditSystem { get; } = new();
     public PickingSystem PickingSystem { get; } = new();
@@ -85,6 +86,8 @@ public class EditorApplication
     private int _lastCleanupEntityCount = -1;
     private string? _lastCleanupSceneKey;
     private bool _wasFocused = true;
+    private int _errorCount;
+    private EditorNotification? _errorCountNotification;
 
     public ViewportPanel ViewportPanel { get; }
     public HierarchyPanel HierarchyPanel { get; }
@@ -114,10 +117,12 @@ public class EditorApplication
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EngineOverlays.Renderer = SceneRenderer;
+        DebugDraw.SetBackend(DebugDrawOverlay);
         EditorIcons.Load();
         LoadErrorAssets();
         ProjectTemplateRegistry.Discover();
         NewScene();
+        SubscribeToLogErrors();
         FrinkyLog.Info("FrinkyEngine Editor initialized.");
     }
 
@@ -169,6 +174,7 @@ public class EditorApplication
     public void Update(float dt)
     {
         NotificationManager.Instance.Update(dt);
+        DebugDrawOverlay.Update(dt);
 
         if (_buildTask is { IsCompleted: true })
         {
@@ -286,6 +292,7 @@ public class EditorApplication
         ConsolePanel.Draw();
         AssetBrowserPanel.Draw();
         PerformancePanel.Draw();
+        DebugDrawOverlay.Draw();
         NotificationManager.Instance.Draw();
     }
 
@@ -1578,6 +1585,9 @@ public class EditorApplication
 
     public void Shutdown()
     {
+        FrinkyLog.OnLog -= OnLogEntry;
+        FrinkyLog.OnCleared -= OnLogCleared;
+        DebugDraw.SetBackend(null);
         UI.ClearFrame();
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;
@@ -1590,6 +1600,59 @@ public class EditorApplication
         PrefabDatabase.Instance.Clear();
         AssemblyLoader.Unload();
         AudioDeviceService.ShutdownIfUnused();
+    }
+
+    private void SubscribeToLogErrors()
+    {
+        // Count existing errors
+        foreach (var entry in FrinkyLog.Entries)
+        {
+            if (entry.Level == LogLevel.Error)
+                _errorCount++;
+        }
+
+        if (_errorCount > 0)
+            UpdateErrorNotification();
+
+        FrinkyLog.OnLog += OnLogEntry;
+        FrinkyLog.OnCleared += OnLogCleared;
+    }
+
+    private void OnLogEntry(LogEntry entry)
+    {
+        if (entry.Level == LogLevel.Error)
+        {
+            _errorCount++;
+            UpdateErrorNotification();
+        }
+    }
+
+    private void OnLogCleared()
+    {
+        _errorCount = 0;
+        if (_errorCountNotification != null)
+        {
+            _errorCountNotification.Duration = 0.01f;
+            _errorCountNotification.Elapsed = 0f;
+            _errorCountNotification.IsCompleted = true;
+            _errorCountNotification = null;
+        }
+    }
+
+    private void UpdateErrorNotification()
+    {
+        var text = _errorCount == 1 ? "1 error in log" : $"{_errorCount} errors in log";
+
+        if (_errorCountNotification == null)
+        {
+            _errorCountNotification = NotificationManager.Instance.Post(text, NotificationType.Error, 8f);
+        }
+        else
+        {
+            _errorCountNotification.Message = text;
+            _errorCountNotification.Elapsed = 0f;
+            _errorCountNotification.Duration = 8f;
+        }
     }
 
     public void SaveProjectSettings(ProjectSettings settings)

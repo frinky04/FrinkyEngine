@@ -10,7 +10,7 @@ The FrinkyEngine editor is an ImGui-based desktop application for building and t
 | **Hierarchy** | Entity tree with drag-and-drop reordering and parenting |
 | **Inspector** | Component editing with attribute-driven reflection (engine and script components use the same inspector pipeline) |
 | **Assets** | File browser with drag-and-drop for models, prefabs, and scenes |
-| **Console** | Log stream viewer |
+| **Console** | Log stream viewer with severity filtering, text search, timestamps toggle, and entry counts |
 | **Performance** | Frame time and rendering statistics, including an `Ignore Editor` toggle for runtime-estimate CPU views. Collapsible **Asset Icons** section shows queue depth, cache hit rate, and generation timing. |
 
 ## Transform Gizmos
