@@ -9,9 +9,15 @@ All built-in components and their key properties. For information on writing cus
 | `CameraComponent` | `FieldOfView` (60), `NearPlane` (0.1), `FarPlane` (1000), `Projection` (Perspective/Orthographic), `ClearColor`, `IsMain` |
 | `LightComponent` | `LightType` (Directional/Point/Skylight), `LightColor`, `Intensity` (1.0), `Range` (10.0) |
 | `MeshRendererComponent` | `ModelPath`, `MaterialSlots` (list of `Material`), `Tint`, `EditorOnly` |
-| `SkinnedMeshAnimatorComponent` | `AnimationSources` (list of .glb asset paths for multi-source animation loading), `UseEmbeddedAnimations` (true), `PlayAutomatically` (true), `Loop` (true), `PlaybackSpeed` (1.0), `ClipIndex` (0), `Playing` (true) |
+| `SkinnedMeshAnimatorComponent` | `AnimationSources` (list of .glb asset paths for multi-source animation loading), `UseEmbeddedAnimations` (true), `PlayAutomatically` (true), `Loop` (true), `PlaybackSpeed` (1.0), `ClipIndex` (0), `Playing` (true), `LoopFrameTrim` (1, advanced) |
 | `InverseKinematicsComponent` | `Solvers` (list of IK solver objects, processed in order) |
 | `PostProcessStackComponent` | `PostProcessingEnabled` (true), `Effects` (list of effects) |
+
+### Animation Export Tips
+
+- **Disable "Sampling Animations"** in Blender's glTF export settings. Enabling it bakes in-between keyframes that can make interpolation appear to step or stutter.
+- **Start animations at frame 0.** The engine expects the first keyframe at the beginning of the clip.
+- **Looping animations automatically trim the duplicate seam frame.** glTF exports include a duplicate of the first frame at the end for loop continuity; the engine skips it by default (`LoopFrameTrim = 1`). If you still see a hitch at the loop boundary, try increasing `LoopFrameTrim` in the Advanced section of the inspector.
 
 ## Primitives
 

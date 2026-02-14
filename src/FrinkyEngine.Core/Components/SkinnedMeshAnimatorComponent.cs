@@ -103,15 +103,6 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
     public bool Loop { get; set; } = true;
 
     /// <summary>
-    /// Number of leading frames to skip in a looping animation to avoid dwelling on
-    /// the duplicate seam pose. Most glTF exports include one duplicate frame at the
-    /// start/end boundary; some exporters add more. Only applies when <see cref="Loop"/>
-    /// is enabled.
-    /// </summary>
-    [InspectorRange(0f, 10f, 1f)]
-    public int LoopFrameTrim { get; set; } = 1;
-
-    /// <summary>
     /// Whether playback advances over time.
     /// </summary>
     public bool Playing { get; set; } = true;
@@ -164,6 +155,16 @@ public sealed unsafe class SkinnedMeshAnimatorComponent : Component
             return ResolveAnimation(clip).FrameCount;
         }
     }
+
+    /// <summary>
+    /// Number of leading frames to skip in a looping animation to avoid dwelling on
+    /// the duplicate seam pose. Most glTF exports include one duplicate frame at the
+    /// start/end boundary; some exporters add more. Only applies when <see cref="Loop"/>
+    /// is enabled.
+    /// </summary>
+    [InspectorHeader("Advanced")]
+    [InspectorRange(0f, 10f, 1f)]
+    public int LoopFrameTrim { get; set; } = 1;
 
     /// <summary>
     /// Resets playback time to clip start.
