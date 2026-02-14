@@ -127,12 +127,26 @@ public class ViewportPanel
                         _app.SceneRenderer.Render(_app.CurrentScene, camera, _renderTexture,
                             () =>
                             {
-                                var effectiveHitboxMode = colliderEditMode
-                                    ? PhysicsHitboxDrawMode.All
-                                    : physicsHitboxDrawMode;
-                                if (effectiveHitboxMode != PhysicsHitboxDrawMode.Off)
+                                if (colliderEditMode)
                                 {
-                                    EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, effectiveHitboxMode);
+                                    // Grey out the scene, then draw filled + wireframe colliders on top
+                                    EditorGizmos.DrawColliderEditOverlay(camera);
+                                    EditorGizmos.DrawFilledColliders(_app.CurrentScene, selectedEntities);
+
+                                    // Wireframes should also render in front of scene geometry
+                                    Rlgl.DrawRenderBatchActive();
+                                    Rlgl.DisableDepthTest();
+                                    EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, PhysicsHitboxDrawMode.All);
+                                    Rlgl.DrawRenderBatchActive();
+                                    Rlgl.EnableDepthTest();
+                                }
+                                else
+                                {
+                                    var effectiveHitboxMode = physicsHitboxDrawMode;
+                                    if (effectiveHitboxMode != PhysicsHitboxDrawMode.Off)
+                                    {
+                                        EditorGizmos.DrawPhysicsHitboxes(_app.CurrentScene, selectedEntities, effectiveHitboxMode);
+                                    }
                                 }
 
                                 if (isEditorMode)
@@ -262,8 +276,11 @@ public class ViewportPanel
                             {
                                 _selectedInspectorGizmo = -1;
 
-                                var pickedEntity = _app.PickingSystem.Pick(
-                                    _app.CurrentScene, camera, localMouse, new Vector2(w, h));
+                                var pickedEntity = colliderEditMode
+                                    ? _app.PickingSystem.PickCollider(
+                                        _app.CurrentScene, camera, localMouse, new Vector2(w, h))
+                                    : _app.PickingSystem.Pick(
+                                        _app.CurrentScene, camera, localMouse, new Vector2(w, h));
 
                                 if (ImGui.GetIO().KeyCtrl)
                                 {
