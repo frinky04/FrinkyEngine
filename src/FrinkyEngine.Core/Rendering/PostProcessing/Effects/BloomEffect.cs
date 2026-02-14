@@ -14,7 +14,7 @@ public class BloomEffect : PostProcessEffect
     /// <summary>
     /// Brightness threshold above which pixels contribute to bloom.
     /// </summary>
-    public float Threshold { get; set; } = 1.0f;
+    public float Threshold { get; set; } = 1.2f;
 
     /// <summary>
     /// Softness of the threshold transition (0 = hard, 1 = very soft).
@@ -24,7 +24,7 @@ public class BloomEffect : PostProcessEffect
     /// <summary>
     /// Strength of the bloom added back to the scene.
     /// </summary>
-    public float Intensity { get; set; } = 1.0f;
+    public float Intensity { get; set; } = 0.35f;
 
     /// <summary>
     /// Number of downsample/upsample iterations (more = wider bloom, but more cost).
@@ -35,7 +35,7 @@ public class BloomEffect : PostProcessEffect
     /// Controls how much bloom spreads across mip levels (0 = tight glow, 1 = wide cinematic bloom).
     /// Biases per-mip weights toward lower (larger) mips for a wider scatter.
     /// </summary>
-    public float Scatter { get; set; } = 0.7f;
+    public float Scatter { get; set; } = 0.6f;
 
     private Shader _thresholdShader;
     private Shader _downsampleShader;
