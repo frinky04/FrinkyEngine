@@ -120,7 +120,7 @@ void main()
             float distRatio4 = distRatio2 * distRatio2;
             float window = clamp(1.0 - distRatio4, 0.0, 1.0);
             window = window * window;
-            attenuation = window / (dist * dist + 1.0);
+            attenuation = window;
         }
         else
         {
