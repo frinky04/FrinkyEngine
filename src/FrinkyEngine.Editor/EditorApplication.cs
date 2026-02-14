@@ -644,7 +644,7 @@ public class EditorApplication
             }
         }
 
-        AssetIcons.OnAssetDatabaseRefreshed(relativePaths.Count > 0 ? relativePaths : null);
+        AssetIcons.OnAssetDatabaseRefreshed(changedPaths != null ? relativePaths : null);
 
         if (relativePaths.Count > 0 && CurrentScene != null)
         {

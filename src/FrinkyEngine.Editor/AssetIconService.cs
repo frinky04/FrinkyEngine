@@ -232,7 +232,7 @@ public sealed class AssetIconService : IDisposable
                 return;
             }
 
-            string sourcePath = AssetManager.Instance.ResolvePath(BuildReferencePath(asset));
+            string sourcePath = AssetManager.Instance.ResolvePath(BuildAssetKey(asset));
             if (!File.Exists(sourcePath))
             {
                 RemoveKey(key);
@@ -251,14 +251,23 @@ public sealed class AssetIconService : IDisposable
                 return;
             }
 
+            bool generated;
             var sw = Stopwatch.StartNew();
-            bool generated = asset.Type switch
+            try
             {
-                AssetType.Texture => GenerateTextureIcon(asset, iconPath),
-                AssetType.Model => GenerateModelIcon(renderer, BuildReferencePath(asset), iconPath),
-                AssetType.Prefab => GeneratePrefabIcon(renderer, BuildReferencePath(asset), iconPath),
-                _ => false
-            };
+                generated = asset.Type switch
+                {
+                    AssetType.Texture => GenerateTextureIcon(asset, iconPath),
+                    AssetType.Model => GenerateModelIcon(renderer, BuildAssetKey(asset), iconPath),
+                    AssetType.Prefab => GeneratePrefabIcon(renderer, BuildAssetKey(asset), iconPath),
+                    _ => false
+                };
+            }
+            catch (Exception ex)
+            {
+                FrinkyLog.Warning($"Asset icon generation failed for '{key}': {ex.Message}");
+                generated = false;
+            }
             sw.Stop();
             _lastGenerationMs = sw.Elapsed.TotalMilliseconds;
 
@@ -395,7 +404,7 @@ public sealed class AssetIconService : IDisposable
         if (!_hasRenderTarget)
             return false;
 
-        var texture = AssetManager.Instance.LoadTexture(BuildReferencePath(asset));
+        var texture = AssetManager.Instance.LoadTexture(BuildAssetKey(asset));
         if (texture.Id == 0 || texture.Width <= 0 || texture.Height <= 0)
             return false;
 
@@ -464,12 +473,10 @@ public sealed class AssetIconService : IDisposable
         cameraComponent.IsMain = true;
         cameraComponent.ClearColor = new Color(26, 30, 34, 255);
 
-        var min = bounds.Min;
-        var max = bounds.Max;
-        var center = (min + max) * 0.5f;
         const float fovY = 35f;
         var viewDir = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3(1.05f, 0.68f, 1.0f));
-        float cameraDistance = ComputePreviewCameraDistance(min, max, center, viewDir, fovY, targetFill: 0.86f);
+        var center = (bounds.Min + bounds.Max) * 0.5f;
+        float cameraDistance = ComputePreviewCameraDistance(bounds, viewDir, fovY, targetFill: 0.86f);
         var camPos = center + viewDir * cameraDistance;
         var camera = new Camera3D
         {
@@ -485,9 +492,7 @@ public sealed class AssetIconService : IDisposable
     }
 
     private static float ComputePreviewCameraDistance(
-        System.Numerics.Vector3 min,
-        System.Numerics.Vector3 max,
-        System.Numerics.Vector3 center,
+        BoundingBox bounds,
         System.Numerics.Vector3 viewDir,
         float fovYDegrees,
         float targetFill)
@@ -502,10 +507,11 @@ public sealed class AssetIconService : IDisposable
             right = System.Numerics.Vector3.UnitX;
         var up = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(viewDir, right));
 
+        var center = (bounds.Min + bounds.Max) * 0.5f;
         float maxX = 0f;
         float maxY = 0f;
         float maxZ = 0f;
-        foreach (var corner in GetBoundsCorners(min, max))
+        foreach (var corner in GetBoundsCorners(bounds))
         {
             var offset = corner - center;
             maxX = MathF.Max(maxX, MathF.Abs(System.Numerics.Vector3.Dot(offset, right)));
@@ -518,16 +524,16 @@ public sealed class AssetIconService : IDisposable
         return MathF.Max(0.25f, fitDistance);
     }
 
-    private static IEnumerable<System.Numerics.Vector3> GetBoundsCorners(System.Numerics.Vector3 min, System.Numerics.Vector3 max)
+    private static IEnumerable<System.Numerics.Vector3> GetBoundsCorners(BoundingBox b)
     {
-        yield return new System.Numerics.Vector3(min.X, min.Y, min.Z);
-        yield return new System.Numerics.Vector3(max.X, min.Y, min.Z);
-        yield return new System.Numerics.Vector3(min.X, max.Y, min.Z);
-        yield return new System.Numerics.Vector3(max.X, max.Y, min.Z);
-        yield return new System.Numerics.Vector3(min.X, min.Y, max.Z);
-        yield return new System.Numerics.Vector3(max.X, min.Y, max.Z);
-        yield return new System.Numerics.Vector3(min.X, max.Y, max.Z);
-        yield return new System.Numerics.Vector3(max.X, max.Y, max.Z);
+        yield return new System.Numerics.Vector3(b.Min.X, b.Min.Y, b.Min.Z);
+        yield return new System.Numerics.Vector3(b.Max.X, b.Min.Y, b.Min.Z);
+        yield return new System.Numerics.Vector3(b.Min.X, b.Max.Y, b.Min.Z);
+        yield return new System.Numerics.Vector3(b.Max.X, b.Max.Y, b.Min.Z);
+        yield return new System.Numerics.Vector3(b.Min.X, b.Min.Y, b.Max.Z);
+        yield return new System.Numerics.Vector3(b.Max.X, b.Min.Y, b.Max.Z);
+        yield return new System.Numerics.Vector3(b.Min.X, b.Max.Y, b.Max.Z);
+        yield return new System.Numerics.Vector3(b.Max.X, b.Max.Y, b.Max.Z);
     }
 
     private bool GeneratePrefabIcon(SceneRenderer renderer, string prefabAssetPath, string outputPath)
@@ -633,8 +639,6 @@ public sealed class AssetIconService : IDisposable
     {
         return AssetReference.EnginePrefix + relativePath.Replace('\\', '/');
     }
-
-    private static string BuildReferencePath(in AssetEntry asset) => BuildAssetKey(asset);
 
     private static string ComputeSourceHash(AssetType type, string absolutePath)
     {
