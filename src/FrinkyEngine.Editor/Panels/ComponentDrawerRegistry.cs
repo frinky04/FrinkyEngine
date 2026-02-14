@@ -965,7 +965,7 @@ public static class ComponentDrawerRegistry
                 var displayName = db.IsFileNameUnique(asset.FileName)
                     ? asset.FileName
                     : asset.RelativePath;
-                if (AssetSelectable(asset.Type, displayName))
+                if (AssetSelectable(asset.Type, displayName, asset.RelativePath, isEngineAsset: false))
                 {
                     app.RecordUndo();
                     setter(new AssetReference(db.GetCanonicalName(asset.RelativePath)));
@@ -1006,7 +1006,7 @@ public static class ComponentDrawerRegistry
                 var displayName = db.IsEngineFileNameUnique(engineAsset.FileName)
                     ? "[E] " + engineAsset.FileName
                     : "[E] " + engineAsset.RelativePath;
-                if (AssetSelectable(engineAsset.Type, displayName))
+                if (AssetSelectable(engineAsset.Type, displayName, engineAsset.RelativePath, isEngineAsset: true))
                 {
                     app.RecordUndo();
                     setter(new AssetReference(db.GetEngineCanonicalName(engineAsset.RelativePath)));
@@ -1083,9 +1083,9 @@ public static class ComponentDrawerRegistry
         ImGui.PopID();
     }
 
-    private static bool AssetSelectable(AssetType type, string label)
+    private static bool AssetSelectable(AssetType type, string label, string? assetRelativePath, bool isEngineAsset)
     {
-        float iconSize = DrawAssetIcon(type);
+        float iconSize = DrawAssetIcon(type, assetRelativePath, isEngineAsset);
 
         var textPos = ImGui.GetCursorPos();
         bool clicked = ImGui.Selectable("##sel", false, ImGuiSelectableFlags.None, new Vector2(0, iconSize));
@@ -1100,10 +1100,20 @@ public static class ComponentDrawerRegistry
         return clicked;
     }
 
-    private static unsafe float DrawAssetIcon(AssetType type)
+    private static unsafe float DrawAssetIcon(AssetType type, string? assetRelativePath, bool isEngineAsset)
     {
         float size = EditorIcons.GetIconSize();
-        var icon = EditorIcons.GetIcon(type);
+        Texture2D? icon = null;
+        if (!string.IsNullOrWhiteSpace(assetRelativePath))
+        {
+            var referencePath = isEngineAsset
+                ? AssetReference.EnginePrefix + assetRelativePath
+                : assetRelativePath;
+            if (EditorApplication.Instance.AssetIcons.TryGetIcon(referencePath, type, out var generatedIcon))
+                icon = generatedIcon;
+        }
+
+        icon ??= EditorIcons.GetIcon(type);
         if (icon is Texture2D tex)
         {
             ImGui.Image(new ImTextureRef(null, new ImTextureID((ulong)tex.Id)), new Vector2(size, size));

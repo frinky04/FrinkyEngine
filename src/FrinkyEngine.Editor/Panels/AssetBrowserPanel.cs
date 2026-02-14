@@ -107,7 +107,10 @@ public class AssetBrowserPanel
     private void DrawToolbar()
     {
         if (ImGui.Button("Refresh"))
+        {
             AssetDatabase.Instance.Refresh();
+            _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
+        }
 
         ImGui.SameLine();
         bool isGrid = EditorPreferences.Instance.AssetBrowserGridView;
@@ -658,6 +661,13 @@ public class AssetBrowserPanel
         if (!asset.IsEngineAsset && ImGui.MenuItem("Delete", KeybindManager.Instance.GetShortcutText(EditorAction.DeleteEntity)))
             DeleteSelectedAssets();
 
+        if (AssetIconService.IsSupportedType(asset.Type))
+        {
+            ImGui.Separator();
+            if (ImGui.MenuItem("Regenerate Icon"))
+                _app.AssetIcons.RegenerateIcon(asset);
+        }
+
         // Tags submenu
         var tagDb = _app.TagDatabase;
         if (tagDb != null && ImGui.BeginMenu("Tags"))
@@ -852,16 +862,70 @@ public class AssetBrowserPanel
         FrinkyLog.Info($"Opened scene: {asset.RelativePath}");
     }
 
-    private static unsafe void DrawItemIcon(BrowserItem item, Vector2 min, float size)
+    private unsafe void DrawItemIcon(BrowserItem item, Vector2 min, float size)
     {
-        Texture2D? icon = EditorIcons.GetIcon(item.Asset.Type);
+        bool hasGeneratedIcon = _app.AssetIcons.TryGetIcon(item.Asset, out var generatedIcon);
+        Texture2D? icon = hasGeneratedIcon
+            ? generatedIcon
+            : EditorIcons.GetIcon(item.Asset.Type);
+
+        var drawList = ImGui.GetWindowDrawList();
 
         if (icon is Texture2D tex)
         {
-            uint tint = EditorIcons.GetIconTint(item.Asset.Type);
-            var drawList = ImGui.GetWindowDrawList();
-            drawList.AddImage(new ImTextureRef(null, new ImTextureID((ulong)tex.Id)), min, new Vector2(min.X + size, min.Y + size),
-                Vector2.Zero, Vector2.One, tint);
+            uint tint = hasGeneratedIcon
+                ? ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 1f))
+                : EditorIcons.GetIconTint(item.Asset.Type);
+            drawList.AddImage(
+                new ImTextureRef(null, new ImTextureID((ulong)tex.Id)),
+                min,
+                new Vector2(min.X + size, min.Y + size),
+                Vector2.Zero,
+                Vector2.One,
+                tint);
+        }
+
+        if (hasGeneratedIcon)
+        {
+            var typeIcon = EditorIcons.GetIcon(item.Asset.Type);
+            if (typeIcon is Texture2D badgeTex)
+            {
+                float badgeSize = Math.Clamp(size * 0.33f, 12f, 24f);
+                float pad = MathF.Max(2f, size * 0.04f);
+                var badgeMin = new Vector2(min.X + pad, min.Y + size - badgeSize - pad);
+                var badgeMax = new Vector2(badgeMin.X + badgeSize, badgeMin.Y + badgeSize);
+
+                drawList.AddRectFilled(
+                    new Vector2(badgeMin.X - 1f, badgeMin.Y - 1f),
+                    new Vector2(badgeMax.X + 1f, badgeMax.Y + 1f),
+                    ImGui.GetColorU32(new Vector4(0.08f, 0.09f, 0.1f, 0.92f)),
+                    3f);
+
+                drawList.AddImage(
+                    new ImTextureRef(null, new ImTextureID((ulong)badgeTex.Id)),
+                    badgeMin,
+                    badgeMax,
+                    Vector2.Zero,
+                    Vector2.One,
+                    EditorIcons.GetIconTint(item.Asset.Type));
+            }
+        }
+
+        // Status indicator dot (top-right corner)
+        var iconStatus = _app.AssetIcons.GetIconStatus(item.Asset);
+        if (iconStatus is IconGenerationStatus.Queued or IconGenerationStatus.Generating or IconGenerationStatus.Failed)
+        {
+            var statusColor = iconStatus switch
+            {
+                IconGenerationStatus.Queued => new Vector4(0.5f, 0.5f, 0.5f, 0.8f),
+                IconGenerationStatus.Generating => new Vector4(0.3f, 0.6f, 1.0f, 0.9f),
+                IconGenerationStatus.Failed => new Vector4(1.0f, 0.3f, 0.3f, 0.9f),
+                _ => default
+            };
+            float radius = Math.Clamp(size * 0.06f, 3f, 6f);
+            float pad = radius + 2f;
+            var center = new Vector2(min.X + size - pad, min.Y + pad);
+            drawList.AddCircleFilled(center, radius, ImGui.ColorConvertFloat4ToU32(statusColor));
         }
     }
 
