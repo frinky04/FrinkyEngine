@@ -38,7 +38,12 @@ public enum AssetType
     /// <summary>
     /// A prefab file (.fprefab).
     /// </summary>
-    Prefab
+    Prefab,
+
+    /// <summary>
+    /// A color palette file (.pal).
+    /// </summary>
+    Palette
 }
 
 /// <summary>

@@ -29,6 +29,7 @@ public class AssetDatabase
         { ".mp3", AssetType.Audio },
         { ".cs", AssetType.Script },
         { ".fprefab", AssetType.Prefab },
+        { ".pal", AssetType.Palette },
     };
 
     private List<AssetEntry> _assets = new();

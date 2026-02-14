@@ -266,6 +266,7 @@ public sealed class AssetIconService : IDisposable
                     AssetType.Texture => GenerateTextureIcon(asset, iconPath),
                     AssetType.Model => GenerateModelIcon(renderer, BuildAssetKey(asset), iconPath),
                     AssetType.Prefab => GeneratePrefabIcon(renderer, BuildAssetKey(asset), iconPath),
+                    AssetType.Palette => GeneratePaletteIcon(sourcePath, iconPath),
                     _ => false
                 };
             }
@@ -578,6 +579,75 @@ public sealed class AssetIconService : IDisposable
         }
     }
 
+    private bool? GeneratePaletteIcon(string palettePath, string outputPath)
+    {
+        EnsureRenderTarget();
+        if (!_hasRenderTarget)
+            return false;
+
+        var colors = ParseJascPalForIcon(palettePath);
+        if (colors == null || colors.Length == 0)
+            return false;
+
+        int count = colors.Length;
+
+        // Lay out colors in a grid that fits the square icon
+        int cols = (int)MathF.Ceiling(MathF.Sqrt(count));
+        int rows = (int)MathF.Ceiling((float)count / cols);
+
+        float cellW = (float)RenderSize / cols;
+        float cellH = (float)RenderSize / rows;
+
+        Raylib.BeginTextureMode(_renderTarget);
+        Raylib.ClearBackground(new Color(24, 24, 24, 255));
+
+        for (int i = 0; i < count; i++)
+        {
+            int col = i % cols;
+            int row = i / cols;
+            float x = col * cellW;
+            float y = row * cellH;
+            Raylib.DrawRectangle((int)x, (int)y, (int)MathF.Ceiling(cellW), (int)MathF.Ceiling(cellH), colors[i]);
+        }
+
+        Raylib.EndTextureMode();
+        return ExportRenderTarget(outputPath);
+    }
+
+    private static Color[]? ParseJascPalForIcon(string filePath)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            if (lines.Length < 3) return null;
+            if (lines[0].Trim() != "JASC-PAL") return null;
+            if (!int.TryParse(lines[2].Trim(), out var count) || count <= 0) return null;
+
+            var colors = new Color[count];
+            for (int i = 0; i < count; i++)
+            {
+                int lineIdx = 3 + i;
+                if (lineIdx >= lines.Length) break;
+
+                var parts = lines[lineIdx].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 3) continue;
+
+                if (byte.TryParse(parts[0], out var r) &&
+                    byte.TryParse(parts[1], out var g) &&
+                    byte.TryParse(parts[2], out var b))
+                {
+                    colors[i] = new Color((int)r, (int)g, (int)b, 255);
+                }
+            }
+
+            return colors;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static void InstantiatePrefabNode(PrefabNodeData node, Scene scene, TransformComponent? parent)
     {
         var entity = new Entity(node.Name) { Active = node.Active };
@@ -637,7 +707,7 @@ public sealed class AssetIconService : IDisposable
 
     public static bool IsSupportedType(AssetType type)
     {
-        return type is AssetType.Texture or AssetType.Model or AssetType.Prefab;
+        return type is AssetType.Texture or AssetType.Model or AssetType.Prefab or AssetType.Palette;
     }
 
     private static string BuildAssetKey(in AssetEntry asset)
