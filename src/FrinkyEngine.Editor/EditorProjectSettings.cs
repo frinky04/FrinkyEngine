@@ -12,6 +12,7 @@ public class EditorProjectSettings
     public bool ShowPhysicsHitboxes { get; set; }
     public bool ColliderEditMode { get; set; }
     public bool ShowBonePreview { get; set; }
+    public bool HideUnrecognisedAssets { get; set; } = true;
     public HierarchyEditorSettings Hierarchy { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -78,6 +79,7 @@ public class EditorProjectSettings
             ShowPhysicsHitboxes = ShowPhysicsHitboxes,
             ColliderEditMode = ColliderEditMode,
             ShowBonePreview = ShowBonePreview,
+            HideUnrecognisedAssets = HideUnrecognisedAssets,
             Hierarchy = Hierarchy.Clone()
         };
     }
@@ -95,7 +97,8 @@ public class EditorProjectSettings
             VSync = false,
             ShowPhysicsHitboxes = false,
             ColliderEditMode = false,
-            ShowBonePreview = false
+            ShowBonePreview = false,
+            HideUnrecognisedAssets = true
         };
     }
 
