@@ -219,6 +219,7 @@ public class Entity
             if (_components[i] is T component)
             {
                 Scene?.OnComponentRemoved(this, component);
+                component.CancelAllCoroutinesAndTimers();
                 component.OnDestroy();
                 _components.RemoveAt(i);
                 return true;
@@ -241,6 +242,7 @@ public class Entity
         if (_components.Remove(component))
         {
             Scene?.OnComponentRemoved(this, component);
+            component.CancelAllCoroutinesAndTimers();
             component.OnDestroy();
             return true;
         }
@@ -259,7 +261,7 @@ public class Entity
         }
     }
 
-    internal void UpdateComponents(float dt)
+    internal void UpdateComponents(float dt, float unscaledDt)
     {
         for (int i = 0; i < _components.Count; i++)
         {
@@ -269,7 +271,11 @@ public class Entity
                 c.Start();
                 c.HasStarted = true;
             }
-            if (c.Enabled) c.Update(dt);
+            if (c.Enabled)
+            {
+                c.Update(dt);
+                c.TickCoroutinesAndTimers(dt, unscaledDt);
+            }
         }
     }
 
@@ -385,6 +391,9 @@ public class Entity
     internal void DestroyComponents()
     {
         foreach (var c in _components)
+        {
+            c.CancelAllCoroutinesAndTimers();
             c.OnDestroy();
+        }
     }
 }
