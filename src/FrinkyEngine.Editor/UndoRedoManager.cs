@@ -174,7 +174,9 @@ public class UndoRedoManager
     private static void TransferLoadedAssets(Core.Scene.Scene oldScene, Core.Scene.Scene restoredScene)
     {
         // Build a lookup of old entities by ID for fast matching
-        var oldEntities = IterateAllEntities(oldScene).ToDictionary(e => e.Id);
+        var oldEntities = IterateAllEntities(oldScene)
+            .GroupBy(e => e.Id)
+            .ToDictionary(g => g.Key, g => g.First());
 
         // Transfer MeshRendererComponent model instances
         foreach (var entity in IterateAllEntities(restoredScene))
