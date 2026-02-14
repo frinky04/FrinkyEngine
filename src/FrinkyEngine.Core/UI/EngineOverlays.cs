@@ -939,19 +939,6 @@ public static unsafe class EngineOverlays
             RenderRuntimeCvars.TrySetScreenPercentage));
 
         ConsoleBackend.RegisterCVar(new ConsoleCVar(
-            "r_raylib_logs",
-            "r_raylib_logs [0|1]",
-            "Enable or disable Raylib trace log output (1=on, 0=off). Off by default.",
-            () => RaylibLogger.Enabled ? "1" : "0",
-            value =>
-            {
-                if (!TryParseBool01(value, out var enabled))
-                    return false;
-                RaylibLogger.Enabled = enabled;
-                return true;
-            }));
-
-        ConsoleBackend.RegisterCVar(new ConsoleCVar(
             "r_vsync",
             "r_vsync [0|1]",
             "Toggle VSync (1=on, 0=off).",

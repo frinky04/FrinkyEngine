@@ -12,7 +12,7 @@ public class ConsolePanel
     private bool _showInfo = true;
     private bool _showWarning = true;
     private bool _showError = true;
-    private bool _showRaylib = true;
+    private bool _showRaylib;
     private bool _showTimestamps = true;
     private string _searchFilter = string.Empty;
 
