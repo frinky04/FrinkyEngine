@@ -65,6 +65,7 @@ public class PerformancePanel
             DrawLightingStats();
             DrawPhysicsStats();
             DrawAudioStats();
+            DrawAssetIconStats();
             DrawLegend();
         }
         ImGui.End();
@@ -538,6 +539,20 @@ public class PerformancePanel
             ImGui.Text($"Voices: {audioStats.ActiveVoices}  Streaming: {audioStats.StreamingVoices}");
             ImGui.Text($"Stolen: {audioStats.StolenVoicesThisFrame}  Virtual: {audioStats.VirtualizedVoices}");
             ImGui.Text($"Update: {audioStats.UpdateTimeMs:F2} ms");
+        }
+    }
+
+    private void DrawAssetIconStats()
+    {
+        var icons = _app.AssetIcons;
+        if (ImGui.CollapsingHeader("Asset Icons"))
+        {
+            ImGui.Text($"Queue: {icons.QueueLength}  Eligible: {icons.EligibleAssetCount}  Loaded: {icons.LoadedIconCount}");
+            ImGui.Text($"Generated: {icons.TotalGenerated}  Failed: {icons.TotalFailed}  Cache Hits: {icons.CacheHits}");
+            ImGui.Text($"Last Generation: {icons.LastGenerationMs:F1} ms");
+            int totalLoads = icons.TotalGenerated + icons.CacheHits;
+            double hitRate = totalLoads > 0 ? icons.CacheHits / (double)totalLoads * 100.0 : 0;
+            ImGui.Text($"Cache Hit Rate: {hitRate:F1}%%");
         }
     }
 

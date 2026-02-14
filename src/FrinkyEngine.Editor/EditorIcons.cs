@@ -42,7 +42,10 @@ public static class EditorIcons
 
             var texture = Raylib.LoadTexture(path);
             if (texture.Id > 0)
+            {
+                Raylib.SetTextureFilter(texture, TextureFilter.Bilinear);
                 _icons[type] = texture;
+            }
             else
                 FrinkyLog.Warning($"Failed to load editor icon: {path}");
         }
@@ -56,6 +59,7 @@ public static class EditorIcons
         var folderTexture = Raylib.LoadTexture(FolderIconPath);
         if (folderTexture.Id > 0)
         {
+            Raylib.SetTextureFilter(folderTexture, TextureFilter.Bilinear);
             _folderIcon = folderTexture;
             _hasFolderIcon = true;
         }

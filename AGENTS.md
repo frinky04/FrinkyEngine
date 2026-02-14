@@ -62,6 +62,10 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
 - **Raylib cursor** — `DisableCursor()`/`EnableCursor()` re-center mouse; only call on state transitions
 
+## Current Workarounds
+
+- **Asset icon generation cadence** — icon generation is intentionally throttled in `AssetIconService` (`MinJobIntervalSeconds = 0.2`) to keep editor frame impact low; adjust this constant if startup icon warmup speed is preferred over smoother frame pacing.
+
 ## Editor Keybinds
 
 - **Never use raw `ImGui.IsKeyPressed()`** for editor shortcuts — always use `KeybindManager` + `EditorAction` enum so keybinds are rebindable

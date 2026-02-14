@@ -42,6 +42,7 @@ public class EditorApplication
     public EditorMode Mode { get; private set; } = EditorMode.Edit;
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
+    public AssetIconService AssetIcons { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
     public PickingSystem PickingSystem { get; } = new();
     public GameAssemblyLoader AssemblyLoader { get; } = new();
@@ -249,6 +250,8 @@ public class EditorApplication
             _deferredChangedPaths = null;
         }
         _wasFocused = isFocused;
+
+        AssetIcons.Tick(SceneRenderer);
 
         if (IsInRuntimeMode && CurrentScene != null)
         {
@@ -512,6 +515,7 @@ public class EditorApplication
             _assetFileWatcher?.Dispose();
             _assetFileWatcher = new AssetFileWatcher();
             _assetFileWatcher.Watch(assetsPath);
+            AssetIcons.Initialize(ProjectDirectory);
 
             if (!string.IsNullOrEmpty(ProjectFile.GameProject))
             {
@@ -624,10 +628,10 @@ public class EditorApplication
 
         bool assetsReloaded = false;
         var changedPrefabs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (changedPaths != null && CurrentScene != null)
+        var relativePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (changedPaths != null)
         {
             var assetsPath = AssetManager.Instance.AssetsPath;
-            var relativePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var fullPath in changedPaths)
             {
                 if (fullPath.StartsWith(assetsPath, StringComparison.OrdinalIgnoreCase))
@@ -638,53 +642,55 @@ public class EditorApplication
                         changedPrefabs.Add(rel);
                 }
             }
+        }
 
-            if (relativePaths.Count > 0)
+        AssetIcons.OnAssetDatabaseRefreshed(changedPaths != null ? relativePaths : null);
+
+        if (relativePaths.Count > 0 && CurrentScene != null)
+        {
+            // Invalidate components first (clear RenderModel) before unloading GPU resources
+            foreach (var renderable in CurrentScene.Renderables)
             {
-                // Invalidate components first (clear RenderModel) before unloading GPU resources
-                foreach (var renderable in CurrentScene.Renderables)
+                bool shouldInvalidate = false;
+                if (renderable is MeshRendererComponent meshRenderer)
                 {
-                    bool shouldInvalidate = false;
-                    if (renderable is MeshRendererComponent meshRenderer)
+                    var resolvedModelPath = AssetDatabase.Instance.ResolveAssetPath(meshRenderer.ModelPath.Path);
+                    if (resolvedModelPath != null && relativePaths.Contains(resolvedModelPath))
+                        shouldInvalidate = true;
+                    else
                     {
-                        var resolvedModelPath = AssetDatabase.Instance.ResolveAssetPath(meshRenderer.ModelPath.Path);
-                        if (resolvedModelPath != null && relativePaths.Contains(resolvedModelPath))
-                            shouldInvalidate = true;
-                        else
+                        foreach (var slot in meshRenderer.MaterialSlots)
                         {
-                            foreach (var slot in meshRenderer.MaterialSlots)
+                            if (slot.TexturePath.IsEmpty) continue;
+                            var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(slot.TexturePath.Path);
+                            if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
                             {
-                                if (slot.TexturePath.IsEmpty) continue;
-                                var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(slot.TexturePath.Path);
-                                if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
-                                {
-                                    shouldInvalidate = true;
-                                    break;
-                                }
+                                shouldInvalidate = true;
+                                break;
                             }
                         }
                     }
-                    else if (renderable is PrimitiveComponent primitive)
+                }
+                else if (renderable is PrimitiveComponent primitive)
+                {
+                    if (!primitive.Material.TexturePath.IsEmpty)
                     {
-                        if (!primitive.Material.TexturePath.IsEmpty)
-                        {
-                            var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(primitive.Material.TexturePath.Path);
-                            if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
-                                shouldInvalidate = true;
-                        }
-                    }
-
-                    if (shouldInvalidate)
-                    {
-                        renderable.Invalidate();
-                        assetsReloaded = true;
+                        var resolvedTexPath = AssetDatabase.Instance.ResolveAssetPath(primitive.Material.TexturePath.Path);
+                        if (resolvedTexPath != null && relativePaths.Contains(resolvedTexPath))
+                            shouldInvalidate = true;
                     }
                 }
 
-                // Now unload stale GPU resources from the cache
-                foreach (var rel in relativePaths)
-                    AssetManager.Instance.InvalidateAsset(rel);
+                if (shouldInvalidate)
+                {
+                    renderable.Invalidate();
+                    assetsReloaded = true;
+                }
             }
+
+            // Now unload stale GPU resources from the cache
+            foreach (var rel in relativePaths)
+                AssetManager.Instance.InvalidateAsset(rel);
         }
 
         if (changedPrefabs.Count > 0)
@@ -1534,6 +1540,7 @@ public class EditorApplication
         UI.ClearFrame();
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;
+        AssetIcons.Shutdown();
         EditorIcons.Unload();
         ViewportPanel.Shutdown();
         SceneRenderer.UnloadShader();

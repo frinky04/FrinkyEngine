@@ -40,3 +40,4 @@ Auto-generated API documentation from XML comments is available in the [`api/`](
 
 - [Audio Roadmap](roadmaps/audio_roadmap.md)
 - [UI Roadmap](roadmaps/ui_roadmap.md)
+- [Asset Icon Implementation Guide](roadmaps/asset_icon_implementation_guide.md)
