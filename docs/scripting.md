@@ -8,6 +8,7 @@ FrinkyEngine uses a composition-based entity model. An `Entity` holds a flat lis
 Awake → Start → Update / LateUpdate → OnDestroy
                  OnEnable / OnDisable
                  OnTriggerEnter / OnTriggerStay / OnTriggerExit
+                 OnCollisionEnter / OnCollisionStay / OnCollisionExit
 ```
 
 - **Awake** — called once when the component is created
@@ -20,6 +21,9 @@ Awake → Start → Update / LateUpdate → OnDestroy
 - **OnTriggerEnter(Entity other)** — called when a trigger overlap begins
 - **OnTriggerStay(Entity other)** — called each frame while a trigger overlap persists
 - **OnTriggerExit(Entity other)** — called when a trigger overlap ends
+- **OnCollisionEnter(CollisionInfo info)** — called when a physics collision begins
+- **OnCollisionStay(CollisionInfo info)** — called each frame while a collision persists
+- **OnCollisionExit(CollisionInfo info)** — called when a physics collision ends
 
 ## Writing a Custom Component
 

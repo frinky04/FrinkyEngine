@@ -137,6 +137,105 @@ if (Physics.Raycast(origin, direction, 100f, out var hit, rayParams))
 | `Normal` | `Vector3` | Surface normal at impact |
 | `Distance` | `float` | Distance from ray origin to hit |
 
+## Shape Casts
+
+Sweep a shape along a direction to detect colliders. Like a raycast but with volume. All shape casts accept the same `RaycastParams` filtering as raycasts.
+
+### Sphere Cast
+
+```csharp
+using FrinkyEngine.Core.Physics;
+
+if (Physics.SphereCast(origin, 0.5f, direction, 20f, out var hit))
+{
+    FrinkyLog.Info($"Sphere hit {hit.Entity.Name} at {hit.Point}, distance {hit.Distance}");
+}
+
+// All hits
+var hits = Physics.SphereCastAll(origin, 0.5f, direction, 20f);
+```
+
+### Box Cast
+
+```csharp
+var halfExtents = new Vector3(1f, 0.5f, 1f);
+if (Physics.BoxCast(origin, halfExtents, Quaternion.Identity, direction, 20f, out var hit))
+{
+    FrinkyLog.Info($"Box hit {hit.Entity.Name}");
+}
+```
+
+### Capsule Cast
+
+```csharp
+if (Physics.CapsuleCast(origin, 0.5f, 1f, Quaternion.Identity, direction, 20f, out var hit))
+{
+    FrinkyLog.Info($"Capsule hit {hit.Entity.Name}");
+}
+```
+
+`ShapeCastHit` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Entity` | `Entity` | The entity whose collider was hit |
+| `Point` | `Vector3` | World-space impact point |
+| `Normal` | `Vector3` | Surface normal at impact |
+| `Distance` | `float` | Distance from sweep origin to hit |
+
+## Overlap Queries
+
+Test for all colliders overlapping a shape at a given position. Returns a list of entities. Accepts `RaycastParams` for filtering.
+
+```csharp
+using FrinkyEngine.Core.Physics;
+
+// Find all entities within a sphere
+List<Entity> nearby = Physics.OverlapSphere(center, 5f);
+
+// Find all entities within a box
+List<Entity> inBox = Physics.OverlapBox(center, new Vector3(2f, 1f, 2f), Quaternion.Identity);
+
+// Find all entities within a capsule
+List<Entity> inCapsule = Physics.OverlapCapsule(center, 0.5f, 2f, Quaternion.Identity);
+```
+
+## Collision Callbacks
+
+Override collision callbacks in your component to respond to physics collisions between non-trigger colliders:
+
+```csharp
+public class DamageReceiver : Component
+{
+    public override void OnCollisionEnter(CollisionInfo info)
+    {
+        // Called once when a collision first begins
+        FrinkyLog.Info($"Hit by {info.Other.Name} at {info.ContactPoint}");
+    }
+
+    public override void OnCollisionStay(CollisionInfo info)
+    {
+        // Called each frame while the collision persists
+    }
+
+    public override void OnCollisionExit(CollisionInfo info)
+    {
+        // Called once when the collision ends
+    }
+}
+```
+
+Both entities in the collision receive callbacks. These fire for non-trigger collisions only — trigger overlaps use `OnTriggerEnter/Stay/Exit` instead.
+
+`CollisionInfo` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Other` | `Entity` | The other entity in the collision |
+| `ContactPoint` | `Vector3` | World-space contact point |
+| `Normal` | `Vector3` | Contact normal pointing toward this entity |
+| `PenetrationDepth` | `float` | Penetration depth of the collision contact |
+
 ## Character Controller
 
 A dynamic character controller backed by BEPU support constraints. Minimum setup on one entity:
