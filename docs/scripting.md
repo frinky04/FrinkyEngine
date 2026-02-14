@@ -250,6 +250,21 @@ Access input state from any component:
 - `Scene.MainCamera` — the active camera entity
 - `Scene.TimeScale` — global time scale multiplier (set to 0 to pause gameplay)
 
+### Finding Entities
+
+```csharp
+// Find the first entity with a given name
+var player = Entity.Scene.FindEntityByName("Player");
+
+// Find all entities with a given name
+List<Entity> enemies = Entity.Scene.FindEntitiesByName("Enemy");
+
+// Find all entities that have a specific component
+List<Entity> cameras = Entity.Scene.FindEntitiesWithComponent<CameraComponent>();
+```
+
+All searches are linear scans over the entity list.
+
 ## Accessing Other Components
 
 From within a component:
@@ -258,7 +273,43 @@ From within a component:
 // Get a sibling component on the same entity
 var rb = Entity.GetComponent<RigidbodyComponent>();
 
+// Get all components of a type on this entity
+List<MeshRendererComponent> renderers = Entity.GetComponents<MeshRendererComponent>();
+
 // Access the transform
 var pos = Transform.WorldPosition;
 Transform.LocalPosition = new Vector3(0, 5, 0);
 ```
+
+### Hierarchy Traversal
+
+Search up or down the entity hierarchy for components:
+
+```csharp
+// First matching component in children (depth-first)
+var collider = Entity.GetComponentInChildren<ColliderComponent>();
+
+// All matching components in children
+List<ColliderComponent> allColliders = Entity.GetComponentsInChildren<ColliderComponent>();
+
+// Include inactive entities in the search
+var hidden = Entity.GetComponentInChildren<MeshRendererComponent>(includeInactive: true);
+
+// Walk up the parent chain
+var controller = Entity.GetComponentInParent<CharacterControllerComponent>();
+```
+
+## Destroying Entities
+
+```csharp
+// Immediate destruction (removes entity and all children from the scene)
+Entity.Destroy();
+
+// Deferred destruction after a delay (in seconds)
+Entity.Destroy(2.5f);
+
+// End-of-frame destruction (safe to call during iteration)
+Entity.Destroy(0f);
+```
+
+Deferred destroys are processed at the end of each `Scene.Update()` call. A delay of `0` destroys the entity at the end of the current frame.
