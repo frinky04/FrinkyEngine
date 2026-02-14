@@ -294,6 +294,8 @@
 
 ## FrinkyEngine.Core.Rendering
 
+[DebugDraw](./frinkyengine.core.rendering.debugdraw)
+
 [ForwardPlusSettings](./frinkyengine.core.rendering.forwardplussettings)
 
 [FrinkyLog](./frinkyengine.core.rendering.frinkylog)

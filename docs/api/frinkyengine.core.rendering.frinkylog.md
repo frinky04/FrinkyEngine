@@ -118,3 +118,11 @@ Raised whenever a new log entry is recorded.
 ```csharp
 public static event Action<LogEntry> OnLog;
 ```
+
+### **OnCleared**
+
+Raised when all log entries are cleared via [FrinkyLog.Clear()](./frinkyengine.core.rendering.frinkylog#clear).
+
+```csharp
+public static event Action OnCleared;
+```
