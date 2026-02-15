@@ -43,7 +43,7 @@ Co-Authored-By: (the agent model's name and attribution byline)
 When adding a new system or feature, evaluate whether it benefits from console commands or CVars.
 
 - Registration: `ConsoleBackend.RegisterCommand()` / `ConsoleBackend.RegisterCVar(new ConsoleCVar(...))`
-- All registration happens in `EngineOverlays.EnsureConsoleBackendInitialized()` (`src/FrinkyEngine.Core/UI/EngineOverlays.cs`)
+- `EngineOverlays.EnsureConsoleBackendInitialized()` now delegates registration to `EngineConsoleRegistrar.RegisterAll(...)` in `src/FrinkyEngine.Core/UI/Console/EngineConsoleRegistrar.cs`
 - Runtime cvar state in dedicated static classes (e.g. `RenderRuntimeCvars`)
 - Naming: `prefix_name` — `r_` rendering, `snd_` audio, `physics_` physics
 
