@@ -145,7 +145,7 @@ DebugDraw.PrintString($"FPS: {fps}", 0.5f, key: "fps_counter");
 | `color` | green | RGBA `Vector4` (0-1 per channel) |
 | `key` | `null` | If set, replaces any existing message with the same key |
 
-**Editor-only**: Debug text renders in the editor viewport. In runtime builds, `DebugDraw.PrintString` is a no-op (no backend registered). The `debug_print` console command can also display debug text.
+**Editor-only**: Debug text renders in the editor viewport overlay. In runtime builds, `DebugDraw.PrintString` is a no-op. The `debug_print` console command can also display debug text.
 
 ## Notes
 

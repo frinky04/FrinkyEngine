@@ -43,7 +43,6 @@ public class EditorApplication
     public EditorCamera EditorCamera { get; } = new();
     public SceneRenderer SceneRenderer { get; } = new();
     public AssetIconService AssetIcons { get; } = new();
-    internal DebugDrawOverlay DebugDrawOverlay { get; } = new();
     public GizmoSystem GizmoSystem { get; } = new();
     public ColliderEditSystem ColliderEditSystem { get; } = new();
     public PickingSystem PickingSystem { get; } = new();
@@ -117,7 +116,7 @@ public class EditorApplication
         SceneRenderer.LoadShader("Shaders/lighting.vs", "Shaders/lighting.fs");
         SceneRenderer.ConfigureForwardPlus(ForwardPlusSettings.Default);
         EngineOverlays.Renderer = SceneRenderer;
-        DebugDraw.SetBackend(DebugDrawOverlay);
+        EngineOverlays.DebugDrawEnabled = true;
         EditorIcons.Load();
         LoadErrorAssets();
         ProjectTemplateRegistry.Discover();
@@ -174,7 +173,6 @@ public class EditorApplication
     public void Update(float dt)
     {
         NotificationManager.Instance.Update(dt);
-        DebugDrawOverlay.Update(dt);
 
         if (_buildTask is { IsCompleted: true })
         {
@@ -292,7 +290,6 @@ public class EditorApplication
         ConsolePanel.Draw();
         AssetBrowserPanel.Draw();
         PerformancePanel.Draw();
-        DebugDrawOverlay.Draw();
         NotificationManager.Instance.Draw();
     }
 
@@ -1587,7 +1584,6 @@ public class EditorApplication
     {
         FrinkyLog.OnLog -= OnLogEntry;
         FrinkyLog.OnCleared -= OnLogCleared;
-        DebugDraw.SetBackend(null);
         UI.ClearFrame();
         _assetFileWatcher?.Dispose();
         _assetFileWatcher = null;

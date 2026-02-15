@@ -67,6 +67,16 @@ public static unsafe class EngineOverlays
     private static bool _consoleAutoScroll = true;
     private static bool _consoleBackendInitialized;
 
+    private sealed class DebugMessage
+    {
+        public required string Text;
+        public float Remaining;
+        public Vector4 Color;
+        public string? Key;
+    }
+
+    private static readonly List<DebugMessage> _debugMessages = new();
+
     /// <summary>
     /// The scene renderer whose per-frame stats are displayed by the overlay.
     /// Must be set before <see cref="Update"/> is called.
@@ -74,9 +84,40 @@ public static unsafe class EngineOverlays
     public static SceneRenderer? Renderer { get; set; }
 
     /// <summary>
+    /// When true, <see cref="DebugDraw.PrintString"/> messages are displayed.
+    /// Set by the editor on startup; remains false in runtime builds.
+    /// </summary>
+    public static bool DebugDrawEnabled { get; set; }
+
+    /// <summary>
     /// Gets whether the developer console overlay is currently visible.
     /// </summary>
     public static bool IsConsoleVisible => _consoleVisible;
+
+    internal static void AddDebugMessage(string message, float duration, Vector4 color, string? key)
+    {
+        if (key != null)
+        {
+            for (int i = 0; i < _debugMessages.Count; i++)
+            {
+                if (string.Equals(_debugMessages[i].Key, key, StringComparison.Ordinal))
+                {
+                    _debugMessages[i].Text = message;
+                    _debugMessages[i].Remaining = duration;
+                    _debugMessages[i].Color = color;
+                    return;
+                }
+            }
+        }
+
+        _debugMessages.Add(new DebugMessage
+        {
+            Text = message,
+            Remaining = duration,
+            Color = color,
+            Key = key
+        });
+    }
 
     /// <summary>
     /// Checks keybinds and queues overlay draw commands for the current frame.
@@ -121,6 +162,13 @@ public static unsafe class EngineOverlays
 
         if (_consoleVisible)
             UI.Draw(_ => DrawConsole());
+
+        if (DebugDrawEnabled)
+        {
+            UpdateDebugMessages(dt);
+            if (_debugMessages.Count > 0)
+                UI.Draw(_ => DrawDebugMessages());
+        }
     }
 
     /// <summary>
@@ -138,6 +186,54 @@ public static unsafe class EngineOverlays
         ResetAutocompleteState();
         _consoleFocusInput = false;
         _consoleAutoScroll = true;
+        _debugMessages.Clear();
+    }
+
+    private static void UpdateDebugMessages(float dt)
+    {
+        for (int i = _debugMessages.Count - 1; i >= 0; i--)
+        {
+            _debugMessages[i].Remaining -= dt;
+            if (_debugMessages[i].Remaining <= 0f)
+                _debugMessages.RemoveAt(i);
+        }
+    }
+
+    private static void DrawDebugMessages()
+    {
+        ImGui.SetNextWindowPos(new Vector2(32f, 32f), ImGuiCond.Always);
+        ImGui.SetNextWindowBgAlpha(0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
+
+        var flags = ImGuiWindowFlags.NoDecoration
+                    | ImGuiWindowFlags.AlwaysAutoResize
+                    | ImGuiWindowFlags.NoFocusOnAppearing
+                    | ImGuiWindowFlags.NoNav
+                    | ImGuiWindowFlags.NoMove
+                    | ImGuiWindowFlags.NoSavedSettings
+                    | ImGuiWindowFlags.NoInputs;
+
+        if (ImGui.Begin("##DebugDrawOverlay", flags))
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            for (int i = _debugMessages.Count - 1; i >= 0; i--)
+            {
+                var msg = _debugMessages[i];
+                float alpha = msg.Remaining < 0.5f ? msg.Remaining / 0.5f : 1f;
+                var color = msg.Color with { W = msg.Color.W * alpha };
+
+                var cursorPos = ImGui.GetCursorScreenPos();
+                var shadowColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 0f, 0f, 0.7f * alpha));
+                drawList.AddText(cursorPos + new Vector2(1f, 1f), shadowColor, msg.Text);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, color);
+                ImGui.TextUnformatted(msg.Text);
+                ImGui.PopStyleColor();
+            }
+        }
+        ImGui.End();
+        ImGui.PopStyleVar(2);
     }
 
     private static void RefreshDisplayedStats()
