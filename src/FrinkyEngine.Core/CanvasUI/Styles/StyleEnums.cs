@@ -46,3 +46,10 @@ public enum PositionMode
     Relative,
     Absolute,
 }
+
+public enum TextAlign
+{
+    Left,
+    Center,
+    Right,
+}

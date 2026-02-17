@@ -30,9 +30,23 @@ public class Label : Panel
         var renderer = CanvasRenderer.Current;
         if (renderer == null) return;
 
-        float padL = style.Padding.Left.Unit == LengthUnit.Pixels ? style.Padding.Left.Value : 0;
-        float padT = style.Padding.Top.Unit == LengthUnit.Pixels ? style.Padding.Top.Value : 0;
-        DrawCommands.Text(_text, box.X + padL, box.Y + padT, style.FontSize,
+        float padL = YogaNode.LayoutPaddingLeft;
+        float padR = YogaNode.LayoutPaddingRight;
+        float padT = YogaNode.LayoutPaddingTop;
+
+        float contentX = box.X + padL;
+        float contentW = box.Width - padL - padR;
+
+        var textSize = DrawCommands.MeasureText(_text, style.FontSize, renderer.FontManager.DefaultFont);
+
+        float tx = style.TextAlign switch
+        {
+            Styles.TextAlign.Center => contentX + (contentW - textSize.X) * 0.5f,
+            Styles.TextAlign.Right => contentX + contentW - textSize.X,
+            _ => contentX,
+        };
+
+        DrawCommands.Text(_text, tx, box.Y + padT, style.FontSize,
             CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
     }
 

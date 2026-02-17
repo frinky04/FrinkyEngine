@@ -246,7 +246,7 @@ public class TextEntry : Panel
         if (renderer == null) return;
 
         float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
-        float padL = ComputedStyle.Padding.Left.Unit == LengthUnit.Pixels ? ComputedStyle.Padding.Left.Value : 0;
+        float padL = YogaNode.LayoutPaddingLeft;
         float clickX = e.LocalPos.X - padL;
 
         // Find cursor position from click X
@@ -271,8 +271,8 @@ public class TextEntry : Panel
         if (renderer == null) return;
 
         float fontSize = style.FontSize;
-        float padL = style.Padding.Left.Unit == LengthUnit.Pixels ? style.Padding.Left.Value : 0;
-        float padT = style.Padding.Top.Unit == LengthUnit.Pixels ? style.Padding.Top.Value : 0;
+        float padL = YogaNode.LayoutPaddingLeft;
+        float padT = YogaNode.LayoutPaddingTop;
         float textY = box.Y + padT + (box.Height - padT * 2 - fontSize) * 0.5f;
         float textX = box.X + padL;
         var font = renderer.FontManager.DefaultFont;

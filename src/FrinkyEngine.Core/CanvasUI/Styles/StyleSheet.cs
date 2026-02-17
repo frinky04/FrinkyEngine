@@ -42,4 +42,5 @@ public class StyleSheet
     public float? BorderRadius { get; set; }
     public float? FontSize { get; set; }
     public float? Opacity { get; set; }
+    public TextAlign? TextAlign { get; set; }
 }

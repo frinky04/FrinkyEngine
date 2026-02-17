@@ -41,6 +41,7 @@ internal static class CssPropertyMap
             case "display": sheet.Display = ParseEnum<Display>(tokens); break;
             case "position": sheet.Position = ParseEnum<PositionMode>(tokens); break;
             case "overflow": sheet.Overflow = ParseEnum<Overflow>(tokens); break;
+            case "text-align": sheet.TextAlign = ParseEnum<TextAlign>(tokens); break;
 
             case "top": sheet.Top = ParseLength(tokens); break;
             case "right": sheet.Right = ParseLength(tokens); break;

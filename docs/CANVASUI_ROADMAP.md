@@ -200,3 +200,93 @@ Markup/CSS loaded through `AssetManager` for both dev and exported builds.
 2. **Runtime smoke test** — Launch runtime with a test scene; a game component creates a Panel with a Label and Button; panels render on screen with correct flexbox layout
 3. **Input test** — Hover highlights button (pseudo-class), click fires OnClick event
 4. **Coexistence** — Old ImGui UI (EngineOverlays) still works alongside CanvasUI in the same frame
+
+---
+
+## Supported CSS Properties
+
+| Property | Values | Default | Notes |
+|----------|--------|---------|-------|
+| `background-color` | `#hex`, `rgb()`, `rgba()`, named colors | `transparent` | |
+| `color` | `#hex`, `rgb()`, `rgba()`, named colors | `white` | Text/foreground color |
+| `border-color` | `#hex`, `rgb()`, `rgba()`, named colors | `transparent` | |
+| `border-width` | `<length>` | `0` | |
+| `border-radius` | `<length>` | `0` | |
+| `border` | `<width> <style> <color>` | — | Shorthand; style keyword is ignored |
+| `opacity` | `0`–`1` | `1` | |
+| `font-size` | `<length>` | `16px` | |
+| `text-align` | `left`, `center`, `right` | `left` | Horizontal text alignment |
+| `width` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `height` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `min-width` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `min-height` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `max-width` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `max-height` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `flex-direction` | `column`, `column-reverse`, `row`, `row-reverse` | `column` | |
+| `justify-content` | `flex-start`, `center`, `flex-end`, `space-between`, `space-around`, `space-evenly` | `flex-start` | |
+| `align-items` | `auto`, `flex-start`, `center`, `flex-end`, `stretch`, `baseline` | `stretch` | |
+| `align-self` | `auto`, `flex-start`, `center`, `flex-end`, `stretch`, `baseline` | `auto` | |
+| `flex-grow` | `<number>` | `0` | |
+| `flex-shrink` | `<number>` | `1` | |
+| `flex-basis` | `<length>`, `<percent>`, `auto` | `auto` | |
+| `gap` | `<length>` | `0` | |
+| `display` | `flex`, `none` | `flex` | |
+| `position` | `relative`, `absolute` | `relative` | |
+| `overflow` | `visible`, `hidden`, `scroll` | `visible` | |
+| `top`, `right`, `bottom`, `left` | `<length>`, `<percent>`, `auto` | `auto` | For `position: absolute` |
+| `padding` | 1–4 `<length>`/`<percent>` values | `0` | Shorthand (top, right, bottom, left) |
+| `padding-top/right/bottom/left` | `<length>`, `<percent>` | `0` | |
+| `margin` | 1–4 `<length>`/`<percent>` values | `0` | Shorthand |
+| `margin-top/right/bottom/left` | `<length>`, `<percent>` | `0` | |
+
+### Supported selectors
+
+| Selector | Example | Notes |
+|----------|---------|-------|
+| Type | `Label` | Matches panel class name |
+| Class | `.foo` | Matches `panel.AddClass("foo")` |
+| Pseudo-class | `:hover`, `:active`, `:focus`, `:disabled`, `:checked` | |
+| Descendant | `Panel Label` | Space combinator |
+| Child | `Panel > Label` | Direct child combinator |
+| Universal | `*` | Matches any panel |
+| Grouping | `Label, Button` | Comma-separated |
+
+---
+
+## Widget Behavior Notes
+
+### Button
+- Sets `text-align: center` as an inline default in `OnCreated` — text is centered unless overridden by CSS.
+- `AcceptsFocus = true` — receives `:focus` pseudo-class.
+- Text is vertically centered within the content area (inside padding).
+
+### Label
+- Text is positioned at top-left of the content area by default (`text-align: left`).
+- Respects `text-align` for horizontal positioning.
+- Padding is read from Yoga's resolved layout values, so percentage padding works correctly.
+
+### Checkbox
+- Renders an inline checkbox box + optional label text.
+- Toggles `:checked` pseudo-class on click.
+- Fires `OnChanged` event with the new checked state.
+- Padding is read from Yoga's resolved layout values.
+
+### TextEntry
+- Single-line text input with cursor, selection, and keyboard handling.
+- Click-to-place cursor, shift+click/drag for selection.
+- Supports Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Home, End, Delete, Backspace.
+- Padding is read from Yoga's resolved layout values.
+
+### Slider
+- Horizontal drag slider with configurable `Min`, `Max`, `Step`.
+- `color` controls the filled track and thumb color.
+- Fires `OnChanged` with the mapped value (not normalized).
+
+### ScrollPanel
+- Sets `overflow: hidden` as an inline default in `OnCreated`.
+- Mouse wheel scrolls content vertically.
+- Renders a scrollbar track + thumb when content overflows.
+
+### Image
+- Displays a `Texture2D` stretched to fill the panel's content box.
+- Set via `image.Texture = myTexture`.

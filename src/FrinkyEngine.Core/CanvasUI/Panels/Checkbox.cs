@@ -55,8 +55,8 @@ public class Checkbox : Panel
         float gap = fontSize * 0.4f;
         var color = CanvasRenderer.AlphaBlend(style.Color, alpha);
 
-        float padL = style.Padding.Left.Unit == LengthUnit.Pixels ? style.Padding.Left.Value : 0;
-        float padT = style.Padding.Top.Unit == LengthUnit.Pixels ? style.Padding.Top.Value : 0;
+        float padL = YogaNode.LayoutPaddingLeft;
+        float padT = YogaNode.LayoutPaddingTop;
 
         float bx = box.X + padL;
         float by = box.Y + padT + (box.Height - padT * 2 - fontSize) * 0.5f;

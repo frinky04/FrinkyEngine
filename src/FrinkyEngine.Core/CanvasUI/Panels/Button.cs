@@ -21,6 +21,7 @@ public class Button : Panel
     public override void OnCreated()
     {
         AcceptsFocus = true;
+        Style.TextAlign = Styles.TextAlign.Center;
         UpdateMeasureFunction();
     }
 
@@ -31,9 +32,26 @@ public class Button : Panel
         var renderer = CanvasRenderer.Current;
         if (renderer == null) return;
 
+        float padL = YogaNode.LayoutPaddingLeft;
+        float padR = YogaNode.LayoutPaddingRight;
+        float padT = YogaNode.LayoutPaddingTop;
+        float padB = YogaNode.LayoutPaddingBottom;
+
+        float contentX = box.X + padL;
+        float contentW = box.Width - padL - padR;
+        float contentY = box.Y + padT;
+        float contentH = box.Height - padT - padB;
+
         var textSize = DrawCommands.MeasureText(_text, style.FontSize, renderer.FontManager.DefaultFont);
-        float tx = box.X + (box.Width - textSize.X) * 0.5f;
-        float ty = box.Y + (box.Height - textSize.Y) * 0.5f;
+
+        float tx = style.TextAlign switch
+        {
+            Styles.TextAlign.Center => contentX + (contentW - textSize.X) * 0.5f,
+            Styles.TextAlign.Right => contentX + contentW - textSize.X,
+            _ => contentX,
+        };
+        float ty = contentY + (contentH - textSize.Y) * 0.5f;
+
         DrawCommands.Text(_text, tx, ty, style.FontSize,
             CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
     }

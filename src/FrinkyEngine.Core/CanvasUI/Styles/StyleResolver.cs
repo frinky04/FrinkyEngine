@@ -76,5 +76,6 @@ internal static class StyleResolver
         if (s.BorderRadius.HasValue) computed.BorderRadius = s.BorderRadius.Value;
         if (s.FontSize.HasValue) computed.FontSize = s.FontSize.Value;
         if (s.Opacity.HasValue) computed.Opacity = s.Opacity.Value;
+        if (s.TextAlign.HasValue) computed.TextAlign = s.TextAlign.Value;
     }
 }

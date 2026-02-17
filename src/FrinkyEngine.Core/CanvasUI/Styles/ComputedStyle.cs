@@ -41,6 +41,7 @@ public struct ComputedStyle
     public float BorderRadius;
     public float FontSize;
     public float Opacity;
+    public TextAlign TextAlign;
 
     public static ComputedStyle Default => new()
     {
@@ -76,5 +77,6 @@ public struct ComputedStyle
         BorderRadius = 0f,
         FontSize = 16f,
         Opacity = 1f,
+        TextAlign = TextAlign.Left,
     };
 }
