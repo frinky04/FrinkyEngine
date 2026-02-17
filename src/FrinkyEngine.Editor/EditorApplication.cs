@@ -467,12 +467,6 @@ public class EditorApplication
     {
         IsPhysicsHitboxPreviewEnabled = !IsPhysicsHitboxPreviewEnabled;
 
-        if (ProjectDirectory != null && ProjectEditorSettings != null)
-        {
-            ProjectEditorSettings.ShowPhysicsHitboxes = IsPhysicsHitboxPreviewEnabled;
-            ProjectEditorSettings.Save(ProjectDirectory);
-        }
-
         NotificationManager.Instance.Post(
             IsPhysicsHitboxPreviewEnabled ? "Physics hitbox preview enabled" : "Physics hitbox preview disabled",
             NotificationType.Info,
@@ -483,12 +477,6 @@ public class EditorApplication
     {
         IsColliderEditModeEnabled = !IsColliderEditModeEnabled;
 
-        if (ProjectDirectory != null && ProjectEditorSettings != null)
-        {
-            ProjectEditorSettings.ColliderEditMode = IsColliderEditModeEnabled;
-            ProjectEditorSettings.Save(ProjectDirectory);
-        }
-
         NotificationManager.Instance.Post(
             IsColliderEditModeEnabled ? "Collider edit mode enabled" : "Collider edit mode disabled",
             NotificationType.Info,
@@ -498,12 +486,6 @@ public class EditorApplication
     public void ToggleBonePreview()
     {
         IsBonePreviewEnabled = !IsBonePreviewEnabled;
-
-        if (ProjectDirectory != null && ProjectEditorSettings != null)
-        {
-            ProjectEditorSettings.ShowBonePreview = IsBonePreviewEnabled;
-            ProjectEditorSettings.Save(ProjectDirectory);
-        }
 
         NotificationManager.Instance.Post(
             IsBonePreviewEnabled ? "Bone preview enabled" : "Bone preview disabled",
@@ -562,9 +544,6 @@ public class EditorApplication
             AudioProjectSettings.ApplyFrom(ProjectSettings.Runtime);
             ProjectEditorSettings = EditorProjectSettings.LoadOrCreate(ProjectDirectory);
             TagDatabase = AssetTagDatabase.LoadOrCreate(ProjectDirectory);
-            IsPhysicsHitboxPreviewEnabled = ProjectEditorSettings.ShowPhysicsHitboxes;
-            IsColliderEditModeEnabled = ProjectEditorSettings.ColliderEditMode;
-            IsBonePreviewEnabled = ProjectEditorSettings.ShowBonePreview;
             var assetsPath = ProjectFile.GetAbsoluteAssetsPath(ProjectDirectory);
             AssetManager.Instance.AssetsPath = assetsPath;
             AssetDatabase.Instance.Scan(assetsPath);
@@ -1706,9 +1685,6 @@ public class EditorApplication
         settings.Normalize();
         settings.Save(ProjectDirectory);
         ProjectEditorSettings = settings;
-        IsPhysicsHitboxPreviewEnabled = settings.ShowPhysicsHitboxes;
-        IsColliderEditModeEnabled = settings.ColliderEditMode;
-        IsBonePreviewEnabled = settings.ShowBonePreview;
         _hierarchyStateDirty = false;
         ApplyEditorSettingsImmediate();
     }

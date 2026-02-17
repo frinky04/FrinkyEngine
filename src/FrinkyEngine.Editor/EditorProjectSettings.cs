@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FrinkyEngine.Core.Rendering;
 
 namespace FrinkyEngine.Editor;
@@ -9,9 +10,6 @@ public class EditorProjectSettings
 
     public int TargetFps { get; set; } = 120;
     public bool VSync { get; set; }
-    public bool ShowPhysicsHitboxes { get; set; }
-    public bool ColliderEditMode { get; set; }
-    public bool ShowBonePreview { get; set; }
     public bool HideUnrecognisedAssets { get; set; } = true;
     public HierarchyEditorSettings Hierarchy { get; set; } = new();
 
@@ -76,9 +74,6 @@ public class EditorProjectSettings
         {
             TargetFps = TargetFps,
             VSync = VSync,
-            ShowPhysicsHitboxes = ShowPhysicsHitboxes,
-            ColliderEditMode = ColliderEditMode,
-            ShowBonePreview = ShowBonePreview,
             HideUnrecognisedAssets = HideUnrecognisedAssets,
             Hierarchy = Hierarchy.Clone()
         };
@@ -89,18 +84,7 @@ public class EditorProjectSettings
         return Path.Combine(projectDirectory, ".frinky", FileName);
     }
 
-    public static EditorProjectSettings GetDefault()
-    {
-        return new EditorProjectSettings
-        {
-            TargetFps = 120,
-            VSync = false,
-            ShowPhysicsHitboxes = false,
-            ColliderEditMode = false,
-            ShowBonePreview = false,
-            HideUnrecognisedAssets = true
-        };
-    }
+    public static EditorProjectSettings GetDefault() => new();
 
     public void Normalize()
     {
@@ -145,13 +129,13 @@ public class HierarchyEditorSettings
 
 public class HierarchySceneState
 {
-    public string SearchQuery { get; set; } = string.Empty;
-    public bool FilterActiveOnly { get; set; }
-    public bool FilterInactiveOnly { get; set; }
-    public HierarchyPrefabFilter PrefabFilter { get; set; } = HierarchyPrefabFilter.Any;
-    public string RequiredComponentType { get; set; } = string.Empty;
-    public bool ShowOnlyMatches { get; set; } = true;
-    public bool AutoExpandMatches { get; set; } = true;
+    [JsonIgnore] public string SearchQuery { get; set; } = string.Empty;
+    [JsonIgnore] public bool FilterActiveOnly { get; set; }
+    [JsonIgnore] public bool FilterInactiveOnly { get; set; }
+    [JsonIgnore] public HierarchyPrefabFilter PrefabFilter { get; set; } = HierarchyPrefabFilter.Any;
+    [JsonIgnore] public string RequiredComponentType { get; set; } = string.Empty;
+    [JsonIgnore] public bool ShowOnlyMatches { get; set; } = true;
+    [JsonIgnore] public bool AutoExpandMatches { get; set; } = true;
     public List<HierarchyFolderState> Folders { get; set; } = new();
     public Dictionary<string, string> RootEntityFolders { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> ExpandedFolderIds { get; set; } = new();
@@ -177,18 +161,6 @@ public class HierarchySceneState
 
     public void Normalize()
     {
-        SearchQuery ??= string.Empty;
-        RequiredComponentType = RequiredComponentType?.Trim() ?? string.Empty;
-
-        if (FilterActiveOnly && FilterInactiveOnly)
-        {
-            FilterActiveOnly = false;
-            FilterInactiveOnly = false;
-        }
-
-        if (!Enum.IsDefined(PrefabFilter))
-            PrefabFilter = HierarchyPrefabFilter.Any;
-
         Folders ??= new List<HierarchyFolderState>();
         RootEntityFolders ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         ExpandedFolderIds ??= new List<string>();
