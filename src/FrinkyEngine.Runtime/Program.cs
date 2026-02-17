@@ -7,6 +7,7 @@ using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
+using FrinkyEngine.Core.CanvasUI;
 using FrinkyEngine.Core.UI;
 using Raylib_cs;
 
@@ -182,6 +183,7 @@ public static class Program
         Raylib.InitWindow(launchSettings.WindowWidth, launchSettings.WindowHeight, runtimeWindowTitle);
         Raylib.SetTargetFPS(launchSettings.TargetFps);
         UI.Initialize();
+        CanvasUI.Initialize();
 
         var sceneRenderer = new SceneRenderer();
         sceneRenderer.LoadShader(shaderVsPath, shaderFsPath);
@@ -196,6 +198,7 @@ public static class Program
         if (scene == null)
         {
             Console.WriteLine($"Failed to load scene: {scenePath}");
+            CanvasUI.Shutdown();
             UI.Shutdown();
             AudioDeviceService.ShutdownIfUnused();
             Raylib.CloseWindow();
@@ -306,6 +309,7 @@ public static class Program
             {
                 UI.BeginFrame(dt, new UiFrameDesc(screenW, screenH, IsFocused: Raylib.IsWindowFocused(), IsHovered: true, AllowCursorChanges: false));
                 UI.EndFrame();
+                CanvasUI.Update(dt, screenW, screenH);
             }
             FrameProfiler.EndFrame();
             FrameProfiler.BeginIdle();
@@ -313,6 +317,7 @@ public static class Program
             FrameProfiler.EndIdle();
         }
 
+        CanvasUI.Shutdown();
         UI.Shutdown();
         postProcessPipeline.Shutdown();
         if (lastScaledW > 0)

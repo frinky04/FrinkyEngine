@@ -28,8 +28,11 @@ public class AssetDatabase
         { ".ogg", AssetType.Audio },
         { ".mp3", AssetType.Audio },
         { ".cs", AssetType.Script },
+        { ".canvas", AssetType.Canvas },
         { ".fprefab", AssetType.Prefab },
         { ".pal", AssetType.Palette },
+        { ".ttf", AssetType.Font },
+        { ".otf", AssetType.Font },
     };
 
     private List<AssetEntry> _assets = new();

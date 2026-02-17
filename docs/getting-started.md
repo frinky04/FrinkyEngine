@@ -102,7 +102,7 @@ For a full editor walkthrough, see the [Editor Guide](editor-guide.md).
 
 ## Build and Run Your Game
 
-1. Build game scripts from the editor: `Scripts -> Build Scripts` (or `Ctrl+B`)
+1. Build game scripts from the editor: `File -> Build Scripts` (or `Ctrl+B`)
 2. Enter play mode: press `F5` or `Play` in the toolbar
 3. Run standalone: `dotnet run --project src/FrinkyEngine.Runtime -- path/to/MyGame.fproject`
 

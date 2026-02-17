@@ -14,6 +14,7 @@ namespace FrinkyEngine.Editor.Panels;
 public class AssetBrowserPanel
 {
     public const string AssetDragPayload = "FRINKY_ASSET_BROWSER";
+
     private readonly record struct BrowserItem(
         string Id,
         string Label,
@@ -22,9 +23,9 @@ public class AssetBrowserPanel
 
     private readonly EditorApplication _app;
     private string _searchQuery = string.Empty;
-    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Prefab
-    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Prefabs" };
-    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Prefab };
+    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Canvas, 7=Prefab, 8=Font
+    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Canvas", "Prefabs", "Fonts" };
+    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Canvas, AssetType.Prefab, AssetType.Font };
 
     // Multi-selection state
     private readonly HashSet<string> _selectedAssets = new(StringComparer.OrdinalIgnoreCase);
@@ -578,6 +579,7 @@ public class AssetBrowserPanel
                 InstantiatePrefabAsset(asset);
                 break;
             case AssetType.Script:
+            case AssetType.Canvas:
                 OpenScriptAsset(asset);
                 break;
             default:
@@ -680,7 +682,7 @@ public class AssetBrowserPanel
         if (asset.Type == AssetType.Prefab && ImGui.MenuItem("Instantiate Prefab"))
             InstantiatePrefabAsset(asset);
 
-        if (asset.Type == AssetType.Script && ImGui.MenuItem("Open in VS Code"))
+        if ((asset.Type == AssetType.Script || asset.Type == AssetType.Canvas) && ImGui.MenuItem("Open in VS Code"))
             OpenScriptAsset(asset);
 
         if (asset.Type == AssetType.Model && ImGui.MenuItem("Assign to MeshRenderer"))

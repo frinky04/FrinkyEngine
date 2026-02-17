@@ -1,8 +1,10 @@
-# FrinkyEngine UI Roadmap
+# FrinkyEngine UI Roadmap (Legacy Immediate-Mode)
+
+> **Note:** The game-facing UI direction has shifted to **CanvasUI**, a retained-mode panel system with flexbox layout. See [CanvasUI Roadmap](../CANVASUI_ROADMAP.md) for the active plan. This document covers the original ImGui wrapper roadmap, which remains relevant for editor UI.
 
 ## Purpose
-This document defines the phased plan for FrinkyEngine's game-facing UI/widget system.
-It focuses on a wrapper-first immediate-mode API powered by ImGui, with runtime/editor parity and a clear path to future world-space UI.
+This document defines the phased plan for FrinkyEngine's ImGui-based wrapper UI system.
+It focuses on a wrapper-first immediate-mode API powered by ImGui, with runtime/editor parity. The game-facing portions of this roadmap are superseded by CanvasUI.
 
 ## Current Baseline (Phase v1 foundation, implemented)
 The engine now includes:

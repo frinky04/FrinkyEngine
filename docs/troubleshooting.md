@@ -8,7 +8,7 @@
 
 ## Custom component does not appear in Add Component
 
-- Build scripts first: `Scripts -> Build Scripts` (`Ctrl+B`)
+- Build scripts first: `File -> Build Scripts` (`Ctrl+B`)
 - Confirm `.fproject` `gameAssembly` path matches the built DLL location
 - Ensure your component class is `public` and extends `Component`
 - Check the Console panel for assembly load errors
@@ -62,6 +62,6 @@
 
 ## Hot-reload does not pick up script changes
 
-- Use `Scripts -> Build Scripts` (`Ctrl+B`) to trigger a rebuild
+- Use `File -> Build Scripts` (`Ctrl+B`) to trigger a rebuild
 - Check the Console panel for build errors
 - Ensure `.fproject` `gameProject` points to the correct `.csproj`
