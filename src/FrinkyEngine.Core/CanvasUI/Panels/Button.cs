@@ -16,8 +16,9 @@ public class Button : Panel
         get => _text;
         set
         {
+            if (_text == value) return;
             _text = value;
-            UpdateMeasureFunction();
+            InvalidateLayout();
         }
     }
 
@@ -26,7 +27,7 @@ public class Button : Panel
         AcceptsFocus = true;
         Style.TextAlign = Styles.TextAlign.Center;
         OnKeyDown += HandleKeyDown;
-        UpdateMeasureFunction();
+        SetMeasureFunction();
     }
 
     public override void RenderContent(Box box, ComputedStyle style, byte alpha)
@@ -61,7 +62,7 @@ public class Button : Panel
             CanvasRenderer.AlphaBlend(style.Color, alpha), font);
     }
 
-    private void UpdateMeasureFunction()
+    private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {
@@ -76,7 +77,6 @@ public class Button : Panel
                 textHeight = textSize.Y > 0 ? textSize.Y : fontSize;
             }
 
-            // Only report content size — Yoga adds padding separately via the style
             float w = widthMode == YogaMeasureMode.Exactly ? width
                     : widthMode == YogaMeasureMode.AtMost ? MathF.Min(textWidth, width)
                     : textWidth;
@@ -95,6 +95,7 @@ public class Button : Panel
         if (e.Key is not (KeyboardKey.Enter or KeyboardKey.Space))
             return;
 
+        e.Handled = true;
         RaiseClick(new MouseEvent
         {
             ScreenPos = new Vector2(Box.X, Box.Y),
@@ -102,6 +103,5 @@ public class Button : Panel
             Button = MouseButton.Left,
             Target = this
         });
-        e.Handled = true;
     }
 }

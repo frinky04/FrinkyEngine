@@ -38,8 +38,10 @@ internal static class CanvasMarkupLoader
         if (panel == null)
             throw BuildLocationException(element, $"Could not instantiate panel type '{panelType.Name}'.");
 
-        parent.AddChild(panel);
+        // Apply attributes (classes, inline styles, bindings) before adding to the tree,
+        // so that OnCreated (called by AddChild) sees the correct classes and styles.
         ApplyAttributes(root, panel, element);
+        parent.AddChild(panel);
 
         foreach (var childElement in element.Elements())
             BuildElement(root, panel, childElement);

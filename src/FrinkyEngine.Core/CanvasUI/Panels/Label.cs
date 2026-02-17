@@ -13,14 +13,15 @@ public class Label : Panel
         get => _text;
         set
         {
+            if (_text == value) return;
             _text = value;
-            UpdateMeasureFunction();
+            InvalidateLayout();
         }
     }
 
     public override void OnCreated()
     {
-        UpdateMeasureFunction();
+        SetMeasureFunction();
     }
 
     public override void RenderContent(Box box, ComputedStyle style, byte alpha)
@@ -51,7 +52,7 @@ public class Label : Panel
             CanvasRenderer.AlphaBlend(style.Color, alpha), font);
     }
 
-    private void UpdateMeasureFunction()
+    private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {

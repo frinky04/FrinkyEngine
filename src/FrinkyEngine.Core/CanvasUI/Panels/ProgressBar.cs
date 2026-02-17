@@ -32,7 +32,8 @@ public class ProgressBar : Panel
         float fillWidth = box.Width * _value;
         if (fillWidth > 0)
         {
-            DrawCommands.RoundedRect(box.X, box.Y, fillWidth, box.Height, radius,
+            float fillRadius = MathF.Min(radius, MathF.Min(fillWidth, box.Height) * 0.5f);
+            DrawCommands.RoundedRect(box.X, box.Y, fillWidth, box.Height, fillRadius,
                 CanvasRenderer.AlphaBlend(fillColor, alpha));
         }
     }

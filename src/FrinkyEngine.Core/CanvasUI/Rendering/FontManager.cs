@@ -45,6 +45,10 @@ internal class FontManager
 
         var font = Raylib.LoadFontEx(fontPath, loadSize, null, 0);
         Raylib.SetTextureFilter(font.Texture, TextureFilter.Bilinear);
+
+        if (_fonts.TryGetValue(name, out var existing) && existing.GlyphCount > 0)
+            Raylib.UnloadFont(existing);
+
         _fonts[name] = font;
         DrawCommands.ClearMeasureCache();
     }

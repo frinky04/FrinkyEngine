@@ -60,7 +60,7 @@ public class TextEntry : Panel
         OnKeyDown += HandleKeyDown;
         OnMouseDown += HandleMouseDown;
 
-        UpdateMeasureFunction();
+        SetMeasureFunction();
     }
 
     public override void Tick(float dt)
@@ -85,7 +85,7 @@ public class TextEntry : Panel
     private void NotifyTextChanged()
     {
         OnTextChanged?.Invoke(_text);
-        UpdateMeasureFunction();
+        InvalidateLayout();
     }
 
     private bool HasSelection => _selectionStart >= 0 && _selectionStart != _cursorPos;
@@ -212,13 +212,15 @@ public class TextEntry : Panel
                     if (!string.IsNullOrEmpty(clip))
                     {
                         if (HasSelection) DeleteSelection();
+                        if (MaxLength.HasValue)
+                        {
+                            int remaining = MaxLength.Value - _text.Length;
+                            if (remaining <= 0) break;
+                            if (clip.Length > remaining)
+                                clip = clip[..remaining];
+                        }
                         _text = _text.Insert(_cursorPos, clip);
                         _cursorPos += clip.Length;
-                        if (MaxLength.HasValue && _text.Length > MaxLength.Value)
-                        {
-                            _text = _text[..MaxLength.Value];
-                            _cursorPos = Math.Min(_cursorPos, _text.Length);
-                        }
                         NotifyTextChanged();
                     }
                 }
@@ -249,17 +251,27 @@ public class TextEntry : Panel
         float padL = YogaNode.LayoutPaddingLeft;
         float clickX = e.LocalPos.X - padL;
 
-        // Find cursor position from click X
-        int best = 0;
-        float bestDist = float.MaxValue;
-        for (int i = 0; i <= _text.Length; i++)
+        if (_text.Length == 0)
         {
-            float charX = DrawCommands.MeasureText(_text[..i], fontSize, renderer.FontManager.GetFont(ComputedStyle.FontFamily)).X;
-            float dist = MathF.Abs(charX - clickX);
+            _cursorPos = 0;
+            return;
+        }
+
+        // Single-pass: measure each character's advance individually to find the closest position.
+        var font = renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+        int best = 0;
+        float bestDist = MathF.Abs(clickX); // distance to position 0
+        float runningX = 0f;
+
+        for (int i = 0; i < _text.Length; i++)
+        {
+            float charW = DrawCommands.MeasureText(_text[i].ToString(), fontSize, font).X;
+            runningX += charW;
+            float dist = MathF.Abs(runningX - clickX);
             if (dist < bestDist)
             {
                 bestDist = dist;
-                best = i;
+                best = i + 1;
             }
         }
         _cursorPos = best;
@@ -311,7 +323,7 @@ public class TextEntry : Panel
         }
     }
 
-    private void UpdateMeasureFunction()
+    private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {

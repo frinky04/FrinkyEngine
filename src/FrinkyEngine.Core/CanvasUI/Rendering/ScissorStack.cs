@@ -17,6 +17,7 @@ internal class ScissorStack
 
     public void Pop(int screenHeight)
     {
+        if (_stack.Count == 0) return;
         _stack.Pop();
         if (_stack.Count > 0)
             ApplyScissor(_stack.Peek(), screenHeight);

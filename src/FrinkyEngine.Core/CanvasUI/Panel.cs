@@ -95,7 +95,7 @@ public class Panel
                 NotifyRemovalFromRoot(child);
             child.OnDeleted();
             child._isCreated = false;
-            child.DeleteChildrenInternal(notifyRemoval: false);
+            child.DeleteChildrenInternal(notifyRemoval);
         }
         _children.Clear();
         YogaNode.Clear();

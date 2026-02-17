@@ -15,7 +15,7 @@ public class Image : Panel
         set
         {
             _texture = value;
-            UpdateMeasureFunction();
+            InvalidateLayout();
         }
     }
 
@@ -23,7 +23,7 @@ public class Image : Panel
 
     public override void OnCreated()
     {
-        UpdateMeasureFunction();
+        SetMeasureFunction();
     }
 
     public override void RenderContent(Box box, ComputedStyle style, byte alpha)
@@ -33,7 +33,7 @@ public class Image : Panel
             CanvasRenderer.AlphaBlend(Tint, alpha));
     }
 
-    private void UpdateMeasureFunction()
+    private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {

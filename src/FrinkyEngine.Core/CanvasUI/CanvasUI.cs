@@ -10,7 +10,8 @@ public static class CanvasUI
     {
         get
         {
-            _rootPanel ??= new RootPanel();
+            if (_rootPanel == null)
+                throw new InvalidOperationException("CanvasUI has not been initialized. Call CanvasUI.Initialize() first.");
             return _rootPanel;
         }
     }
@@ -82,10 +83,12 @@ public static class CanvasUI
     /// </summary>
     public static void Reset()
     {
-        _rootPanel?.ResetInput();
-        _rootPanel?.ClearStyleSheets();
-        _rootPanel?.BindingManager.Clear();
-        _rootPanel?.DeleteChildren();
+        if (_rootPanel == null) return;
+        _rootPanel.ResetInput();
+        _rootPanel.ClearStyleSheets();
+        _rootPanel.BindingManager.Clear();
+        _rootPanel.DeleteChildren();
+        _rootPanel.Renderer.Shutdown();
     }
 
     public static void RegisterFont(string name, string path)

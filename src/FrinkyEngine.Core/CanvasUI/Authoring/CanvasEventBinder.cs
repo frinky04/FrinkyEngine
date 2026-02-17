@@ -7,6 +7,7 @@ namespace FrinkyEngine.Core.CanvasUI.Authoring;
 internal static class CanvasEventBinder
 {
     private static readonly HashSet<string> WarnedMissingHandlers = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<(Type ContextType, string MethodName), MethodInfo?[]> HandlerCache = new();
 
     public static bool TryBind(Panel panel, EventInfo eventInfo, string methodName)
     {
@@ -82,25 +83,31 @@ internal static class CanvasEventBinder
 
     private static MethodInfo? ResolveHandler(Type contextType, string methodName, Type? argType)
     {
-        var methods = contextType
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(m => string.Equals(m.Name, methodName, StringComparison.OrdinalIgnoreCase)
-                        && !m.IsGenericMethod
-                        && m.ReturnType == typeof(void))
-            .ToList();
-
-        if (argType != null)
+        // Cache stores [0] = parameterless overload, [1] = single-arg overload (or null)
+        var key = (contextType, methodName);
+        if (!HandlerCache.TryGetValue(key, out var cached))
         {
-            var withArg = methods.FirstOrDefault(m =>
-            {
-                var ps = m.GetParameters();
-                return ps.Length == 1 && ps[0].ParameterType.IsAssignableFrom(argType);
-            });
-            if (withArg != null)
-                return withArg;
+            var methods = contextType
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(m => string.Equals(m.Name, methodName, StringComparison.OrdinalIgnoreCase)
+                            && !m.IsGenericMethod
+                            && m.ReturnType == typeof(void))
+                .ToList();
+
+            cached = new MethodInfo?[2];
+            cached[0] = methods.FirstOrDefault(m => m.GetParameters().Length == 0);
+            cached[1] = methods.FirstOrDefault(m => m.GetParameters().Length == 1);
+            HandlerCache[key] = cached;
         }
 
-        return methods.FirstOrDefault(m => m.GetParameters().Length == 0);
+        if (argType != null && cached[1] != null)
+        {
+            var ps = cached[1]!.GetParameters();
+            if (ps[0].ParameterType.IsAssignableFrom(argType))
+                return cached[1];
+        }
+
+        return cached[0];
     }
 
     private static void WarnMissingHandler(Type contextType, Panel panel, string methodName)

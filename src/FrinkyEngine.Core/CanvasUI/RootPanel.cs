@@ -25,6 +25,7 @@ public class RootPanel : Panel
     private object? _markupBindingContext;
     private bool _markupClearRoot = true;
     private bool _layoutDirty = true;
+    private bool _stylesDirty = true;
     private int _lastLayoutWidth = -1;
     private int _lastLayoutHeight = -1;
 
@@ -80,9 +81,13 @@ public class RootPanel : Panel
         BindingManager.Update();
 
         // 2. Resolve styles (CSS cascade + inline → computed)
-        bool styleChanged = ResolveStylesRecursive(this);
-        if (styleChanged)
-            _layoutDirty = true;
+        if (_stylesDirty)
+        {
+            bool styleChanged = ResolveStylesRecursive(this);
+            if (styleChanged)
+                _layoutDirty = true;
+            _stylesDirty = false;
+        }
 
         if (screenWidth != _lastLayoutWidth || screenHeight != _lastLayoutHeight)
             _layoutDirty = true;
@@ -185,6 +190,7 @@ public class RootPanel : Panel
     internal void MarkLayoutDirty()
     {
         _layoutDirty = true;
+        _stylesDirty = true;
     }
 
     public void Shutdown()
@@ -205,6 +211,7 @@ public class RootPanel : Panel
         foreach (var entry in _assetStyleSheets)
             TryAppendStyleRules(entry.Css);
 
+        StyleResolver.SortRules(_styleRules);
         MarkLayoutDirty();
     }
 

@@ -2,7 +2,7 @@ using Raylib_cs;
 
 namespace FrinkyEngine.Core.CanvasUI.Styles;
 
-public struct ComputedStyle
+public struct ComputedStyle : IEquatable<ComputedStyle>
 {
     // Layout
     public FlexDirection FlexDirection;
@@ -43,6 +43,56 @@ public struct ComputedStyle
     public string? FontFamily;
     public float Opacity;
     public TextAlign TextAlign;
+
+    public bool Equals(ComputedStyle other) =>
+        FlexDirection == other.FlexDirection &&
+        JustifyContent == other.JustifyContent &&
+        AlignItems == other.AlignItems &&
+        AlignSelf == other.AlignSelf &&
+        Display == other.Display &&
+        Position == other.Position &&
+        Overflow == other.Overflow &&
+        Width.Equals(other.Width) &&
+        Height.Equals(other.Height) &&
+        MinWidth.Equals(other.MinWidth) &&
+        MinHeight.Equals(other.MinHeight) &&
+        MaxWidth.Equals(other.MaxWidth) &&
+        MaxHeight.Equals(other.MaxHeight) &&
+        FlexGrow == other.FlexGrow &&
+        FlexShrink == other.FlexShrink &&
+        FlexBasis.Equals(other.FlexBasis) &&
+        Gap == other.Gap &&
+        Padding.Equals(other.Padding) &&
+        Margin.Equals(other.Margin) &&
+        Left.Equals(other.Left) &&
+        Top.Equals(other.Top) &&
+        Right.Equals(other.Right) &&
+        Bottom.Equals(other.Bottom) &&
+        BackgroundColor.Equals(other.BackgroundColor) &&
+        Color.Equals(other.Color) &&
+        BorderColor.Equals(other.BorderColor) &&
+        BorderWidth == other.BorderWidth &&
+        BorderRadius == other.BorderRadius &&
+        FontSize == other.FontSize &&
+        string.Equals(FontFamily, other.FontFamily, StringComparison.Ordinal) &&
+        Opacity == other.Opacity &&
+        TextAlign == other.TextAlign;
+
+    public override bool Equals(object? obj) => obj is ComputedStyle other && Equals(other);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(FlexDirection);
+        hash.Add(Width);
+        hash.Add(Height);
+        hash.Add(FontSize);
+        hash.Add(FontFamily);
+        hash.Add(BackgroundColor);
+        hash.Add(Color);
+        hash.Add(Opacity);
+        return hash.ToHashCode();
+    }
 
     public static ComputedStyle Default => new()
     {

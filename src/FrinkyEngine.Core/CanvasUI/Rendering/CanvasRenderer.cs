@@ -23,9 +23,8 @@ internal class CanvasRenderer
         finally
         {
             Current = null;
+            _scissorStack.Clear();
         }
-
-        _scissorStack.Clear();
         Rlgl.DrawRenderBatchActive();
     }
 

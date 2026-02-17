@@ -4,7 +4,30 @@ namespace FrinkyEngine.Core.CanvasUI.Styles;
 
 internal static class StyleResolver
 {
-    public static ComputedStyle Resolve(Panel panel, IReadOnlyList<CssStyleRule> rules, ComputedStyle? parent = null)
+    /// <summary>
+    /// Pre-sorts rules by (specificity, source order) so callers can apply them
+    /// in a single pass without per-panel allocation.
+    /// Call once when the rule list changes, not per frame.
+    /// </summary>
+    public static void SortRules(List<CssStyleRule> rules)
+    {
+        // Stable-sort preserves source order for equal specificity.
+        // We tag each rule with its current index for tie-breaking.
+        var indexed = new (CssStyleRule rule, int order)[rules.Count];
+        for (int i = 0; i < rules.Count; i++)
+            indexed[i] = (rules[i], i);
+
+        Array.Sort(indexed, (a, b) =>
+        {
+            int cmp = a.rule.Selector.Specificity.CompareTo(b.rule.Selector.Specificity);
+            return cmp != 0 ? cmp : a.order.CompareTo(b.order);
+        });
+
+        for (int i = 0; i < rules.Count; i++)
+            rules[i] = indexed[i].rule;
+    }
+
+    public static ComputedStyle Resolve(Panel panel, IReadOnlyList<CssStyleRule> sortedRules, ComputedStyle? parent = null)
     {
         var computed = ComputedStyle.Default;
 
@@ -17,32 +40,15 @@ internal static class StyleResolver
             computed.TextAlign = parent.Value.TextAlign;
         }
 
-        // 1. Collect matching rules with their specificity and source order
-        var matches = new List<(CssSpecificity specificity, int order, StyleSheet declarations)>();
-
-        for (int i = 0; i < rules.Count; i++)
+        // Rules are already sorted by (specificity, source order) — apply matching ones in order.
+        for (int i = 0; i < sortedRules.Count; i++)
         {
-            var rule = rules[i];
+            var rule = sortedRules[i];
             if (CssSelectorMatcher.Matches(panel, rule.Selector))
-            {
-                matches.Add((rule.Selector.Specificity, i, rule.Declarations));
-            }
+                ApplySheet(ref computed, rule.Declarations);
         }
 
-        // 2. Sort by specificity (ascending), then source order (ascending)
-        matches.Sort((a, b) =>
-        {
-            int cmp = a.specificity.CompareTo(b.specificity);
-            return cmp != 0 ? cmp : a.order.CompareTo(b.order);
-        });
-
-        // 3. Apply CSS rules low → high specificity
-        foreach (var (_, _, declarations) in matches)
-        {
-            ApplySheet(ref computed, declarations);
-        }
-
-        // 4. Apply inline styles last (highest priority)
+        // Apply inline styles last (highest priority)
         ApplySheet(ref computed, panel.Style);
 
         return computed;

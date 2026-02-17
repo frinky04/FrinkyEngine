@@ -195,25 +195,48 @@ internal static class CssPropertyMap
         return null;
     }
 
+    private static readonly Dictionary<Type, Dictionary<string, object>> EnumLookupCache = new();
+
     private static T? ParseEnum<T>(List<CssToken> tokens) where T : struct, Enum
     {
         if (tokens.Count == 0) return null;
-        string value = NormalizeCssIdent(tokens[0].Value);
+        if (tokens[0].Type != CssTokenType.Ident) return null;
 
-        foreach (var enumVal in Enum.GetValues<T>())
-        {
-            if (enumVal.ToString().Equals(value, StringComparison.OrdinalIgnoreCase))
-                return enumVal;
-        }
+        var lookup = GetOrBuildEnumLookup(typeof(T));
+        if (lookup.TryGetValue(tokens[0].Value, out var boxed))
+            return (T)boxed;
         return null;
     }
 
-    private static string NormalizeCssIdent(string cssIdent)
+    private static Dictionary<string, object> GetOrBuildEnumLookup(Type enumType)
     {
-        // Convert kebab-case to PascalCase: "flex-start" -> "FlexStart"
-        var parts = cssIdent.Split('-');
-        return string.Concat(parts.Select(p =>
-            p.Length > 0 ? char.ToUpper(p[0]) + p[1..] : ""));
+        if (EnumLookupCache.TryGetValue(enumType, out var existing))
+            return existing;
+
+        var map = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var val in Enum.GetValues(enumType))
+        {
+            var name = val.ToString()!;
+            map[name] = val;
+            // Also add kebab-case key: "FlexStart" → "flex-start"
+            map[PascalToKebab(name)] = val;
+        }
+
+        EnumLookupCache[enumType] = map;
+        return map;
+    }
+
+    private static string PascalToKebab(string pascal)
+    {
+        var sb = new System.Text.StringBuilder(pascal.Length + 4);
+        for (int i = 0; i < pascal.Length; i++)
+        {
+            char c = pascal[i];
+            if (char.IsUpper(c) && i > 0)
+                sb.Append('-');
+            sb.Append(char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 
     private static void ApplyEdgeShorthand(List<CssToken> tokens, Action<Edges> setter)

@@ -3,6 +3,8 @@ namespace FrinkyEngine.Core.CanvasUI.Authoring;
 internal sealed class CanvasHotReloadService
 {
     private readonly Dictionary<string, WatchedFile> _watched = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<(string Path, Action<string> Callback)> _pendingCallbacks = new();
+    private readonly List<(string Path, WatchedFile Entry)> _updates = new();
     private readonly TimeSpan _debounce = TimeSpan.FromMilliseconds(180);
 
     public bool Enabled { get; set; }
@@ -30,32 +32,36 @@ internal sealed class CanvasHotReloadService
             return;
 
         var now = DateTime.UtcNow;
-        var pendingCallbacks = new List<(string Path, Action<string> Callback)>();
-        var keys = _watched.Keys.ToArray();
+        _pendingCallbacks.Clear();
+        _updates.Clear();
 
-        foreach (var path in keys)
+        foreach (var (path, entry) in _watched)
         {
-            var entry = _watched[path];
+            var updated = entry;
             var currentWrite = SafeGetLastWriteUtc(path);
-            if (currentWrite > entry.LastWriteUtc)
+            if (currentWrite > updated.LastWriteUtc)
             {
-                entry = entry with
+                updated = updated with
                 {
                     LastWriteUtc = currentWrite,
                     PendingSinceUtc = now
                 };
             }
 
-            if (entry.PendingSinceUtc.HasValue && now - entry.PendingSinceUtc.Value >= _debounce)
+            if (updated.PendingSinceUtc.HasValue && now - updated.PendingSinceUtc.Value >= _debounce)
             {
-                entry = entry with { PendingSinceUtc = null };
-                pendingCallbacks.Add((path, entry.Callback));
+                updated = updated with { PendingSinceUtc = null };
+                _pendingCallbacks.Add((path, updated.Callback));
             }
 
-            _watched[path] = entry;
+            if (!updated.Equals(entry))
+                _updates.Add((path, updated));
         }
 
-        foreach (var (path, callback) in pendingCallbacks)
+        foreach (var (path, entry) in _updates)
+            _watched[path] = entry;
+
+        foreach (var (path, callback) in _pendingCallbacks)
             callback(path);
     }
 

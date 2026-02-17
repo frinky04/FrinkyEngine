@@ -29,8 +29,9 @@ public class Checkbox : Panel
         get => _text;
         set
         {
+            if (_text == value) return;
             _text = value;
-            UpdateMeasureFunction();
+            InvalidateLayout();
         }
     }
 
@@ -41,7 +42,7 @@ public class Checkbox : Panel
         AcceptsFocus = true;
         OnClick += _ => Toggle();
         OnKeyDown += HandleKeyDown;
-        UpdateMeasureFunction();
+        SetMeasureFunction();
     }
 
     public override void RenderContent(Box box, ComputedStyle style, byte alpha)
@@ -55,9 +56,10 @@ public class Checkbox : Panel
 
         float padL = YogaNode.LayoutPaddingLeft;
         float padT = YogaNode.LayoutPaddingTop;
+        float padB = YogaNode.LayoutPaddingBottom;
 
         float bx = box.X + padL;
-        float by = box.Y + padT + (box.Height - padT * 2 - fontSize) * 0.5f;
+        float by = box.Y + padT + (box.Height - padT - padB - fontSize) * 0.5f;
 
         // Check box outline
         DrawCommands.RectBorder(bx, by, fontSize, fontSize, 3f, 2f, color);
@@ -79,7 +81,7 @@ public class Checkbox : Panel
         }
     }
 
-    private void UpdateMeasureFunction()
+    private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {
@@ -112,8 +114,8 @@ public class Checkbox : Panel
         if (e.Key is not (KeyboardKey.Enter or KeyboardKey.Space))
             return;
 
-        Toggle();
         e.Handled = true;
+        Toggle();
     }
 
     private void Toggle()
