@@ -94,20 +94,34 @@ hud.AddChild<Button>(b => { b.Text = "Menu"; b.OnClick += _ => OpenMenu(); });
 
 ## Phase 2: CSS Styling + More Widgets
 
-### 2.1 CSS parser
+### 2a: CSS Styling + Renderer Refactor ✅ (Implemented)
 
-Lightweight hand-written tokenizer + parser. Supports:
-- Selectors: `.classname`, `#id`, `Panel`, `Label.classname`, `Panel:hover`, `Panel:active`
-- Common properties: `background-color`, `color`, `font-size`, `padding`, `margin`, `border-radius`, `border`, `width`, `height`, `flex-direction`, `align-items`, `justify-content`, `gap`, `opacity`, `display`, `position`, `overflow`
-- Specificity-based cascading (inline > id > class > type)
+**Renderer refactor**: Content rendering moved from type-checks in `CanvasRenderer` to virtual `Panel.RenderContent()` overrides in `Label` and `Button`. Prepares the architecture for new panel types without touching the renderer.
 
-Files: `Styles/CssParser.cs`, `Styles/CssTokenizer.cs`, `Styles/Selector.cs`, `Styles/StyleRule.cs`, `Styles/StyleResolver.cs` (extended)
+**CSS engine**: Hand-written tokenizer, parser, and selector matcher in `Styles/Css/`:
 
-### 2.2 Style resolver
+```
+Styles/Css/
+  CssToken.cs          — Token type enum + struct with line/col tracking
+  CssTokenizer.cs      — Tokenizes CSS strings, skips /* */ comments
+  CssSelector.cs       — Selector chain (type, class, pseudo-class, combinators)
+  CssSpecificity.cs    — (Ids, Classes, Types) ordering
+  CssStyleRule.cs      — Selector + StyleSheet declarations
+  CssParser.cs         — Full CSS parser: tokenize → selectors → declaration blocks
+  CssPropertyMap.cs    — Maps CSS property strings to StyleSheet setters, handles shorthands
+  CssColorNames.cs     — Named colors + #hex + rgb()/rgba() parsing
+  CssSelectorMatcher.cs — Matches panels against selectors (type, class, pseudo, descendant, child)
+```
 
-Each frame (or when dirty): collect matching rules per panel → sort by specificity → merge into `ComputedStyle` → inline styles override.
+**Supported selectors**: type (`Label`), class (`.foo`), pseudo (`:hover`, `:active`, `:focus`, `:disabled`), descendant (space), child (`>`), universal (`*`), comma-separated groups.
 
-### 2.3 More built-in panels
+**Supported properties**: All layout and visual properties from Phase 1, plus shorthand `padding`, `margin`, `border`.
+
+**Style cascade**: `StyleResolver` collects matching rules per panel, sorts by specificity, applies low→high, then applies inline `panel.Style` last (highest priority).
+
+**Public API**: `CanvasUI.LoadStyleSheet(css)`, `CanvasUI.ClearStyleSheets()`.
+
+### 2b: More built-in panels
 
 | Panel | Purpose |
 |-------|---------|

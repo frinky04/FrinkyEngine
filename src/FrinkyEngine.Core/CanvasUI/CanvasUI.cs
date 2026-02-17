@@ -6,8 +6,6 @@ public static class CanvasUI
 {
     private static RootPanel? _rootPanel;
 
-    public static bool IsAvailable => _rootPanel != null;
-
     public static RootPanel RootPanel
     {
         get
@@ -22,17 +20,19 @@ public static class CanvasUI
         _rootPanel ??= new RootPanel();
     }
 
-    public static void Update(float dt, int screenWidth, int screenHeight)
+    public static void Update(float dt, int screenWidth, int screenHeight, Vector2? mouseOverride = null)
     {
-        _rootPanel?.Update(dt, screenWidth, screenHeight);
+        _rootPanel?.Update(dt, screenWidth, screenHeight, mouseOverride);
     }
 
-    /// <summary>
-    /// Update with an explicit mouse position override (for editor viewport rendering).
-    /// </summary>
-    public static void Update(float dt, int screenWidth, int screenHeight, Vector2 mousePosition)
+    public static void LoadStyleSheet(string css)
     {
-        _rootPanel?.Update(dt, screenWidth, screenHeight, mousePosition);
+        RootPanel.LoadStyleSheet(css);
+    }
+
+    public static void ClearStyleSheets()
+    {
+        RootPanel.ClearStyleSheets();
     }
 
     /// <summary>
@@ -41,6 +41,7 @@ public static class CanvasUI
     /// </summary>
     public static void Reset()
     {
+        _rootPanel?.ResetInput();
         _rootPanel?.DeleteChildren();
     }
 

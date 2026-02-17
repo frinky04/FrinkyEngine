@@ -3,6 +3,7 @@ using FrinkyEngine.Core.CanvasUI.Input;
 using FrinkyEngine.Core.CanvasUI.Layout;
 using FrinkyEngine.Core.CanvasUI.Rendering;
 using FrinkyEngine.Core.CanvasUI.Styles;
+using FrinkyEngine.Core.CanvasUI.Styles.Css;
 
 namespace FrinkyEngine.Core.CanvasUI;
 
@@ -12,22 +13,25 @@ public class RootPanel : Panel
     internal CanvasRenderer Renderer { get; } = new();
     internal InputManager InputManager { get; } = new();
 
-    public void Update(float dt, int screenWidth, int screenHeight)
+    private readonly List<CssStyleRule> _styleRules = new();
+
+    public void LoadStyleSheet(string css)
     {
-        UpdateCore(dt, screenWidth, screenHeight, null);
+        var rules = CssParser.Parse(css);
+        _styleRules.AddRange(rules);
     }
 
-    public void Update(float dt, int screenWidth, int screenHeight, Vector2 mousePosition)
+    public void ClearStyleSheets()
     {
-        UpdateCore(dt, screenWidth, screenHeight, mousePosition);
+        _styleRules.Clear();
     }
 
-    private void UpdateCore(float dt, int screenWidth, int screenHeight, Vector2? mouseOverride)
+    public void Update(float dt, int screenWidth, int screenHeight, Vector2? mouseOverride = null)
     {
         // 1. Tick all panels
         TickRecursive(this, dt);
 
-        // 2. Resolve styles (inline → computed)
+        // 2. Resolve styles (CSS cascade + inline → computed)
         ResolveStylesRecursive(this);
 
         // 3. Sync styles to Yoga and calculate layout
@@ -50,9 +54,9 @@ public class RootPanel : Panel
             TickRecursive(child, dt);
     }
 
-    private static void ResolveStylesRecursive(Panel panel)
+    private void ResolveStylesRecursive(Panel panel)
     {
-        panel.ComputedStyle = StyleResolver.Resolve(panel);
+        panel.ComputedStyle = StyleResolver.Resolve(panel, _styleRules);
         foreach (var child in panel.Children)
             ResolveStylesRecursive(child);
     }
@@ -69,8 +73,14 @@ public class RootPanel : Panel
             ReadLayoutRecursive(child, x, y);
     }
 
+    public void ResetInput()
+    {
+        InputManager.Reset();
+    }
+
     public void Shutdown()
     {
+        InputManager.Reset();
         DeleteChildren();
         Renderer.Shutdown();
     }

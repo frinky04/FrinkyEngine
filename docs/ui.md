@@ -88,7 +88,7 @@ public class HudComponent : Component
 
 #### Classes
 
-Add string class names to a panel with `AddClass()`, `RemoveClass()`, `ToggleClass()`, and check with `HasClass()`. Classes are used for selector matching when CSS styling is added in a future update.
+Add string class names to a panel with `AddClass()`, `RemoveClass()`, `ToggleClass()`, and check with `HasClass()`. Classes are used for CSS selector matching (see [CSS Styling](#css-styling) below).
 
 #### Custom Panels
 
@@ -99,6 +99,7 @@ Subclass `Panel` to create reusable UI elements. Override these methods:
 | `OnCreated()` | Called after the panel is added to the tree — set up children and defaults here |
 | `OnDeleted()` | Called when the panel is removed — clean up subscriptions here |
 | `Tick(dt)` | Called every frame — use for animations or per-frame updates |
+| `RenderContent(box, style, alpha)` | Override to draw custom content (text, images, shapes) |
 
 Set `AcceptsFocus = true` in `OnCreated()` if your panel needs keyboard focus.
 
@@ -164,6 +165,82 @@ p.Style.Padding = new Edges(12);                // all sides
 p.Style.Padding = new Edges(8, 16);             // vertical, horizontal
 p.Style.Padding = new Edges(4, 8, 12, 16);      // top, right, bottom, left
 ```
+
+### CSS Styling
+
+Style panels with CSS strings instead of (or alongside) inline C# style properties. Load one or more stylesheets, and they apply automatically to all panels via selector matching.
+
+```csharp
+CanvasUI.LoadStyleSheet(@"
+    .hud { flex-direction: row; padding: 12px; gap: 8px; }
+    Label { color: white; font-size: 20px; }
+    Button { background-color: #3366cc; padding: 8px 16px; border-radius: 4px; }
+    Button:hover { background-color: #4477dd; }
+");
+```
+
+Inline `panel.Style` properties always win over CSS rules — use CSS for defaults and class-based theming, and inline styles for one-off overrides.
+
+#### Selectors
+
+| Selector | Example | Matches |
+|----------|---------|---------|
+| Type | `Label` | All `Label` panels |
+| Class | `.hud` | Panels with `AddClass("hud")` |
+| Pseudo-class | `:hover`, `:active`, `:focus`, `:disabled` | Panels in that interaction state |
+| Universal | `*` | All panels |
+| Descendant | `.hud Label` | Labels anywhere inside a `.hud` panel |
+| Child | `.hud > Label` | Labels that are direct children of `.hud` |
+| Combined | `Button.primary:hover` | Hovered buttons with class `primary` |
+
+Multiple selectors can share a rule with commas: `Label, Button { color: white; }`
+
+#### Supported Properties
+
+All properties from the [Layout](#layout-properties) and [Visual](#visual-properties) tables are supported in CSS using kebab-case names:
+
+- **Layout**: `flex-direction`, `justify-content`, `align-items`, `align-self`, `display`, `position`, `overflow`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height`, `flex-grow`, `flex-shrink`, `flex-basis`, `gap`, `top`, `right`, `bottom`, `left`
+- **Spacing**: `padding`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `margin` (and sides)
+- **Visual**: `background-color`, `color`, `border-color`, `border-width`, `border-radius`, `font-size`, `opacity`
+- **Shorthand**: `border` (e.g. `border: 2px #ff0000`)
+
+#### Color Values
+
+Colors can be specified as:
+
+```css
+color: white;               /* named color */
+color: #ff0000;             /* hex RGB */
+color: #ff000080;           /* hex RGBA */
+color: #f00;                /* short hex */
+color: rgb(255, 0, 0);      /* rgb() function */
+color: rgba(255, 0, 0, 0.5); /* rgba() with 0-1 alpha */
+```
+
+#### Length Values
+
+```css
+width: 200px;   /* pixels */
+width: 50%;     /* percentage of parent */
+width: auto;    /* auto-size */
+width: 200;     /* unitless = pixels */
+```
+
+#### Specificity
+
+When multiple rules match the same panel, more specific selectors win. Specificity is calculated as:
+
+1. Number of class selectors + pseudo-class selectors
+2. Number of type selectors
+
+Higher specificity overrides lower. Equal specificity uses source order (later rules win). Inline `panel.Style` always takes highest priority.
+
+#### Managing Stylesheets
+
+| Method | Description |
+|--------|-------------|
+| `CanvasUI.LoadStyleSheet(css)` | Parse and add CSS rules (can call multiple times to layer stylesheets) |
+| `CanvasUI.ClearStyleSheets()` | Remove all loaded CSS rules |
 
 ---
 

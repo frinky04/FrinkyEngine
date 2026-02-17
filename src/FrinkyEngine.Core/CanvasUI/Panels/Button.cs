@@ -1,5 +1,6 @@
 using Facebook.Yoga;
-using Raylib_cs;
+using FrinkyEngine.Core.CanvasUI.Rendering;
+using FrinkyEngine.Core.CanvasUI.Styles;
 
 namespace FrinkyEngine.Core.CanvasUI.Panels;
 
@@ -20,13 +21,21 @@ public class Button : Panel
     public override void OnCreated()
     {
         AcceptsFocus = true;
-
-        // Default button styling if not set by user
-        Style.BackgroundColor ??= new Color(60, 60, 60, 255);
-        Style.Padding ??= new Styles.Edges(6, 12, 6, 12);
-        Style.BorderRadius ??= 4f;
-
         UpdateMeasureFunction();
+    }
+
+    public override void RenderContent(Box box, ComputedStyle style, byte alpha)
+    {
+        if (string.IsNullOrEmpty(_text)) return;
+
+        var renderer = CanvasRenderer.Current;
+        if (renderer == null) return;
+
+        var textSize = DrawCommands.MeasureText(_text, style.FontSize, renderer.FontManager.DefaultFont);
+        float tx = box.X + (box.Width - textSize.X) * 0.5f;
+        float ty = box.Y + (box.Height - textSize.Y) * 0.5f;
+        DrawCommands.Text(_text, tx, ty, style.FontSize,
+            CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
     }
 
     private void UpdateMeasureFunction()

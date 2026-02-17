@@ -1,4 +1,6 @@
 using Facebook.Yoga;
+using FrinkyEngine.Core.CanvasUI.Rendering;
+using FrinkyEngine.Core.CanvasUI.Styles;
 
 namespace FrinkyEngine.Core.CanvasUI.Panels;
 
@@ -19,6 +21,19 @@ public class Label : Panel
     public override void OnCreated()
     {
         UpdateMeasureFunction();
+    }
+
+    public override void RenderContent(Box box, ComputedStyle style, byte alpha)
+    {
+        if (string.IsNullOrEmpty(_text)) return;
+
+        var renderer = CanvasRenderer.Current;
+        if (renderer == null) return;
+
+        float padL = style.Padding.Left.Unit == LengthUnit.Pixels ? style.Padding.Left.Value : 0;
+        float padT = style.Padding.Top.Unit == LengthUnit.Pixels ? style.Padding.Top.Value : 0;
+        DrawCommands.Text(_text, box.X + padL, box.Y + padT, style.FontSize,
+            CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
     }
 
     private void UpdateMeasureFunction()

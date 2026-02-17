@@ -1,15 +1,45 @@
+using FrinkyEngine.Core.CanvasUI.Styles.Css;
+
 namespace FrinkyEngine.Core.CanvasUI.Styles;
 
 internal static class StyleResolver
 {
-    public static ComputedStyle Resolve(Panel panel)
+    public static ComputedStyle Resolve(Panel panel, IReadOnlyList<CssStyleRule> rules)
     {
         var computed = ComputedStyle.Default;
-        ApplyInline(ref computed, panel.Style);
+
+        // 1. Collect matching rules with their specificity and source order
+        var matches = new List<(CssSpecificity specificity, int order, StyleSheet declarations)>();
+
+        for (int i = 0; i < rules.Count; i++)
+        {
+            var rule = rules[i];
+            if (CssSelectorMatcher.Matches(panel, rule.Selector))
+            {
+                matches.Add((rule.Selector.Specificity, i, rule.Declarations));
+            }
+        }
+
+        // 2. Sort by specificity (ascending), then source order (ascending)
+        matches.Sort((a, b) =>
+        {
+            int cmp = a.specificity.CompareTo(b.specificity);
+            return cmp != 0 ? cmp : a.order.CompareTo(b.order);
+        });
+
+        // 3. Apply CSS rules low → high specificity
+        foreach (var (_, _, declarations) in matches)
+        {
+            ApplySheet(ref computed, declarations);
+        }
+
+        // 4. Apply inline styles last (highest priority)
+        ApplySheet(ref computed, panel.Style);
+
         return computed;
     }
 
-    private static void ApplyInline(ref ComputedStyle computed, StyleSheet s)
+    private static void ApplySheet(ref ComputedStyle computed, StyleSheet s)
     {
         if (s.FlexDirection.HasValue) computed.FlexDirection = s.FlexDirection.Value;
         if (s.JustifyContent.HasValue) computed.JustifyContent = s.JustifyContent.Value;

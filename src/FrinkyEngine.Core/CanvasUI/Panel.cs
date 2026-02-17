@@ -1,4 +1,3 @@
-using System.Numerics;
 using Facebook.Yoga;
 using FrinkyEngine.Core.CanvasUI.Events;
 using FrinkyEngine.Core.CanvasUI.Styles;
@@ -99,6 +98,9 @@ public class Panel
             Classes.Add(className);
     }
 
+    // Rendering — override in subclasses to draw content (text, images, etc.)
+    public virtual void RenderContent(Box box, ComputedStyle style, byte alpha) { }
+
     // Lifecycle
     public virtual void OnCreated() { }
     public virtual void OnDeleted() { }
@@ -112,15 +114,4 @@ public class Panel
     internal void RaiseMouseUp(MouseEvent e) => OnMouseUp?.Invoke(e);
     internal void RaiseFocus(FocusEvent e) => OnFocus?.Invoke(e);
     internal void RaiseBlur(FocusEvent e) => OnBlur?.Invoke(e);
-
-    public Panel? FindById(int id)
-    {
-        if (Id == id) return this;
-        foreach (var child in _children)
-        {
-            var found = child.FindById(id);
-            if (found != null) return found;
-        }
-        return null;
-    }
 }
