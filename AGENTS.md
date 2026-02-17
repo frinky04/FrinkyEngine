@@ -73,7 +73,10 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **CanvasUI wheel bubbling** — `OnMouseWheel` now uses `MouseWheelEvent` (`Delta`, `Handled`); set `Handled = true` only when scroll was actually consumed, otherwise allow ancestor scroll containers to receive the wheel event
 - **CanvasUI markup bindings** — `.canvas` supports one-way `{Property}` bindings only (context -> UI) and event handlers resolved by method name on the active `BindingContext`; two-way binding is not implemented
 - **CanvasUI `context` attribute** — only binding syntax is supported (`context="{ChildVm}"`); static string context values are ignored with a warning
-- **Asset typing for CanvasUI files** — `.canvas` files are currently indexed as `AssetType.Script` so they remain visible when "Hide Unrecognised Assets" is enabled and open in the existing script flow
+- **Asset typing for CanvasUI files** — `.canvas` files are indexed as `AssetType.Canvas` with a dedicated editor icon/filter; script-only flows (like component drag-add) should continue to gate on `AssetType.Script`
+- **Editor asset creation flow** — top nav uses `Create` (replacing `Scripts`) and routes through `AssetCreationModal` + `AssetCreationRegistry`; add new create types by implementing `IAssetCreationFactory` and registering in `AssetCreationRegistry.EnsureDefaultsRegistered()`
+- **Editor asset creation pathing** — factory-created assets currently target `Assets/` root (tag-based workflow); do not reintroduce file/folder picker dialogs for this flow unless product direction changes
+- **Build Scripts menu location** — use `File -> Build Scripts` (`Ctrl+B`)
 
 ## Current Workarounds
 

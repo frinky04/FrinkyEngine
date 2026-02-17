@@ -26,6 +26,8 @@ public static class EditorIcons
         { AssetType.Texture, "EditorAssets/Icons/texture.png" },
         { AssetType.Audio, "EditorAssets/Icons/audio.png" },
         { AssetType.Script, "EditorAssets/Icons/script.png" },
+        { AssetType.Canvas, "EditorAssets/Icons/canvas.png" },
+        { AssetType.Font, "EditorAssets/Icons/font.png" },
         { AssetType.Prefab, "EditorAssets/Icons/prefab.png" },
         { AssetType.Unknown, "EditorAssets/Icons/file.png" },
     };
@@ -123,6 +125,8 @@ public static class EditorIcons
             { AssetType.Texture, ImGui.GetColorU32(new System.Numerics.Vector4(1.0f, 0.8f, 0.3f, 1f)) },
             { AssetType.Audio,   ImGui.GetColorU32(new System.Numerics.Vector4(1.0f, 0.5f, 0.2f, 1f)) },
             { AssetType.Script,  ImGui.GetColorU32(new System.Numerics.Vector4(0.4f, 0.9f, 0.4f, 1f)) },
+            { AssetType.Canvas,  ImGui.GetColorU32(new System.Numerics.Vector4(0.3f, 0.9f, 0.8f, 1f)) },
+            { AssetType.Font,    ImGui.GetColorU32(new System.Numerics.Vector4(0.95f, 0.95f, 0.95f, 1f)) },
             { AssetType.Prefab,  ImGui.GetColorU32(new System.Numerics.Vector4(0.8f, 0.4f, 0.9f, 1f)) },
             { AssetType.Unknown, ImGui.GetColorU32(new System.Numerics.Vector4(0.7f, 0.7f, 0.7f, 1f)) },
         };

@@ -48,7 +48,12 @@ public enum AssetType
     /// <summary>
     /// A font file (.ttf, .otf).
     /// </summary>
-    Font
+    Font,
+
+    /// <summary>
+    /// A CanvasUI markup file (.canvas).
+    /// </summary>
+    Canvas
 }
 
 /// <summary>

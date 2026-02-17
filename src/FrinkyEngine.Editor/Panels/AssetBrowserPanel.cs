@@ -7,7 +7,6 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
-using NativeFileDialogSharp;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -15,11 +14,6 @@ namespace FrinkyEngine.Editor.Panels;
 public class AssetBrowserPanel
 {
     public const string AssetDragPayload = "FRINKY_ASSET_BROWSER";
-    private const string DefaultCanvasTemplate = """
-        <Panel class="root" style="width: 100%; height: 100%; padding: 16px;">
-            <Label text="New Canvas UI" />
-        </Panel>
-        """;
 
     private readonly record struct BrowserItem(
         string Id,
@@ -29,9 +23,9 @@ public class AssetBrowserPanel
 
     private readonly EditorApplication _app;
     private string _searchQuery = string.Empty;
-    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Prefab, 7=Font
-    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Prefabs", "Fonts" };
-    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Prefab, AssetType.Font };
+    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Canvas, 7=Prefab, 8=Font
+    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Canvas", "Prefabs", "Fonts" };
+    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Canvas, AssetType.Prefab, AssetType.Font };
 
     // Multi-selection state
     private readonly HashSet<string> _selectedAssets = new(StringComparer.OrdinalIgnoreCase);
@@ -142,13 +136,6 @@ public class AssetBrowserPanel
             _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
         }
 
-        var hasProjectAssets = !string.IsNullOrWhiteSpace(_app.ProjectDirectory)
-            && !string.IsNullOrWhiteSpace(AssetManager.Instance.AssetsPath);
-        ImGui.BeginDisabled(!hasProjectAssets);
-        if (ImGui.MenuItem("Create Canvas UI (.canvas)"))
-            CreateCanvasAsset();
-        ImGui.EndDisabled();
-
         ImGui.Separator();
 
         bool isGrid = EditorPreferences.Instance.AssetBrowserGridView;
@@ -185,66 +172,6 @@ public class AssetBrowserPanel
             _openTagManager = true;
 
         ImGui.EndPopup();
-    }
-
-    private void CreateCanvasAsset()
-    {
-        var assetsPath = AssetManager.Instance.AssetsPath;
-        if (string.IsNullOrWhiteSpace(assetsPath))
-        {
-            NotificationManager.Instance.Post("Open a project first.", NotificationType.Warning);
-            return;
-        }
-
-        var fullAssetsPath = Path.GetFullPath(assetsPath);
-        var uiDir = Path.Combine(fullAssetsPath, "UI");
-        var defaultPath = Directory.Exists(uiDir) ? uiDir : fullAssetsPath;
-
-        var result = Dialog.FileSave("canvas", defaultPath);
-        if (!result.IsOk)
-            return;
-
-        var fullPath = result.Path;
-        if (!fullPath.EndsWith(".canvas", StringComparison.OrdinalIgnoreCase))
-            fullPath += ".canvas";
-        fullPath = Path.GetFullPath(fullPath);
-
-        var relativePath = Path.GetRelativePath(fullAssetsPath, fullPath).Replace('\\', '/');
-        if (relativePath.StartsWith("..", StringComparison.OrdinalIgnoreCase) || Path.IsPathRooted(relativePath))
-        {
-            NotificationManager.Instance.Post("Canvas files must be created inside the project Assets folder.", NotificationType.Warning);
-            return;
-        }
-
-        if (File.Exists(fullPath))
-        {
-            NotificationManager.Instance.Post("File already exists.", NotificationType.Warning);
-            return;
-        }
-
-        try
-        {
-            var dir = Path.GetDirectoryName(fullPath);
-            if (!string.IsNullOrWhiteSpace(dir))
-                Directory.CreateDirectory(dir);
-
-            File.WriteAllText(fullPath, DefaultCanvasTemplate);
-
-            AssetDatabase.Instance.Refresh();
-            _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
-
-            _selectedAssets.Clear();
-            _selectedAssets.Add(relativePath);
-            _selectionAnchor = relativePath;
-
-            FrinkyLog.Info($"Created Canvas UI file: {relativePath}");
-            NotificationManager.Instance.Post($"Created: {Path.GetFileName(relativePath)}", NotificationType.Success);
-        }
-        catch (Exception ex)
-        {
-            FrinkyLog.Warning($"Failed to create canvas file '{fullPath}': {ex.Message}");
-            NotificationManager.Instance.Post("Failed to create Canvas UI file.", NotificationType.Error);
-        }
     }
 
     private void DrawTagFilterBar()
@@ -652,6 +579,7 @@ public class AssetBrowserPanel
                 InstantiatePrefabAsset(asset);
                 break;
             case AssetType.Script:
+            case AssetType.Canvas:
                 OpenScriptAsset(asset);
                 break;
             default:
@@ -754,7 +682,7 @@ public class AssetBrowserPanel
         if (asset.Type == AssetType.Prefab && ImGui.MenuItem("Instantiate Prefab"))
             InstantiatePrefabAsset(asset);
 
-        if (asset.Type == AssetType.Script && ImGui.MenuItem("Open in VS Code"))
+        if ((asset.Type == AssetType.Script || asset.Type == AssetType.Canvas) && ImGui.MenuItem("Open in VS Code"))
             OpenScriptAsset(asset);
 
         if (asset.Type == AssetType.Model && ImGui.MenuItem("Assign to MeshRenderer"))

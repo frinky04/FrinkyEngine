@@ -55,7 +55,7 @@ Custom components loaded from scenes and prefabs must have a **public parameterl
 ## Game Assemblies
 
 - Game code compiles to a separate DLL referenced via `.fproject` `gameAssembly`
-- Build scripts from the editor with `Scripts -> Build Scripts` (`Ctrl+B`)
+- Build scripts from the editor with `File -> Build Scripts` (`Ctrl+B`)
 - The engine discovers custom components via `ComponentTypeResolver` reflection
 - **Hot-reload**: assemblies load through collectible `AssemblyLoadContext` — rebuild and reload without restarting the editor
 
@@ -234,7 +234,7 @@ EntityReferences inside FObjects are correctly remapped during entity duplicatio
 
 ### Creating FObject Scripts
 
-Use `Scripts -> Create Script...` in the editor menu bar. Select `FObject` (or any concrete FObject subclass) as the base class. The generated template includes a `DisplayName` override.
+Use `Create -> Create Script...` in the editor menu bar. Select `FObject` (or any concrete FObject subclass) as the base class. The generated template includes a `DisplayName` override.
 
 ### Hot-Reload
 
