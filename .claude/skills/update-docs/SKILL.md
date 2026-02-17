@@ -53,6 +53,18 @@ Read the target doc file before editing. Understand:
 
 Follow the existing style of the document. General conventions:
 
+### Audience
+
+These docs are for **game developers using the engine**, not engine contributors. Write from the perspective of someone building a game:
+
+- **Focus on what developers can do** — public API, usage patterns, configuration options
+- **Skip internal implementation details** — don't mention internal classes, private fields, engine subsystem wiring, or how systems work under the hood unless it directly affects how the developer uses the feature
+- **Explain "why" only when it affects usage** — e.g., "Layout uses flexbox, so children flow like CSS flex containers" is useful. "Layout syncs styles to Yoga nodes then reads back computed rects" is not.
+- **Don't document internal types** — if a class is `internal`, it doesn't belong in the docs
+- **Keep code examples practical** — show realistic game scenarios (HUD, menu, gameplay), not engine test harnesses
+
+### Style
+
 - **Code examples**: Use fenced C# blocks with `using` statements when showing API usage for the first time in a section
 - **Property tables**: Use `| Property | Default | Description |` format
 - **Type/field tables**: Use `| Field | Type | Description |` format

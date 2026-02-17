@@ -46,6 +46,7 @@ Some components expose draggable gizmo handles in the viewport (for example, IK 
 - Browse project files with filtering and search
 - Drag-and-drop models (`.obj`, `.gltf`, `.glb`), prefabs (`.fprefab`), and scenes (`.fscene`) into the viewport or hierarchy
 - Tags and type filters for quick asset lookup
+- Canvas UI files (`.canvas`) are classified as **Canvas** assets with their own icon/filter
 - Right-click an asset for context actions: open, copy path, rename, delete, tag management, and **Regenerate Icon** (textures, models, prefabs)
 - Small status dots appear on asset thumbnails during icon generation: gray (queued), blue (generating), red (failed)
 - Click the settings cog (⚙) to access:
@@ -55,9 +56,18 @@ Some components expose draggable gizmo handles in the viewport (for example, IK 
   - **Hide Unrecognised Assets** — filter out files with unknown types when browsing all assets
   - **Tag Manager** — create, edit, and delete asset tags
 
+## Creating Assets
+
+Use `Create` in the top menu bar to create assets:
+
+- `Create -> Create Script...`
+- `Create -> Create Canvas...`
+
+Both entries open the same asset-creation modal and create files directly under `Assets/` (folder picker is not used).
+
 ## Building Scripts
 
-Build game assemblies from the editor with `Scripts -> Build Scripts` (`Ctrl+B`). The editor hot-reloads the assembly without restarting.
+Build game assemblies from the editor with `File -> Build Scripts` (`Ctrl+B`). The editor hot-reloads the assembly without restarting.
 
 ## Quick-Add Physics
 

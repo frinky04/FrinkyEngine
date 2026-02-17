@@ -190,7 +190,6 @@ public class HierarchyPanel
 
     private void DrawToolbar(HierarchySceneState state)
     {
-        bool stateChanged = false;
         bool openFiltersPopup = false;
         bool openCreatePopup = false;
 
@@ -216,7 +215,6 @@ public class HierarchyPanel
             if (ImGui.InputTextWithHint("##HierarchySearch", "Search", ref search, 256))
             {
                 state.SearchQuery = search;
-                stateChanged = true;
             }
 
             ImGui.TableSetColumnIndex(1);
@@ -243,7 +241,6 @@ public class HierarchyPanel
                 state.FilterActiveOnly = activeOnly;
                 if (activeOnly)
                     state.FilterInactiveOnly = false;
-                stateChanged = true;
             }
 
             bool inactiveOnly = state.FilterInactiveOnly;
@@ -252,17 +249,16 @@ public class HierarchyPanel
                 state.FilterInactiveOnly = inactiveOnly;
                 if (inactiveOnly)
                     state.FilterActiveOnly = false;
-                stateChanged = true;
             }
 
             var prefabFilter = state.PrefabFilter;
             var prefabPreview = GetPrefabFilterLabel(prefabFilter);
             if (ImGui.BeginCombo("Prefab", prefabPreview))
             {
-                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.Any);
-                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabInstances);
-                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabRoots);
-                stateChanged |= DrawPrefabFilterOption(state, HierarchyPrefabFilter.NonPrefabs);
+                DrawPrefabFilterOption(state, HierarchyPrefabFilter.Any);
+                DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabInstances);
+                DrawPrefabFilterOption(state, HierarchyPrefabFilter.PrefabRoots);
+                DrawPrefabFilterOption(state, HierarchyPrefabFilter.NonPrefabs);
                 ImGui.EndCombo();
             }
 
@@ -282,7 +278,6 @@ public class HierarchyPanel
                 if (ImGui.Selectable("Any Component", anySelected))
                 {
                     state.RequiredComponentType = string.Empty;
-                    stateChanged = true;
                 }
 
                 foreach (var type in componentTypes)
@@ -293,7 +288,6 @@ public class HierarchyPanel
                     if (ImGui.Selectable($"{type.Name}  [{source}]", selected))
                     {
                         state.RequiredComponentType = typeName;
-                        stateChanged = true;
                     }
                 }
 
@@ -306,14 +300,12 @@ public class HierarchyPanel
             if (ImGui.Checkbox("Show Only Matches", ref showOnlyMatches))
             {
                 state.ShowOnlyMatches = showOnlyMatches;
-                stateChanged = true;
             }
 
             bool autoExpand = state.AutoExpandMatches;
             if (ImGui.Checkbox("Auto Expand Matches", ref autoExpand))
             {
                 state.AutoExpandMatches = autoExpand;
-                stateChanged = true;
             }
 
             ImGui.EndPopup();
@@ -328,8 +320,6 @@ public class HierarchyPanel
             ImGui.EndPopup();
         }
 
-        if (stateChanged)
-            _app.MarkHierarchyStateDirty();
     }
 
     private void DrawRootContent(

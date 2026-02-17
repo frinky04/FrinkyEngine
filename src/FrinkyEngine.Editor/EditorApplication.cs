@@ -8,7 +8,9 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using FrinkyEngine.Core.Scripting;
 using FrinkyEngine.Core.Serialization;
+using FrinkyEngine.Core.CanvasUI;
 using FrinkyEngine.Core.UI;
+using FrinkyEngine.Editor.Assets.Creation;
 using FrinkyEngine.Editor.Panels;
 using FrinkyEngine.Editor.Prefab;
 using Raylib_cs;
@@ -108,6 +110,7 @@ public class EditorApplication
         AssetBrowserPanel = new AssetBrowserPanel(this);
         PerformancePanel = new PerformancePanel(this);
         MenuBar = new MenuBar(this);
+        AssetCreationRegistry.EnsureDefaultsRegistered();
         RegisterKeybindActions();
     }
 
@@ -355,6 +358,7 @@ public class EditorApplication
             return;
 
         UI.ClearFrame();
+        CanvasUI.Reset();
         EngineOverlays.Reset();
         var exitingMode = Mode;
         if (_runtimeModeSnapshot != null)

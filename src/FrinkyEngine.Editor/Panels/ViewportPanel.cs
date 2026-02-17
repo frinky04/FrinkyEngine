@@ -6,6 +6,7 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Rendering.PostProcessing;
 using FrinkyEngine.Core.Rendering.Profiling;
 using FrinkyEngine.Core.Serialization;
+using FrinkyEngine.Core.CanvasUI;
 using FrinkyEngine.Core.UI;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGuizmo;
@@ -403,6 +404,7 @@ public class ViewportPanel
             // editor-window background color when this texture is presented in ImGui.
             Rlgl.ColorMask(true, true, true, false);
             UI.EndFrame();
+            CanvasUI.Update(Raylib.GetFrameTime(), width, height, localMouse);
             Rlgl.DrawRenderBatchActive();
             Rlgl.ColorMask(true, true, true, true);
             Raylib.EndTextureMode();

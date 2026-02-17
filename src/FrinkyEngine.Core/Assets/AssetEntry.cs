@@ -43,7 +43,17 @@ public enum AssetType
     /// <summary>
     /// A color palette file (.pal).
     /// </summary>
-    Palette
+    Palette,
+
+    /// <summary>
+    /// A font file (.ttf, .otf).
+    /// </summary>
+    Font,
+
+    /// <summary>
+    /// A CanvasUI markup file (.canvas).
+    /// </summary>
+    Canvas
 }
 
 /// <summary>
