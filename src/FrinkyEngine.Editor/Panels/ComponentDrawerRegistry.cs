@@ -1377,7 +1377,7 @@ public static class ComponentDrawerRegistry
                 }
                 else if (typeof(FObject).IsAssignableFrom(propType))
                 {
-                    DrawInlineFObjectProperty(label, obj, prop, propType, () =>
+                    DrawFObjectProperty(label, obj, prop, propType, () =>
                     {
                         onChanged?.Invoke();
                         anyChanged = true;
@@ -1385,7 +1385,7 @@ public static class ComponentDrawerRegistry
                 }
                 else if (IsFObjectListType(propType, out var fobjectElementType))
                 {
-                    DrawInlineFObjectListProperty(label, obj, prop, fobjectElementType!, () =>
+                    DrawFObjectListProperty(label, obj, prop, fobjectElementType!, () =>
                     {
                         onChanged?.Invoke();
                         anyChanged = true;
@@ -1548,10 +1548,10 @@ public static class ComponentDrawerRegistry
         return InspectorReflectionHelpers.IsInlineObjectType(type);
     }
 
-    private static void DrawFObjectProperty(string label, Component component, PropertyInfo prop, Type propType, Action? onChanged)
+    private static void DrawFObjectProperty(string label, object owner, PropertyInfo prop, Type propType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
-        var current = prop.GetValue(component) as FObject;
+        var current = prop.GetValue(owner) as FObject;
         var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(propType).ToList();
 
         string preview = current != null ? current.DisplayName : "(None)";
@@ -1575,7 +1575,7 @@ public static class ComponentDrawerRegistry
             {
                 app.RecordUndo();
                 DisposeIfNeeded(current);
-                prop.SetValue(component, null);
+                prop.SetValue(owner, null);
                 app.RefreshUndoBaseline();
                 onChanged?.Invoke();
             }
@@ -1594,7 +1594,7 @@ public static class ComponentDrawerRegistry
                         var newObj = (FObject)Activator.CreateInstance(type)!;
                         app.RecordUndo();
                         DisposeIfNeeded(current);
-                        prop.SetValue(component, newObj);
+                        prop.SetValue(owner, newObj);
                         app.RefreshUndoBaseline();
                         onChanged?.Invoke();
                     }
@@ -1617,10 +1617,10 @@ public static class ComponentDrawerRegistry
         ImGui.PopID();
     }
 
-    private static void DrawFObjectListProperty(string label, Component component, PropertyInfo prop, Type elementType, Action? onChanged)
+    private static void DrawFObjectListProperty(string label, object owner, PropertyInfo prop, Type elementType, Action? onChanged)
     {
         var app = EditorApplication.Instance;
-        var list = prop.GetValue(component) as System.Collections.IList;
+        var list = prop.GetValue(owner) as System.Collections.IList;
         if (list == null)
         {
             ImGui.LabelText(label, "(null)");
@@ -1738,101 +1738,6 @@ public static class ComponentDrawerRegistry
             }
             ImGui.EndPopup();
         }
-    }
-
-    private static void DrawInlineFObjectProperty(string label, object owner, PropertyInfo prop, Type propType, Action? onChanged)
-    {
-        var app = EditorApplication.Instance;
-        var current = prop.GetValue(owner) as FObject;
-        var candidateTypes = FObjectTypeResolver.GetTypesAssignableTo(propType).ToList();
-
-        string preview = current != null ? current.DisplayName : "(None)";
-
-        ImGui.PushID(prop.Name);
-
-        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.AllowOverlap
-                  | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
-        if (current == null)
-            flags |= ImGuiTreeNodeFlags.Leaf;
-
-        bool open = ImGui.TreeNodeEx(label, flags);
-
-        // Type dropdown overlaid on the right (same pattern as PostProcess header buttons)
-        float comboWidth = ImGui.GetContentRegionAvail().X * 0.55f;
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - comboWidth + ImGui.GetCursorPosX());
-        ImGui.SetNextItemWidth(comboWidth);
-        if (ImGui.BeginCombo("##type", preview))
-        {
-            if (ImGui.Selectable("(None)", current == null))
-            {
-                app.RecordUndo();
-                DisposeIfNeeded(current);
-                prop.SetValue(owner, null);
-                app.RefreshUndoBaseline();
-                onChanged?.Invoke();
-            }
-
-            foreach (var type in candidateTypes)
-            {
-                var displayName = FObjectTypeResolver.GetDisplayName(type);
-                var source = FObjectTypeResolver.GetAssemblySource(type);
-                var itemLabel = source == "Engine" ? displayName : $"{displayName} ({source})";
-                bool isSelected = current != null && current.GetType() == type;
-
-                if (ImGui.Selectable(itemLabel, isSelected))
-                {
-                    try
-                    {
-                        var newObj = (FObject)Activator.CreateInstance(type)!;
-                        app.RecordUndo();
-                        DisposeIfNeeded(current);
-                        prop.SetValue(owner, newObj);
-                        app.RefreshUndoBaseline();
-                        onChanged?.Invoke();
-                    }
-                    catch { }
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-
-        if (open)
-        {
-            if (current != null)
-            {
-                DrawIndentedWithAccentBar(() => DrawObjectProperties(current, FObjectExcludedProperties, onChanged));
-            }
-            ImGui.TreePop();
-        }
-
-        ImGui.PopID();
-    }
-
-    private static void DrawInlineFObjectListProperty(string label, object owner, PropertyInfo prop, Type elementType, Action? onChanged)
-    {
-        var app = EditorApplication.Instance;
-        var list = prop.GetValue(owner) as System.Collections.IList;
-        if (list == null)
-        {
-            ImGui.LabelText(label, "(null)");
-            return;
-        }
-
-        ImGui.PushID(prop.Name);
-
-        var listLabel = list.Count > 0 ? $"{label} ({list.Count})" : label;
-        var listFlags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.FramePadding;
-
-        bool listOpen = ImGui.TreeNodeEx(listLabel, listFlags);
-
-        if (listOpen)
-        {
-            DrawIndentedWithAccentBar(() => DrawFObjectListContents(list, $"{prop.Name}_inline", elementType, app, onChanged));
-            ImGui.TreePop();
-        }
-
-        ImGui.PopID();
     }
 
     private static readonly HashSet<string> NoExcludedProperties = new();
