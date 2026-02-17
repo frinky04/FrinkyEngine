@@ -254,7 +254,7 @@ public class TextEntry : Panel
         float bestDist = float.MaxValue;
         for (int i = 0; i <= _text.Length; i++)
         {
-            float charX = DrawCommands.MeasureText(_text[..i], fontSize, renderer.FontManager.DefaultFont).X;
+            float charX = DrawCommands.MeasureText(_text[..i], fontSize, renderer.FontManager.GetFont(ComputedStyle.FontFamily)).X;
             float dist = MathF.Abs(charX - clickX);
             if (dist < bestDist)
             {
@@ -275,7 +275,7 @@ public class TextEntry : Panel
         float padT = YogaNode.LayoutPaddingTop;
         float textY = box.Y + padT + (box.Height - padT * 2 - fontSize) * 0.5f;
         float textX = box.X + padL;
-        var font = renderer.FontManager.DefaultFont;
+        var font = renderer.FontManager.GetFont(style.FontFamily);
 
         // Selection highlight
         if (HasSelection)

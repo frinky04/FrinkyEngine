@@ -17,6 +17,7 @@ public class AssetManager
     private readonly Dictionary<string, Texture2D> _textures = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Sound> _audioClips = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Music> _audioStreams = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Font> _fonts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<TriplanarParamKey, Texture2D> _triplanarParamsTextures = new();
 
     /// <summary>
@@ -197,6 +198,29 @@ public class AssetManager
     }
 
     /// <summary>
+    /// Loads a font (.ttf) from the assets directory, returning a cached copy if already loaded.
+    /// </summary>
+    /// <param name="relativePath">Path relative to the assets root.</param>
+    /// <param name="size">Font size in pixels to load at (default 32).</param>
+    /// <returns>The loaded <see cref="Font"/>, or the Raylib default font if the file is missing.</returns>
+    public Font LoadFont(string relativePath, int size = 32)
+    {
+        relativePath = ResolveViaDatabase(relativePath);
+        var key = relativePath.Replace('\\', '/');
+        if (_fonts.TryGetValue(key, out var cached))
+            return cached;
+
+        var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+            return Raylib.GetFontDefault();
+
+        var font = Raylib.LoadFontEx(fullPath, size, null, 0);
+        Raylib.SetTextureFilter(font.Texture, TextureFilter.Bilinear);
+        _fonts[key] = font;
+        return font;
+    }
+
+    /// <summary>
     /// Gets or creates a 1x1 float texture used to pass triplanar material parameters to shaders.
     /// </summary>
     /// <param name="enabled">Whether triplanar mode is enabled for this material.</param>
@@ -243,6 +267,8 @@ public class AssetManager
             Raylib.UnloadSound(clip);
         if (_audioStreams.Remove(normalized, out var music))
             Raylib.UnloadMusicStream(music);
+        if (_fonts.Remove(normalized, out var font))
+            Raylib.UnloadFont(font);
     }
 
     /// <summary>
@@ -269,6 +295,10 @@ public class AssetManager
         foreach (var stream in _audioStreams.Values)
             Raylib.UnloadMusicStream(stream);
         _audioStreams.Clear();
+
+        foreach (var font in _fonts.Values)
+            Raylib.UnloadFont(font);
+        _fonts.Clear();
 
         foreach (var texture in _triplanarParamsTextures.Values)
             Raylib.UnloadTexture(texture);

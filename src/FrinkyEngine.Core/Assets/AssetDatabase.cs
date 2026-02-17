@@ -30,6 +30,8 @@ public class AssetDatabase
         { ".cs", AssetType.Script },
         { ".fprefab", AssetType.Prefab },
         { ".pal", AssetType.Palette },
+        { ".ttf", AssetType.Font },
+        { ".otf", AssetType.Font },
     };
 
     private List<AssetEntry> _assets = new();

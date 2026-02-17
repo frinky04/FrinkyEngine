@@ -19,6 +19,7 @@ internal static class CssPropertyMap
 
             case "opacity": sheet.Opacity = ParseFloat(tokens); break;
             case "font-size": sheet.FontSize = ParseFloatFromLength(tokens); break;
+            case "font-family": sheet.FontFamily = ParseString(tokens); break;
             case "border-width": sheet.BorderWidth = ParseFloatFromLength(tokens); break;
             case "border-radius": sheet.BorderRadius = ParseFloatFromLength(tokens); break;
 
@@ -131,6 +132,17 @@ internal static class CssPropertyMap
         }
 
         return args;
+    }
+
+    private static string? ParseString(List<CssToken> tokens)
+    {
+        if (tokens.Count == 0) return null;
+        var v = tokens[0].Value;
+        // Strip surrounding quotes if present
+        if (v.Length >= 2 &&
+            ((v[0] == '"' && v[^1] == '"') || (v[0] == '\'' && v[^1] == '\'')))
+            v = v[1..^1];
+        return string.IsNullOrWhiteSpace(v) ? null : v;
     }
 
     private static float? ParseFloat(List<CssToken> tokens)

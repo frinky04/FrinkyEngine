@@ -42,7 +42,13 @@ public static class CanvasUI
     public static void Reset()
     {
         _rootPanel?.ResetInput();
+        _rootPanel?.ClearStyleSheets();
         _rootPanel?.DeleteChildren();
+    }
+
+    public static void RegisterFont(string name, string path)
+    {
+        RootPanel.Renderer.FontManager.RegisterFont(name, path);
     }
 
     public static void Shutdown()

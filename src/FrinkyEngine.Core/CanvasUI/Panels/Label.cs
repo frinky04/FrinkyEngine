@@ -37,7 +37,8 @@ public class Label : Panel
         float contentX = box.X + padL;
         float contentW = box.Width - padL - padR;
 
-        var textSize = DrawCommands.MeasureText(_text, style.FontSize, renderer.FontManager.DefaultFont);
+        var font = renderer.FontManager.GetFont(style.FontFamily);
+        var textSize = DrawCommands.MeasureText(_text, style.FontSize, font);
 
         float tx = style.TextAlign switch
         {
@@ -47,7 +48,7 @@ public class Label : Panel
         };
 
         DrawCommands.Text(_text, tx, box.Y + padT, style.FontSize,
-            CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
+            CanvasRenderer.AlphaBlend(style.Color, alpha), font);
     }
 
     private void UpdateMeasureFunction()

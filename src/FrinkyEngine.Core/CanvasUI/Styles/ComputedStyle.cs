@@ -40,6 +40,7 @@ public struct ComputedStyle
     public float BorderWidth;
     public float BorderRadius;
     public float FontSize;
+    public string? FontFamily;
     public float Opacity;
     public TextAlign TextAlign;
 

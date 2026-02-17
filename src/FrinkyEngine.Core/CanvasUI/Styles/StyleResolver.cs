@@ -4,9 +4,18 @@ namespace FrinkyEngine.Core.CanvasUI.Styles;
 
 internal static class StyleResolver
 {
-    public static ComputedStyle Resolve(Panel panel, IReadOnlyList<CssStyleRule> rules)
+    public static ComputedStyle Resolve(Panel panel, IReadOnlyList<CssStyleRule> rules, ComputedStyle? parent = null)
     {
         var computed = ComputedStyle.Default;
+
+        // Seed inheritable properties from parent
+        if (parent.HasValue)
+        {
+            computed.Color = parent.Value.Color;
+            computed.FontSize = parent.Value.FontSize;
+            computed.FontFamily = parent.Value.FontFamily;
+            computed.TextAlign = parent.Value.TextAlign;
+        }
 
         // 1. Collect matching rules with their specificity and source order
         var matches = new List<(CssSpecificity specificity, int order, StyleSheet declarations)>();
@@ -75,6 +84,7 @@ internal static class StyleResolver
         if (s.BorderWidth.HasValue) computed.BorderWidth = s.BorderWidth.Value;
         if (s.BorderRadius.HasValue) computed.BorderRadius = s.BorderRadius.Value;
         if (s.FontSize.HasValue) computed.FontSize = s.FontSize.Value;
+        if (s.FontFamily != null) computed.FontFamily = s.FontFamily;
         if (s.Opacity.HasValue) computed.Opacity = s.Opacity.Value;
         if (s.TextAlign.HasValue) computed.TextAlign = s.TextAlign.Value;
     }

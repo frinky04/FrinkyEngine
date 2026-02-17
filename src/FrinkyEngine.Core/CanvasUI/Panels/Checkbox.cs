@@ -76,7 +76,8 @@ public class Checkbox : Panel
         {
             float tx = bx + fontSize + gap;
             float ty = by;
-            DrawCommands.Text(_text, tx, ty, fontSize, color, renderer.FontManager.DefaultFont);
+            var font = renderer.FontManager.GetFont(style.FontFamily);
+            DrawCommands.Text(_text, tx, ty, fontSize, color, font);
         }
     }
 

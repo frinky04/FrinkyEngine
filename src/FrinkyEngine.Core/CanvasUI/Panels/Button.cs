@@ -42,7 +42,8 @@ public class Button : Panel
         float contentY = box.Y + padT;
         float contentH = box.Height - padT - padB;
 
-        var textSize = DrawCommands.MeasureText(_text, style.FontSize, renderer.FontManager.DefaultFont);
+        var font = renderer.FontManager.GetFont(style.FontFamily);
+        var textSize = DrawCommands.MeasureText(_text, style.FontSize, font);
 
         float tx = style.TextAlign switch
         {
@@ -53,7 +54,7 @@ public class Button : Panel
         float ty = contentY + (contentH - textSize.Y) * 0.5f;
 
         DrawCommands.Text(_text, tx, ty, style.FontSize,
-            CanvasRenderer.AlphaBlend(style.Color, alpha), renderer.FontManager.DefaultFont);
+            CanvasRenderer.AlphaBlend(style.Color, alpha), font);
     }
 
     private void UpdateMeasureFunction()

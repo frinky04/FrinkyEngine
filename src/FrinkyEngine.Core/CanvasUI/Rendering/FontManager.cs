@@ -1,3 +1,4 @@
+using FrinkyEngine.Core.Assets;
 using Raylib_cs;
 
 namespace FrinkyEngine.Core.CanvasUI.Rendering;
@@ -7,6 +8,7 @@ internal class FontManager
     private Font _defaultFont;
     private bool _initialized;
     private bool _ownsDefaultFont;
+    private readonly Dictionary<string, Font> _fonts = new(StringComparer.OrdinalIgnoreCase);
 
     public Font DefaultFont
     {
@@ -36,8 +38,32 @@ internal class FontManager
         }
     }
 
+    public void RegisterFont(string name, string path, int loadSize = 32)
+    {
+        var fontPath = FindFont(path) ?? FindFont(AssetManager.Instance.ResolvePath(path));
+        if (fontPath == null) return;
+
+        var font = Raylib.LoadFontEx(fontPath, loadSize, null, 0);
+        Raylib.SetTextureFilter(font.Texture, TextureFilter.Bilinear);
+        _fonts[name] = font;
+    }
+
+    public Font GetFont(string? name)
+    {
+        if (name != null && _fonts.TryGetValue(name, out var font))
+            return font;
+        return DefaultFont;
+    }
+
     public void Shutdown()
     {
+        foreach (var font in _fonts.Values)
+        {
+            if (font.GlyphCount > 0)
+                Raylib.UnloadFont(font);
+        }
+        _fonts.Clear();
+
         if (_initialized && _ownsDefaultFont && _defaultFont.GlyphCount > 0)
             Raylib.UnloadFont(_defaultFont);
         _initialized = false;

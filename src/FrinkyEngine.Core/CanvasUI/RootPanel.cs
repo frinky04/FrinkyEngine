@@ -59,11 +59,11 @@ public class RootPanel : Panel
             TickRecursive(child, dt);
     }
 
-    private void ResolveStylesRecursive(Panel panel)
+    private void ResolveStylesRecursive(Panel panel, ComputedStyle? parentStyle = null)
     {
-        panel.ComputedStyle = StyleResolver.Resolve(panel, _styleRules);
+        panel.ComputedStyle = StyleResolver.Resolve(panel, _styleRules, parentStyle);
         foreach (var child in panel.Children)
-            ResolveStylesRecursive(child);
+            ResolveStylesRecursive(child, panel.ComputedStyle);
     }
 
     private static void ReadLayoutRecursive(Panel panel, float parentX, float parentY, float parentScrollY = 0)

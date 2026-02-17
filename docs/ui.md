@@ -315,6 +315,7 @@ Set properties on `panel.Style` to control layout and appearance. All style prop
 | `BorderWidth` | `0` | Border thickness in pixels |
 | `BorderRadius` | `0` | Corner radius in pixels |
 | `FontSize` | `16` | Text size in pixels |
+| `FontFamily` | `null` | Name of a registered font (see [Custom Fonts](#custom-fonts)) |
 | `Opacity` | `1` | Overall opacity (0-1) |
 
 #### Length Values
@@ -351,6 +352,10 @@ CanvasUI.LoadStyleSheet(@"
 
 Inline `panel.Style` properties always win over CSS rules — use CSS for defaults and class-based theming, and inline styles for one-off overrides.
 
+#### Inheritance
+
+The properties `color`, `font-size`, `font-family`, and `text-align` are inherited from parent panels, matching standard CSS behavior. If a child panel has no explicit value for these properties (neither from CSS rules nor inline styles), it uses its parent's computed value. Explicit rules on a child always override inherited values.
+
 #### Selectors
 
 | Selector | Example | Matches |
@@ -371,7 +376,7 @@ All properties from the [Layout](#layout-properties) and [Visual](#visual-proper
 
 - **Layout**: `flex-direction`, `justify-content`, `align-items`, `align-self`, `display`, `position`, `overflow`, `width`, `height`, `min-width`, `min-height`, `max-width`, `max-height`, `flex-grow`, `flex-shrink`, `flex-basis`, `gap`, `top`, `right`, `bottom`, `left`
 - **Spacing**: `padding`, `padding-top`, `padding-right`, `padding-bottom`, `padding-left`, `margin` (and sides)
-- **Visual**: `background-color`, `color`, `border-color`, `border-width`, `border-radius`, `font-size`, `opacity`
+- **Visual**: `background-color`, `color`, `border-color`, `border-width`, `border-radius`, `font-size`, `font-family`, `opacity`
 - **Shorthand**: `border` (e.g. `border: 2px #ff0000`)
 
 #### Color Values
@@ -411,6 +416,37 @@ Higher specificity overrides lower. Equal specificity uses source order (later r
 |--------|-------------|
 | `CanvasUI.LoadStyleSheet(css)` | Parse and add CSS rules (can call multiple times to layer stylesheets) |
 | `CanvasUI.ClearStyleSheets()` | Remove all loaded CSS rules |
+
+### Custom Fonts
+
+By default all panels use the built-in JetBrains Mono font. Register additional `.ttf` fonts by name at startup, then reference them from CSS or inline styles.
+
+```csharp
+// Register fonts (typically in your game's initialization)
+CanvasUI.RegisterFont("inter", "EngineContent/Fonts/Inter-Regular.ttf");
+CanvasUI.RegisterFont("heading", "EngineContent/Fonts/Montserrat-Bold.ttf");
+```
+
+Use the font name in CSS with `font-family`. Quotes are optional — unquoted names work and are easier inside C# verbatim strings:
+
+```css
+Label { font-family: inter; }
+.title { font-family: heading; font-size: 32px; }
+```
+
+Or set it inline:
+
+```csharp
+label.Style.FontFamily = "inter";
+```
+
+Panels with no `font-family` set continue using the default font. If a name doesn't match any registered font, the default font is used as a fallback.
+
+| Method | Description |
+|--------|-------------|
+| `CanvasUI.RegisterFont(name, path)` | Register a named `.ttf` font for use in `font-family` |
+
+Fonts can also be loaded through the asset manager with `AssetManager.Instance.LoadFont(path)`, which returns a Raylib `Font` and participates in the standard asset cache and invalidation lifecycle.
 
 ---
 

@@ -22,9 +22,9 @@ public class AssetBrowserPanel
 
     private readonly EditorApplication _app;
     private string _searchQuery = string.Empty;
-    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Prefab
-    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Prefabs" };
-    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Prefab };
+    private int _filterIndex; // 0=All, 1=Model, 2=Scene, 3=Texture, 4=Audio, 5=Script, 6=Prefab, 7=Font
+    private static readonly string[] FilterNames = { "All", "Models", "Scenes", "Textures", "Audio", "Scripts", "Prefabs", "Fonts" };
+    private static readonly AssetType?[] FilterTypes = { null, AssetType.Model, AssetType.Scene, AssetType.Texture, AssetType.Audio, AssetType.Script, AssetType.Prefab, AssetType.Font };
 
     // Multi-selection state
     private readonly HashSet<string> _selectedAssets = new(StringComparer.OrdinalIgnoreCase);
