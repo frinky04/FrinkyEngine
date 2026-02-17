@@ -61,6 +61,7 @@ public class EditorApplication
     public bool IsPhysicsHitboxPreviewEnabled { get; private set; }
     public bool IsColliderEditModeEnabled { get; private set; }
     public bool IsBonePreviewEnabled { get; private set; }
+    public bool IsFullscreenViewport { get; private set; }
     public string? DraggedAssetPath { get; set; }
     public Guid? DraggedEntityId { get; set; }
     public bool IsInRuntimeMode => Mode is EditorMode.Play or EditorMode.Simulate;
@@ -283,6 +284,14 @@ public class EditorApplication
         }
 
         KeybindManager.Instance.ProcessKeybinds();
+
+        if (IsFullscreenViewport)
+        {
+            ViewportPanel.Draw();
+            NotificationManager.Instance.Draw();
+            return;
+        }
+
         MenuBar.Draw();
         ViewportPanel.Draw();
         HierarchyPanel.Draw();
@@ -498,6 +507,15 @@ public class EditorApplication
 
         NotificationManager.Instance.Post(
             IsBonePreviewEnabled ? "Bone preview enabled" : "Bone preview disabled",
+            NotificationType.Info,
+            2.0f);
+    }
+
+    public void ToggleFullscreenViewport()
+    {
+        IsFullscreenViewport = !IsFullscreenViewport;
+        NotificationManager.Instance.Post(
+            IsFullscreenViewport ? "Entered Fullscreen Viewport (F11 to exit)" : "Exited Fullscreen Viewport",
             NotificationType.Info,
             2.0f);
     }
@@ -1011,6 +1029,7 @@ public class EditorApplication
         km.RegisterAction(EditorAction.TogglePlayModeCursorLock, () => TogglePlayModeCursorLock());
         km.RegisterAction(EditorAction.FrameSelected, () => FrameSelected());
         km.RegisterAction(EditorAction.ToggleColliderEditMode, () => ToggleColliderEditMode());
+        km.RegisterAction(EditorAction.ToggleFullscreenViewport, () => ToggleFullscreenViewport());
     }
 
     public void StoreEditorCameraInScene()

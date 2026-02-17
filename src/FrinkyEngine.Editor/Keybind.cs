@@ -39,7 +39,8 @@ public enum EditorAction
     TogglePlayModeCursorLock,
     FrameSelected,
     ToggleColliderEditMode,
-    ToggleBonePreview
+    ToggleBonePreview,
+    ToggleFullscreenViewport
 }
 
 public struct Keybind : IEquatable<Keybind>
