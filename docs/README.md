@@ -21,7 +21,7 @@ New to FrinkyEngine? Start here:
 | [Physics](physics.md) | Rigidbodies, colliders, character controller, crouching |
 | [Audio](audio.md) | 2D/3D playback, components, mixer buses, attenuation |
 | [Rendering & Post-Processing](rendering.md) | Lighting, materials, camera setup, skeletal animation, inverse kinematics, bloom/fog/SSAO |
-| [Game UI](ui.md) | Immediate-mode UI wrapper API for HUDs and menus |
+| [Game UI](ui.md) | CanvasUI retained-mode panels, flexbox layout, and legacy immediate-mode wrapper |
 | [Prefabs & Entity References](prefabs.md) | Prefab workflow, overrides, entity cross-linking |
 | [Exporting & Packaging](exporting.md) | Export pipeline, runtime modes, packaging scripts |
 | [Project Settings](project-settings.md) | `.fproject`, `project_settings.json`, editor settings |
@@ -38,6 +38,7 @@ Auto-generated API documentation from XML comments is available in the [`api/`](
 
 ## Roadmaps
 
+- [CanvasUI Roadmap](CANVASUI_ROADMAP.md) — retained-mode game UI (active plan)
 - [Audio Roadmap](roadmaps/audio_roadmap.md)
-- [UI Roadmap](roadmaps/ui_roadmap.md)
+- [UI Roadmap (Legacy)](roadmaps/ui_roadmap.md) — ImGui wrapper (editor-focused)
 - [Asset Icon Implementation Guide](roadmaps/asset_icon_implementation_guide.md)

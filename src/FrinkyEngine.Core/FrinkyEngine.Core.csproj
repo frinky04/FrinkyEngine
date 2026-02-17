@@ -10,7 +10,23 @@
   <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.4.0" />
     <PackageReference Include="Hexa.NET.ImGui" Version="2.2.9" />
+    <PackageReference Include="IceReaper.YogaSharp" Version="1.18.0.3" />
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
+  </ItemGroup>
+
+  <!-- YogaSharp native library: the package .targets uses a non-standard condition
+       (TargetPlatform) so the native DLL never gets copied. Copy it manually. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <Content Include="$(NuGetPackageRoot)icereaper.yogasharp/1.18.0.3/x64/yoga.dll"
+             CopyToOutputDirectory="PreserveNewest" Link="yoga.dll" Visible="false" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <Content Include="$(NuGetPackageRoot)icereaper.yogasharp/1.18.0.3/x64/yoga.so"
+             CopyToOutputDirectory="PreserveNewest" Link="yoga.so" Visible="false" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <Content Include="$(NuGetPackageRoot)icereaper.yogasharp/1.18.0.3/x64/yoga.dylib"
+             CopyToOutputDirectory="PreserveNewest" Link="yoga.dylib" Visible="false" />
   </ItemGroup>
 
 </Project>
