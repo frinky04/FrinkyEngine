@@ -78,6 +78,8 @@ The animator automatically loads all animation clips from the model and begins p
 | `Loop` | true | Wrap to the beginning when the clip ends |
 | `PlaybackSpeed` | 1.0 | Speed multiplier (0–4) |
 | `AnimationFps` | 60 | Sample rate in frames per second (1–120) |
+| `AnimationSources` | (empty) | Additional .glb files to load animation clips from. When empty, animations are loaded from the mesh file only. When populated, animations from all sources are merged into the clip list. |
+| `UseEmbeddedAnimations` | true | Whether to include animations embedded in the mesh file. Set to false to use only external animation sources. |
 
 Read-only inspector fields show the current `ActionName`, `ActionCount`, and `FrameCount`. A collapsible **Bone Hierarchy** tree is displayed at the bottom of the inspector, showing all bones and their parent-child relationships.
 
@@ -185,10 +187,11 @@ Multi-pass threshold/downsample/upsample glow.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `Threshold` | 1.0 | Brightness threshold for bloom extraction |
+| `Threshold` | 1.2 | Brightness threshold for bloom extraction |
 | `SoftKnee` | 0.5 | Soft threshold transition |
-| `Intensity` | 1.0 | Bloom strength |
+| `Intensity` | 0.35 | Bloom strength |
 | `Iterations` | 5 | Number of blur passes |
+| `Scatter` | 0.6 | Bloom spread (0 = tight glow, 1 = wide cinematic bloom) |
 
 #### Fog
 
@@ -213,6 +216,23 @@ Screen-space ambient occlusion with bilateral blur (requires depth).
 | `Bias` | 1.0 | Depth comparison bias |
 | `SampleCount` | 64 | Number of AO samples |
 | `BlurSize` | 16 | Bilateral blur kernel size |
+
+#### Palette
+
+Snaps rendered colors to the nearest color in a loaded JASC-PAL palette file.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `PalettePath` | (none) | Asset reference to a .pal file (JASC-PAL format) |
+
+#### Dither
+
+PSX-style 4x4 Bayer ordered dithering for a retro look.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `ColorLevels` | 32 | Number of color levels per channel (lower = more retro) |
+| `DitherStrength` | 1.0 | Blend between original (0) and dithered (1) |
 
 ### Writing Custom Effects
 

@@ -48,6 +48,12 @@ Some components expose draggable gizmo handles in the viewport (for example, IK 
 - Tags and type filters for quick asset lookup
 - Right-click an asset for context actions: open, copy path, rename, delete, tag management, and **Regenerate Icon** (textures, models, prefabs)
 - Small status dots appear on asset thumbnails during icon generation: gray (queued), blue (generating), red (failed)
+- Click the settings cog (⚙) to access:
+  - **Refresh** — manually refresh the asset database
+  - **Grid/List View** — toggle between view modes
+  - **Icon Size** — scale asset icons (0.5x–3.0x)
+  - **Hide Unrecognised Assets** — filter out files with unknown types when browsing all assets
+  - **Tag Manager** — create, edit, and delete asset tags
 
 ## Building Scripts
 
