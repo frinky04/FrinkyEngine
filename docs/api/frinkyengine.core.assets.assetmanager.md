@@ -25,6 +25,19 @@ public static AssetManager Instance { get; }
 
 [AssetManager](./frinkyengine.core.assets.assetmanager)<br>
 
+### **AssetGeneration**
+
+Monotonically increasing counter incremented each time an asset is invalidated.
+ Components can track this to detect when cached asset pointers may be stale.
+
+```csharp
+public int AssetGeneration { get; private set; }
+```
+
+#### Property Value
+
+[Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+
 ### **AssetsPath**
 
 Root directory for resolving relative asset paths (defaults to "Assets").
@@ -233,6 +246,27 @@ Path relative to the assets root.
 
 Music<br>
 The loaded  stream.
+
+### **LoadFont(String, Int32)**
+
+Loads a font (.ttf) from the assets directory, returning a cached copy if already loaded.
+
+```csharp
+public Font LoadFont(string relativePath, int size)
+```
+
+#### Parameters
+
+`relativePath` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Path relative to the assets root.
+
+`size` [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+Font size in pixels to load at (default 32).
+
+#### Returns
+
+Font<br>
+The loaded , or the Raylib default font if the file is missing.
 
 ### **GetTriplanarParamsTexture(Boolean, Single, Single, Boolean)**
 

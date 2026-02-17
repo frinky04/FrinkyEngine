@@ -22,3 +22,6 @@ Implements [IComparable](https://docs.microsoft.com/en-us/dotnet/api/system.icom
 | Audio | 4 | An audio file (.wav, .ogg, .mp3). |
 | Script | 5 | A C# script file (.cs). |
 | Prefab | 6 | A prefab file (.fprefab). |
+| Palette | 7 | A color palette file (.pal). |
+| Font | 8 | A font file (.ttf, .otf). |
+| Canvas | 9 | A CanvasUI markup file (.canvas). |

@@ -1,15 +1,15 @@
-# BloomEffect
+# DitherEffect
 
 Namespace: FrinkyEngine.Core.Rendering.PostProcessing.Effects
 
-Multi-pass bloom effect using progressive downsample/upsample (UE4/5-style).
- Extracts bright pixels, blurs through a mip chain, then composites back onto the scene.
+PSX-style 4x4 Bayer ordered dithering effect. Quantizes color depth and applies
+ a tiled dither pattern for a retro look.
 
 ```csharp
-public class BloomEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
+public class DitherEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [BloomEffect](./frinkyengine.core.rendering.postprocessing.effects.bloomeffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [DitherEffect](./frinkyengine.core.rendering.postprocessing.effects.dithereffect)<br>
 Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
@@ -25,61 +25,24 @@ public string DisplayName { get; }
 
 [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
 
-### **Threshold**
+### **ColorLevels**
 
-Brightness threshold above which pixels contribute to bloom.
+Number of color levels per channel. Lower values produce a more retro look (e.g. 32 for PSX-style).
 
 ```csharp
-public float Threshold { get; set; }
+public float ColorLevels { get; set; }
 ```
 
 #### Property Value
 
 [Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
 
-### **SoftKnee**
+### **DitherStrength**
 
-Softness of the threshold transition (0 = hard, 1 = very soft).
-
-```csharp
-public float SoftKnee { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **Intensity**
-
-Strength of the bloom added back to the scene.
+Blend factor between original and dithered output (0 = original, 1 = fully dithered).
 
 ```csharp
-public float Intensity { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **Iterations**
-
-Number of downsample/upsample iterations (more = wider bloom, but more cost).
-
-```csharp
-public int Iterations { get; set; }
-```
-
-#### Property Value
-
-[Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
-
-### **Scatter**
-
-Controls how much bloom spreads across mip levels (0 = tight glow, 1 = wide cinematic bloom).
- Biases per-mip weights toward lower (larger) mips for a wider scatter.
-
-```csharp
-public float Scatter { get; set; }
+public float DitherStrength { get; set; }
 ```
 
 #### Property Value
@@ -124,10 +87,10 @@ public bool IsInitialized { get; protected set; }
 
 ## Constructors
 
-### **BloomEffect()**
+### **DitherEffect()**
 
 ```csharp
-public BloomEffect()
+public DitherEffect()
 ```
 
 ## Methods

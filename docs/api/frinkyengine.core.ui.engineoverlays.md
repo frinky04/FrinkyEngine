@@ -26,6 +26,19 @@ public static SceneRenderer Renderer { get; set; }
 
 [SceneRenderer](./frinkyengine.core.rendering.scenerenderer)<br>
 
+### **DebugDrawEnabled**
+
+When true, [DebugDraw.PrintString(String, Single, Nullable&lt;Vector4&gt;, String)](./frinkyengine.core.rendering.debugdraw#printstringstring-single-nullablevector4-string) messages are displayed.
+ Set by the editor on startup; remains false in runtime builds.
+
+```csharp
+public static bool DebugDrawEnabled { get; set; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **IsConsoleVisible**
 
 Gets whether the developer console overlay is currently visible.

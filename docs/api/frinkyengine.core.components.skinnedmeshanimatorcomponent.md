@@ -3,7 +3,7 @@
 Namespace: FrinkyEngine.Core.Components
 
 Plays skeletal animation clips for a sibling [MeshRendererComponent](./frinkyengine.core.components.meshrenderercomponent) using GPU skinning.
- Supports frame interpolation and can preview in editor viewport rendering.
+ Supports frame interpolation, multiple animation sources, and can preview in editor viewport rendering.
 
 ```csharp
 public sealed class SkinnedMeshAnimatorComponent : FrinkyEngine.Core.ECS.Component
@@ -13,6 +13,35 @@ Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) 
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute), [ComponentCategoryAttribute](./frinkyengine.core.ecs.componentcategoryattribute), [ComponentDisplayNameAttribute](./frinkyengine.core.ecs.componentdisplaynameattribute)
 
 ## Properties
+
+### **AnimationSources**
+
+Additional .glb files to load animation clips from. When empty, animations are loaded
+ from the mesh file only. When populated, animations are loaded from all listed sources
+ and merged into the available clip list. Each source is validated against the model's
+ skeleton at load time.
+
+```csharp
+public List<AssetReference> AnimationSources { get; set; }
+```
+
+#### Property Value
+
+[List&lt;AssetReference&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1)<br>
+
+### **UseEmbeddedAnimations**
+
+Whether to load animation clips embedded in the mesh file.
+ When `true` (default), clips from the mesh file are included in the available clip list.
+ When `false`, only clips from [SkinnedMeshAnimatorComponent.AnimationSources](./frinkyengine.core.components.skinnedmeshanimatorcomponent#animationsources) are used.
+
+```csharp
+public bool UseEmbeddedAnimations { get; set; }
+```
+
+#### Property Value
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
 
 ### **PlayAutomatically**
 
@@ -122,6 +151,21 @@ public int FrameCount { get; }
 
 [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
 
+### **LoopFrameTrim**
+
+Number of leading frames to skip in a looping animation to avoid dwelling on
+ the duplicate seam pose. Most glTF exports include one duplicate frame at the
+ start/end boundary; some exporters add more. Only applies when [SkinnedMeshAnimatorComponent.Loop](./frinkyengine.core.components.skinnedmeshanimatorcomponent#loop)
+ is enabled.
+
+```csharp
+public int LoopFrameTrim { get; set; }
+```
+
+#### Property Value
+
+[Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+
 ### **CurrentModelPose**
 
 Returns the current model-space bone transforms after animation has been applied.
@@ -210,6 +254,85 @@ Stops playback and applies bind pose.
 public void StopAndResetPose()
 ```
 
+### **PlayAnimation(String)**
+
+Plays the animation clip with the given name. Searches across all loaded sources.
+ Returns `true` if the clip was found and playback started; `false` otherwise.
+
+```csharp
+public bool PlayAnimation(string clipName)
+```
+
+#### Parameters
+
+`clipName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The name of the animation clip to play.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
+### **GetAnimationNames()**
+
+Returns the names of all available animation clips across all loaded sources.
+
+```csharp
+public String[] GetAnimationNames()
+```
+
+#### Returns
+
+[String[]](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+
+### **HasAnimation(String)**
+
+Returns `true` if an animation clip with the given name is available.
+
+```csharp
+public bool HasAnimation(string clipName)
+```
+
+#### Parameters
+
+`clipName` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+The clip name to search for.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
+### **AddAnimationSource(String)**
+
+Adds a new animation source at runtime. The path should be an asset-relative path
+ to a .glb file containing animations compatible with this model's skeleton.
+
+```csharp
+public void AddAnimationSource(string path)
+```
+
+#### Parameters
+
+`path` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Asset-relative path to the animation source file.
+
+### **RemoveAnimationSource(String)**
+
+Removes an animation source at runtime by path.
+ Returns `true` if the source was found and removed.
+
+```csharp
+public bool RemoveAnimationSource(string path)
+```
+
+#### Parameters
+
+`path` [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
+Asset-relative path of the source to remove.
+
+#### Returns
+
+[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+
 ### **Start()**
 
 ```csharp
@@ -227,3 +350,16 @@ public void Awake()
 ```csharp
 public void OnDestroy()
 ```
+
+### **GetAnimationSourceInfo()**
+
+Returns information about all loaded animation clips, grouped by source file.
+ Each entry contains the source path and the clip names loaded from that source.
+
+```csharp
+public IReadOnlyList<ValueTuple<string, IReadOnlyList<string>, IReadOnlyList<bool>>> GetAnimationSourceInfo()
+```
+
+#### Returns
+
+[IReadOnlyList&lt;ValueTuple&lt;String, IReadOnlyList&lt;String&gt;, IReadOnlyList&lt;Boolean&gt;&gt;&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.collections.generic.ireadonlylist-1)<br>

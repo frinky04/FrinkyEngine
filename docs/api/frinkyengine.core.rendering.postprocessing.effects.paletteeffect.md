@@ -1,15 +1,15 @@
-# BloomEffect
+# PaletteEffect
 
 Namespace: FrinkyEngine.Core.Rendering.PostProcessing.Effects
 
-Multi-pass bloom effect using progressive downsample/upsample (UE4/5-style).
- Extracts bright pixels, blurs through a mip chain, then composites back onto the scene.
+Snaps rendered colors to the nearest color in a loaded JASC-PAL palette file.
+ Loads the palette as a 1D GPU texture and performs nearest-color matching in the fragment shader.
 
 ```csharp
-public class BloomEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
+public class PaletteEffect : FrinkyEngine.Core.Rendering.PostProcessing.PostProcessEffect, System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [BloomEffect](./frinkyengine.core.rendering.postprocessing.effects.bloomeffect)<br>
+Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [FObject](./frinkyengine.core.ecs.fobject) → [PostProcessEffect](./frinkyengine.core.rendering.postprocessing.postprocesseffect) → [PaletteEffect](./frinkyengine.core.rendering.postprocessing.effects.paletteeffect)<br>
 Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)<br>
 Attributes [NullableContextAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
@@ -25,66 +25,17 @@ public string DisplayName { get; }
 
 [String](https://docs.microsoft.com/en-us/dotnet/api/system.string)<br>
 
-### **Threshold**
+### **PalettePath**
 
-Brightness threshold above which pixels contribute to bloom.
+Asset reference to a .pal file (JASC-PAL format).
 
 ```csharp
-public float Threshold { get; set; }
+public AssetReference PalettePath { get; set; }
 ```
 
 #### Property Value
 
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **SoftKnee**
-
-Softness of the threshold transition (0 = hard, 1 = very soft).
-
-```csharp
-public float SoftKnee { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **Intensity**
-
-Strength of the bloom added back to the scene.
-
-```csharp
-public float Intensity { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
-
-### **Iterations**
-
-Number of downsample/upsample iterations (more = wider bloom, but more cost).
-
-```csharp
-public int Iterations { get; set; }
-```
-
-#### Property Value
-
-[Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
-
-### **Scatter**
-
-Controls how much bloom spreads across mip levels (0 = tight glow, 1 = wide cinematic bloom).
- Biases per-mip weights toward lower (larger) mips for a wider scatter.
-
-```csharp
-public float Scatter { get; set; }
-```
-
-#### Property Value
-
-[Single](https://docs.microsoft.com/en-us/dotnet/api/system.single)<br>
+[AssetReference](./frinkyengine.core.assets.assetreference)<br>
 
 ### **Enabled**
 
@@ -124,10 +75,10 @@ public bool IsInitialized { get; protected set; }
 
 ## Constructors
 
-### **BloomEffect()**
+### **PaletteEffect()**
 
 ```csharp
-public BloomEffect()
+public PaletteEffect()
 ```
 
 ## Methods
