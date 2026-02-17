@@ -147,14 +147,29 @@ internal class InputManager
         }
     }
 
-    private static Panel? HitTest(Panel panel, float x, float y)
+    private static Panel? HitTest(Panel panel, float x, float y, Box? inheritedClip = null)
     {
         if (panel.ComputedStyle.Display == Styles.Display.None) return null;
+
+        Box? effectiveClip = inheritedClip;
+        if (panel.ComputedStyle.Overflow == Styles.Overflow.Hidden)
+        {
+            effectiveClip = effectiveClip.HasValue
+                ? Box.Intersect(effectiveClip.Value, panel.Box)
+                : panel.Box;
+        }
+
+        if (effectiveClip.HasValue)
+        {
+            var clip = effectiveClip.Value;
+            if (clip.Width <= 0 || clip.Height <= 0 || !clip.Contains(x, y))
+                return null;
+        }
 
         // Test children in reverse order (front to back)
         for (int i = panel.Children.Count - 1; i >= 0; i--)
         {
-            var hit = HitTest(panel.Children[i], x, y);
+            var hit = HitTest(panel.Children[i], x, y, effectiveClip);
             if (hit != null) return hit;
         }
 

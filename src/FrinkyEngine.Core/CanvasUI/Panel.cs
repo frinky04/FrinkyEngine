@@ -9,6 +9,7 @@ public class Panel
 {
     private static int _nextId;
     private readonly List<Panel> _children = new();
+    private bool _isCreated;
 
     public int Id { get; } = Interlocked.Increment(ref _nextId);
     public List<string> Classes { get; } = new();
@@ -41,22 +42,16 @@ public class Panel
     public T AddChild<T>(Action<T>? configure = null) where T : Panel, new()
     {
         var child = new T();
-        child.Parent = this;
-        _children.Add(child);
-        YogaNode.AddChild(child.YogaNode);
+        AttachChildInternal(child);
         configure?.Invoke(child);
-        child.OnCreated();
+        EnsureCreated(child);
         return child;
     }
 
     public void AddChild(Panel child)
     {
-        if (child.Parent != null)
-            child.Parent.RemoveChild(child);
-
-        child.Parent = this;
-        _children.Add(child);
-        YogaNode.AddChild(child.YogaNode);
+        AttachChildInternal(child);
+        EnsureCreated(child);
     }
 
     public void RemoveChild(Panel child)
@@ -69,6 +64,7 @@ public class Panel
     public void Delete()
     {
         OnDeleted();
+        _isCreated = false;
         Parent?.RemoveChild(this);
         DeleteChildren();
     }
@@ -79,10 +75,28 @@ public class Panel
         {
             var child = _children[i];
             child.OnDeleted();
+            child._isCreated = false;
             child.DeleteChildren();
         }
         _children.Clear();
         YogaNode.Clear();
+    }
+
+    private void AttachChildInternal(Panel child)
+    {
+        if (child.Parent != null)
+            child.Parent.RemoveChild(child);
+
+        child.Parent = this;
+        _children.Add(child);
+        YogaNode.AddChild(child.YogaNode);
+    }
+
+    private static void EnsureCreated(Panel child)
+    {
+        if (child._isCreated) return;
+        child.OnCreated();
+        child._isCreated = true;
     }
 
     public bool HasClass(string className) => Classes.Contains(className);

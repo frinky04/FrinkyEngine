@@ -6,6 +6,7 @@ internal class FontManager
 {
     private Font _defaultFont;
     private bool _initialized;
+    private bool _ownsDefaultFont;
 
     public Font DefaultFont
     {
@@ -26,18 +27,21 @@ internal class FontManager
         {
             _defaultFont = Raylib.LoadFontEx(fontPath, 32, null, 0);
             Raylib.SetTextureFilter(_defaultFont.Texture, TextureFilter.Bilinear);
+            _ownsDefaultFont = true;
         }
         else
         {
             _defaultFont = Raylib.GetFontDefault();
+            _ownsDefaultFont = false;
         }
     }
 
     public void Shutdown()
     {
-        if (_initialized && _defaultFont.GlyphCount > 0)
+        if (_initialized && _ownsDefaultFont && _defaultFont.GlyphCount > 0)
             Raylib.UnloadFont(_defaultFont);
         _initialized = false;
+        _ownsDefaultFont = false;
     }
 
     private static string? FindFont(string relativePath)

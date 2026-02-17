@@ -67,6 +67,9 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **Hexa.NET.ImGui.Widgets** — `ComboEnumHelper<T>.Combo()` / `ComboEnumHelper.Combo()` for enum combos, `MessageBoxes.Show()` / `MessageBoxes.Draw()` for modal dialogs
 - **RlImGui** (custom `RlImGui.cs`) — call `Rlgl.DrawRenderBatchActive()` after each draw command in `End()`
 - **Raylib cursor** — `DisableCursor()`/`EnableCursor()` re-center mouse; only call on state transitions
+- **CanvasUI panel lifecycle** — `Panel.AddChild(Panel child)` must invoke `OnCreated()` for first-time attachments; reparenting existing initialized panels should not re-run creation hooks
+- **CanvasUI hit testing + overflow clip** — hit testing must respect ancestor `overflow: hidden` clipping so visually clipped/scrolled-out children are not interactive
+- **CanvasUI font fallback ownership** — if `FontManager` falls back to `Raylib.GetFontDefault()`, treat it as engine-owned and never unload it
 
 ## Current Workarounds
 
