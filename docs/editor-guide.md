@@ -50,6 +50,7 @@ Some components expose draggable gizmo handles in the viewport (for example, IK 
 - Small status dots appear on asset thumbnails during icon generation: gray (queued), blue (generating), red (failed)
 - Click the settings cog (⚙) to access:
   - **Refresh** — manually refresh the asset database
+  - **Create Canvas UI (.canvas)** — create a new CanvasUI markup file inside your project assets
   - **Grid/List View** — toggle between view modes
   - **Icon Size** — scale asset icons (0.5x–3.0x)
   - **Hide Unrecognised Assets** — filter out files with unknown types when browsing all assets

@@ -83,7 +83,7 @@ public class HudComponent : Component
 | `OnMouseOut` | Mouse left panel bounds |
 | `OnMouseDown` | Mouse button pressed on panel |
 | `OnMouseUp` | Mouse button released on panel |
-| `OnMouseWheel` | Mouse wheel scrolled over this panel (bubbles up to ancestors) |
+| `OnMouseWheel` | Mouse wheel scrolled over this panel (receives `MouseWheelEvent` with `Delta` + `Handled`; bubbles to ancestors until handled) |
 | `OnFocus` | Panel received keyboard focus |
 | `OnBlur` | Panel lost keyboard focus |
 | `OnKeyDown` | Key pressed while panel has focus (receives `KeyboardEvent` with `Key`) |
@@ -125,6 +125,8 @@ Clickable panel with centered text. Accepts focus by default.
 var btn = parent.AddChild<Button>(b => b.Text = "Start Game");
 btn.OnClick += _ => StartGame();
 ```
+
+Keyboard support: press Enter or Space while focused to trigger `OnClick`.
 
 #### ProgressBar
 
@@ -175,6 +177,8 @@ var mute = parent.AddChild<Checkbox>(c =>
 });
 mute.OnChanged += isMuted => AudioManager.SetMuted(isMuted);
 ```
+
+Keyboard support: press Enter or Space while focused to toggle.
 
 Style the checked state with CSS:
 
@@ -258,7 +262,7 @@ for (int i = 0; i < 20; i++)
     scroll.AddChild<Label>(l => l.Text = $"Item {i}");
 ```
 
-`ScrollPanel` automatically sets `Overflow = Hidden` and clamps the scroll offset to the content bounds.
+`ScrollPanel` automatically sets `Overflow = Hidden` and clamps the scroll offset to the content bounds. It marks wheel events as handled only when it actually scrolls, so nested scroll panels hand off wheel input naturally.
 
 #### Image
 
@@ -316,7 +320,7 @@ Set properties on `panel.Style` to control layout and appearance. All style prop
 | `BorderRadius` | `0` | Corner radius in pixels |
 | `FontSize` | `16` | Text size in pixels |
 | `FontFamily` | `null` | Name of a registered font (see [Custom Fonts](#custom-fonts)) |
-| `Opacity` | `1` | Overall opacity (0-1) |
+| `Opacity` | `1` | Overall opacity multiplier (0-1) applied to this panel and all descendants |
 
 #### Length Values
 
@@ -415,6 +419,7 @@ Higher specificity overrides lower. Equal specificity uses source order (later r
 | Method | Description |
 |--------|-------------|
 | `CanvasUI.LoadStyleSheet(css)` | Parse and add CSS rules (can call multiple times to layer stylesheets) |
+| `CanvasUI.LoadStyleSheetFromAsset(path)` | Load and parse a stylesheet from an asset file (supports hot reload when enabled) |
 | `CanvasUI.ClearStyleSheets()` | Remove all loaded CSS rules |
 
 ### Custom Fonts
@@ -447,6 +452,50 @@ Panels with no `font-family` set continue using the default font. If a name does
 | `CanvasUI.RegisterFont(name, path)` | Register a named `.ttf` font for use in `font-family` |
 
 Fonts can also be loaded through the asset manager with `AssetManager.Instance.LoadFont(path)`, which returns a Raylib `Font` and participates in the standard asset cache and invalidation lifecycle.
+
+### Markup + One-Way Binding
+
+CanvasUI supports additive XML-style markup (`.canvas`) so you can author panel trees without replacing the code-first API.
+
+```xml
+<Panel class="hud-root" style="padding: 12px; gap: 8px;">
+  <Label text="{HealthText}" class="hp" />
+  <Button text="Heal" onclick="OnHealClicked" />
+</Panel>
+```
+
+```csharp
+public sealed class HudViewModel : INotifyPropertyChanged
+{
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public string HealthText { get; private set; } = "Health: 100";
+
+    public void OnHealClicked() { /* ... */ }
+}
+
+var vm = new HudViewModel();
+CanvasUI.EnableHotReload(true);
+CanvasUI.LoadStyleSheetFromAsset("UI/hud.css");
+CanvasUI.LoadMarkupFromAsset("UI/hud.canvas", vm, clearRoot: true);
+```
+
+#### Markup Rules
+
+- Tag names map to panel types (`Panel`, `Label`, `Button`, `TextEntry`, etc.)
+- `class="a b c"` maps to panel classes
+- `style="..."` accepts CSS declarations (same properties as stylesheets)
+- `on...` attributes (for example `onclick`, `onchanged`) bind to methods on the active binding context
+- Property bindings use `{PropertyName}` and are one-way (context -> UI)
+- `context="{ChildVm}"` assigns a local child context from the parent context
+
+#### Markup/Binding API
+
+| Method | Description |
+|--------|-------------|
+| `CanvasUI.LoadMarkup(markup, context?, clearRoot?)` | Build panel tree from raw markup text |
+| `CanvasUI.LoadMarkupFromAsset(path, context?, clearRoot?)` | Build panel tree from a `.canvas` asset |
+| `CanvasUI.SetBindingContext(context)` | Set root binding context for programmatic trees |
+| `CanvasUI.EnableHotReload(enabled)` | Enable/disable hot reload polling for loaded markup/styles assets |
 
 ---
 

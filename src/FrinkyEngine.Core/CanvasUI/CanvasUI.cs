@@ -30,9 +30,50 @@ public static class CanvasUI
         RootPanel.LoadStyleSheet(css);
     }
 
+    /// <summary>
+    /// Loads a CSS stylesheet from an asset path and applies it to CanvasUI.
+    /// </summary>
+    public static bool LoadStyleSheetFromAsset(string assetPath)
+    {
+        return RootPanel.LoadStyleSheetFromAsset(assetPath);
+    }
+
     public static void ClearStyleSheets()
     {
         RootPanel.ClearStyleSheets();
+    }
+
+    /// <summary>
+    /// Builds UI panels from markup text.
+    /// </summary>
+    public static Panel LoadMarkup(string markup, object? bindingContext = null, bool clearRoot = true)
+    {
+        return RootPanel.LoadMarkup(markup, bindingContext, clearRoot);
+    }
+
+    /// <summary>
+    /// Builds UI panels from a markup asset path.
+    /// </summary>
+    public static Panel? LoadMarkupFromAsset(string assetPath, object? bindingContext = null, bool clearRoot = true)
+    {
+        return RootPanel.LoadMarkupFromAsset(assetPath, bindingContext, clearRoot);
+    }
+
+    /// <summary>
+    /// Assigns the root binding context used by one-way markup bindings.
+    /// </summary>
+    public static void SetBindingContext(object? context)
+    {
+        RootPanel.SetBindingContext(context);
+    }
+
+    /// <summary>
+    /// Enables or disables CanvasUI asset hot reload polling for loaded
+    /// markup and stylesheet files.
+    /// </summary>
+    public static void EnableHotReload(bool enabled = true)
+    {
+        RootPanel.EnableHotReload(enabled);
     }
 
     /// <summary>
@@ -43,6 +84,7 @@ public static class CanvasUI
     {
         _rootPanel?.ResetInput();
         _rootPanel?.ClearStyleSheets();
+        _rootPanel?.BindingManager.Clear();
         _rootPanel?.DeleteChildren();
     }
 

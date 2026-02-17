@@ -19,6 +19,33 @@ internal class InputManager
         _activePanel = null;
     }
 
+    public void NotifyPanelRemoved(Panel panel)
+    {
+        if (_hoveredPanel != null && IsSameOrDescendant(_hoveredPanel, panel))
+        {
+            _hoveredPanel.PseudoClasses &= ~PseudoClassFlags.Hover;
+            _hoveredPanel = null;
+        }
+
+        if (_activePanel != null && IsSameOrDescendant(_activePanel, panel))
+        {
+            _activePanel.PseudoClasses &= ~PseudoClassFlags.Active;
+            _activePanel = null;
+        }
+
+        if (_focusedPanel != null && IsSameOrDescendant(_focusedPanel, panel))
+        {
+            var blurred = _focusedPanel;
+            blurred.PseudoClasses &= ~PseudoClassFlags.Focus;
+            _focusedPanel = null;
+            blurred.RaiseBlur(new FocusEvent
+            {
+                Target = blurred,
+                RelatedTarget = null
+            });
+        }
+    }
+
     public void ProcessInput(RootPanel root)
     {
         float mx = MousePosition.X;
@@ -113,7 +140,14 @@ internal class InputManager
             var target = _hoveredPanel ?? _focusedPanel;
             while (target != null)
             {
-                target.RaiseMouseWheel(wheelDelta);
+                var wheelEvent = new MouseWheelEvent
+                {
+                    Delta = wheelDelta,
+                    Target = target
+                };
+                target.RaiseMouseWheel(wheelEvent);
+                if (wheelEvent.Handled)
+                    break;
                 target = target.Parent;
             }
         }
@@ -123,28 +157,40 @@ internal class InputManager
         {
             // Key presses (special keys)
             int key = Raylib.GetKeyPressed();
-            while (key != 0)
+            while (key != 0 && _focusedPanel != null)
             {
-                _focusedPanel.RaiseKeyDown(new KeyboardEvent
+                var focused = _focusedPanel;
+                focused.RaiseKeyDown(new KeyboardEvent
                 {
                     Key = (KeyboardKey)key,
-                    Target = _focusedPanel
+                    Target = focused
                 });
                 key = Raylib.GetKeyPressed();
             }
 
             // Character input (text characters)
             int ch = Raylib.GetCharPressed();
-            while (ch != 0)
+            while (ch != 0 && _focusedPanel != null)
             {
-                _focusedPanel.RaiseKeyPress(new KeyboardEvent
+                var focused = _focusedPanel;
+                focused.RaiseKeyPress(new KeyboardEvent
                 {
                     Character = (char)ch,
-                    Target = _focusedPanel
+                    Target = focused
                 });
                 ch = Raylib.GetCharPressed();
             }
         }
+    }
+
+    private static bool IsSameOrDescendant(Panel candidate, Panel ancestor)
+    {
+        for (Panel? current = candidate; current != null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, ancestor))
+                return true;
+        }
+        return false;
     }
 
     private static Panel? HitTest(Panel panel, float x, float y, Box? inheritedClip = null)

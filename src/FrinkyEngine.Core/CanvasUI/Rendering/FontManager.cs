@@ -46,6 +46,7 @@ internal class FontManager
         var font = Raylib.LoadFontEx(fontPath, loadSize, null, 0);
         Raylib.SetTextureFilter(font.Texture, TextureFilter.Bilinear);
         _fonts[name] = font;
+        DrawCommands.ClearMeasureCache();
     }
 
     public Font GetFont(string? name)
@@ -68,6 +69,7 @@ internal class FontManager
             Raylib.UnloadFont(_defaultFont);
         _initialized = false;
         _ownsDefaultFont = false;
+        DrawCommands.ClearMeasureCache();
     }
 
     private static string? FindFont(string relativePath)

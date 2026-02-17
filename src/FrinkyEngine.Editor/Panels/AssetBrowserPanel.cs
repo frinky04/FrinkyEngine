@@ -7,6 +7,7 @@ using FrinkyEngine.Core.Rendering;
 using FrinkyEngine.Core.Scene;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Widgets;
+using NativeFileDialogSharp;
 using Raylib_cs;
 
 namespace FrinkyEngine.Editor.Panels;
@@ -14,6 +15,12 @@ namespace FrinkyEngine.Editor.Panels;
 public class AssetBrowserPanel
 {
     public const string AssetDragPayload = "FRINKY_ASSET_BROWSER";
+    private const string DefaultCanvasTemplate = """
+        <Panel class="root" style="width: 100%; height: 100%; padding: 16px;">
+            <Label text="New Canvas UI" />
+        </Panel>
+        """;
+
     private readonly record struct BrowserItem(
         string Id,
         string Label,
@@ -135,6 +142,13 @@ public class AssetBrowserPanel
             _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
         }
 
+        var hasProjectAssets = !string.IsNullOrWhiteSpace(_app.ProjectDirectory)
+            && !string.IsNullOrWhiteSpace(AssetManager.Instance.AssetsPath);
+        ImGui.BeginDisabled(!hasProjectAssets);
+        if (ImGui.MenuItem("Create Canvas UI (.canvas)"))
+            CreateCanvasAsset();
+        ImGui.EndDisabled();
+
         ImGui.Separator();
 
         bool isGrid = EditorPreferences.Instance.AssetBrowserGridView;
@@ -171,6 +185,66 @@ public class AssetBrowserPanel
             _openTagManager = true;
 
         ImGui.EndPopup();
+    }
+
+    private void CreateCanvasAsset()
+    {
+        var assetsPath = AssetManager.Instance.AssetsPath;
+        if (string.IsNullOrWhiteSpace(assetsPath))
+        {
+            NotificationManager.Instance.Post("Open a project first.", NotificationType.Warning);
+            return;
+        }
+
+        var fullAssetsPath = Path.GetFullPath(assetsPath);
+        var uiDir = Path.Combine(fullAssetsPath, "UI");
+        var defaultPath = Directory.Exists(uiDir) ? uiDir : fullAssetsPath;
+
+        var result = Dialog.FileSave("canvas", defaultPath);
+        if (!result.IsOk)
+            return;
+
+        var fullPath = result.Path;
+        if (!fullPath.EndsWith(".canvas", StringComparison.OrdinalIgnoreCase))
+            fullPath += ".canvas";
+        fullPath = Path.GetFullPath(fullPath);
+
+        var relativePath = Path.GetRelativePath(fullAssetsPath, fullPath).Replace('\\', '/');
+        if (relativePath.StartsWith("..", StringComparison.OrdinalIgnoreCase) || Path.IsPathRooted(relativePath))
+        {
+            NotificationManager.Instance.Post("Canvas files must be created inside the project Assets folder.", NotificationType.Warning);
+            return;
+        }
+
+        if (File.Exists(fullPath))
+        {
+            NotificationManager.Instance.Post("File already exists.", NotificationType.Warning);
+            return;
+        }
+
+        try
+        {
+            var dir = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrWhiteSpace(dir))
+                Directory.CreateDirectory(dir);
+
+            File.WriteAllText(fullPath, DefaultCanvasTemplate);
+
+            AssetDatabase.Instance.Refresh();
+            _app.AssetIcons.OnAssetDatabaseRefreshed(changedRelativePaths: null);
+
+            _selectedAssets.Clear();
+            _selectedAssets.Add(relativePath);
+            _selectionAnchor = relativePath;
+
+            FrinkyLog.Info($"Created Canvas UI file: {relativePath}");
+            NotificationManager.Instance.Post($"Created: {Path.GetFileName(relativePath)}", NotificationType.Success);
+        }
+        catch (Exception ex)
+        {
+            FrinkyLog.Warning($"Failed to create canvas file '{fullPath}': {ex.Message}");
+            NotificationManager.Instance.Post("Failed to create Canvas UI file.", NotificationType.Error);
+        }
     }
 
     private void DrawTagFilterBar()

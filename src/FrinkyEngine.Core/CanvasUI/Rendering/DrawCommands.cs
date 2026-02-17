@@ -5,6 +5,9 @@ namespace FrinkyEngine.Core.CanvasUI.Rendering;
 
 internal static class DrawCommands
 {
+    private const int MaxMeasureCacheEntries = 4096;
+    private static readonly Dictionary<MeasureTextCacheKey, Vector2> MeasureCache = new();
+
     public static void RoundedRect(float x, float y, float w, float h, float radius, Color color)
     {
         if (color.A == 0 || w <= 0 || h <= 0) return;
@@ -48,6 +51,27 @@ internal static class DrawCommands
     public static Vector2 MeasureText(string text, float fontSize, Font font)
     {
         if (string.IsNullOrEmpty(text)) return Vector2.Zero;
-        return Raylib.MeasureTextEx(font, text, fontSize, 1f);
+
+        int quantizedSize = (int)MathF.Round(fontSize * 1000f);
+        var key = new MeasureTextCacheKey(font.Texture.Id, font.BaseSize, quantizedSize, text);
+        if (MeasureCache.TryGetValue(key, out var size))
+            return size;
+
+        size = Raylib.MeasureTextEx(font, text, fontSize, 1f);
+        if (MeasureCache.Count >= MaxMeasureCacheEntries)
+            MeasureCache.Clear();
+        MeasureCache[key] = size;
+        return size;
     }
+
+    public static void ClearMeasureCache()
+    {
+        MeasureCache.Clear();
+    }
+
+    private readonly record struct MeasureTextCacheKey(
+        uint FontTextureId,
+        int FontBaseSize,
+        int QuantizedFontSize,
+        string Text);
 }

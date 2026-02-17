@@ -1,4 +1,5 @@
 using Facebook.Yoga;
+using FrinkyEngine.Core.CanvasUI.Events;
 using FrinkyEngine.Core.CanvasUI.Rendering;
 using FrinkyEngine.Core.CanvasUI.Styles;
 using Raylib_cs;
@@ -38,11 +39,8 @@ public class Checkbox : Panel
     public override void OnCreated()
     {
         AcceptsFocus = true;
-        OnClick += _ =>
-        {
-            Checked = !Checked;
-            OnChanged?.Invoke(Checked);
-        };
+        OnClick += _ => Toggle();
+        OnKeyDown += HandleKeyDown;
         UpdateMeasureFunction();
     }
 
@@ -87,7 +85,12 @@ public class Checkbox : Panel
         {
             float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
             float gap = fontSize * 0.4f;
-            float textWidth = string.IsNullOrEmpty(_text) ? 0 : _text.Length * fontSize * 0.6f;
+            float textWidth = 0f;
+            if (!string.IsNullOrEmpty(_text))
+            {
+                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                textWidth = DrawCommands.MeasureText(_text, fontSize, font).X;
+            }
             float totalWidth = fontSize + (textWidth > 0 ? gap + textWidth : 0);
             float totalHeight = fontSize;
 
@@ -101,5 +104,21 @@ public class Checkbox : Panel
 
             return MeasureOutput.Make(w, h);
         });
+        InvalidateLayout();
+    }
+
+    private void HandleKeyDown(KeyboardEvent e)
+    {
+        if (e.Key is not (KeyboardKey.Enter or KeyboardKey.Space))
+            return;
+
+        Toggle();
+        e.Handled = true;
+    }
+
+    private void Toggle()
+    {
+        Checked = !Checked;
+        OnChanged?.Invoke(Checked);
     }
 }

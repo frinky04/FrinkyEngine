@@ -50,5 +50,6 @@ public class Image : Panel
 
             return MeasureOutput.Make(w, h);
         });
+        InvalidateLayout();
     }
 }

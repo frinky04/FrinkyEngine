@@ -18,7 +18,7 @@ internal class CanvasRenderer
         Current = this;
         try
         {
-            RenderPanel(root, screenWidth, screenHeight);
+            RenderPanel(root, screenWidth, screenHeight, 255);
         }
         finally
         {
@@ -29,16 +29,19 @@ internal class CanvasRenderer
         Rlgl.DrawRenderBatchActive();
     }
 
-    private void RenderPanel(Panel panel, int screenWidth, int screenHeight)
+    private void RenderPanel(Panel panel, int screenWidth, int screenHeight, byte inheritedAlpha)
     {
         if (panel.ComputedStyle.Display == Display.None) return;
+        if (inheritedAlpha == 0) return;
 
         var box = panel.Box;
         var style = panel.ComputedStyle;
-        float opacity = style.Opacity;
+        float opacity = Math.Clamp(style.Opacity, 0f, 1f);
         if (opacity <= 0) return;
 
-        byte alpha = (byte)(opacity * 255);
+        byte localAlpha = (byte)(opacity * 255);
+        byte alpha = (byte)((inheritedAlpha * localAlpha) / 255);
+        if (alpha == 0) return;
 
         // Background + Border
         float bw = style.BorderWidth;
@@ -76,7 +79,7 @@ internal class CanvasRenderer
 
         // Recurse children
         foreach (var child in panel.Children)
-            RenderPanel(child, screenWidth, screenHeight);
+            RenderPanel(child, screenWidth, screenHeight, alpha);
 
         if (clip)
             _scissorStack.Pop(screenHeight);

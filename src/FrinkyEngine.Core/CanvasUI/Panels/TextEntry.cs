@@ -317,8 +317,15 @@ public class TextEntry : Panel
         {
             float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
             string measureText = !string.IsNullOrEmpty(_text) ? _text : Placeholder;
-            float textWidth = string.IsNullOrEmpty(measureText) ? fontSize * 5 : measureText.Length * fontSize * 0.6f;
+            float textWidth = fontSize * 5;
             float textHeight = fontSize;
+            if (!string.IsNullOrEmpty(measureText))
+            {
+                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                var textSize = DrawCommands.MeasureText(measureText, fontSize, font);
+                textWidth = textSize.X;
+                textHeight = textSize.Y > 0 ? textSize.Y : fontSize;
+            }
 
             float w = widthMode == YogaMeasureMode.Exactly ? width
                     : widthMode == YogaMeasureMode.AtMost ? MathF.Min(textWidth, width)
@@ -330,5 +337,6 @@ public class TextEntry : Panel
 
             return MeasureOutput.Make(w, h);
         });
+        InvalidateLayout();
     }
 }

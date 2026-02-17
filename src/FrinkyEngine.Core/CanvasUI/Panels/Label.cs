@@ -59,10 +59,11 @@ public class Label : Panel
                 return MeasureOutput.Make(0, 0);
 
             float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
+            var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+            var textSize = DrawCommands.MeasureText(_text, fontSize, font);
 
-            // Approximate text measurement: ~0.6 * fontSize per character width, fontSize for height
-            float textWidth = _text.Length * fontSize * 0.6f;
-            float textHeight = fontSize;
+            float textWidth = textSize.X;
+            float textHeight = textSize.Y > 0 ? textSize.Y : fontSize;
 
             float w = widthMode == YogaMeasureMode.Exactly ? width
                     : widthMode == YogaMeasureMode.AtMost ? MathF.Min(textWidth, width)
@@ -74,5 +75,6 @@ public class Label : Panel
 
             return MeasureOutput.Make(w, h);
         });
+        InvalidateLayout();
     }
 }

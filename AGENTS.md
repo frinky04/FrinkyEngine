@@ -70,6 +70,10 @@ When adding a new system or feature, evaluate whether it benefits from console c
 - **CanvasUI panel lifecycle** — `Panel.AddChild(Panel child)` must invoke `OnCreated()` for first-time attachments; reparenting existing initialized panels should not re-run creation hooks
 - **CanvasUI hit testing + overflow clip** — hit testing must respect ancestor `overflow: hidden` clipping so visually clipped/scrolled-out children are not interactive
 - **CanvasUI font fallback ownership** — if `FontManager` falls back to `Raylib.GetFontDefault()`, treat it as engine-owned and never unload it
+- **CanvasUI wheel bubbling** — `OnMouseWheel` now uses `MouseWheelEvent` (`Delta`, `Handled`); set `Handled = true` only when scroll was actually consumed, otherwise allow ancestor scroll containers to receive the wheel event
+- **CanvasUI markup bindings** — `.canvas` supports one-way `{Property}` bindings only (context -> UI) and event handlers resolved by method name on the active `BindingContext`; two-way binding is not implemented
+- **CanvasUI `context` attribute** — only binding syntax is supported (`context="{ChildVm}"`); static string context values are ignored with a warning
+- **Asset typing for CanvasUI files** — `.canvas` files are currently indexed as `AssetType.Script` so they remain visible when "Hide Unrecognised Assets" is enabled and open in the existing script flow
 
 ## Current Workarounds
 

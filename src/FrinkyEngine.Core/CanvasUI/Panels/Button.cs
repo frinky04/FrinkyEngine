@@ -1,6 +1,9 @@
+using System.Numerics;
 using Facebook.Yoga;
+using FrinkyEngine.Core.CanvasUI.Events;
 using FrinkyEngine.Core.CanvasUI.Rendering;
 using FrinkyEngine.Core.CanvasUI.Styles;
+using Raylib_cs;
 
 namespace FrinkyEngine.Core.CanvasUI.Panels;
 
@@ -22,6 +25,7 @@ public class Button : Panel
     {
         AcceptsFocus = true;
         Style.TextAlign = Styles.TextAlign.Center;
+        OnKeyDown += HandleKeyDown;
         UpdateMeasureFunction();
     }
 
@@ -62,8 +66,15 @@ public class Button : Panel
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {
             float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
-            float textWidth = string.IsNullOrEmpty(_text) ? 0 : _text.Length * fontSize * 0.6f;
+            float textWidth = 0f;
             float textHeight = fontSize;
+            if (!string.IsNullOrEmpty(_text))
+            {
+                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                var textSize = DrawCommands.MeasureText(_text, fontSize, font);
+                textWidth = textSize.X;
+                textHeight = textSize.Y > 0 ? textSize.Y : fontSize;
+            }
 
             // Only report content size — Yoga adds padding separately via the style
             float w = widthMode == YogaMeasureMode.Exactly ? width
@@ -76,5 +87,21 @@ public class Button : Panel
 
             return MeasureOutput.Make(w, h);
         });
+        InvalidateLayout();
+    }
+
+    private void HandleKeyDown(KeyboardEvent e)
+    {
+        if (e.Key is not (KeyboardKey.Enter or KeyboardKey.Space))
+            return;
+
+        RaiseClick(new MouseEvent
+        {
+            ScreenPos = new Vector2(Box.X, Box.Y),
+            LocalPos = Vector2.Zero,
+            Button = MouseButton.Left,
+            Target = this
+        });
+        e.Handled = true;
     }
 }

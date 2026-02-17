@@ -18,14 +18,18 @@ public class ScrollPanel : Panel
     {
         Style.Overflow = Overflow.Hidden;
 
-        OnMouseWheel += delta =>
+        OnMouseWheel += e =>
         {
             float contentHeight = GetContentHeight();
             float viewHeight = Box.Height;
             float maxScroll = MathF.Max(0, contentHeight - viewHeight);
+            if (maxScroll <= 0f) return;
 
-            ScrollOffsetY -= delta.Y * _scrollSpeed;
-            ScrollOffsetY = Math.Clamp(ScrollOffsetY, 0f, maxScroll);
+            float nextOffset = Math.Clamp(ScrollOffsetY - e.Delta.Y * _scrollSpeed, 0f, maxScroll);
+            if (MathF.Abs(nextOffset - ScrollOffsetY) <= 0.001f) return;
+
+            ScrollOffsetY = nextOffset;
+            e.Handled = true;
         };
     }
 
