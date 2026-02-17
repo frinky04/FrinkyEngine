@@ -40,15 +40,31 @@ internal class CanvasRenderer
 
         byte alpha = (byte)(opacity * 255);
 
-        // Background
-        if (style.BackgroundColor.A > 0)
+        // Background + Border
+        float bw = style.BorderWidth;
+        bool hasBorder = bw > 0 && style.BorderColor.A > 0;
+        bool hasBg = style.BackgroundColor.A > 0;
+
+        if (hasBorder && hasBg)
+        {
+            // Draw border as filled rounded rect, then background inset — avoids aliased line drawing
+            DrawCommands.RoundedRect(box.X, box.Y, box.Width, box.Height, style.BorderRadius,
+                AlphaBlend(style.BorderColor, alpha));
+            float innerRadius = MathF.Max(0, style.BorderRadius - bw);
+            DrawCommands.RoundedRect(box.X + bw, box.Y + bw, box.Width - bw * 2, box.Height - bw * 2, innerRadius,
+                AlphaBlend(style.BackgroundColor, alpha));
+        }
+        else if (hasBg)
+        {
             DrawCommands.RoundedRect(box.X, box.Y, box.Width, box.Height, style.BorderRadius,
                 AlphaBlend(style.BackgroundColor, alpha));
-
-        // Border
-        if (style.BorderWidth > 0 && style.BorderColor.A > 0)
+        }
+        else if (hasBorder)
+        {
+            // No background — fall back to line-based border
             DrawCommands.RectBorder(box.X, box.Y, box.Width, box.Height, style.BorderRadius,
-                style.BorderWidth, AlphaBlend(style.BorderColor, alpha));
+                bw, AlphaBlend(style.BorderColor, alpha));
+        }
 
         // Content rendering (virtual method on Panel subclasses)
         panel.RenderContent(box, style, alpha);

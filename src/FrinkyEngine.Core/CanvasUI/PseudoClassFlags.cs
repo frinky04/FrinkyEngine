@@ -10,4 +10,5 @@ public enum PseudoClassFlags
     Disabled = 1 << 3,
     Intro = 1 << 4,
     Outro = 1 << 5,
+    Checked = 1 << 6,
 }

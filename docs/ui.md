@@ -83,8 +83,11 @@ public class HudComponent : Component
 | `OnMouseOut` | Mouse left panel bounds |
 | `OnMouseDown` | Mouse button pressed on panel |
 | `OnMouseUp` | Mouse button released on panel |
+| `OnMouseWheel` | Mouse wheel scrolled over this panel (bubbles up to ancestors) |
 | `OnFocus` | Panel received keyboard focus |
 | `OnBlur` | Panel lost keyboard focus |
+| `OnKeyDown` | Key pressed while panel has focus (receives `KeyboardEvent` with `Key`) |
+| `OnKeyPress` | Text character typed while panel has focus (receives `KeyboardEvent` with `Character`) |
 
 #### Classes
 
@@ -105,10 +108,177 @@ Set `AcceptsFocus = true` in `OnCreated()` if your panel needs keyboard focus.
 
 ### Built-in Panels
 
-| Panel | Description |
+#### Label
+
+Displays text. Set the `Text` property.
+
+```csharp
+var label = parent.AddChild<Label>(l => l.Text = "Score: 0");
+label.Text = "Score: 100"; // update later
+```
+
+#### Button
+
+Clickable panel with centered text. Accepts focus by default.
+
+```csharp
+var btn = parent.AddChild<Button>(b => b.Text = "Start Game");
+btn.OnClick += _ => StartGame();
+```
+
+#### ProgressBar
+
+Horizontal bar showing a 0–1 value. Draws a track and a fill — no children needed.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Value` | `0` | Fill amount, clamped 0–1 |
+| `TrackColor` | dark gray | Background track color (nullable — set `null` to use default) |
+| `FillColor` | green | Fill color (nullable) |
+
+```csharp
+var hp = parent.AddChild<ProgressBar>(p =>
+{
+    p.AddClass("health-bar");
+    p.Value = 0.75f;
+    p.FillColor = new Color(74, 222, 128, 255);
+});
+
+// Update each frame
+hp.Value = currentHealth / maxHealth;
+```
+
+Style the size with CSS or inline:
+
+```css
+ProgressBar.health-bar { width: 200px; height: 8px; border-radius: 4px; }
+```
+
+#### Checkbox
+
+Toggle with an optional text label. Accepts focus by default. Toggles the `:checked` pseudo-class.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Checked` | `false` | Current toggle state |
+| `Text` | `""` | Label text displayed next to the checkbox |
+
+| Event | Description |
 |-------|-------------|
-| `Label` | Displays text. Set the `Text` property. |
-| `Button` | Clickable panel with centered text. Set `Text` and subscribe to `OnClick`. Comes with default styling (dark background, rounded corners, padding). |
+| `OnChanged` | Fires with the new `bool` state when toggled |
+
+```csharp
+var mute = parent.AddChild<Checkbox>(c =>
+{
+    c.Text = "Mute Audio";
+    c.Checked = false;
+});
+mute.OnChanged += isMuted => AudioManager.SetMuted(isMuted);
+```
+
+Style the checked state with CSS:
+
+```css
+Checkbox { color: #aaa; font-size: 16px; }
+Checkbox:checked { color: #4ade80; }
+```
+
+#### Slider
+
+Horizontal range slider with drag and keyboard arrow support. Accepts focus by default.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Value` | `0` | Normalized position, clamped 0–1 |
+| `Min` | `0` | Minimum of the mapped range |
+| `Max` | `1` | Maximum of the mapped range |
+| `Step` | `0.05` | Increment for keyboard arrows |
+| `MappedValue` | (read-only) | `Min + Value * (Max - Min)` |
+
+| Event | Description |
+|-------|-------------|
+| `OnChanged` | Fires with the mapped value on drag or keyboard change |
+
+```csharp
+var volume = parent.AddChild<Slider>(s =>
+{
+    s.Min = 0f;
+    s.Max = 100f;
+    s.Value = 0.8f; // 80%
+});
+volume.OnChanged += v => AudioManager.SetVolume(v);
+```
+
+Drag the thumb or use Left/Right arrow keys when focused.
+
+#### TextEntry
+
+Single-line text input with cursor, selection, clipboard, and placeholder support. Accepts focus by default.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Text` | `""` | Current text content |
+| `Placeholder` | `""` | Gray hint text shown when empty |
+| `MaxLength` | `null` | Optional character limit |
+| `CursorPos` | `0` | Current cursor position |
+
+| Event | Description |
+|-------|-------------|
+| `OnTextChanged` | Fires with the new text on every edit |
+| `OnSubmit` | Fires with the text when Enter is pressed |
+
+```csharp
+var nameField = parent.AddChild<TextEntry>(t =>
+{
+    t.Placeholder = "Enter player name...";
+    t.MaxLength = 20;
+});
+nameField.OnSubmit += name => SetPlayerName(name);
+```
+
+Keyboard support: typing, Backspace, Delete, Home, End, arrow keys (with Shift for selection), Ctrl+A/C/V/X for clipboard, Enter to submit.
+
+#### ScrollPanel
+
+Scrollable container. Children that extend beyond the panel's height are clipped and can be scrolled into view with the mouse wheel. A subtle scrollbar indicator appears when content overflows.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `ScrollOffsetY` | `0` | Current vertical scroll position in pixels |
+| `ScrollSpeed` | `30` | Pixels scrolled per mouse wheel tick |
+
+```csharp
+var scroll = parent.AddChild<ScrollPanel>(s =>
+{
+    s.Style.Height = 300;
+});
+
+// Add more content than fits
+for (int i = 0; i < 20; i++)
+    scroll.AddChild<Label>(l => l.Text = $"Item {i}");
+```
+
+`ScrollPanel` automatically sets `Overflow = Hidden` and clamps the scroll offset to the content bounds.
+
+#### Image
+
+Displays a Raylib `Texture2D`. Reports texture dimensions as intrinsic size for layout.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `Texture` | `null` | The texture to display |
+| `Tint` | white | Color tint applied to the texture |
+
+```csharp
+var icon = parent.AddChild<Image>(img =>
+{
+    img.Texture = myTexture;
+    img.Style.Width = 64;
+    img.Style.Height = 64;
+});
+```
+
+If no explicit size is set, the panel sizes itself to the texture dimensions.
 
 ### Styling
 
@@ -187,7 +357,7 @@ Inline `panel.Style` properties always win over CSS rules — use CSS for defaul
 |----------|---------|---------|
 | Type | `Label` | All `Label` panels |
 | Class | `.hud` | Panels with `AddClass("hud")` |
-| Pseudo-class | `:hover`, `:active`, `:focus`, `:disabled` | Panels in that interaction state |
+| Pseudo-class | `:hover`, `:active`, `:focus`, `:disabled`, `:checked` | Panels in that interaction state |
 | Universal | `*` | All panels |
 | Descendant | `.hud Label` | Labels anywhere inside a `.hud` panel |
 | Child | `.hud > Label` | Labels that are direct children of `.hud` |

@@ -94,6 +94,7 @@ internal static class CssSelectorMatcher
             "active" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Active),
             "focus" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Focus),
             "disabled" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Disabled),
+            "checked" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Checked),
             _ => false,
         };
     }

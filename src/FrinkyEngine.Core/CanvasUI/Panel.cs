@@ -1,3 +1,4 @@
+using System.Numerics;
 using Facebook.Yoga;
 using FrinkyEngine.Core.CanvasUI.Events;
 using FrinkyEngine.Core.CanvasUI.Styles;
@@ -30,8 +31,12 @@ public class Panel
     public event Action<MouseEvent>? OnMouseUp;
     public event Action<FocusEvent>? OnFocus;
     public event Action<FocusEvent>? OnBlur;
+    public event Action<KeyboardEvent>? OnKeyDown;
+    public event Action<KeyboardEvent>? OnKeyPress;
+    public event Action<Vector2>? OnMouseWheel;
 
     public bool AcceptsFocus { get; set; }
+    public float ScrollOffsetY { get; set; }
 
     public T AddChild<T>(Action<T>? configure = null) where T : Panel, new()
     {
@@ -114,4 +119,7 @@ public class Panel
     internal void RaiseMouseUp(MouseEvent e) => OnMouseUp?.Invoke(e);
     internal void RaiseFocus(FocusEvent e) => OnFocus?.Invoke(e);
     internal void RaiseBlur(FocusEvent e) => OnBlur?.Invoke(e);
+    internal void RaiseKeyDown(KeyboardEvent e) => OnKeyDown?.Invoke(e);
+    internal void RaiseKeyPress(KeyboardEvent e) => OnKeyPress?.Invoke(e);
+    internal void RaiseMouseWheel(Vector2 delta) => OnMouseWheel?.Invoke(delta);
 }

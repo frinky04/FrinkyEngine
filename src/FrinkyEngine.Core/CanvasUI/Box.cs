@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace FrinkyEngine.Core.CanvasUI;
 
 public struct Box
@@ -19,8 +17,6 @@ public struct Box
 
     public readonly float Right => X + Width;
     public readonly float Bottom => Y + Height;
-    public readonly Vector2 Position => new(X, Y);
-    public readonly Vector2 Size => new(Width, Height);
 
     public readonly bool Contains(float px, float py)
         => px >= X && px <= Right && py >= Y && py <= Bottom;

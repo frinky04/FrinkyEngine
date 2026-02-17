@@ -1,5 +1,3 @@
-using FrinkyEngine.Core.CanvasUI.Styles;
-
 namespace FrinkyEngine.Core.CanvasUI.Panels;
 
 /// <summary>
@@ -10,14 +8,17 @@ namespace FrinkyEngine.Core.CanvasUI.Panels;
 public class ExampleHudPanel : Panel
 {
     private Label _healthLabel = null!;
-    private Panel _healthBarFill = null!;
+    private ProgressBar _healthBar = null!;
     private Label _scoreLabel = null!;
     private Label _ammoLabel = null!;
     private Label _messageLabel = null!;
+    private Label _dmgLabel = null!;
     private int _score;
     private float _health = 100f;
     private int _ammo = 30;
     private float _messageTimer;
+    private bool _godMode;
+    private float _dmgMultiplier = 1f;
 
     private const string Stylesheet = @"
         /* ── Root ── */
@@ -53,18 +54,9 @@ public class ExampleHudPanel : Panel
         }
 
         /* Health bar */
-        .health-bar-track {
+        ProgressBar.health-bar {
             width: 180px;
             height: 6px;
-            background-color: rgba(255, 255, 255, 0.08);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .health-bar-fill {
-            height: 100%;
-            width: 100%;
-            background-color: #4ade80;
             border-radius: 3px;
         }
 
@@ -73,8 +65,43 @@ public class ExampleHudPanel : Panel
         .score-value { color: #fbbf24; }
 
         /* Ammo card accent */
-        .ammo-card { border-color: #38bdf8; }
+        .ammo-card { border-color: #38bff8a1; }
         .ammo-value { color: #7dd3fc; }
+
+        /* ── Controls row ── */
+        .controls-row {
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            padding: 8px 0 8px 16px;
+        }
+
+        Checkbox.god-mode {
+            color: #9999bb;
+            font-size: 16px;
+        }
+        Checkbox.god-mode:checked {
+            color: #4ade80;
+        }
+
+        .slider-group {
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+        }
+        .slider-group Label {
+            font-size: 16px;
+            color: #9999bb;
+        }
+        Slider.dmg-slider {
+            width: 120px;
+            height: 20px;
+            color: #f87171;
+        }
+        .dmg-value {
+            color: #fecaca;
+            font-size: 16px;
+        }
 
         /* ── Spacer ── */
         .spacer { flex-grow: 1; }
@@ -161,8 +188,11 @@ public class ExampleHudPanel : Panel
             l.Text = "100";
             l.AddClass("stat-value");
         });
-        var healthTrack = healthCard.AddChild<Panel>(p => p.AddClass("health-bar-track"));
-        _healthBarFill = healthTrack.AddChild<Panel>(p => p.AddClass("health-bar-fill"));
+        _healthBar = healthCard.AddChild<ProgressBar>(p =>
+        {
+            p.AddClass("health-bar");
+            p.Value = 1f;
+        });
 
         // Score card
         var scoreCard = topBar.AddChild<Panel>(p =>
@@ -191,6 +221,37 @@ public class ExampleHudPanel : Panel
             l.AddClass("stat-value");
             l.AddClass("ammo-value");
         });
+
+        // ── Controls row: checkbox + slider ──
+        var controlsRow = AddChild<Panel>(p => p.AddClass("controls-row"));
+
+        var godMode = controlsRow.AddChild<Checkbox>(c =>
+        {
+            c.Text = "God Mode";
+            c.AddClass("god-mode");
+        });
+        godMode.OnChanged += on => _godMode = on;
+
+        var sliderGroup = controlsRow.AddChild<Panel>(p => p.AddClass("slider-group"));
+        sliderGroup.AddChild<Label>(l => l.Text = "Damage");
+        var dmgSlider = sliderGroup.AddChild<Slider>(s =>
+        {
+            s.AddClass("dmg-slider");
+            s.Min = 0.5f;
+            s.Max = 3f;
+            s.Value = 0.2f; // maps to 1x
+            s.Step = 0.1f;
+        });
+        _dmgLabel = sliderGroup.AddChild<Label>(l =>
+        {
+            l.Text = "1.0x";
+            l.AddClass("dmg-value");
+        });
+        dmgSlider.OnChanged += v =>
+        {
+            _dmgMultiplier = v;
+            _dmgLabel.Text = $"{v:F1}x";
+        };
 
         // ── Spacer ──
         AddChild<Panel>(p => p.AddClass("spacer"));
@@ -233,10 +294,12 @@ public class ExampleHudPanel : Panel
         });
         dmgBtn.OnClick += _ =>
         {
-            _health = MathF.Max(0f, _health - 15f);
+            float dmg = 15f * _dmgMultiplier;
+            if (!_godMode)
+                _health = MathF.Max(0f, _health - dmg);
             _ammo = Math.Max(0, _ammo - 3);
             _score += 10;
-            ShowMessage("-15 HP  +10 Score");
+            ShowMessage(_godMode ? "Blocked! +10 Score" : $"-{(int)dmg} HP  +10 Score");
         };
     }
 
@@ -246,11 +309,9 @@ public class ExampleHudPanel : Panel
         _scoreLabel.Text = $"{_score}";
         _ammoLabel.Text = $"{_ammo}";
 
-        // Animate health bar width
-        _healthBarFill.Style.Width = Length.Pct(_health);
-
-        // Color the fill based on health (inline override for dynamic value)
-        _healthBarFill.Style.BackgroundColor = _health > 50
+        // Animate health bar
+        _healthBar.Value = _health / 100f;
+        _healthBar.FillColor = _health > 50
             ? new Raylib_cs.Color(74, 222, 128, 255)   // green
             : _health > 25
                 ? new Raylib_cs.Color(250, 204, 21, 255) // yellow

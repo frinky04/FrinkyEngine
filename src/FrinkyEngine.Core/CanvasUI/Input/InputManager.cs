@@ -10,18 +10,20 @@ internal class InputManager
     private Panel? _focusedPanel;
     private Panel? _activePanel;
 
-    public Panel? HoveredPanel => _hoveredPanel;
-    public Panel? FocusedPanel => _focusedPanel;
+    public Vector2 MousePosition { get; internal set; }
 
-    public bool WantsMouse => _hoveredPanel != null;
-    public bool WantsKeyboard => _focusedPanel != null;
-
-    public void ProcessInput(RootPanel root, Vector2? mouseOverride = null)
+    public void Reset()
     {
-        var rawPos = mouseOverride ?? new Vector2(Raylib.GetMouseX(), Raylib.GetMouseY());
-        float mx = rawPos.X;
-        float my = rawPos.Y;
-        var mousePos = rawPos;
+        _hoveredPanel = null;
+        _focusedPanel = null;
+        _activePanel = null;
+    }
+
+    public void ProcessInput(RootPanel root)
+    {
+        float mx = MousePosition.X;
+        float my = MousePosition.Y;
+        var mousePos = MousePosition;
 
         // Hit test
         var hit = HitTest(root, mx, my);
@@ -101,6 +103,46 @@ internal class InputManager
                 }
 
                 _activePanel = null;
+            }
+        }
+
+        // Mouse wheel — bubble up ancestors until handled
+        var wheelDelta = Raylib.GetMouseWheelMoveV();
+        if (wheelDelta.X != 0 || wheelDelta.Y != 0)
+        {
+            var target = _hoveredPanel ?? _focusedPanel;
+            while (target != null)
+            {
+                target.RaiseMouseWheel(wheelDelta);
+                target = target.Parent;
+            }
+        }
+
+        // Keyboard input — dispatch to focused panel
+        if (_focusedPanel != null)
+        {
+            // Key presses (special keys)
+            int key = Raylib.GetKeyPressed();
+            while (key != 0)
+            {
+                _focusedPanel.RaiseKeyDown(new KeyboardEvent
+                {
+                    Key = (KeyboardKey)key,
+                    Target = _focusedPanel
+                });
+                key = Raylib.GetKeyPressed();
+            }
+
+            // Character input (text characters)
+            int ch = Raylib.GetCharPressed();
+            while (ch != 0)
+            {
+                _focusedPanel.RaiseKeyPress(new KeyboardEvent
+                {
+                    Character = (char)ch,
+                    Target = _focusedPanel
+                });
+                ch = Raylib.GetCharPressed();
             }
         }
     }

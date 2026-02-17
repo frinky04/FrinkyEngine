@@ -26,8 +26,13 @@ public class RootPanel : Panel
         _styleRules.Clear();
     }
 
+    public Vector2 MousePosition => InputManager.MousePosition;
+
     public void Update(float dt, int screenWidth, int screenHeight, Vector2? mouseOverride = null)
     {
+        // 0. Store mouse position early so Tick can use it (e.g. Slider drag)
+        InputManager.MousePosition = mouseOverride ?? new Vector2(Raylib_cs.Raylib.GetMouseX(), Raylib_cs.Raylib.GetMouseY());
+
         // 1. Tick all panels
         TickRecursive(this, dt);
 
@@ -41,7 +46,7 @@ public class RootPanel : Panel
         ReadLayoutRecursive(this, 0, 0);
 
         // 5. Process input (must run after layout so hit testing uses current-frame boxes)
-        InputManager.ProcessInput(this, mouseOverride);
+        InputManager.ProcessInput(this);
 
         // 6. Render
         Renderer.Render(this, screenWidth, screenHeight);
@@ -61,16 +66,16 @@ public class RootPanel : Panel
             ResolveStylesRecursive(child);
     }
 
-    private static void ReadLayoutRecursive(Panel panel, float parentX, float parentY)
+    private static void ReadLayoutRecursive(Panel panel, float parentX, float parentY, float parentScrollY = 0)
     {
         float x = parentX + panel.YogaNode.LayoutX;
-        float y = parentY + panel.YogaNode.LayoutY;
+        float y = parentY + panel.YogaNode.LayoutY - parentScrollY;
         float w = panel.YogaNode.LayoutWidth;
         float h = panel.YogaNode.LayoutHeight;
         panel.Box = new Box(x, y, w, h);
 
         foreach (var child in panel.Children)
-            ReadLayoutRecursive(child, x, y);
+            ReadLayoutRecursive(child, x, y, panel.ScrollOffsetY);
     }
 
     public void ResetInput()
