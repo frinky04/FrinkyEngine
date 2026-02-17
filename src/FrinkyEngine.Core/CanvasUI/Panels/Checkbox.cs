@@ -90,7 +90,9 @@ public class Checkbox : Panel
             float textWidth = 0f;
             if (!string.IsNullOrEmpty(_text))
             {
-                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                var root = GetRootPanel();
+                if (root == null) return MeasureOutput.Make(fontSize, fontSize);
+                var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
                 textWidth = DrawCommands.MeasureText(_text, fontSize, font).X;
             }
             float totalWidth = fontSize + (textWidth > 0 ? gap + textWidth : 0);

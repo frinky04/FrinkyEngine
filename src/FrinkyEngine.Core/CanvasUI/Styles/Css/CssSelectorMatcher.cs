@@ -88,14 +88,16 @@ internal static class CssSelectorMatcher
 
     private static bool MatchesPseudoClass(Panel panel, string pseudo)
     {
-        return pseudo.ToLowerInvariant() switch
-        {
-            "hover" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Hover),
-            "active" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Active),
-            "focus" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Focus),
-            "disabled" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Disabled),
-            "checked" => panel.PseudoClasses.HasFlag(PseudoClassFlags.Checked),
-            _ => false,
-        };
+        if (string.Equals(pseudo, "hover", StringComparison.OrdinalIgnoreCase))
+            return panel.PseudoClasses.HasFlag(PseudoClassFlags.Hover);
+        if (string.Equals(pseudo, "active", StringComparison.OrdinalIgnoreCase))
+            return panel.PseudoClasses.HasFlag(PseudoClassFlags.Active);
+        if (string.Equals(pseudo, "focus", StringComparison.OrdinalIgnoreCase))
+            return panel.PseudoClasses.HasFlag(PseudoClassFlags.Focus);
+        if (string.Equals(pseudo, "disabled", StringComparison.OrdinalIgnoreCase))
+            return panel.PseudoClasses.HasFlag(PseudoClassFlags.Disabled);
+        if (string.Equals(pseudo, "checked", StringComparison.OrdinalIgnoreCase))
+            return panel.PseudoClasses.HasFlag(PseudoClassFlags.Checked);
+        return false;
     }
 }

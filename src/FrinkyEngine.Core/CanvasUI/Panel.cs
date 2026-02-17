@@ -13,7 +13,7 @@ public class Panel
     private bool _hasLocalBindingContext;
 
     public int Id { get; } = Interlocked.Increment(ref _nextId);
-    public List<string> Classes { get; } = new();
+    public IReadOnlyCollection<string> Classes { get; } = new HashSet<string>(StringComparer.Ordinal);
 
     public Panel? Parent { get; internal set; }
     public IReadOnlyList<Panel> Children => _children;
@@ -122,30 +122,26 @@ public class Panel
         child._isCreated = true;
     }
 
-    public bool HasClass(string className) => Classes.Contains(className);
+    public bool HasClass(string className) => ((HashSet<string>)Classes).Contains(className);
 
     public void AddClass(string className)
     {
-        if (!Classes.Contains(className))
-        {
-            Classes.Add(className);
-            GetRootPanel()?.MarkLayoutDirty();
-        }
+        if (((HashSet<string>)Classes).Add(className))
+            GetRootPanel()?.MarkStylesDirty();
     }
 
     public void RemoveClass(string className)
     {
-        if (Classes.Remove(className))
-            GetRootPanel()?.MarkLayoutDirty();
+        if (((HashSet<string>)Classes).Remove(className))
+            GetRootPanel()?.MarkStylesDirty();
     }
 
     public void ToggleClass(string className)
     {
-        if (Classes.Contains(className))
-            Classes.Remove(className);
-        else
-            Classes.Add(className);
-        GetRootPanel()?.MarkLayoutDirty();
+        var set = (HashSet<string>)Classes;
+        if (!set.Remove(className))
+            set.Add(className);
+        GetRootPanel()?.MarkStylesDirty();
     }
 
     /// <summary>
@@ -182,7 +178,7 @@ public class Panel
         root?.BindingManager.RemoveBindingsForSubtree(removedPanel);
     }
 
-    private RootPanel? GetRootPanel()
+    protected internal RootPanel? GetRootPanel()
     {
         Panel current = this;
         while (current.Parent != null)

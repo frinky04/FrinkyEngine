@@ -75,7 +75,7 @@ public class Slider : Panel
         {
             if (Raylib.IsMouseButtonDown(MouseButton.Left))
             {
-                UpdateValueFromMouse(CanvasUI.RootPanel.MousePosition.X);
+                UpdateValueFromMouse(GetRootPanel()?.MousePosition.X ?? 0f);
             }
             else
             {

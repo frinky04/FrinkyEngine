@@ -60,7 +60,9 @@ public class Label : Panel
                 return MeasureOutput.Make(0, 0);
 
             float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
-            var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+            var root = GetRootPanel();
+            if (root == null) return MeasureOutput.Make(0, 0);
+            var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
             var textSize = DrawCommands.MeasureText(_text, fontSize, font);
 
             float textWidth = textSize.X;

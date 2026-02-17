@@ -244,7 +244,7 @@ public class TextEntry : Panel
         ResetBlink();
         _selectionStart = -1;
 
-        var renderer = CanvasRenderer.Current;
+        var renderer = GetRootPanel()?.Renderer;
         if (renderer == null) return;
 
         float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
@@ -333,7 +333,9 @@ public class TextEntry : Panel
             float textHeight = fontSize;
             if (!string.IsNullOrEmpty(measureText))
             {
-                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                var root = GetRootPanel();
+                if (root == null) return MeasureOutput.Make(textWidth, textHeight);
+                var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
                 var textSize = DrawCommands.MeasureText(measureText, fontSize, font);
                 textWidth = textSize.X;
                 textHeight = textSize.Y > 0 ? textSize.Y : fontSize;

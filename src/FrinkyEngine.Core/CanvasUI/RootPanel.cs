@@ -62,7 +62,7 @@ public class RootPanel : Panel
         _inlineStyleSheets.Clear();
         _assetStyleSheets.Clear();
         _styleRules.Clear();
-        MarkLayoutDirty();
+        MarkStylesDirty();
     }
 
     public Vector2 MousePosition => InputManager.MousePosition;
@@ -115,8 +115,8 @@ public class RootPanel : Panel
     private static void TickRecursive(Panel panel, float dt)
     {
         panel.Tick(dt);
-        foreach (var child in panel.Children)
-            TickRecursive(child, dt);
+        for (int i = 0; i < panel.Children.Count; i++)
+            TickRecursive(panel.Children[i], dt);
     }
 
     private bool ResolveStylesRecursive(Panel panel, ComputedStyle? parentStyle = null)
@@ -125,8 +125,8 @@ public class RootPanel : Panel
         bool changed = !panel.ComputedStyle.Equals(resolved);
         panel.ComputedStyle = resolved;
 
-        foreach (var child in panel.Children)
-            changed |= ResolveStylesRecursive(child, panel.ComputedStyle);
+        for (int i = 0; i < panel.Children.Count; i++)
+            changed |= ResolveStylesRecursive(panel.Children[i], panel.ComputedStyle);
 
         return changed;
     }
@@ -139,8 +139,8 @@ public class RootPanel : Panel
         float h = panel.YogaNode.LayoutHeight;
         panel.Box = new Box(x, y, w, h);
 
-        foreach (var child in panel.Children)
-            ReadLayoutRecursive(child, x, y, panel.ScrollOffsetY);
+        for (int i = 0; i < panel.Children.Count; i++)
+            ReadLayoutRecursive(panel.Children[i], x, y, panel.ScrollOffsetY);
     }
 
     public void ResetInput()
@@ -165,7 +165,7 @@ public class RootPanel : Panel
             SetBindingContext(bindingContext);
 
         var created = CanvasMarkupLoader.LoadIntoParent(this, this, markup);
-        MarkLayoutDirty();
+        MarkStylesDirty();
         BindingManager.NotifyBindingsChanged();
         return created;
     }
@@ -190,6 +190,11 @@ public class RootPanel : Panel
     internal void MarkLayoutDirty()
     {
         _layoutDirty = true;
+    }
+
+    internal void MarkStylesDirty()
+    {
+        _layoutDirty = true;
         _stylesDirty = true;
     }
 
@@ -197,6 +202,8 @@ public class RootPanel : Panel
     {
         InputManager.Reset();
         BindingManager.Clear();
+        CanvasBindingManager.ClearSourcePropertyCache();
+        CanvasEventBinder.ClearCaches();
         _hotReloadService.Clear();
         DeleteChildren();
         Renderer.Shutdown();
@@ -212,7 +219,7 @@ public class RootPanel : Panel
             TryAppendStyleRules(entry.Css);
 
         StyleResolver.SortRules(_styleRules);
-        MarkLayoutDirty();
+        MarkStylesDirty();
     }
 
     private void TryAppendStyleRules(string css)

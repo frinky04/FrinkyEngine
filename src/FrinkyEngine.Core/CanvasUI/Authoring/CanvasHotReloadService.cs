@@ -6,6 +6,7 @@ internal sealed class CanvasHotReloadService
     private readonly List<(string Path, Action<string> Callback)> _pendingCallbacks = new();
     private readonly List<(string Path, WatchedFile Entry)> _updates = new();
     private readonly TimeSpan _debounce = TimeSpan.FromMilliseconds(180);
+    private int _frameCounter;
 
     public bool Enabled { get; set; }
 
@@ -31,6 +32,11 @@ internal sealed class CanvasHotReloadService
         if (!Enabled || _watched.Count == 0)
             return;
 
+        _frameCounter++;
+        bool pollThisFrame = _frameCounter >= 30;
+        if (pollThisFrame)
+            _frameCounter = 0;
+
         var now = DateTime.UtcNow;
         _pendingCallbacks.Clear();
         _updates.Clear();
@@ -38,14 +44,18 @@ internal sealed class CanvasHotReloadService
         foreach (var (path, entry) in _watched)
         {
             var updated = entry;
-            var currentWrite = SafeGetLastWriteUtc(path);
-            if (currentWrite > updated.LastWriteUtc)
+
+            if (pollThisFrame)
             {
-                updated = updated with
+                var currentWrite = SafeGetLastWriteUtc(path);
+                if (currentWrite > updated.LastWriteUtc)
                 {
-                    LastWriteUtc = currentWrite,
-                    PendingSinceUtc = now
-                };
+                    updated = updated with
+                    {
+                        LastWriteUtc = currentWrite,
+                        PendingSinceUtc = now
+                    };
+                }
             }
 
             if (updated.PendingSinceUtc.HasValue && now - updated.PendingSinceUtc.Value >= _debounce)

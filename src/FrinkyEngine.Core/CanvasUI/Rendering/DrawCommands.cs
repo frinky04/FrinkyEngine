@@ -5,7 +5,7 @@ namespace FrinkyEngine.Core.CanvasUI.Rendering;
 
 internal static class DrawCommands
 {
-    private const int MaxMeasureCacheEntries = 4096;
+    private const int MaxMeasureCacheEntries = 16384;
     private static readonly Dictionary<MeasureTextCacheKey, Vector2> MeasureCache = new();
 
     public static void RoundedRect(float x, float y, float w, float h, float radius, Color color)

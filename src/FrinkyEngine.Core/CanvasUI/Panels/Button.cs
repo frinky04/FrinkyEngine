@@ -71,7 +71,9 @@ public class Button : Panel
             float textHeight = fontSize;
             if (!string.IsNullOrEmpty(_text))
             {
-                var font = CanvasUI.RootPanel.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
+                var root = GetRootPanel();
+                if (root == null) return MeasureOutput.Make(textWidth, textHeight);
+                var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
                 var textSize = DrawCommands.MeasureText(_text, fontSize, font);
                 textWidth = textSize.X;
                 textHeight = textSize.Y > 0 ? textSize.Y : fontSize;

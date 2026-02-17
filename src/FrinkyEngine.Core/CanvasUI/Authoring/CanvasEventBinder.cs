@@ -9,6 +9,12 @@ internal static class CanvasEventBinder
     private static readonly HashSet<string> WarnedMissingHandlers = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<(Type ContextType, string MethodName), MethodInfo?[]> HandlerCache = new();
 
+    internal static void ClearCaches()
+    {
+        HandlerCache.Clear();
+        WarnedMissingHandlers.Clear();
+    }
+
     public static bool TryBind(Panel panel, EventInfo eventInfo, string methodName)
     {
         var handlerType = eventInfo.EventHandlerType;

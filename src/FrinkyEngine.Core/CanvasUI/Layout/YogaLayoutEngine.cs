@@ -31,11 +31,19 @@ internal class YogaLayoutEngine
             if (hasGap && i > 0)
             {
                 if (isRow)
-                    child.YogaNode.MarginLeft = YogaValue.Point(
-                        child.ComputedStyle.Margin.Left.Value + gap);
+                {
+                    var unit = child.ComputedStyle.Margin.Left.Unit;
+                    if (unit is LengthUnit.Pixels or LengthUnit.Auto)
+                        child.YogaNode.MarginLeft = YogaValue.Point(
+                            (unit == LengthUnit.Auto ? 0f : child.ComputedStyle.Margin.Left.Value) + gap);
+                }
                 else
-                    child.YogaNode.MarginTop = YogaValue.Point(
-                        child.ComputedStyle.Margin.Top.Value + gap);
+                {
+                    var unit = child.ComputedStyle.Margin.Top.Unit;
+                    if (unit is LengthUnit.Pixels or LengthUnit.Auto)
+                        child.YogaNode.MarginTop = YogaValue.Point(
+                            (unit == LengthUnit.Auto ? 0f : child.ComputedStyle.Margin.Top.Value) + gap);
+                }
             }
         }
     }

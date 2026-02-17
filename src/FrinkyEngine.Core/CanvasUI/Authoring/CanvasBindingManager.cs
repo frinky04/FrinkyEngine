@@ -24,6 +24,12 @@ internal sealed class CanvasBindingManager
         _contextBindings.Clear();
         _bindingsDirty = true;
         _subscriptionsDirty = true;
+        ClearSourcePropertyCache();
+    }
+
+    internal static void ClearSourcePropertyCache()
+    {
+        SourcePropertyCache.Clear();
     }
 
     public void NotifyBindingsChanged()
