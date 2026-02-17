@@ -46,8 +46,8 @@ internal sealed class CanvasBindingManager
 
     public void RemoveBindingsForSubtree(Panel root)
     {
-        _propertyBindings.RemoveAll(b => IsSameOrDescendant(b.TargetPanel, root));
-        _contextBindings.RemoveAll(b => IsSameOrDescendant(b.TargetPanel, root));
+        _propertyBindings.RemoveAll(b => Panel.IsSameOrDescendant(b.TargetPanel, root));
+        _contextBindings.RemoveAll(b => Panel.IsSameOrDescendant(b.TargetPanel, root));
         _bindingsDirty = true;
         _subscriptionsDirty = true;
     }
@@ -199,16 +199,6 @@ internal sealed class CanvasBindingManager
         if (panel is RootPanel)
             return true;
         return panel.Parent != null;
-    }
-
-    private static bool IsSameOrDescendant(Panel candidate, Panel ancestor)
-    {
-        for (Panel? current = candidate; current != null; current = current.Parent)
-        {
-            if (ReferenceEquals(current, ancestor))
-                return true;
-        }
-        return false;
     }
 
     private readonly record struct PropertyBinding(

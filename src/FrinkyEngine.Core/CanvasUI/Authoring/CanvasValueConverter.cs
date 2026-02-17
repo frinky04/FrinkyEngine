@@ -79,7 +79,7 @@ internal static class CanvasValueConverter
             if (effectiveTarget.IsEnum)
             {
                 if (sourceValue is string s &&
-                    Enum.TryParse(effectiveTarget, NormalizeCssIdent(s), true, out object? enumValue))
+                    Enum.TryParse(effectiveTarget, ToPascalCase(s), true, out object? enumValue))
                 {
                     converted = enumValue;
                     return true;
@@ -144,11 +144,11 @@ internal static class CanvasValueConverter
         return false;
     }
 
-    public static string NormalizeCssIdent(string cssIdent)
+    internal static string ToPascalCase(string raw)
     {
-        var parts = cssIdent.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        var parts = raw.Split(new[] { '-', '_', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
-            return cssIdent;
+            return raw;
         return string.Concat(parts.Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
     }
 }

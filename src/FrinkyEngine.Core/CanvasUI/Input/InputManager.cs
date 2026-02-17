@@ -21,19 +21,19 @@ internal class InputManager
 
     public void NotifyPanelRemoved(Panel panel)
     {
-        if (_hoveredPanel != null && IsSameOrDescendant(_hoveredPanel, panel))
+        if (_hoveredPanel != null && Panel.IsSameOrDescendant(_hoveredPanel, panel))
         {
             _hoveredPanel.PseudoClasses &= ~PseudoClassFlags.Hover;
             _hoveredPanel = null;
         }
 
-        if (_activePanel != null && IsSameOrDescendant(_activePanel, panel))
+        if (_activePanel != null && Panel.IsSameOrDescendant(_activePanel, panel))
         {
             _activePanel.PseudoClasses &= ~PseudoClassFlags.Active;
             _activePanel = null;
         }
 
-        if (_focusedPanel != null && IsSameOrDescendant(_focusedPanel, panel))
+        if (_focusedPanel != null && Panel.IsSameOrDescendant(_focusedPanel, panel))
         {
             var blurred = _focusedPanel;
             blurred.PseudoClasses &= ~PseudoClassFlags.Focus;
@@ -181,16 +181,6 @@ internal class InputManager
                 ch = Raylib.GetCharPressed();
             }
         }
-    }
-
-    private static bool IsSameOrDescendant(Panel candidate, Panel ancestor)
-    {
-        for (Panel? current = candidate; current != null; current = current.Parent)
-        {
-            if (ReferenceEquals(current, ancestor))
-                return true;
-        }
-        return false;
     }
 
     private static Panel? HitTest(Panel panel, float x, float y, Box? inheritedClip = null)

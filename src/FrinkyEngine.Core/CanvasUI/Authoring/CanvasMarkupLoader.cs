@@ -148,7 +148,7 @@ internal static class CanvasMarkupLoader
         if (string.IsNullOrWhiteSpace(suffix))
             return;
 
-        string eventName = "On" + ToPascalCase(suffix);
+        string eventName = "On" + CanvasValueConverter.ToPascalCase(suffix);
         var evt = panel.GetType().GetEvent(
             eventName,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase);
@@ -165,7 +165,7 @@ internal static class CanvasMarkupLoader
 
     private static PropertyInfo? ResolvePanelProperty(Type panelType, string attributeName)
     {
-        string candidate = ToPascalCase(attributeName);
+        string candidate = CanvasValueConverter.ToPascalCase(attributeName);
         return panelType.GetProperty(
             candidate,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase);
@@ -216,12 +216,4 @@ internal static class CanvasMarkupLoader
         return "(line unknown)";
     }
 
-    private static string ToPascalCase(string raw)
-    {
-        var parts = raw
-            .Split(new[] { '-', '_', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
-            return raw;
-        return string.Concat(parts.Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
-    }
 }

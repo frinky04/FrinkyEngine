@@ -36,20 +36,8 @@ public class Image : Panel
     private void SetMeasureFunction()
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
-        {
-            float intrinsicW = _texture?.Width ?? 0;
-            float intrinsicH = _texture?.Height ?? 0;
-
-            float w = widthMode == YogaMeasureMode.Exactly ? width
-                    : widthMode == YogaMeasureMode.AtMost ? MathF.Min(intrinsicW, width)
-                    : intrinsicW;
-
-            float h = heightMode == YogaMeasureMode.Exactly ? height
-                    : heightMode == YogaMeasureMode.AtMost ? MathF.Min(intrinsicH, height)
-                    : intrinsicH;
-
-            return MeasureOutput.Make(w, h);
-        });
+            ResolveMeasure(_texture?.Width ?? 0, _texture?.Height ?? 0,
+                width, widthMode, height, heightMode));
         InvalidateLayout();
     }
 }

@@ -85,28 +85,13 @@ public class Checkbox : Panel
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {
-            float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
+            var (fontSize, font) = GetMeasureFont();
             float gap = fontSize * 0.4f;
             float textWidth = 0f;
             if (!string.IsNullOrEmpty(_text))
-            {
-                var root = GetRootPanel();
-                if (root == null) return MeasureOutput.Make(fontSize, fontSize);
-                var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
                 textWidth = DrawCommands.MeasureText(_text, fontSize, font).X;
-            }
             float totalWidth = fontSize + (textWidth > 0 ? gap + textWidth : 0);
-            float totalHeight = fontSize;
-
-            float w = widthMode == YogaMeasureMode.Exactly ? width
-                    : widthMode == YogaMeasureMode.AtMost ? MathF.Min(totalWidth, width)
-                    : totalWidth;
-
-            float h = heightMode == YogaMeasureMode.Exactly ? height
-                    : heightMode == YogaMeasureMode.AtMost ? MathF.Min(totalHeight, height)
-                    : totalHeight;
-
-            return MeasureOutput.Make(w, h);
+            return ResolveMeasure(totalWidth, fontSize, width, widthMode, height, heightMode);
         });
         InvalidateLayout();
     }

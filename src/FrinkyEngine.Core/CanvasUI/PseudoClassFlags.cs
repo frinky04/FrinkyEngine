@@ -8,7 +8,5 @@ public enum PseudoClassFlags
     Active = 1 << 1,
     Focus = 1 << 2,
     Disabled = 1 << 3,
-    Intro = 1 << 4,
-    Outro = 1 << 5,
-    Checked = 1 << 6,
+    Checked = 1 << 4,
 }

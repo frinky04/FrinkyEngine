@@ -327,29 +327,17 @@ public class TextEntry : Panel
     {
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
         {
-            float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
+            var (fontSize, font) = GetMeasureFont();
             string measureText = !string.IsNullOrEmpty(_text) ? _text : Placeholder;
             float textWidth = fontSize * 5;
             float textHeight = fontSize;
             if (!string.IsNullOrEmpty(measureText))
             {
-                var root = GetRootPanel();
-                if (root == null) return MeasureOutput.Make(textWidth, textHeight);
-                var font = root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily);
                 var textSize = DrawCommands.MeasureText(measureText, fontSize, font);
                 textWidth = textSize.X;
                 textHeight = textSize.Y > 0 ? textSize.Y : fontSize;
             }
-
-            float w = widthMode == YogaMeasureMode.Exactly ? width
-                    : widthMode == YogaMeasureMode.AtMost ? MathF.Min(textWidth, width)
-                    : textWidth;
-
-            float h = heightMode == YogaMeasureMode.Exactly ? height
-                    : heightMode == YogaMeasureMode.AtMost ? MathF.Min(textHeight, height)
-                    : textHeight;
-
-            return MeasureOutput.Make(w, h);
+            return ResolveMeasure(textWidth, textHeight, width, widthMode, height, heightMode);
         });
         InvalidateLayout();
     }

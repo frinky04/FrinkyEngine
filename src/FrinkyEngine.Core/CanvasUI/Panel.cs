@@ -1,5 +1,6 @@
 using Facebook.Yoga;
 using FrinkyEngine.Core.CanvasUI.Events;
+using FrinkyEngine.Core.CanvasUI.Rendering;
 using FrinkyEngine.Core.CanvasUI.Styles;
 
 namespace FrinkyEngine.Core.CanvasUI;
@@ -212,6 +213,40 @@ public class Panel
     public virtual void OnCreated() { }
     public virtual void OnDeleted() { }
     public virtual void Tick(float dt) { }
+
+    internal static YogaSize ResolveMeasure(
+        float contentW, float contentH,
+        float width, YogaMeasureMode widthMode,
+        float height, YogaMeasureMode heightMode)
+    {
+        float w = widthMode == YogaMeasureMode.Exactly ? width
+                : widthMode == YogaMeasureMode.AtMost ? MathF.Min(contentW, width)
+                : contentW;
+        float h = heightMode == YogaMeasureMode.Exactly ? height
+                : heightMode == YogaMeasureMode.AtMost ? MathF.Min(contentH, height)
+                : contentH;
+        return MeasureOutput.Make(w, h);
+    }
+
+    internal (float fontSize, Raylib_cs.Font font) GetMeasureFont()
+    {
+        float fontSize = ComputedStyle.FontSize > 0 ? ComputedStyle.FontSize : 16f;
+        var root = GetRootPanel();
+        var font = root != null
+            ? root.Renderer.FontManager.GetFont(ComputedStyle.FontFamily)
+            : Raylib_cs.Raylib.GetFontDefault();
+        return (fontSize, font);
+    }
+
+    internal static bool IsSameOrDescendant(Panel candidate, Panel ancestor)
+    {
+        for (Panel? current = candidate; current != null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, ancestor))
+                return true;
+        }
+        return false;
+    }
 
     // Internal event dispatchers
     internal void RaiseClick(MouseEvent e) => OnClick?.Invoke(e);

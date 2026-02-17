@@ -53,20 +53,7 @@ public class Slider : Panel
         };
 
         YogaNode.SetMeasureFunction((node, width, widthMode, height, heightMode) =>
-        {
-            float minW = 100f;
-            float minH = 20f;
-
-            float w = widthMode == YogaMeasureMode.Exactly ? width
-                    : widthMode == YogaMeasureMode.AtMost ? MathF.Min(minW, width)
-                    : minW;
-
-            float h = heightMode == YogaMeasureMode.Exactly ? height
-                    : heightMode == YogaMeasureMode.AtMost ? MathF.Min(minH, height)
-                    : minH;
-
-            return MeasureOutput.Make(w, h);
-        });
+            ResolveMeasure(100f, 20f, width, widthMode, height, heightMode));
     }
 
     public override void Tick(float dt)
