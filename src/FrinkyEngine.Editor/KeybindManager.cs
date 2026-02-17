@@ -66,6 +66,7 @@ public class KeybindManager
             [EditorAction.FrameSelected] = new Keybind(ImGuiKey.F),
             [EditorAction.ToggleColliderEditMode] = new Keybind(ImGuiKey.F9),
             [EditorAction.ToggleBonePreview] = new Keybind(ImGuiKey.F10),
+            [EditorAction.ToggleFullscreenViewport] = new Keybind(ImGuiKey.F11),
         };
     }
 
@@ -118,7 +119,8 @@ public class KeybindManager
             or EditorAction.DeselectEntity
             or EditorAction.TogglePhysicsHitboxPreview
             or EditorAction.ToggleColliderEditMode
-            or EditorAction.ToggleBonePreview;
+            or EditorAction.ToggleBonePreview
+            or EditorAction.ToggleFullscreenViewport;
     }
 
     public Keybind GetBinding(EditorAction action) =>
